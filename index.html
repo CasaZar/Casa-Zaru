@@ -336,7 +336,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
         <th>Pedido</th><th>Envío</th><th>Comprador</th><th>Apellido</th>
         <th>Producto</th><th>Cant.</th><th>Madera</th>
         <th>Largo</th><th>Ancho</th><th>Canto</th><th>Acabado</th>
-        <th>Espesor</th><th>Observaciones</th><th>M²</th>
+        <th>Espesor</th><th>Observaciones</th><th>M²</th><th></th>
       </tr></thead>
       <tbody id="prod-tbody"><tr><td colspan="14" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr></tbody>
     </table>
@@ -925,28 +925,65 @@ async function confirmOrder(){
   renderProd();updateProdStats();renderFin();
 }
 function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';}
+const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
+const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO','TEÑIDO CHOCOLATE 3 MANOS'];
 function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return isNaN(m)?0:m;}
+
+async function updateProdField(oi,field,val,li){
+  if(li===undefined){prodOrders[oi][field]=val;}
+  else{prodOrders[oi].lineas[li][field]=val;}
+  // recalc m2 si corresponde
+  if(['largo','ancho','cantidad'].includes(field)){
+    const l=prodOrders[oi].lineas[li];
+    const m2=calcM2(l.largo,l.ancho,l.cantidad);
+    const el=document.getElementById(`pm2-${oi}-${li}`);
+    if(el)el.textContent=m2>0?m2.toFixed(2):'';
+  }
+  // guardar en firebase
+  if(DB_URL&&prodOrders[oi].fbKey){
+    try{await api('produccion/'+prodOrders[oi].fbKey,'PUT',prodOrders[oi]);}catch(e){}
+  }
+}
+
+async function deleteProdOrder(oi){
+  if(!confirm('¿Eliminar este pedido de producción?'))return;
+  const o=prodOrders[oi];
+  if(DB_URL&&o.fbKey){try{await api('produccion/'+o.fbKey,'DELETE');}catch(e){}}
+  prodOrders.splice(oi,1);
+  renderProd();updateProdStats();
+  showToast('✓ Pedido eliminado');
+}
+
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
-  if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="14" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
-  tbody.innerHTML=prodOrders.map(o=>{return(o.lineas||[]).map((l,li)=>{
+  if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
+  const mOpts=MADERAS.map(m=>`<option>${m}</option>`).join('');
+  const cOpts=CANTOS_PROD.map(c=>`<option>${c}</option>`).join('');
+  const aOpts=ACABADOS_PROD.map(a=>`<option>${a}</option>`).join('');
+  tbody.innerHTML=prodOrders.map((o,oi)=>{return(o.lineas||[]).map((l,li)=>{
     const isFirst=li===0;
     const m2=calcM2(l.largo,l.ancho,l.cantidad);
+    const mOptsS=MADERAS.map(m=>`<option${m===l.madera?' selected':''}>${m}</option>`).join('');
+    const cOptsS=CANTOS_PROD.map(c=>`<option${c===l.canto?' selected':''}>${c}</option>`).join('');
+    const aOptsS=ACABADOS_PROD.map(a=>`<option${a===l.acabado?' selected':''}>${a}</option>`).join('');
+    const inStyle='background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:12px;font-family:\'DM Sans\',sans-serif;color:var(--text);width:100%;outline:none;';
+    const inFocus='onfocus="this.style.borderBottomColor=\'var(--wood-light)\';this.style.background=\'#fff\'" onblur="this.style.borderBottomColor=\'transparent\';this.style.background=\'transparent\'"';
     return`<tr class="${isFirst?'group-first':''}">
-      <td>${isFirst?`<span class="ped-num">${o.pedido}</span>`:''}</td>
-      <td>${isFirst?`<span class="envio-tag">${o.envio||'—'}</span>`:''}</td>
-      <td>${isFirst?`<strong style="font-size:12px;color:var(--wood)">${o.comprador||''}</strong>`:''}</td>
-      <td>${isFirst?`<span style="font-size:11px;color:var(--text-muted)">${o.apellido||''}</span>`:''}</td>
-      <td>${l.producto||'—'}</td>
-      <td style="text-align:center">${l.cantidad||1}</td>
-      <td><span class="tag-m">${l.madera||'—'}</span></td>
-      <td style="font-size:12px;font-weight:700">${l.largo||''}</td>
-      <td style="font-size:12px;font-weight:700">${l.ancho||''}</td>
-      <td><span class="tag-m" style="background:var(--beige);color:var(--text);border-color:var(--border)">${l.canto||'—'}</span></td>
-      <td style="font-size:11px;color:var(--text-muted)">${l.acabado||'—'}</td>
-      <td style="text-align:center;font-size:12px">${l.espesor||''}</td>
-      <td style="font-size:11px;color:var(--text-muted);max-width:160px">${l.observaciones||''}</td>
-      <td style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted)">${m2>0?m2.toFixed(2):''}</td>
+      <td>${isFirst?`<input style="${inStyle}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:70px" value="${o.pedido||''}" ${inFocus} onchange="updateProdField(${oi},'pedido',this.value)">`:''}</td>
+      <td>${isFirst?`<input style="${inStyle}font-size:11px;width:110px" value="${o.envio||''}" ${inFocus} onchange="updateProdField(${oi},'envio',this.value)">`:''}</td>
+      <td>${isFirst?`<input style="${inStyle}font-weight:600;color:var(--wood);width:90px" value="${o.comprador||''}" ${inFocus} onchange="updateProdField(${oi},'comprador',this.value)">`:''}</td>
+      <td>${isFirst?`<input style="${inStyle}width:90px" value="${o.apellido||''}" ${inFocus} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td>
+      <td><input style="${inStyle}min-width:120px" value="${l.producto||''}" ${inFocus} onchange="updateProdField(${oi},'producto',this.value,${li})"></td>
+      <td><input type="number" style="${inStyle}width:45px;text-align:center" value="${l.cantidad||1}" ${inFocus} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td>
+      <td><select style="${inStyle}" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td>
+      <td><input type="number" style="${inStyle}width:55px;font-weight:700" value="${l.largo||''}" ${inFocus} onchange="updateProdField(${oi},'largo',this.value,${li})"></td>
+      <td><input type="number" style="${inStyle}width:55px;font-weight:700" value="${l.ancho||''}" ${inFocus} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td>
+      <td><select style="${inStyle}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td>
+      <td><select style="${inStyle}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td>
+      <td><input type="number" step="0.5" style="${inStyle}width:50px;text-align:center" value="${l.espesor||4}" ${inFocus} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td>
+      <td><input style="${inStyle}min-width:150px" value="${l.observaciones||''}" ${inFocus} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td>
+      <td id="pm2-${oi}-${li}" style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td>
+      ${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}
     </tr>`;
   }).join('');}).join('');
 }
