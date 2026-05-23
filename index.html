@@ -368,7 +368,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
         <th>Dirección envío</th><th>Medio pago</th><th>Documento</th>
         <th>¿Cómo nos conoció?</th>
         <th>Abono 1</th><th>Abono 2</th><th>Abono 3</th>
-        <th>Comisión</th><th>Envío</th>
+        <th>Valor producto</th><th>Envío</th><th>Comisión</th>
         <th>Total c/env+com</th><th>Sin com/env</th><th>Sin IVA</th>
         <th>Pendiente</th>
         <th>Doc. 1</th><th>Doc. 2</th>
@@ -768,12 +768,12 @@ Devuelve SOLO JSON válido sin markdown ni backticks:
   }
 }
 
-REGLAS FINANZAS:
-- El mensaje de César siempre muestra el valor. Busca "Valor: $X", "Valor Total: $X", "70% = $X", "30% = $X", "*Valor Total  :"
-- valor_producto = precio del mueble/producto sin envío
-- valor_envio = costo de despacho/envío (si dice "Envío: $X")
-- valor_comision = comisión por link de pago (si dice "3% comisión" o similar, calcúlalo)
-- Si ves "70% = $X" eso es abono1, si ves "30% = $X" eso es abono2
+REGLAS FINANZAS — MUY IMPORTANTE:
+- valor_producto = precio del mueble/producto SIN envío ni comisión. Busca "Valor: $X" o "Valor Total: $X" (sin envío)
+- valor_envio = costo de despacho. Busca "Envío: $X". Si dice "retira" o no hay envío, poner 0
+- valor_comision = comisión por link de pago. Si dice "3% comisión" o "*Valor Total : $X ($Y con 3% comisión de pago)", calcúlalo como la diferencia
+- El "*Valor Total" con asterisco generalmente ya incluye envío+comisión — NO uses ese como valor_producto
+- Si ves "70%: $X" ese es el abono1 esperado
 - La dirección suele aparecer en el mensaje reenviado del cliente junto al nombre completo y teléfono`}
       ]}]})
     });
@@ -893,11 +893,11 @@ async function confirmOrder(){
     rut:cli.rut||'',
     direccion:cli.direccion||'',
     producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
-    medio_pago:fin.medio_pago||'BCI',
+    medio_pago:fin.medio_pago||'TRANSFERENCIA',
     como:'',
     val_prod:vp,val_envio:ve,val_comision:vc,
     total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,
-    abono1:Number(fin.abono1)||abono,abono2:0,abono3:0,
+    abono1:0,abono2:0,abono3:0,
     doc1_tipo:'BOLETA',doc2_tipo:'BOLETA',
     doc1_num:'',doc2_num:'',
     doc1_emitida:false,doc2_emitida:false,
@@ -1097,7 +1097,7 @@ function renderFin(){
           <option value="FACTURA"${r.doc1_tipo==='FACTURA'?' selected':''}>Factura</option>
         </select>
       </td>
-      <td style="background:${rowBg}"><input style="${iS}min-width:100px" value="${r.como||''}" placeholder="Instagram..." ${iF} onchange="${upFin('como',0)}"></td>
+      <td style="background:${rowBg}"><input style="${iS}min-width:100px" value="${r.como||''}" placeholder="¿Cómo?" ${iF} onchange="${upFin('como',0)}"></td>
       <td style="background:${rowBg}">
         <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.abono1)}</div>
         <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.abono1||0}" onchange="${upFinNum('abono1')}">
@@ -1111,12 +1111,16 @@ function renderFin(){
         <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.abono3||0}" onchange="${upFinNum('abono3')}">
       </td>
       <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.val_comision)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_comision||0}" onchange="finRecords[${idx}].val_comision=Number(this.value);finRecords[${idx}].total=(Number(finRecords[${idx}].val_prod)||0)+(Number(finRecords[${idx}].val_envio)||0)+Number(this.value);recalcFin(${idx})">
+        <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.val_prod)}</div>
+        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_prod||0}" onchange="finRecords[${idx}].val_prod=Number(this.value);finRecords[${idx}].total=(Number(this.value))+(Number(finRecords[${idx}].val_envio)||0)+(Number(finRecords[${idx}].val_comision)||0);finRecords[${idx}].sin_com=(Number(this.value))+(Number(finRecords[${idx}].val_envio)||0);finRecords[${idx}].sin_iva=Math.round(finRecords[${idx}].sin_com/1.19);saveFinLocal();renderFin()">
       </td>
       <td style="background:${rowBg}">
         <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.val_envio)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_envio||0}" onchange="finRecords[${idx}].val_envio=Number(this.value);finRecords[${idx}].total=(Number(finRecords[${idx}].val_prod)||0)+Number(this.value)+(Number(finRecords[${idx}].val_comision)||0);recalcFin(${idx})">
+        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_envio||0}" onchange="finRecords[${idx}].val_envio=Number(this.value);finRecords[${idx}].total=(Number(finRecords[${idx}].val_prod)||0)+(Number(this.value))+(Number(finRecords[${idx}].val_comision)||0);finRecords[${idx}].sin_com=(Number(finRecords[${idx}].val_prod)||0)+(Number(this.value));finRecords[${idx}].sin_iva=Math.round(finRecords[${idx}].sin_com/1.19);saveFinLocal();renderFin()">
+      </td>
+      <td style="background:${rowBg}">
+        <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.val_comision)}</div>
+        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_comision||0}" onchange="finRecords[${idx}].val_comision=Number(this.value);finRecords[${idx}].total=(Number(finRecords[${idx}].val_prod)||0)+(Number(finRecords[${idx}].val_envio)||0)+(Number(this.value));saveFinLocal();renderFin()">
       </td>
       <td style="background:${rowBg}">
         <div class="monto verde" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.total)}</div>
