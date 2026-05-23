@@ -1118,7 +1118,10 @@ function renderFin(){
         <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.val_envio)}</div>
         <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_envio||0}" onchange="finRecords[${idx}].val_envio=Number(this.value);finRecords[${idx}].total=(Number(finRecords[${idx}].val_prod)||0)+Number(this.value)+(Number(finRecords[${idx}].val_comision)||0);recalcFin(${idx})">
       </td>
-      <td style="background:${rowBg}"><span class="monto verde">${fmtCLP(r.total)}</span></td>
+      <td style="background:${rowBg}">
+        <div class="monto verde" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.total)}</div>
+        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.total||0}" onchange="finRecords[${idx}].total=Number(this.value);finRecords[${idx}].sin_com=Number(this.value)-(Number(finRecords[${idx}].val_comision)||0);finRecords[${idx}].sin_iva=Math.round(finRecords[${idx}].sin_com/1.19);saveFinLocal();renderFin()">
+      </td>
       <td style="background:${rowBg}"><span class="monto" style="font-size:12px">${fmtCLP(r.sin_com)}</span></td>
       <td style="background:${rowBg}"><span class="monto" style="font-size:12px">${fmtCLP(r.sin_iva)}</span></td>
       <td style="background:${rowBg}"><span class="monto ${pendiente>0?'rojo':''}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td>
