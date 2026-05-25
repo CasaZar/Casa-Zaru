@@ -364,6 +364,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
       <button class="filter-btn" onclick="setFinFilter('listo',this)">Listos</button>
     </div>
     <div style="display:flex;gap:8px">
+      <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);font-size:12px">⟳ Sincronizar</button>
       <button class="tbtn" onclick="exportFinCSV()">↓ CSV</button>
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
     </div>
@@ -1043,16 +1044,59 @@ function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return 
 async function updateProdField(oi,field,val,li){
   if(li===undefined){prodOrders[oi][field]=val;}
   else{prodOrders[oi].lineas[li][field]=val;}
-  // recalc m2 si corresponde
-  if(['largo','ancho','cantidad'].includes(field)){
+  // recalc m2
+  if(['largo','ancho','cantidad'].includes(field)&&li!==undefined){
     const l=prodOrders[oi].lineas[li];
     const m2=calcM2(l.largo,l.ancho,l.cantidad);
     const el=document.getElementById(`pm2-${oi}-${li}`);
     if(el)el.textContent=m2>0?m2.toFixed(2):'';
   }
-  // guardar en firebase
+  // guardar en firebase produccion
   if(DB_URL&&prodOrders[oi].fbKey){
     try{await api('produccion/'+prodOrders[oi].fbKey,'PUT',prodOrders[oi]);}catch(e){}
+  }
+  // Si cambia dato maestro (pedido, nombre, semana, apellido, producto) → sincronizar otras páginas
+  if(['pedido','comprador','apellido','envio'].includes(field)||li===undefined){
+    const o=prodOrders[oi];
+    const numStr=String(o.pedido||'');
+    const piezas=(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0);
+    const prod=(o.lineas&&o.lineas[0])?o.lineas[0].producto:'';
+    // Seguimiento
+    if(DB_URL){
+      const existSeg=orders.find(x=>String(x.num||'')===numStr);
+      if(existSeg){
+        await api('pedidos/'+existSeg.fbKey,'PATCH',{num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:prod,piezas});
+        await poll();
+      }
+    }
+    // Finanzas
+    const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
+    if(existFinIdx>=0){
+      finRecords[existFinIdx].num=numStr;
+      finRecords[existFinIdx].semana=o.envio||'';
+      finRecords[existFinIdx].nombre=o.comprador||'';
+      finRecords[existFinIdx].apellido=o.apellido||'';
+      finRecords[existFinIdx].producto=prod;
+      saveFinLocal();
+    }
+    // Pixel
+    const orderId='WTSP'+numStr;
+    const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
+    if(existPixelIdx>=0){
+      pixelRecords[existPixelIdx].fn=fmtName(o.comprador||'');
+      pixelRecords[existPixelIdx].ln=fmtName(o.apellido||'');
+      savePixelLocal();
+    }
+    // Costos
+    const existCostIdx=costRecords.findIndex(r=>String(r.num||'')===numStr);
+    if(existCostIdx>=0){
+      costRecords[existCostIdx].num=numStr;
+      costRecords[existCostIdx].semana=o.envio||'';
+      costRecords[existCostIdx].nombre=o.comprador||'';
+      costRecords[existCostIdx].apellido=o.apellido||'';
+      costRecords[existCostIdx].producto=prod;
+      saveCostLocal();
+    }
   }
 }
 
@@ -1272,6 +1316,35 @@ function recalcFin(idx){
   r.sin_iva=Math.round(r.sin_com/1.19);
   if(total) r.total=total;
   saveFinLocal();renderFin();
+}
+async function syncFinFromProd(){
+  if(!prodOrders.length){showToast('No hay pedidos en Producción');return;}
+  let creados=0,actualizados=0;
+  for(const o of prodOrders){
+    const numStr=String(o.pedido||'');
+    const prod=(o.lineas&&o.lineas[0])?o.lineas[0].producto:'';
+    const existIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
+    if(existIdx>=0){
+      // Actualizar solo datos maestros, respetar valores financieros
+      finRecords[existIdx].num=numStr;
+      finRecords[existIdx].semana=o.envio||'';
+      finRecords[existIdx].nombre=o.comprador||'';
+      finRecords[existIdx].apellido=o.apellido||'';
+      finRecords[existIdx].producto=prod;
+      actualizados++;
+    } else {
+      finRecords.push({
+        num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',
+        producto:prod,email:'',celular:'',rut:'',direccion:'',medio_pago:'TRANSFERENCIA',como:'',
+        val_prod:0,val_envio:0,val_comision:0,total:0,abono_monto:0,saldo_monto:0,sin_com:0,sin_iva:0,
+        abono1:0,abono2:0,abono3:0,doc1_tipo:'BOLETA',doc2_tipo:'BOLETA',
+        doc1_num:'',doc2_num:'',doc1_emitida:false,doc2_emitida:false,fecha:todayStr
+      });
+      creados++;
+    }
+  }
+  await saveFinLocal();renderFin();
+  showToast('✓ Finanzas: '+creados+' creados, '+actualizados+' actualizados');
 }
 function openFinModal(idx){
   editingFinIdx=(idx!==undefined)?idx:null;
