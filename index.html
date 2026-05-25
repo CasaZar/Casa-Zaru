@@ -1055,13 +1055,17 @@ async function updateProdField(oi,field,val,li){
   if(DB_URL&&prodOrders[oi].fbKey){
     try{await api('produccion/'+prodOrders[oi].fbKey,'PUT',prodOrders[oi]);}catch(e){}
   }
-  // Si cambia dato maestro (pedido, nombre, semana, apellido, producto) → sincronizar otras páginas
+  // Si cambia dato maestro → sincronizar otras páginas
   if(['pedido','comprador','apellido','envio'].includes(field)||li===undefined){
     const o=prodOrders[oi];
     const numStr=String(o.pedido||'');
     const piezas=(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0);
     const prod=(o.lineas&&o.lineas[0])?o.lineas[0].producto:'';
-    // Seguimiento
+
+    // Si cambió el N° de pedido, guardar el número viejo para limpiar duplicados
+    const oldNums=prodOrders.map((p,i)=>i!==oi?String(p.pedido||''):'').filter(Boolean);
+
+    // Seguimiento — actualizar si existe con este num
     if(DB_URL){
       const existSeg=orders.find(x=>String(x.num||'')===numStr);
       if(existSeg){
@@ -1069,7 +1073,7 @@ async function updateProdField(oi,field,val,li){
         await poll();
       }
     }
-    // Finanzas
+    // Finanzas — actualizar y eliminar duplicados con mismo nombre/semana
     const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
     if(existFinIdx>=0){
       finRecords[existFinIdx].num=numStr;
@@ -1077,6 +1081,12 @@ async function updateProdField(oi,field,val,li){
       finRecords[existFinIdx].nombre=o.comprador||'';
       finRecords[existFinIdx].apellido=o.apellido||'';
       finRecords[existFinIdx].producto=prod;
+      // Eliminar duplicados: misma combinación nombre+apellido+semana pero distinto num
+      finRecords=finRecords.filter((r,i)=>{
+        if(i===existFinIdx) return true;
+        if(r.nombre===o.comprador&&r.apellido===o.apellido&&r.semana===(o.envio||'')&&String(r.num||'')!==numStr) return false;
+        return true;
+      });
       saveFinLocal();
     }
     // Pixel
@@ -1502,7 +1512,10 @@ function renderPixel(){
       <td class="${rowCls}">${r.value||'—'}</td>
       <td class="${rowCls}">CLP</td>
       <td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option></select></td>
-      <td class="${rowCls}"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button></td>
+      <td class="${rowCls}" style="display:flex;gap:4px;align-items:center">
+        <button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button>
+        <button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="if(confirm('¿Eliminar?')){pixelRecords.splice(${idx},1);savePixelLocal();renderPixel();showToast('✓ Eliminado')}">🗑</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1653,6 +1666,7 @@ function renderCost(){
             <div style="font-family:'DM Serif Display',serif;font-size:18px;color:${margenColor}">${margen}%</div>
           </div>
           <span style="color:var(--text-muted);font-size:18px" id="cost-arrow-${idx}">▸</span>
+          <button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();if(confirm('¿Eliminar registro de costos?')){costRecords.splice(${idx},1);saveCostLocal();renderCost();showToast('✓ Eliminado')}">🗑</button>
         </div>
       </div>
       <div class="cost-card-body" id="cost-body-${idx}">
