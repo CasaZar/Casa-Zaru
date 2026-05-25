@@ -256,7 +256,10 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
       <button class="filter-btn" onclick="setSegFilter('pendiente',this)">Con pendientes</button>
       <button class="filter-btn" onclick="setSegFilter('completado',this)">Completados</button>
     </div>
-    <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
+    <div style="display:flex;gap:8px">
+      <button class="tbtn" onclick="syncFromProd()" style="background:var(--amber);font-size:12px">⟳ Sincronizar desde Producción</button>
+      <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
+    </div>
   </div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="seg-search" placeholder="Buscar por cliente, N° pedido, semana..." oninput="renderSeg()">
@@ -662,6 +665,40 @@ function openModal(fbKey){
 }
 function syncChk(cid){document.getElementById('ci-'+cid).classList.toggle('checked',document.getElementById('cb-'+cid).checked);}
 function closeModal(){document.getElementById('modal-seg-bg').classList.remove('open');editingKey=null;}
+async function syncFromProd(){
+  if(!DB_URL){alert('Conecta Firebase primero.');return;}
+  if(!prodOrders.length){showToast('No hay pedidos en Producción');return;}
+  if(!confirm('Esto sincronizará '+prodOrders.length+' pedidos de Producción a Seguimiento.\nLos checkpoints ya marcados se conservan.\n¿Continuar?'))return;
+
+  showToast('Sincronizando...');
+  const checks={};CHECKS.forEach(c=>checks[c.id]=false);
+  let creados=0,actualizados=0;
+
+  for(const o of prodOrders){
+    const numStr=String(o.pedido||'');
+    const segData={
+      num:numStr,
+      semana:o.envio||'',
+      nombre:o.comprador||'',
+      apellido:o.apellido||'',
+      producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
+      piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),
+      notas:''
+    };
+    const existSeg=orders.find(x=>String(x.num||'')===numStr);
+    if(existSeg){
+      // actualizar datos, conservar checkpoints
+      await api('pedidos/'+existSeg.fbKey,'PATCH',segData);
+      actualizados++;
+    } else {
+      segData.checks={...checks};
+      await api('pedidos','POST',segData);
+      creados++;
+    }
+  }
+  await poll();
+  showToast('✓ '+creados+' creados, '+actualizados+' actualizados');
+}
 async function saveOrder(){
   if(!DB_URL){alert('Configura Firebase primero.');return;}
   var num=document.getElementById('f-num').value.trim(),semana=document.getElementById('f-semana').value.trim();
@@ -1136,10 +1173,9 @@ function renderFin(){
     const iF=`onfocus="this.style.borderBottomColor='var(--wood-light)';this.style.background='#fff'" onblur="this.style.borderBottomColor='transparent';this.style.background='${rowBg}'"`;
     const iS=inS+`background:${rowBg};`;
     const medioOpts=MEDIOS.map(m=>`<option${m===(r.medio_pago||'BCI')?' selected':''}>${m}</option>`).join('');
-    function upFin(field,val){return`finRecords[${idx}]['${field}']=this.value;saveFinLocal()`;}
-    function upFinNum(field){return`finRecords[${idx}]['${field}']=Number(this.value);recalcFin(${idx})`;}
+    const upFin=(field)=>`finRecords[${idx}]['${field}']=this.value;saveFinLocal()`;
+    const upFinNum=(field)=>`finRecords[${idx}]['${field}']=Number(this.value);recalcFin(${idx})`;
     return`<tr>
-      <td style="background:${rowBg}">
         <input style="${iS}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:60px" value="${r.num||''}" ${iF} onchange="${upFin('num',0)}">
         <div><input style="${iS}font-size:10px;color:var(--text-muted)" value="${r.semana||''}" ${iF} onchange="${upFin('semana',0)}"></div>
       </td>
