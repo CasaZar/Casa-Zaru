@@ -379,7 +379,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
         <th style="position:sticky;top:0;left:0;z-index:20;background:var(--wood)">N° / Semana</th>
         <th style="position:sticky;top:0;left:80px;z-index:20;background:var(--wood)">Cliente</th>
         <th>Email</th><th>Celular</th><th>RUT</th>
-        <th>Dirección</th><th>Medio pago</th><th>Doc. tipo</th>
+        <th>Dirección</th><th>Medio pago</th>
         <th>¿Cómo nos conoció?</th>
         <th>Valor total</th>
         <th>Valor prod.<br><span style="font-weight:300;font-size:9px">(sin env/com)</span></th>
@@ -1241,7 +1241,8 @@ function renderFin(){
     const upFin=(field)=>`finRecords[${idx}]['${field}']=this.value;saveFinLocal()`;
     const upFinNum=(field)=>`finRecords[${idx}]['${field}']=Number(this.value);recalcFin(${idx})`;
     return`<tr>
-      <td style="background:${rowBg};'DM Serif Display',serif;font-size:15px;color:var(--wood);width:60px" value="${r.num||''}" ${iF} onchange="${upFin('num')}">
+      <td style="background:${rowBg};position:sticky;left:0;z-index:5">
+        <input style="${iS}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:60px" value="${r.num||''}" ${iF} onchange="${upFin('num')}">
         <div><input style="${iS}font-size:10px;color:var(--text-muted)" value="${r.semana||''}" ${iF} onchange="${upFin('semana')}"></div>
       </td>
       <td style="background:${rowBg};''}" ${iF} onchange="${upFin('nombre')}">
