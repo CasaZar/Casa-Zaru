@@ -727,7 +727,7 @@ Devuelve SOLO JSON válido sin markdown ni backticks:
 {
   "tipo": "confirmacion" o "lista",
   "pedido": {
-    "pedido": número (usa ${nextNum} si no aparece),
+    "pedido": número entero (NUNCA null, NUNCA NaN — usa ${nextNum} si no aparece claramente),
     "envio": "SEMANA DD MES en mayúsculas",
     "comprador": "NOMBRE en mayúsculas",
     "apellido": "APELLIDO en mayúsculas",
@@ -780,8 +780,11 @@ REGLAS FINANZAS — MUY IMPORTANTE:
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const txt=data.content.map(i=>i.text||'').join('');
-    const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
-    const pedidoData=parsed.pedido||parsed;pedidoData.fecha=todayStr;
+    const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim().replace(/:\s*NaN/g,':0').replace(/:\s*undefined/g,':null'));
+    const pedidoData=parsed.pedido||parsed;
+    // Asegurar que pedido sea siempre un número válido
+    if(!pedidoData.pedido||isNaN(pedidoData.pedido))pedidoData.pedido=nextNum;
+    pedidoData.fecha=todayStr;
     // Guardar datos financieros en el pedido para usarlos al confirmar
     pedidoData._finanzas=parsed.finanzas||{valor_producto:0,valor_envio:0,valor_comision:0};
     pedidoData._cliente=parsed.cliente||{};
@@ -853,26 +856,44 @@ function addProdRow(){if(!prodPending)return;prodPending.lineas.push({producto:'
 async function confirmOrder(){
   if(!prodPending) return;
   const o = prodPending;
+  const numStr = String(o.pedido||'');
 
-  // 1. PRODUCCIÓN
-  prodOrders.push(o);
-  await saveProdFirebase(o);
+  // 1. PRODUCCIÓN — upsert por número de pedido
+  const existProdIdx = prodOrders.findIndex(p=>String(p.pedido||'')=== numStr);
+  if(existProdIdx>=0){
+    // mantener fbKey existente y actualizar
+    o.fbKey = prodOrders[existProdIdx].fbKey;
+    prodOrders[existProdIdx] = o;
+    if(DB_URL&&o.fbKey) await api('produccion/'+o.fbKey,'PUT',o);
+  } else {
+    prodOrders.push(o);
+    await saveProdFirebase(o);
+  }
 
-  // 2. SEGUIMIENTO — nuevo pedido checkpoints en cero
+  // 2. SEGUIMIENTO — upsert: buscar por num, actualizar si existe, crear si no
   if(DB_URL){
     const checks={};CHECKS.forEach(c=>checks[c.id]=false);
-    api('pedidos','POST',{
-      num:String(o.pedido||''),
+    const segData={
+      num:numStr,
       semana:o.envio||'',
       nombre:o.comprador||'',
       apellido:o.apellido||'',
       producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
       piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),
-      notas:'',checks
-    }).then(()=>poll()).catch(()=>{});
+      notas:''
+    };
+    const existSeg = orders.find(x=>String(x.num||'')=== numStr);
+    if(existSeg){
+      // actualizar datos pero mantener checkpoints
+      await api('pedidos/'+existSeg.fbKey,'PATCH',segData);
+    } else {
+      segData.checks = checks;
+      await api('pedidos','POST',segData);
+    }
+    await poll();
   }
 
-  // 3. FINANZAS — con todos los valores extraídos por la IA
+  // 3. FINANZAS — upsert por num
   const fin=o._finanzas||{};
   const cli=o._cliente||{};
   const vp=Number(fin.valor_producto)||0;
@@ -883,13 +904,14 @@ async function confirmOrder(){
   const saldo=total?total-abono:0;
   const sincom=vp+ve;
   const siniva=sincom?Math.round(sincom/1.19):0;
-  finRecords.push({
-    num:String(o.pedido||''),
+  const existFinIdx = finRecords.findIndex(r=>String(r.num||'')=== numStr);
+  const finData = {
+    num:numStr,
     semana:o.envio||'',
     nombre:o.comprador||'',
     apellido:o.apellido||'',
     email:cli.email||'',
-    celular:cli.phone||'',
+    celular:fmtPhone(cli.phone),
     rut:cli.rut||'',
     direccion:cli.direccion||'',
     producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
@@ -902,27 +924,69 @@ async function confirmOrder(){
     doc1_num:'',doc2_num:'',
     doc1_emitida:false,doc2_emitida:false,
     fecha:todayStr
-  });
+  };
+  if(existFinIdx>=0){
+    // actualizar datos pero mantener abonos y docs ya ingresados
+    const prev=finRecords[existFinIdx];
+    finData.abono1=prev.abono1||0;finData.abono2=prev.abono2||0;finData.abono3=prev.abono3||0;
+    finData.doc1_emitida=prev.doc1_emitida||false;finData.doc2_emitida=prev.doc2_emitida||false;
+    finData.doc1_num=prev.doc1_num||'';finData.doc2_num=prev.doc2_num||'';
+    finData.como=prev.como||'';
+    finData.fbKey=prev.fbKey;
+    finRecords[existFinIdx]=finData;
+  } else {
+    finRecords.push(finData);
+  }
   saveFinLocal();
 
-  // 4. COSTOS — crear registro vacío por pedido
-  costRecords.push({
-    num:String(o.pedido||''),
-    semana:o.envio||'',
-    nombre:o.comprador||'',
-    apellido:o.apellido||'',
+  // 4. PIXEL — upsert por order_id (WTSP+num)
+  const orderId='WTSP'+numStr;
+  if(cli&&(cli.email||cli.phone||cli.fn)){
+    const pixelData={
+      email:(cli.email||'').toLowerCase().trim(),
+      phone:fmtPhone(cli.phone),
+      fn:fmtName(cli.fn||o.comprador||''),
+      ln:fmtName(cli.ln||o.apellido||''),
+      ct:cli.ct||'',st:cli.st||'',country:'CL',gen:cli.gen||'',
+      order_id:orderId,
+      value:cli.value||total||0,
+      event_time:fmtEventTime(cli.event_time),
+      status:'nosubida',fecha:todayStr
+    };
+    const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
+    if(existPixelIdx>=0){
+      pixelData.status=pixelRecords[existPixelIdx].status||'nosubida';
+      pixelData.fbKey=pixelRecords[existPixelIdx].fbKey;
+      pixelRecords[existPixelIdx]=pixelData;
+    } else {
+      pixelRecords.push(pixelData);
+    }
+    savePixelLocal();
+  }
+
+  // 5. COSTOS — upsert por num
+  const existCostIdx=costRecords.findIndex(r=>String(r.num||'')=== numStr);
+  const costData={
+    num:numStr,semana:o.envio||'',
+    nombre:o.comprador||'',apellido:o.apellido||'',
     producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
-    venta_total:total,
-    lineas:[],
-    fecha:todayStr
-  });
+    venta_total:total,fecha:todayStr
+  };
+  if(existCostIdx>=0){
+    costData.lineas=costRecords[existCostIdx].lineas||[];
+    costData.fbKey=costRecords[existCostIdx].fbKey;
+    costRecords[existCostIdx]=costData;
+  } else {
+    costData.lineas=[];
+    costRecords.push(costData);
+  }
   saveCostLocal();
 
-  showToast('✓ Pedido #'+o.pedido+' agregado a las 5 páginas');
+  showToast('✓ Pedido #'+numStr+' sincronizado en todas las páginas');
   prodPending=null;
   document.getElementById('prev').classList.remove('on');
   document.getElementById('fi').value='';
-  renderProd();updateProdStats();renderFin();
+  renderProd();updateProdStats();renderFin();renderPixel();renderCost();
 }
 function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';}
 const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
