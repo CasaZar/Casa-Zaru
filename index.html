@@ -376,18 +376,21 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
-        <th style="position:sticky;top:0;left:0;z-index:20;background:var(--wood)">N° / Semana</th>
-        <th style="position:sticky;top:0;left:80px;z-index:20;background:var(--wood)">Cliente</th>
-        <th>Email</th><th>Celular</th><th>RUT</th>
-        <th>Dirección</th><th>Medio pago</th>
-        <th>¿Cómo nos conoció?</th>
-        <th>Valor total</th>
-        <th>Valor prod.<br><span style="font-weight:300;font-size:9px">(sin env/com)</span></th>
-        <th>Envío</th><th>Comisión</th>
-        <th>Abono 1</th><th>Abono 2</th><th>Abono 3</th>
-        <th>Total sin IVA</th><th>Pendiente</th>
-        <th>Doc. 1</th><th>Doc. 2</th>
-        <th>Estado</th><th></th>
+        <th style="position:sticky;top:0;left:0;z-index:20;background:var(--wood);min-width:80px">N°</th>
+        <th style="position:sticky;top:0;left:80px;z-index:20;background:var(--wood);min-width:160px">Cliente</th>
+        <th>Producto</th>
+        <th>Valor prod.</th>
+        <th>Envío</th>
+        <th>Comisión</th>
+        <th>Total</th>
+        <th>Abono 1</th>
+        <th>Abono 2</th>
+        <th>Abono 3</th>
+        <th>Pendiente</th>
+        <th>Doc. 1</th>
+        <th>Doc. 2</th>
+        <th>Estado</th>
+        <th></th>
       </tr></thead>
       <tbody id="fin-tbody"></tbody>
     </table>
@@ -1225,89 +1228,82 @@ function toggleFinDoc(idx,docNum){
   saveFinLocal();renderFin();showToast((docNum===1?'Doc. abono':'Doc. saldo')+(r['doc'+docNum+'_emitida']?' marcado emitido':' marcado pendiente'));
 }
 function renderFin(){
-  renderFinStats();var list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
-  if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
-  const inS='border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:11px;font-family:\'DM Sans\',sans-serif;color:var(--text);width:100%;outline:none;';
-  const MEDIOS=['BCI','TRANSFERENCIA','MERCADO PAGO','WEB','EFECTIVO'];
+  renderFinStats();
+  const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
+  if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
+  empty.style.display='none';
+  const ni='border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:11px;font-family:\'DM Sans\',sans-serif;color:var(--text);width:100%;outline:none;background:transparent;';
   tbody.innerHTML=list.map(r=>{
     const idx=finRecords.indexOf(r);
     const listo=r.doc1_emitida&&r.doc2_emitida;
-    const rowBg=listo?'#F2FAE8':(!r.doc1_emitida||!r.doc2_emitida)?'#FDF6E8':'#FDFAF7';
+    const bg=listo?'#F2FAE8':'#FDFAF7';
     const totalAbonos=(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);
     const pendiente=Math.max(0,(Number(r.total)||0)-totalAbonos);
-    const iF=`onfocus="this.style.borderBottomColor='var(--wood-light)';this.style.background='#fff'" onblur="this.style.borderBottomColor='transparent';this.style.background='${rowBg}'"`;
-    const iS=inS+`background:${rowBg};`;
-    const medioOpts=MEDIOS.map(m=>`<option${m===(r.medio_pago||'BCI')?' selected':''}>${m}</option>`).join('');
-    const upFin=(field)=>`finRecords[${idx}]['${field}']=this.value;saveFinLocal()`;
-    const upFinNum=(field)=>`finRecords[${idx}]['${field}']=Number(this.value);recalcFin(${idx})`;
-    return`<tr>
-      <td style="background:${rowBg};position:sticky;left:0;z-index:5">
-        <input style="${iS}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:60px" value="${r.num||''}" ${iF} onchange="${upFin('num')}">
-        <div><input style="${iS}font-size:10px;color:var(--text-muted)" value="${r.semana||''}" ${iF} onchange="${upFin('semana')}"></div>
+    const iF=`onfocus="this.style.background='#fff';this.style.borderBottomColor='var(--wood-light)'" onblur="this.style.background='transparent';this.style.borderBottomColor='transparent'"`;
+    return`<tr style="background:${bg}">
+      <td style="background:${bg};position:sticky;left:0;z-index:5;min-width:80px">
+        <div style="font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood)">${r.num||'—'}</div>
+        <div style="font-size:10px;color:var(--text-muted)">${r.semana||''}</div>
       </td>
-      <td style="background:${rowBg};''}" ${iF} onchange="${upFin('nombre')}">
-          <input style="${iS}width:75px" value="${r.apellido||''}" ${iF} onchange="${upFin('apellido')}">
-        </div>
-        <input style="${iS}font-size:10px;color:var(--text-muted)" value="${r.producto||''}" ${iF} onchange="${upFin('producto')}">
+      <td style="background:${bg};position:sticky;left:80px;z-index:5;min-width:160px;box-shadow:2px 0 4px rgba(0,0,0,0.05)">
+        <div style="font-weight:500;font-size:12px">${r.nombre||''} ${r.apellido||''}</div>
       </td>
-      <td style="background:${rowBg}"><input style="${iS}min-width:140px" value="${r.email||''}" ${iF} onchange="${upFin('email')}"></td>
-      <td style="background:${rowBg}"><input style="${iS}width:110px" value="${r.celular||''}" ${iF} onchange="${upFin('celular')}"></td>
-      <td style="background:${rowBg}"><input style="${iS}width:90px" value="${r.rut||''}" ${iF} onchange="${upFin('rut')}"></td>
-      <td style="background:${rowBg}"><input style="${iS}min-width:130px" value="${r.direccion||''}" ${iF} onchange="${upFin('direccion')}"></td>
-      <td style="background:${rowBg}"><select style="${iS}width:120px" onchange="finRecords[${idx}].medio_pago=this.value;saveFinLocal()">${medioOpts}</select></td>
-      <td style="background:${rowBg}"><input style="${iS}min-width:100px" value="${r.como||''}" placeholder="¿Cómo?" ${iF} onchange="${upFin('como')}"></td>
-      <td style="background:${rowBg}">
-        <div class="monto verde" style="font-size:13px;font-weight:700;margin-bottom:2px">${fmtCLP(r.total)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.total||0}" onchange="finRecords[${idx}].total=Number(this.value);saveFinLocal();renderFin()">
+      <td style="background:${bg};min-width:130px">
+        <input style="${ni}" value="${r.producto||''}" ${iF} onchange="finRecords[${idx}].producto=this.value;saveFinLocal()">
       </td>
-      <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_prod||0}" onchange="finRecords[${idx}].val_prod=Number(this.value);finRecords[${idx}].sin_com=(Number(this.value))+(Number(finRecords[${idx}].val_envio)||0);finRecords[${idx}].sin_iva=Math.round(finRecords[${idx}].sin_com/1.19);saveFinLocal();renderFin()">
+      <td style="background:${bg};min-width:110px">
+        <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finRecords[${idx}].val_prod=Number(this.value);saveFinLocal();renderFin()">
       </td>
-      <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_envio||0}" onchange="finRecords[${idx}].val_envio=Number(this.value);finRecords[${idx}].sin_com=(Number(finRecords[${idx}].val_prod)||0)+(Number(this.value));finRecords[${idx}].sin_iva=Math.round(finRecords[${idx}].sin_com/1.19);saveFinLocal();renderFin()">
+      <td style="background:${bg};min-width:100px">
+        <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finRecords[${idx}].val_envio=Number(this.value);saveFinLocal();renderFin()">
       </td>
-      <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.val_comision||0}" onchange="finRecords[${idx}].val_comision=Number(this.value);saveFinLocal();renderFin()">
+      <td style="background:${bg};min-width:100px">
+        <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finRecords[${idx}].val_comision=Number(this.value);saveFinLocal();renderFin()">
       </td>
-      <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.abono1)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.abono1||0}" onchange="${upFinNum('abono1')}">
+      <td style="background:${bg};min-width:110px">
+        <div class="monto verde" style="font-size:14px;font-weight:700">${fmtCLP(r.total)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.total||0}" onchange="finRecords[${idx}].total=Number(this.value);saveFinLocal();renderFin()">
       </td>
-      <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.abono2)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.abono2||0}" onchange="${upFinNum('abono2')}">
+      <td style="background:${bg};min-width:110px">
+        <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono1)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono1||0}" onchange="finRecords[${idx}].abono1=Number(this.value);saveFinLocal();renderFin()">
       </td>
-      <td style="background:${rowBg}">
-        <div class="monto" style="font-size:12px;margin-bottom:2px">${fmtCLP(r.abono3)}</div>
-        <input type="number" style="${iS}width:100px;border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" value="${r.abono3||0}" onchange="${upFinNum('abono3')}">
+      <td style="background:${bg};min-width:110px">
+        <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono2)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono2||0}" onchange="finRecords[${idx}].abono2=Number(this.value);saveFinLocal();renderFin()">
       </td>
-      <td style="background:${rowBg}"><span class="monto" style="font-size:13px">${fmtCLP(r.sin_iva)}</span></td>
-      <td style="background:${rowBg}"><span class="monto ${pendiente>0?'rojo':''}" style="font-size:13px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td>
-      <td style="background:${rowBg}">
-        <button class="doc-btn ${r.doc1_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc(${idx},1)">${r.doc1_emitida?'✓ Emitida':'— Pend.'}</button>
-        <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-          <select onchange="finRecords[${idx}].doc1_tipo=this.value;saveFinLocal()" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg);color:var(--text-muted)">
+      <td style="background:${bg};min-width:110px">
+        <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono3)}</div>
+        <input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono3||0}" onchange="finRecords[${idx}].abono3=Number(this.value);saveFinLocal();renderFin()">
+      </td>
+      <td style="background:${bg};min-width:100px">
+        <span class="monto ${pendiente>0?'rojo':''}" style="font-size:14px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span>
+      </td>
+      <td style="background:${bg};min-width:130px">
+        <button class="doc-btn ${r.doc1_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc(${idx},1)" style="margin-bottom:4px">${r.doc1_emitida?'✓ Emitida':'— Pendiente'}</button>
+        <div style="display:flex;gap:4px;align-items:center">
+          <select onchange="finRecords[${idx}].doc1_tipo=this.value;saveFinLocal()" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)">
             <option value="BOLETA"${(r.doc1_tipo||'BOLETA')==='BOLETA'?' selected':''}>Boleta</option>
             <option value="FACTURA"${r.doc1_tipo==='FACTURA'?' selected':''}>Factura</option>
           </select>
-          <input type="text" value="${r.doc1_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc1_num=this.value;saveFinLocal()" style="width:55px;font-size:10px;padding:2px 5px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)">
+          <input type="text" value="${r.doc1_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc1_num=this.value;saveFinLocal()" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px">
         </div>
       </td>
-      <td style="background:${rowBg}">
-        <button class="doc-btn ${r.doc2_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc(${idx},2)">${r.doc2_emitida?'✓ Emitida':'— Pend.'}</button>
-        <div style="display:flex;align-items:center;gap:4px;margin-top:4px">
-          <select onchange="finRecords[${idx}].doc2_tipo=this.value;saveFinLocal()" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg);color:var(--text-muted)">
+      <td style="background:${bg};min-width:130px">
+        <button class="doc-btn ${r.doc2_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc(${idx},2)" style="margin-bottom:4px">${r.doc2_emitida?'✓ Emitida':'— Pendiente'}</button>
+        <div style="display:flex;gap:4px;align-items:center">
+          <select onchange="finRecords[${idx}].doc2_tipo=this.value;saveFinLocal()" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)">
             <option value="BOLETA"${(r.doc2_tipo||'BOLETA')==='BOLETA'?' selected':''}>Boleta</option>
             <option value="FACTURA"${r.doc2_tipo==='FACTURA'?' selected':''}>Factura</option>
           </select>
-          <input type="text" value="${r.doc2_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc2_num=this.value;saveFinLocal()" style="width:55px;font-size:10px;padding:2px 5px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)">
+          <input type="text" value="${r.doc2_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc2_num=this.value;saveFinLocal()" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px">
         </div>
       </td>
-      <td style="background:${rowBg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'Listo':'Pend.'}</span></td>
-      <td style="background:${rowBg}"><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline(${idx})">🗑</button></td>
+      <td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span></td>
+      <td style="background:${bg}"><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline(${idx})">🗑</button></td>
     </tr>`;
   }).join('');
 }
