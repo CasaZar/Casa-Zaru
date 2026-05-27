@@ -821,20 +821,17 @@ Devuelve SOLO JSON válido sin markdown ni backticks:
 }
 
 REGLAS FINANZAS — MUY IMPORTANTE:
-El mensaje de César tiene siempre este formato:
-  "Valor: $X" → esto es valor_producto (SOLO el mueble, SIN envío ni comisión)
-  "Envío: $X" → esto es valor_envio (solo si aparece, si no va 0)
-  "Total: $X (incluye 3% por uso de plataforma)" → esto es el total final. La comisión es Total - Valor - Envío
-  "70%: $X" → esto es abono1 (el pago al confirmar)
-  "30%: $X" → esto es el saldo restante
+El mensaje de César tiene este formato:
+  "Valor: $X" → valor_producto (SOLO el mueble, SIN envío ni comisión)
+  "Envío: $X" → valor_envio (solo si aparece, si no va 0)
+  "Total: $X (incluye 3% por uso de plataforma)" → IGNORAR, la app calcula el total
+  "70%: $X" y "30%: $X" → IGNORAR, la app los calcula
 
-- valor_producto = SOLO el precio del mueble. Línea "Valor: $X"
-- valor_envio = SOLO el envío. Línea "Envío: $X". Si dice "retira" o no aparece → 0
-- valor_comision = Total - valor_producto - valor_envio (si hay comisión de plataforma/tarjeta). Si el total no menciona comisión → 0
-- total = valor_producto + valor_envio + valor_comision
-- abono1 = el valor del 70% que aparece en "70%: $X". SIEMPRE extraerlo si aparece
+- valor_producto = SOLO el precio del mueble. Busca "Valor: $X"
+- valor_envio = SOLO el envío. Busca "Envío: $X". Si dice "retira" o no aparece → 0
+- valor_comision = si dice "(incluye 3% por uso de plataforma)" calcúlalo como valor_producto * 0.03 redondeado. Si no menciona comisión → 0
+- NO uses el "Total:" de César — la app suma valor_producto + valor_envio + valor_comision
 - La dirección suele aparecer en el mensaje reenviado del cliente`}
-
       ]}]})
     });
     const data=await res.json();
@@ -842,10 +839,8 @@ El mensaje de César tiene siempre este formato:
     const txt=data.content.map(i=>i.text||'').join('');
     const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim().replace(/:\s*NaN/g,':0').replace(/:\s*undefined/g,':null'));
     const pedidoData=parsed.pedido||parsed;
-    // Asegurar que pedido sea siempre un número válido
     if(!pedidoData.pedido||isNaN(pedidoData.pedido))pedidoData.pedido=nextNum;
     pedidoData.fecha=todayStr;
-    // Guardar datos financieros en el pedido para usarlos al confirmar
     pedidoData._finanzas=parsed.finanzas||{valor_producto:0,valor_envio:0,valor_comision:0};
     pedidoData._cliente=parsed.cliente||{};
     prodPending=pedidoData;
@@ -853,7 +848,6 @@ El mensaje de César tiene siempre este formato:
     renderPrevProd(pedidoData);
     document.getElementById('prev').classList.add('on');
     document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
-    // Auto-agregar a Pixel si hay datos de cliente
     const cli=parsed.cliente;
     if(cli&&(cli.email||cli.phone||cli.fn)){
       pixelRecords.push({
@@ -861,12 +855,9 @@ El mensaje de César tiene siempre este formato:
         phone:fmtPhone(cli.phone),
         fn:fmtName(cli.fn||pedidoData.comprador||''),
         ln:fmtName(cli.ln||pedidoData.apellido||''),
-        ct:cli.ct||'',
-        st:cli.st||'',
-        country:'CL',
-        gen:cli.gen||'',
+        ct:cli.ct||'',st:cli.st||'',country:'CL',gen:cli.gen||'',
         order_id:'WTSP'+String(pedidoData.pedido||''),
-        value:Number(cli.value)||0,
+        value:cli.value||0,
         event_time:fmtEventTime(cli.event_time),
         status:'nosubida',fecha:todayStr
       });
@@ -979,7 +970,7 @@ async function confirmOrder(){
     como:'',
     val_prod:vp,val_envio:ve,val_comision:vc,
     total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,
-    abono1:Number(fin.abono1)||Math.round(total*0.7),abono2:0,abono3:0,
+    abono1:Math.round(total*0.7),abono2:0,abono3:0,
     doc1_tipo:'BOLETA',doc2_tipo:'BOLETA',
     doc1_num:'',doc2_num:'',
     doc1_emitida:false,doc2_emitida:false,
