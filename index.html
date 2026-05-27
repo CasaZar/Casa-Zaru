@@ -821,12 +821,20 @@ Devuelve SOLO JSON válido sin markdown ni backticks:
 }
 
 REGLAS FINANZAS — MUY IMPORTANTE:
-- valor_producto = precio del mueble/producto SIN envío ni comisión. Busca "Valor: $X" o "Valor Total: $X" (sin envío)
-- valor_envio = costo de despacho. Busca "Envío: $X". Si dice "retira" o no hay envío, poner 0
-- valor_comision = comisión por link de pago. Si dice "3% comisión" o "*Valor Total : $X ($Y con 3% comisión de pago)", calcúlalo como la diferencia
-- El "*Valor Total" con asterisco generalmente ya incluye envío+comisión — NO uses ese como valor_producto
-- Si ves "70%: $X" ese es el abono1 esperado
-- La dirección suele aparecer en el mensaje reenviado del cliente junto al nombre completo y teléfono`}
+El mensaje de César tiene siempre este formato:
+  "Valor: $X" → esto es valor_producto (SOLO el mueble, SIN envío ni comisión)
+  "Envío: $X" → esto es valor_envio (solo si aparece, si no va 0)
+  "Total: $X (incluye 3% por uso de plataforma)" → esto es el total final. La comisión es Total - Valor - Envío
+  "70%: $X" → esto es abono1 (el pago al confirmar)
+  "30%: $X" → esto es el saldo restante
+
+- valor_producto = SOLO el precio del mueble. Línea "Valor: $X"
+- valor_envio = SOLO el envío. Línea "Envío: $X". Si dice "retira" o no aparece → 0
+- valor_comision = Total - valor_producto - valor_envio (si hay comisión de plataforma/tarjeta). Si el total no menciona comisión → 0
+- total = valor_producto + valor_envio + valor_comision
+- abono1 = el valor del 70% que aparece en "70%: $X". SIEMPRE extraerlo si aparece
+- La dirección suele aparecer en el mensaje reenviado del cliente`}
+
       ]}]})
     });
     const data=await res.json();
@@ -971,7 +979,7 @@ async function confirmOrder(){
     como:'',
     val_prod:vp,val_envio:ve,val_comision:vc,
     total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,
-    abono1:0,abono2:0,abono3:0,
+    abono1:Number(fin.abono1)||Math.round(total*0.7),abono2:0,abono3:0,
     doc1_tipo:'BOLETA',doc2_tipo:'BOLETA',
     doc1_num:'',doc2_num:'',
     doc1_emitida:false,doc2_emitida:false,
