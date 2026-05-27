@@ -829,7 +829,7 @@ El mensaje de César tiene este formato:
 
 - valor_producto = SOLO el precio del mueble. Busca "Valor: $X"
 - valor_envio = SOLO el envío. Busca "Envío: $X". Si dice "retira" o no aparece → 0
-- valor_comision = si dice "(incluye 3% por uso de plataforma)" calcúlalo como valor_producto * 0.03 redondeado. Si no menciona comisión → 0
+- valor_comision = SOLO si el mensaje dice explícitamente "(incluye 3% por uso de plataforma)" o similar. Si no aparece esa frase → 0 obligatorio
 - NO uses el "Total:" de César — la app suma valor_producto + valor_envio + valor_comision
 - La dirección suele aparecer en el mensaje reenviado del cliente`}
       ]}]})
