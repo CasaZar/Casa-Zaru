@@ -332,7 +332,11 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
     <button class="btn-add-row" onclick="addProdRow()">+ Agregar fila</button>
     <div class="prev-actions">
       <button class="btn-confirm" onclick="confirmOrder()">✓ Confirmar y agregar a planilla</button>
+      <button class="btn-cancel" style="background:var(--amber-light);color:var(--amber);border-color:var(--amber-mid)" onclick="document.getElementById('fi2').click()">📷 Agregar 2° pantallazo</button>
+      <input type="file" id="fi2" accept="image/*" style="display:none" onchange="addSecondImage(this.files[0])">
       <button class="btn-cancel" onclick="cancelPrev()">Cancelar</button>
+    </div>
+    <div class="proc" id="proc2" style="margin-top:8px"><div class="spin"></div><span>Analizando segundo pantallazo...</span></div>
     </div>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
@@ -866,6 +870,46 @@ El mensaje de César tiene este formato:
     }
   }catch(err){showToast('❌ Error: '+err.message);console.error(err);}
   finally{document.getElementById('proc').classList.remove('on');}
+}
+async function addSecondImage(file){
+  if(!file||!prodPending) return;
+  const apiKey=localStorage.getItem('zaru_api_key');
+  if(!apiKey){alert('Primero ingresa tu API Key.');return;}
+  document.getElementById('proc2').classList.add('on');
+  const r=new FileReader();
+  r.onload=async e=>{
+    const base64=e.target.result.split(',')[1];
+    const mt=file.type||'image/png';
+    try{
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:2000,messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:mt,data:base64}},
+          {type:'text',text:`Extrae SOLO las líneas de producto de este pantallazo (continuación del pedido ${prodPending.pedido}).
+Devuelve SOLO JSON sin markdown:
+{"lineas":[{"producto":"NOMBRE","cantidad":número,"madera":"MADERA","largo":número,"ancho":número,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]}
+Si no hay líneas claras devuelve {"lineas":[]}`}
+        ]}]})
+      });
+      const data=await res.json();
+      const txt=data.content.map(i=>i.text||'').join('');
+      const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
+      const nuevasLineas=parsed.lineas||[];
+      if(nuevasLineas.length){
+        prodPending.lineas=[...(prodPending.lineas||[]),...nuevasLineas];
+        renderPrevRows(prodPending.lineas);
+        // actualizar chip de líneas
+        document.getElementById('chips').querySelectorAll('.chip').forEach(c=>{
+          if(c.querySelector('label')?.textContent==='Líneas') c.querySelector('span').textContent=prodPending.lineas.length;
+        });
+        showToast('✓ '+nuevasLineas.length+' líneas agregadas del 2° pantallazo');
+      } else {
+        showToast('No se encontraron líneas en el 2° pantallazo');
+      }
+    }catch(err){showToast('❌ Error: '+err.message);}
+    finally{document.getElementById('proc2').classList.remove('on');document.getElementById('fi2').value='';}
+  };
+  r.readAsDataURL(file);
 }
 function renderPrevProd(o){
   document.getElementById('chips').innerHTML=`<div class="chip hi"><label>N° Pedido</label><input type="number" value="${o.pedido}" onchange="prodPending.pedido=Number(this.value)" style="width:70px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:14px;color:var(--wood);font-weight:700"></div><div class="chip hi"><label>Cliente</label><span>${o.comprador||''} ${o.apellido||''}</span></div><div class="chip"><label>Envío</label><span>${o.envio||'—'}</span></div><div class="chip"><label>Líneas</label><span>${(o.lineas||[]).length}</span></div>`;
