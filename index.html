@@ -1250,11 +1250,26 @@ function calcFinPreview(){
   document.getElementById('fc-saldo').textContent=fmtCLP(saldo);document.getElementById('fc-sincom').textContent=fmtCLP(sincom);document.getElementById('fc-siniva').textContent=fmtCLP(siniva);
 }
 function renderFinStats(){
-  const tot=finRecords.length,totalVal=finRecords.reduce((s,r)=>s+(Number(r.total)||0),0);
-  const abonos=finRecords.reduce((s,r)=>s+(Number(r.abono_monto)||0),0);
-  const saldosPend=finRecords.filter(r=>!r.doc2_emitida).reduce((s,r)=>s+(Number(r.saldo_monto)||0),0);
+  const tot=finRecords.length;
+  const totalVal=finRecords.reduce((s,r)=>s+(Number(r.total)||0),0);
+  const totalProd=finRecords.reduce((s,r)=>s+(Number(r.val_prod)||0),0);
+  const totalEnvio=finRecords.reduce((s,r)=>s+(Number(r.val_envio)||0),0);
+  const totalCom=finRecords.reduce((s,r)=>s+(Number(r.val_comision)||0),0);
+  const abonos=finRecords.reduce((s,r)=>s+(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0),0);
+  const saldosPend=finRecords.reduce((s,r)=>{
+    const totalAbonos=(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);
+    return s+Math.max(0,(Number(r.total)||0)-totalAbonos);
+  },0);
   const docsPend=finRecords.filter(r=>!r.doc1_emitida||!r.doc2_emitida).length;
-  document.getElementById('fin-stats').innerHTML='<div class="stat-card"><div class="stat-label">Registros</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-val green" style="font-size:16px">'+fmtCLP(totalVal)+'</div></div><div class="stat-card"><div class="stat-label">Abonos</div><div class="stat-val green" style="font-size:16px">'+fmtCLP(abonos)+'</div></div><div class="stat-card"><div class="stat-label">Saldos pend.</div><div class="stat-val amber" style="font-size:16px">'+fmtCLP(saldosPend)+'</div></div><div class="stat-card"><div class="stat-label">Docs. pend.</div><div class="stat-val '+(docsPend?'pink':'green')+'">'+docsPend+'</div></div>';
+  document.getElementById('fin-stats').innerHTML=
+    '<div class="stat-card"><div class="stat-label">Registros</div><div class="stat-val wood">'+tot+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(totalVal)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Solo productos</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalProd)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Envíos</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalEnvio)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Comisiones</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalCom)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Abonos recibidos</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(abonos)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Saldo pendiente</div><div class="stat-val amber" style="font-size:15px">'+fmtCLP(saldosPend)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Docs. pend.</div><div class="stat-val '+(docsPend?'pink':'green')+'">'+docsPend+'</div></div>';
 }
 function getFilteredFin(){
   var q=(document.getElementById('fin-search').value||'').toLowerCase().trim();
