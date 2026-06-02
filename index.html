@@ -590,7 +590,21 @@ const todayStr=new Date().toLocaleDateString('es-CL');
 
 var MESES_ES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 function extractMonth(s){if(!s)return null;var u=s.toUpperCase();for(var i=0;i<MESES_ES.length;i++){if(u.indexOf(MESES_ES[i])!==-1)return MESES_ES[i];}return null;}
-function extractMonthFromDate(d){if(!d)return null;var p=d.split('/');if(p.length>=2){var m=parseInt(p[1],10);if(m>=1&&m<=12)return MESES_ES[m-1];}return null;}
+function extractMonthFromDate(d){
+  if(!d)return null;
+  var s=String(d).trim();
+  var p,m;
+  // dd/mm/yyyy
+  p=s.split('/');
+  if(p.length>=2){m=parseInt(p[1],10);if(m>=1&&m<=12)return MESES_ES[m-1];}
+  // dd-mm-yyyy or yyyy-mm-dd
+  p=s.split('-');
+  if(p.length>=2){
+    if(p[0].length===4){m=parseInt(p[1],10);}else{m=parseInt(p[1],10);}
+    if(m>=1&&m<=12)return MESES_ES[m-1];
+  }
+  return null;
+}
 function currentMonthName(){return MESES_ES[new Date().getMonth()];}
 
 // Estado filtros mes (por página)
@@ -608,9 +622,13 @@ function setCostMonth(m){costMonthFilter=m;renderCost();}
 
 function renderMonthBar(barId,records,currentFilter,setFn,getMonthFn){
   var bar=document.getElementById(barId);if(!bar)return;
-  var months=[],seen={};
-  for(var i=0;i<records.length;i++){var m=getMonthFn(records[i]);if(m&&!seen[m]){months.push(m);seen[m]=true;}}
-  months.sort(function(a,b){return MESES_ES.indexOf(a)-MESES_ES.indexOf(b);});
+  // Detectar meses con datos
+  var seen={};
+  for(var i=0;i<records.length;i++){var m=getMonthFn(records[i]);if(m)seen[m]=true;}
+  // Siempre mostrar todos los meses de 2026
+  var ALL_2026=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  ALL_2026.forEach(function(m){seen[m]=true;});
+  var months=MESES_ES.filter(function(m){return seen[m];});
   var parts=[];
   parts.push('<span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-right:2px;flex-shrink:0">Mes:</span>');
   parts.push('<button class="filter-btn'+(currentFilter==='todos'?' active':'')+'" onclick="'+setFn+'(\'todos\')">Todos <span style="font-size:10px;opacity:0.7">('+records.length+')</span></button>');
@@ -712,6 +730,7 @@ function renderSegStats(){
 function renderSeg(){
   var list=getFilteredOrders(),tbody=document.getElementById('seg-tbody'),empty=document.getElementById('seg-empty');
   renderSegStats();
+  renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';scm={};sci=0;orders.forEach(o=>getSC(o.semana));
   tbody.innerHTML=list.map(o=>{
@@ -798,6 +817,8 @@ async function loadProd(){
     if(raw) prodOrders=Object.entries(raw).map(e=>Object.assign({},e[1],{fbKey:e[0]})).sort((a,b)=>Number(a.pedido||0)-Number(b.pedido||0));
     else prodOrders=[];
     renderProd();updateProdStats();
+    // Forzar barra de mes siempre después de cargar
+    renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion);});
   }catch(e){console.error('Error cargando producción',e);}
 }
 async function saveProdFirebase(order){
@@ -1219,8 +1240,8 @@ async function deleteProdOrder(oi){
 const PROD_COLORS=['#FDFAF7','#EEE9E3'];
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
-  if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
   renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion);});
+  if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
   var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
   tbody.innerHTML=filteredProd.map((o,_oi)=>{
     const oi=prodOrders.indexOf(o);
@@ -1347,6 +1368,7 @@ function toggleFinDoc(idx,docNum){
 }
 function renderFin(){
   renderFinStats();
+  renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
   const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
@@ -1621,7 +1643,9 @@ function getFilteredPixel(){
 function setPixelFilter(f,btn){pixelFilter=f;document.querySelectorAll('#page-pixel .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPixel();}
 function changePixelStatus(idx,val){pixelRecords[idx].status=val;savePixelLocal();renderPixel();showToast('✓ Estado actualizado');}
 function renderPixel(){
-  renderPixelStats();var list=getFilteredPixel(),tbody=document.getElementById('pixel-tbody'),empty=document.getElementById('pixel-empty');
+  renderPixelStats();
+  renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});
+  var list=getFilteredPixel(),tbody=document.getElementById('pixel-tbody'),empty=document.getElementById('pixel-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   tbody.innerHTML=list.map(r=>{
     const idx=pixelRecords.indexOf(r);
@@ -1763,6 +1787,7 @@ function renderCostStats(){
 
 function renderCost(){
   renderCostStats();
+  renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
   const q=(document.getElementById('cost-search').value||'').toLowerCase().trim();
   var costBase=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
   const list=costBase.filter(r=>!q||(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
@@ -1928,11 +1953,65 @@ if(prodOrders.length && prodOrders[0].valor_total !== undefined){
 loadApiKey();renderProd();updateProdStats();renderFin();renderPixel();renderCost();
 
 // Cargar desde Firebase cuando esté disponible
+
+// Migración: registros sin fecha_creacion → mayo 2026
+async function migrarFechaCreacion() {
+  var cambios = false;
+  // Finanzas: asignar fecha_creacion si no tiene, o si tiene pero no tiene mes detectado
+  finRecords.forEach(function(r) {
+    var m = extractMonthFromDate(r.fecha_creacion || r.fecha);
+    if (!m) {
+      r.fecha_creacion = '1/5/2026';
+      if (!r.fecha) r.fecha = '1/5/2026';
+      cambios = true;
+    } else if (!r.fecha_creacion) {
+      r.fecha_creacion = r.fecha || '1/5/2026';
+      cambios = true;
+    }
+  });
+  // Producción
+  prodOrders.forEach(function(o) {
+    var m = extractMonthFromDate(o.fecha || o.fecha_creacion);
+    if (!m) {
+      o.fecha = '1/5/2026';
+      o.fecha_creacion = '1/5/2026';
+      cambios = true;
+    }
+  });
+  // Pixel
+  pixelRecords.forEach(function(r) {
+    var m = extractMonthFromDate(r.fecha);
+    if (!m) { r.fecha = '1/5/2026'; cambios = true; }
+  });
+  // Costos
+  costRecords.forEach(function(r) {
+    var m = extractMonthFromDate(r.fecha);
+    if (!m) { r.fecha = '1/5/2026'; cambios = true; }
+  });
+  if (cambios) {
+    await saveFinLocal();
+    if (DB_URL) {
+      for (var i = 0; i < prodOrders.length; i++) {
+        var o = prodOrders[i];
+        if (o.fbKey) { try { await api('produccion/'+o.fbKey,'PUT',o); } catch(e) {} }
+      }
+    }
+    await savePixelLocal();
+    await saveCostLocal();
+    console.log('Migración completada');
+  }
+}
+
 async function initAllModules(){
   await loadProd();
   await loadFin();
   await loadPixel();
   await loadCost();
+  await migrarFechaCreacion();
+  renderProd(); updateProdStats();
+  renderFin();
+  renderPixel();
+  renderCost();
 }
 init().then(()=>{if(DB_URL)initAllModules();});
 </script>
