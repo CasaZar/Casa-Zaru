@@ -269,6 +269,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
       <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
     </div>
   </div>
+  <div id="seg-month-bar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem"></div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="seg-search" placeholder="Buscar por cliente, N° pedido, semana..." oninput="renderSeg()">
   </div>
@@ -374,15 +375,18 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
     </div>
   </div>
+  <div id="fin-month-bar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem"></div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="fin-search" placeholder="Buscar por cliente o N° venta..." oninput="renderFin()">
   </div>
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
-        <th style="position:sticky;top:0;left:0;z-index:20;background:var(--wood);min-width:80px">N°</th>
+        <th>N°</th>
         <th style="position:sticky;top:0;left:80px;z-index:20;background:var(--wood);min-width:160px">Cliente</th>
         <th>Producto</th>
+        <th>Medio pago</th>
+        <th>¿Cómo nos conoció?</th>
         <th>Valor prod.</th>
         <th>Envío</th>
         <th>Comisión</th>
@@ -617,6 +621,13 @@ var scm={},sci=0;
 function getSC(s){if(!scm[s]){scm[s]=SC[sci%SC.length];sci++;}return scm[s];}
 const SEED=[];
 let orders=[],editingKey=null,segFilter='todos',pollInterval=null,pendingOps=0;
+var MESES_ES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+function extractMonth(s){if(!s)return null;var u=s.toUpperCase();for(var i=0;i<MESES_ES.length;i++){if(u.indexOf(MESES_ES[i])!==-1)return MESES_ES[i];}return null;}
+function currentMonthName(){return MESES_ES[new Date().getMonth()];}
+var segMonthFilter=currentMonthName();
+var finMonthFilter=currentMonthName();
+function setSegMonth(m){segMonthFilter=m;renderSeg();}
+function setFinMonth(m){finMonthFilter=m;renderFin();}
 function api(path,method,data){var opts={method:method||'GET',headers:{'Content-Type':'application/json'}};if(data!==undefined)opts.body=JSON.stringify(data);return fetch(DB_URL+'/'+path+'.json',opts).then(r=>r.json());}
 function setSyncState(s){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-label').textContent=s==='online'?'En vivo':s==='syncing'?'Guardando...':'Sin conexión';}
 function hideLoading(){document.getElementById('loading').style.display='none';}
@@ -642,6 +653,7 @@ function getProgress(checks){return{pct:Math.round(CRITICAL.filter(id=>checks&&c
 function getFilteredOrders(){
   var q=(document.getElementById('seg-search').value||'').toLowerCase().trim();
   var list=orders.slice();
+  if(segMonthFilter!=='todos')list=list.filter(function(o){return extractMonth(o.semana)===segMonthFilter;});
   if(segFilter==='completado')list=list.filter(o=>getProgress(o.checks).pct===100);
   if(segFilter==='pendiente')list=list.filter(o=>getProgress(o.checks).pct<100);
   if(q)list=list.filter(o=>(o.num||'').toLowerCase().includes(q)||(o.nombre||'').toLowerCase().includes(q)||(o.apellido||'').toLowerCase().includes(q)||(o.semana||'').toLowerCase().includes(q)||(o.producto||'').toLowerCase().includes(q));
@@ -656,10 +668,14 @@ async function toggleCheck(fbKey,cid){
   catch(e){o.checks[cid]=!newVal;renderSeg();setSyncState('offline');}finally{pendingOps--;}
 }
 function renderSegStats(){
-  var tot=orders.length,comp=orders.filter(o=>getProgress(o.checks).pct===100).length;
-  var cur=orders.filter(o=>{var p=getProgress(o.checks).pct;return p>0&&p<100;}).length;
-  var sin=orders.filter(o=>getProgress(o.checks).pct===0).length;
-  document.getElementById('seg-stats').innerHTML='<div class="stat-card"><div class="stat-label">Total</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Completados</div><div class="stat-val green">'+comp+'</div></div><div class="stat-card"><div class="stat-label">En curso</div><div class="stat-val amber">'+cur+'</div></div><div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-val pink">'+sin+'</div></div>';
+  var base=segMonthFilter==='todos'?orders:orders.filter(function(o){return extractMonth(o.semana)===segMonthFilter;});
+  var tot=base.length;
+  var comp=base.filter(function(o){return getProgress(o.checks).pct===100;}).length;
+  var cur=base.filter(function(o){var p=getProgress(o.checks).pct;return p>0&&p<100;}).length;
+  var sin=base.filter(function(o){return getProgress(o.checks).pct===0;}).length;
+  var label=segMonthFilter==='todos'?'Total':(segMonthFilter.charAt(0)+segMonthFilter.slice(1).toLowerCase());
+  document.getElementById('seg-stats').innerHTML='<div class="stat-card"><div class="stat-label">'+label+'</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Completados</div><div class="stat-val green">'+comp+'</div></div><div class="stat-card"><div class="stat-label">En curso</div><div class="stat-val amber">'+cur+'</div></div><div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-val pink">'+sin+'</div></div>';
+  renderMonthBar('seg-month-bar', orders, segMonthFilter, 'setSegMonth', function(o){return o.semana;});
 }
 function renderSeg(){
   var list=getFilteredOrders(),tbody=document.getElementById('seg-tbody'),empty=document.getElementById('seg-empty');
@@ -1250,17 +1266,19 @@ function calcFinPreview(){
   document.getElementById('fc-saldo').textContent=fmtCLP(saldo);document.getElementById('fc-sincom').textContent=fmtCLP(sincom);document.getElementById('fc-siniva').textContent=fmtCLP(siniva);
 }
 function renderFinStats(){
-  const tot=finRecords.length;
-  const totalVal=finRecords.reduce((s,r)=>s+(Number(r.total)||0),0);
-  const totalProd=finRecords.reduce((s,r)=>s+(Number(r.val_prod)||0),0);
-  const totalEnvio=finRecords.reduce((s,r)=>s+(Number(r.val_envio)||0),0);
-  const totalCom=finRecords.reduce((s,r)=>s+(Number(r.val_comision)||0),0);
-  const abonos=finRecords.reduce((s,r)=>s+(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0),0);
-  const saldosPend=finRecords.reduce((s,r)=>{
+  renderMonthBar('fin-month-bar', finRecords, finMonthFilter, 'setFinMonth', function(r){return r.semana;});
+  var base=finMonthFilter==='todos'?finRecords:finRecords.filter(function(r){return extractMonth(r.semana)===finMonthFilter;});
+  const tot=base.length;
+  const totalVal=base.reduce((s,r)=>s+(Number(r.total)||0),0);
+  const totalProd=base.reduce((s,r)=>s+(Number(r.val_prod)||0),0);
+  const totalEnvio=base.reduce((s,r)=>s+(Number(r.val_envio)||0),0);
+  const totalCom=base.reduce((s,r)=>s+(Number(r.val_comision)||0),0);
+  const abonos=base.reduce((s,r)=>s+(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0),0);
+  const saldosPend=base.reduce((s,r)=>{
     const totalAbonos=(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);
     return s+Math.max(0,(Number(r.total)||0)-totalAbonos);
   },0);
-  const docsPend=finRecords.filter(r=>!r.doc1_emitida||!r.doc2_emitida).length;
+  const docsPend=base.filter(r=>!r.doc1_emitida||!r.doc2_emitida).length;
   document.getElementById('fin-stats').innerHTML=
     '<div class="stat-card"><div class="stat-label">Registros</div><div class="stat-val wood">'+tot+'</div></div>'+
     '<div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(totalVal)+'</div></div>'+
@@ -1274,6 +1292,7 @@ function renderFinStats(){
 function getFilteredFin(){
   var q=(document.getElementById('fin-search').value||'').toLowerCase().trim();
   var list=finRecords.slice();
+  if(finMonthFilter!=='todos')list=list.filter(function(r){return extractMonth(r.semana)===finMonthFilter;});
   if(finFilter==='pendiente')list=list.filter(r=>!r.doc1_emitida||!r.doc2_emitida);
   if(finFilter==='listo')list=list.filter(r=>r.doc1_emitida&&r.doc2_emitida);
   if(q)list=list.filter(r=>(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
@@ -1308,6 +1327,18 @@ function renderFin(){
       </td>
       <td style="background:${bg};min-width:130px">
         <input style="${ni}" value="${r.producto||''}" ${iF} onchange="finRecords[${idx}].producto=this.value;saveFinLocal()">
+      </td>
+      <td style="background:${bg};min-width:120px">
+        <select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;saveFinLocal()">
+          <option value="TRANSFERENCIA BCI"${(r.medio_pago||'')==='TRANSFERENCIA BCI'?' selected':''}>Transferencia BCI</option>
+          <option value="LINK MP"${r.medio_pago==='LINK MP'?' selected':''}>Link MP</option>
+          <option value="LINK FLOW"${r.medio_pago==='LINK FLOW'?' selected':''}>Link Flow</option>
+          <option value="WEB"${r.medio_pago==='WEB'?' selected':''}>Web</option>
+          <option value="EFECTIVO"${r.medio_pago==='EFECTIVO'?' selected':''}>Efectivo</option>
+        </select>
+      </td>
+      <td style="background:${bg};min-width:120px">
+        <input style="${ni}" value="${r.como||''}" placeholder="Instagram..." ${iF} onchange="finRecords[${idx}].como=this.value;saveFinLocal()">
       </td>
       <td style="background:${bg};min-width:110px">
         <div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div>
@@ -1857,6 +1888,32 @@ async function initAllModules(){
   await loadCost();
 }
 init().then(()=>{if(DB_URL)initAllModules();});
+
+function renderMonthBar(barId, records, currentFilter, setFn, getField) {
+  var bar = document.getElementById(barId);
+  if (!bar) return;
+  var months = [];
+  var seen = {};
+  for (var i = 0; i < records.length; i++) {
+    var m = extractMonth(getField(records[i]));
+    if (m && !seen[m]) { months.push(m); seen[m] = true; }
+  }
+  months.sort(function(a,b){ return MESES_ES.indexOf(a) - MESES_ES.indexOf(b); });
+  var parts = [];
+  parts.push('<span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-right:2px">Mes:</span>');
+  var allActive = currentFilter === 'todos' ? ' active' : '';
+  parts.push('<button class="filter-btn' + allActive + '" onclick="' + setFn + '(\'todos\')">Todos <span style="font-size:10px;opacity:0.7">(' + records.length + ')</span></button>');
+  for (var j = 0; j < months.length; j++) {
+    var m = months[j];
+    var cnt = 0;
+    for (var k = 0; k < records.length; k++) { if (extractMonth(getField(records[k])) === m) cnt++; }
+    var active = currentFilter === m ? ' active' : '';
+    var label = m.charAt(0) + m.slice(1).toLowerCase();
+    parts.push('<button class="filter-btn' + active + '" onclick="' + setFn + '(\'' + m + '\')">'+label+' <span style="font-size:10px;opacity:0.7">('+cnt+')</span></button>');
+  }
+  bar.innerHTML = parts.join('');
+}
+
 </script>
 </body>
 </html>
