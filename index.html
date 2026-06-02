@@ -346,6 +346,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
     </div>
     <button class="tbtn" onclick="exportProdCSV()">↓ Exportar CSV</button>
   </div>
+  <div id="prod-month-bar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem"></div>
   <div class="table-card"><div class="table-wrap">
     <table class="prod">
       <thead><tr>
@@ -422,6 +423,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
       <button class="btn-add" onclick="openPixelModal()">+ Agregar manual</button>
     </div>
   </div>
+  <div id="pixel-month-bar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem"></div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="pixel-search" placeholder="Buscar por email, nombre, order ID..." oninput="renderPixel()">
   </div>
@@ -454,6 +456,7 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
       <button class="tbtn" onclick="exportCostCSV()">↓ CSV</button>
     </div>
   </div>
+  <div id="cost-month-bar" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem"></div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="cost-search" placeholder="Buscar por N° pedido o cliente..." oninput="renderCost()">
   </div>
@@ -584,6 +587,42 @@ table.pixel tbody td{padding:8px 11px;vertical-align:middle;}
 
 <script>
 const todayStr=new Date().toLocaleDateString('es-CL');
+
+var MESES_ES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+function extractMonth(s){if(!s)return null;var u=s.toUpperCase();for(var i=0;i<MESES_ES.length;i++){if(u.indexOf(MESES_ES[i])!==-1)return MESES_ES[i];}return null;}
+function extractMonthFromDate(d){if(!d)return null;var p=d.split('/');if(p.length>=2){var m=parseInt(p[1],10);if(m>=1&&m<=12)return MESES_ES[m-1];}return null;}
+function currentMonthName(){return MESES_ES[new Date().getMonth()];}
+
+// Estado filtros mes (por página)
+var segMonthFilter=currentMonthName();
+var finMonthFilter=currentMonthName();
+var prodMonthFilter=currentMonthName();
+var pixelMonthFilter=currentMonthName();
+var costMonthFilter=currentMonthName();
+
+function setSegMonth(m){segMonthFilter=m;renderSeg();}
+function setFinMonth(m){finMonthFilter=m;renderFin();}
+function setProdMonth(m){prodMonthFilter=m;renderProd();updateProdStats();}
+function setPixelMonth(m){pixelMonthFilter=m;renderPixel();}
+function setCostMonth(m){costMonthFilter=m;renderCost();}
+
+function renderMonthBar(barId,records,currentFilter,setFn,getMonthFn){
+  var bar=document.getElementById(barId);if(!bar)return;
+  var months=[],seen={};
+  for(var i=0;i<records.length;i++){var m=getMonthFn(records[i]);if(m&&!seen[m]){months.push(m);seen[m]=true;}}
+  months.sort(function(a,b){return MESES_ES.indexOf(a)-MESES_ES.indexOf(b);});
+  var parts=[];
+  parts.push('<span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-right:2px;flex-shrink:0">Mes:</span>');
+  parts.push('<button class="filter-btn'+(currentFilter==='todos'?' active':'')+'" onclick="'+setFn+'(\'todos\')">Todos <span style="font-size:10px;opacity:0.7">('+records.length+')</span></button>');
+  for(var j=0;j<months.length;j++){
+    var mm=months[j];
+    var cnt=0;for(var k=0;k<records.length;k++){if(getMonthFn(records[k])===mm)cnt++;}
+    var label=mm.charAt(0)+mm.slice(1).toLowerCase();
+    parts.push('<button class="filter-btn'+(currentFilter===mm?' active':'')+'" onclick="'+setFn+'(\''+mm+'\')">'+label+' <span style="font-size:10px;opacity:0.7">('+cnt+')</span></button>');
+  }
+  bar.innerHTML=parts.join('');
+}
+
 const todayISO=new Date().toISOString().slice(0,16);
 document.getElementById('prod-date').textContent=todayStr;
 function fmtCLP(v){return v?'$'+Number(v).toLocaleString('es-CL'):'—';}
@@ -621,13 +660,6 @@ var scm={},sci=0;
 function getSC(s){if(!scm[s]){scm[s]=SC[sci%SC.length];sci++;}return scm[s];}
 const SEED=[];
 let orders=[],editingKey=null,segFilter='todos',pollInterval=null,pendingOps=0;
-var MESES_ES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-function extractMonth(s){if(!s)return null;var u=s.toUpperCase();for(var i=0;i<MESES_ES.length;i++){if(u.indexOf(MESES_ES[i])!==-1)return MESES_ES[i];}return null;}
-function currentMonthName(){return MESES_ES[new Date().getMonth()];}
-var segMonthFilter=currentMonthName();
-var finMonthFilter=currentMonthName();
-function setSegMonth(m){segMonthFilter=m;renderSeg();}
-function setFinMonth(m){finMonthFilter=m;renderFin();}
 function api(path,method,data){var opts={method:method||'GET',headers:{'Content-Type':'application/json'}};if(data!==undefined)opts.body=JSON.stringify(data);return fetch(DB_URL+'/'+path+'.json',opts).then(r=>r.json());}
 function setSyncState(s){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-label').textContent=s==='online'?'En vivo':s==='syncing'?'Guardando...':'Sin conexión';}
 function hideLoading(){document.getElementById('loading').style.display='none';}
@@ -668,6 +700,7 @@ async function toggleCheck(fbKey,cid){
   catch(e){o.checks[cid]=!newVal;renderSeg();setSyncState('offline');}finally{pendingOps--;}
 }
 function renderSegStats(){
+  renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
   var base=segMonthFilter==='todos'?orders:orders.filter(function(o){return extractMonth(o.semana)===segMonthFilter;});
   var tot=base.length;
   var comp=base.filter(function(o){return getProgress(o.checks).pct===100;}).length;
@@ -675,7 +708,6 @@ function renderSegStats(){
   var sin=base.filter(function(o){return getProgress(o.checks).pct===0;}).length;
   var label=segMonthFilter==='todos'?'Total':(segMonthFilter.charAt(0)+segMonthFilter.slice(1).toLowerCase());
   document.getElementById('seg-stats').innerHTML='<div class="stat-card"><div class="stat-label">'+label+'</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Completados</div><div class="stat-val green">'+comp+'</div></div><div class="stat-card"><div class="stat-label">En curso</div><div class="stat-val amber">'+cur+'</div></div><div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-val pink">'+sin+'</div></div>';
-  renderMonthBar('seg-month-bar', orders, segMonthFilter, 'setSegMonth', function(o){return o.semana;});
 }
 function renderSeg(){
   var list=getFilteredOrders(),tbody=document.getElementById('seg-tbody'),empty=document.getElementById('seg-empty');
@@ -968,6 +1000,7 @@ async function confirmOrder(){
   if(!prodPending) return;
   const o = prodPending;
   const numStr = String(o.pedido||'');
+  o.fecha_creacion = o.fecha_creacion || todayStr;
 
   // 1. PRODUCCIÓN — upsert por número de pedido
   const existProdIdx = prodOrders.findIndex(p=>String(p.pedido||'')=== numStr);
@@ -1018,6 +1051,7 @@ async function confirmOrder(){
   const existFinIdx = finRecords.findIndex(r=>String(r.num||'')=== numStr);
   const finData = {
     num:numStr,
+    fecha_creacion:o.fecha_creacion||todayStr,
     semana:o.envio||'',
     nombre:o.comprador||'',
     apellido:o.apellido||'',
@@ -1186,7 +1220,10 @@ const PROD_COLORS=['#FDFAF7','#EEE9E3'];
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
-  tbody.innerHTML=prodOrders.map((o,oi)=>{
+  renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion);});
+  var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+  tbody.innerHTML=filteredProd.map((o,_oi)=>{
+    const oi=prodOrders.indexOf(o);
     const rowBg=PROD_COLORS[oi%2];
     return(o.lineas||[]).map((l,li)=>{
       const isFirst=li===0;
@@ -1216,7 +1253,11 @@ function renderProd(){
     }).join('');
   }).join('');
 }
-function updateProdStats(){document.getElementById('p-ped').textContent=prodOrders.length;document.getElementById('p-lin').textContent=prodOrders.reduce((s,o)=>s+(o.lineas||[]).length,0);}
+function updateProdStats(){
+  var fp=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+  document.getElementById('p-ped').textContent=fp.length;
+  document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);
+}
 function exportProdCSV(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
   const rows=[['PEDIDO','ENVÍO','COMPRADOR','APELLIDO','PRODUCTO','CANTIDAD','MADERA','LARGO','ANCHO','CANTO','ACABADO','ESPESOR','OBSERVACIONES','MTRS2'].join(',')];
@@ -1266,8 +1307,8 @@ function calcFinPreview(){
   document.getElementById('fc-saldo').textContent=fmtCLP(saldo);document.getElementById('fc-sincom').textContent=fmtCLP(sincom);document.getElementById('fc-siniva').textContent=fmtCLP(siniva);
 }
 function renderFinStats(){
-  renderMonthBar('fin-month-bar', finRecords, finMonthFilter, 'setFinMonth', function(r){return r.semana;});
-  var base=finMonthFilter==='todos'?finRecords:finRecords.filter(function(r){return extractMonth(r.semana)===finMonthFilter;});
+  renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
+  var base=finMonthFilter==='todos'?finRecords:finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});
   const tot=base.length;
   const totalVal=base.reduce((s,r)=>s+(Number(r.total)||0),0);
   const totalProd=base.reduce((s,r)=>s+(Number(r.val_prod)||0),0);
@@ -1292,7 +1333,7 @@ function renderFinStats(){
 function getFilteredFin(){
   var q=(document.getElementById('fin-search').value||'').toLowerCase().trim();
   var list=finRecords.slice();
-  if(finMonthFilter!=='todos')list=list.filter(function(r){return extractMonth(r.semana)===finMonthFilter;});
+  if(finMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});
   if(finFilter==='pendiente')list=list.filter(r=>!r.doc1_emitida||!r.doc2_emitida);
   if(finFilter==='listo')list=list.filter(r=>r.doc1_emitida&&r.doc2_emitida);
   if(q)list=list.filter(r=>(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
@@ -1561,13 +1602,16 @@ function fmtEventTime(dt){
   }catch{return new Date().toISOString().slice(0,19)+'-04:00';}
 }
 function renderPixelStats(){
-  const tot=pixelRecords.length,sub=pixelRecords.filter(r=>r.status==='subida').length;
-  const noSub=pixelRecords.filter(r=>r.status==='nosubida').length,noKlav=pixelRecords.filter(r=>r.status==='noklav').length;
+  renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});
+  var base=pixelMonthFilter==='todos'?pixelRecords:pixelRecords.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});
+  const tot=base.length,sub=base.filter(r=>r.status==='subida').length;
+  const noSub=base.filter(r=>r.status==='nosubida').length,noKlav=base.filter(r=>r.status==='noklav').length;
   document.getElementById('pixel-stats').innerHTML='<div class="stat-card"><div class="stat-label">Total</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Subidas</div><div class="stat-val green">'+sub+'</div></div><div class="stat-card"><div class="stat-label">No subidas</div><div class="stat-val pink">'+noSub+'</div></div><div class="stat-card"><div class="stat-label">No Klaviyo</div><div class="stat-val amber">'+noKlav+'</div></div>';
 }
 function getFilteredPixel(){
   var q=(document.getElementById('pixel-search').value||'').toLowerCase().trim();
   var list=pixelRecords.slice();
+  if(pixelMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});
   if(pixelFilter==='subida')list=list.filter(r=>r.status==='subida');
   if(pixelFilter==='nosubida')list=list.filter(r=>r.status==='nosubida');
   if(pixelFilter==='noklav')list=list.filter(r=>r.status==='noklav');
@@ -1702,9 +1746,11 @@ async function loadCost(){
 const CATEGORIAS_COSTO=['Madera','Insumos','Mano de obra','Acabado','Envío/Flete','Herramientas','Embalaje','Otro'];
 
 function renderCostStats(){
-  const tot=costRecords.length;
-  const totalVenta=costRecords.reduce((s,r)=>s+(Number(r.venta_total)||0),0);
-  const totalCosto=costRecords.reduce((s,r)=>s+(r.lineas||[]).reduce((ss,l)=>ss+(Number(l.total)||0),0),0);
+  renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
+  var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  const tot=base.length;
+  const totalVenta=base.reduce((s,r)=>s+(Number(r.venta_total)||0),0);
+  const totalCosto=base.reduce((s,r)=>s+(r.lineas||[]).reduce((ss,l)=>ss+(Number(l.total)||0),0),0);
   const ganancia=totalVenta-totalCosto;
   const margenPct=totalVenta?Math.round(ganancia/totalVenta*100):0;
   document.getElementById('cost-stats').innerHTML=
@@ -1718,7 +1764,8 @@ function renderCostStats(){
 function renderCost(){
   renderCostStats();
   const q=(document.getElementById('cost-search').value||'').toLowerCase().trim();
-  const list=costRecords.filter(r=>!q||(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
+  var costBase=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  const list=costBase.filter(r=>!q||(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
   const container=document.getElementById('cost-list');
   if(!list.length){container.innerHTML='<div class="cost-empty"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:0.3">🔧</span>Los pedidos aparecen aquí al confirmar un pantallazo</div>';return;}
   container.innerHTML=list.map(r=>{
@@ -1888,32 +1935,6 @@ async function initAllModules(){
   await loadCost();
 }
 init().then(()=>{if(DB_URL)initAllModules();});
-
-function renderMonthBar(barId, records, currentFilter, setFn, getField) {
-  var bar = document.getElementById(barId);
-  if (!bar) return;
-  var months = [];
-  var seen = {};
-  for (var i = 0; i < records.length; i++) {
-    var m = extractMonth(getField(records[i]));
-    if (m && !seen[m]) { months.push(m); seen[m] = true; }
-  }
-  months.sort(function(a,b){ return MESES_ES.indexOf(a) - MESES_ES.indexOf(b); });
-  var parts = [];
-  parts.push('<span style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;margin-right:2px">Mes:</span>');
-  var allActive = currentFilter === 'todos' ? ' active' : '';
-  parts.push('<button class="filter-btn' + allActive + '" onclick="' + setFn + '(\'todos\')">Todos <span style="font-size:10px;opacity:0.7">(' + records.length + ')</span></button>');
-  for (var j = 0; j < months.length; j++) {
-    var m = months[j];
-    var cnt = 0;
-    for (var k = 0; k < records.length; k++) { if (extractMonth(getField(records[k])) === m) cnt++; }
-    var active = currentFilter === m ? ' active' : '';
-    var label = m.charAt(0) + m.slice(1).toLowerCase();
-    parts.push('<button class="filter-btn' + active + '" onclick="' + setFn + '(\'' + m + '\')">'+label+' <span style="font-size:10px;opacity:0.7">('+cnt+')</span></button>');
-  }
-  bar.innerHTML = parts.join('');
-}
-
 </script>
 </body>
 </html>
