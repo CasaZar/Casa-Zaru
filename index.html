@@ -1625,21 +1625,46 @@ async function saveFinRecord(){
 function deleteFinRecord(){if(editingFinIdx===null)return;if(!confirm('¿Eliminar?'))return;finRecords.splice(editingFinIdx,1);saveFinLocal();renderFin();closeFinModal();showToast('✓ Eliminado');}
 document.getElementById('modal-fin-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-fin-bg'))closeFinModal();});
 function exportFinCSV(){
-  if(!finRecords.length){showToast('No hay registros');return;}
-  const cols=['N° VENTA','SEMANA','NOMBRE','APELLIDO','EMAIL','CELULAR','RUT','DIRECCION','PRODUCTO','MEDIO PAGO','COMO NOS CONOCIO','ABONO 1','ABONO 2','ABONO 3','COMISION','ENVIO','TOTAL C/ENV+COM','TOTAL SIN COM/ENV','SIN IVA','PENDIENTE','DOC 1 TIPO','DOC 1 N°','DOC 2 TIPO','DOC 2 N°','ESTADO'];
+  var toExport=getFilteredFin();
+  if(!toExport.length){showToast('No hay registros');return;}
+  const cols=['N° VENTA','FECHA VENTA','SEMANA','NOMBRE','APELLIDO','EMAIL','CELULAR','RUT','DIRECCION',
+    'PRODUCTO','MEDIO PAGO','COMO NOS CONOCIO',
+    'VALOR PRODUCTO','ENVIO','COMISION','TOTAL','ABONO 1','ABONO 2','ABONO 3','PENDIENTE',
+    'TOTAL SIN COM/ENV','SIN IVA',
+    'DOC 1 TIPO','DOC 1 N°','DOC 2 TIPO','DOC 2 N°','ESTADO'];
   const rows=[cols.join(',')];
-  finRecords.forEach(r=>{
-    const totalAbonos=(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);
-    const pendiente=Math.max(0,(Number(r.total)||0)-totalAbonos);
+  // Acumuladores para fila de totales
+  var sumValProd=0,sumEnvio=0,sumCom=0,sumTotal=0,sumA1=0,sumA2=0,sumA3=0,sumPend=0,sumSinCom=0,sumSinIva=0;
+  toExport.forEach(r=>{
+    const vp=Number(r.val_prod)||0;
+    const ve=Number(r.val_envio)||0;
+    const vc=Number(r.val_comision)||0;
+    const total=Number(r.total)||0;
+    const a1=Number(r.abono1)||0;
+    const a2=Number(r.abono2)||0;
+    const a3=Number(r.abono3)||0;
+    const totalAbonos=a1+a2+a3;
+    const pendiente=Math.max(0,total-totalAbonos);
+    // Recalcular sin_com y sin_iva siempre desde valores reales
+    const sinCom=vp+ve;
+    const sinIva=sinCom?Math.round(sinCom/1.19):0;
+    sumValProd+=vp;sumEnvio+=ve;sumCom+=vc;sumTotal+=total;
+    sumA1+=a1;sumA2+=a2;sumA3+=a3;sumPend+=pendiente;sumSinCom+=sinCom;sumSinIva+=sinIva;
     rows.push([
-      r.num||'',r.semana||'',r.nombre||'',r.apellido||'',r.email||'',r.celular||'',r.rut||'',
-      r.direccion||'',r.producto||'',r.medio_pago||'',r.como||'',
-      r.abono1||0,r.abono2||0,r.abono3||0,
-      r.val_comision||0,r.val_envio||0,r.total||0,r.sin_com||0,r.sin_iva||0,pendiente,
+      r.num||'',r.fecha_creacion||r.fecha||'',r.semana||'',
+      r.nombre||'',r.apellido||'',r.email||'',r.celular||'',r.rut||'',r.direccion||'',
+      r.producto||'',r.medio_pago||'',r.como||'',
+      vp,ve,vc,total,a1,a2,a3,pendiente,sinCom,sinIva,
       r.doc1_tipo||'BOLETA',r.doc1_num||'',r.doc2_tipo||'BOLETA',r.doc2_num||'',
       (r.doc1_emitida&&r.doc2_emitida)?'LISTO':'PENDIENTE'
     ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   });
+  // Fila de totales
+  rows.push([
+    'TOTALES','','','','','','','','','','','',
+    sumValProd,sumEnvio,sumCom,sumTotal,sumA1,sumA2,sumA3,sumPend,sumSinCom,sumSinIva,
+    '','','','',''
+  ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
   dlCSV(rows,'zaru_finanzas_'+todayStr.replace(/\//g,'-')+'.csv');
 }
 
