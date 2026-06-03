@@ -941,7 +941,7 @@ El mensaje de César tiene este formato:
         order_id:'WTSP'+String(pedidoData.pedido||''),
         value:cli.value||0,
         event_time:fmtEventTime(cli.event_time),
-        status:'nosubida',fecha:o.fecha_creacion||todayStr
+         status:'nosubida',fecha:fechaFromSemana(pedidoData.envio||'')
       });
       savePixelLocal();
       showToast('✓ Datos de cliente agregados a Pixel Meta automáticamente');
@@ -1037,7 +1037,14 @@ async function confirmOrder(){
   if(!prodPending) return;
   const o = prodPending;
   const numStr = String(o.pedido||'');
-  o.fecha_creacion = o.fecha_creacion || todayStr;
+  // Leer fecha_venta del datepicker (yyyy-mm-dd) → convertir a dd/mm/yyyy
+  if(o.fecha_venta && o.fecha_venta.indexOf('-')!==-1){
+    var _fv=o.fecha_venta.split('-');
+    o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];
+  } else {
+    o.fecha_creacion=fechaFromSemana(o.envio||'');
+  }
+  o.fecha=o.fecha_creacion;
 
   // 1. PRODUCCIÓN — upsert por número de pedido
   const existProdIdx = prodOrders.findIndex(p=>String(p.pedido||'')=== numStr);
@@ -1107,7 +1114,7 @@ async function confirmOrder(){
     doc1_tipo:'BOLETA',doc2_tipo:'BOLETA',
     doc1_num:'',doc2_num:'',
     doc1_emitida:false,doc2_emitida:false,
-    fecha:todayStr
+    fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')
   };
   if(existFinIdx>=0){
     // actualizar datos pero mantener abonos y docs ya ingresados
@@ -1135,7 +1142,7 @@ async function confirmOrder(){
       order_id:orderId,
       value:cli.value||total||0,
       event_time:fmtEventTime(cli.event_time),
-      status:'nosubida',fecha:o.fecha_creacion||todayStr
+      status:'nosubida',fecha:o.fecha_creacion
     };
     const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
     if(existPixelIdx>=0){
@@ -1154,7 +1161,7 @@ async function confirmOrder(){
     num:numStr,semana:o.envio||'',
     nombre:o.comprador||'',apellido:o.apellido||'',
     producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
-    venta_total:total,fecha:todayStr
+    venta_total:total,fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')
   };
   if(existCostIdx>=0){
     costData.lineas=costRecords[existCostIdx].lineas||[];
