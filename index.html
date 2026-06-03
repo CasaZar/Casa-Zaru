@@ -928,7 +928,7 @@ El mensaje de César tiene este formato:
         phone:fmtPhone(cli.phone),
         fn:fmtName(cli.fn||pedidoData.comprador||''),
         ln:fmtName(cli.ln||pedidoData.apellido||''),
-        ct:cli.ct||'',st:cli.st||'',country:'CL',gen:cli.gen||'',
+        ct:fmtLower(cli.ct),st:fmtLower(cli.st),country:'CL',gen:cli.gen||'',
         order_id:'WTSP'+String(pedidoData.pedido||''),
         value:cli.value||0,
         event_time:fmtEventTime(cli.event_time),
@@ -1229,12 +1229,39 @@ async function updateProdField(oi,field,val,li){
 }
 
 async function deleteProdOrder(oi){
-  if(!confirm('¿Eliminar este pedido de producción?'))return;
+  if(!confirm('¿Eliminar este pedido de producción y todas sus secciones?'))return;
   const o=prodOrders[oi];
+  const numStr=String(o.pedido||'');
+
+  // 1. Producción — Firebase
   if(DB_URL&&o.fbKey){try{await api('produccion/'+o.fbKey,'DELETE');}catch(e){}}
   prodOrders.splice(oi,1);
+
+  // 2. Seguimiento — Firebase
+  if(DB_URL){
+    const segObj=orders.find(function(x){return String(x.num||'')===numStr;});
+    if(segObj&&segObj.fbKey){
+      try{await api('pedidos/'+segObj.fbKey,'DELETE');}catch(e){}
+      orders=orders.filter(function(x){return x.fbKey!==segObj.fbKey;});
+    }
+  }
+
+  // 3. Finanzas
+  const finIdx=finRecords.findIndex(function(r){return String(r.num||'')===numStr;});
+  if(finIdx>=0){finRecords.splice(finIdx,1);await saveFinLocal();}
+
+  // 4. Pixel
+  const orderId='WTSP'+numStr;
+  const pxIdx=pixelRecords.findIndex(function(r){return r.order_id===orderId;});
+  if(pxIdx>=0){pixelRecords.splice(pxIdx,1);await savePixelLocal();}
+
+  // 5. Costos
+  const costIdx=costRecords.findIndex(function(r){return String(r.num||'')===numStr;});
+  if(costIdx>=0){costRecords.splice(costIdx,1);await saveCostLocal();}
+
   renderProd();updateProdStats();
-  showToast('✓ Pedido eliminado');
+  renderSeg();renderFin();renderPixel();renderCost();
+  showToast('✓ Pedido #'+numStr+' eliminado de todas las secciones');
 }
 
 const PROD_COLORS=['#FDFAF7','#EEE9E3'];
@@ -1612,16 +1639,21 @@ async function savePixelLocal(){
 
 // Normaliza teléfono a solo dígitos sin +56 ni espacios: 975646543
 function fmtPhone(p){if(!p)return'';return String(p).replace(/\D/g,'').replace(/^56/,'');}
+function fmtLower(s){if(!s)return'';return String(s).trim().toLowerCase();}
 // Normaliza nombre: capitalizar cada palabra
-function fmtName(n){if(!n)return'';return n.trim().split(/\s+/).map(w=>w.charAt(0).toUpperCase()+w.slice(1).toLowerCase()).join(' ');}
+function fmtName(n){if(!n)return'';return n.trim().toLowerCase();}
 // Formato de fecha Meta: 2026-04-02T14:01:00-04:00
 function fmtEventTime(dt){
-  if(!dt)return new Date().toISOString().replace('Z','-04:00').slice(0,22)+':00';
   try{
-    const d=new Date(dt);
-    const pad=n=>String(n).padStart(2,'0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:00-04:00`;
-  }catch{return new Date().toISOString().slice(0,19)+'-04:00';}
+    var d=dt?new Date(dt):new Date();
+    if(isNaN(d.getTime()))d=new Date();
+    var pad=function(n){return String(n).padStart(2,'0');};
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00-04:00';
+  }catch(e){
+    var now=new Date();
+    var pad=function(n){return String(n).padStart(2,'0');};
+    return now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'T'+pad(now.getHours())+':'+pad(now.getMinutes())+':00-04:00';
+  }
 }
 function renderPixelStats(){
   renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});
@@ -1706,8 +1738,8 @@ function savePixelRecord(){
     phone:fmtPhone(document.getElementById('px-phone').value),
     fn:fmtName(document.getElementById('px-fn').value),
     ln:fmtName(document.getElementById('px-ln').value),
-    ct:document.getElementById('px-ct').value.trim(),
-    st:document.getElementById('px-st').value.trim(),
+    ct:fmtLower(document.getElementById('px-ct').value),
+    st:fmtLower(document.getElementById('px-st').value),
     country:'CL',
     gen:document.getElementById('px-gen').value,
     order_id:document.getElementById('px-orderid').value.trim(),
