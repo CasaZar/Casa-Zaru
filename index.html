@@ -615,6 +615,14 @@ var pixelMonthFilter=currentMonthName();
 var costMonthFilter=currentMonthName();
 
 function setSegMonth(m){segMonthFilter=m;renderSeg();}
+function fechaFromSemana(semana){
+  if(!semana)return todayStr;
+  var s=semana.toUpperCase();
+  for(var i=0;i<MESES_ES.length;i++){
+    if(s.indexOf(MESES_ES[i])!==-1)return '1/'+(i+1)+'/2026';
+  }
+  return todayStr;
+}
 function setFinMonth(m){finMonthFilter=m;renderFin();}
 function setProdMonth(m){prodMonthFilter=m;renderProd();updateProdStats();}
 function setPixelMonth(m){pixelMonthFilter=m;renderPixel();}
@@ -778,6 +786,7 @@ async function syncFromProd(){
       actualizados++;
     } else {
       segData.checks={...checks};
+      segData.fecha_creacion=fechaFromSemana(segData.semana);
       await api('pedidos','POST',segData);
       creados++;
     }
@@ -981,7 +990,14 @@ Si no hay líneas claras devuelve {"lineas":[]}`}
   r.readAsDataURL(file);
 }
 function renderPrevProd(o){
-  document.getElementById('chips').innerHTML=`<div class="chip hi"><label>N° Pedido</label><input type="number" value="${o.pedido}" onchange="prodPending.pedido=Number(this.value)" style="width:70px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:14px;color:var(--wood);font-weight:700"></div><div class="chip hi"><label>Cliente</label><span>${o.comprador||''} ${o.apellido||''}</span></div><div class="chip"><label>Envío</label><span>${o.envio||'—'}</span></div><div class="chip"><label>Líneas</label><span>${(o.lineas||[]).length}</span></div>`;
+  var hoy=new Date();
+  var dd=String(hoy.getDate()).padStart(2,'0');
+  var mm=String(hoy.getMonth()+1).padStart(2,'0');
+  var yyyy=hoy.getFullYear();
+  var fechaISO=yyyy+'-'+mm+'-'+dd;
+  var fechaInicial=o.fecha_venta||fechaISO;
+  document.getElementById('chips').innerHTML=`<div class="chip hi"><label>N° Pedido</label><input type="number" value="${o.pedido}" onchange="prodPending.pedido=Number(this.value)" style="width:70px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:14px;color:var(--wood);font-weight:700"></div><div class="chip hi"><label>Cliente</label><span>${o.comprador||''} ${o.apellido||''}</span></div><div class="chip"><label>Envío</label><span>${o.envio||'—'}</span></div><div class="chip hi" style="border:1.5px solid var(--wood-light)"><label style="color:var(--wood);font-weight:600">📅 Fecha de venta</label><input type="date" value="${fechaInicial}" onchange="prodPending.fecha_venta=this.value" style="background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:13px;color:var(--wood);font-weight:600"></div><div class="chip"><label>Líneas</label><span>${(o.lineas||[]).length}</span></div>`;
+  prodPending.fecha_venta=prodPending.fecha_venta||fechaISO;
   renderPrevRows(o.lineas||[]);
 }
 function renderPrevRows(lineas){
@@ -1072,7 +1088,7 @@ async function confirmOrder(){
   const existFinIdx = finRecords.findIndex(r=>String(r.num||'')=== numStr);
   const finData = {
     num:numStr,
-    fecha_creacion:o.fecha_creacion||todayStr,
+    fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),
     semana:o.envio||'',
     nombre:o.comprador||'',
     apellido:o.apellido||'',
@@ -1522,7 +1538,9 @@ async function syncFinFromProd(){
         producto:prod,email:'',celular:'',rut:'',direccion:'',medio_pago:'TRANSFERENCIA',como:'',
         val_prod:0,val_envio:0,val_comision:0,total:0,abono_monto:0,saldo_monto:0,sin_com:0,sin_iva:0,
         abono1:0,abono2:0,abono3:0,doc1_tipo:'BOLETA',doc2_tipo:'BOLETA',
-        doc1_num:'',doc2_num:'',doc1_emitida:false,doc2_emitida:false,fecha:todayStr
+        doc1_num:'',doc2_num:'',doc1_emitida:false,doc2_emitida:false,
+        fecha:fechaFromSemana(o.envio||''),
+        fecha_creacion:fechaFromSemana(o.envio||'')
       });
       creados++;
     }
@@ -1993,11 +2011,12 @@ async function migrarFechaCreacion() {
   finRecords.forEach(function(r) {
     var m = extractMonthFromDate(r.fecha_creacion || r.fecha);
     if (!m) {
-      r.fecha_creacion = '1/5/2026';
-      if (!r.fecha) r.fecha = '1/5/2026';
+      var fc = fechaFromSemana(r.semana||'');
+      r.fecha_creacion = fc;
+      if (!r.fecha) r.fecha = fc;
       cambios = true;
     } else if (!r.fecha_creacion) {
-      r.fecha_creacion = r.fecha || '1/5/2026';
+      r.fecha_creacion = r.fecha || fechaFromSemana(r.semana||'');
       cambios = true;
     }
   });
@@ -2005,8 +2024,9 @@ async function migrarFechaCreacion() {
   prodOrders.forEach(function(o) {
     var m = extractMonthFromDate(o.fecha || o.fecha_creacion);
     if (!m) {
-      o.fecha = '1/5/2026';
-      o.fecha_creacion = '1/5/2026';
+      var fc = fechaFromSemana(o.envio||'');
+      o.fecha = fc;
+      o.fecha_creacion = fc;
       cambios = true;
     }
   });
