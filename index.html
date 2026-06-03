@@ -786,7 +786,7 @@ async function syncFromProd(){
       actualizados++;
     } else {
       segData.checks={...checks};
-      segData.fecha_creacion=fechaFromSemana(segData.semana);
+      segData.fecha_creacion=o.fecha_creacion||fechaFromSemana(segData.semana);
       await api('pedidos','POST',segData);
       creados++;
     }
@@ -941,7 +941,7 @@ El mensaje de César tiene este formato:
         order_id:'WTSP'+String(pedidoData.pedido||''),
         value:cli.value||0,
         event_time:fmtEventTime(cli.event_time),
-        status:'nosubida',fecha:todayStr
+        status:'nosubida',fecha:o.fecha_creacion||todayStr
       });
       savePixelLocal();
       showToast('✓ Datos de cliente agregados a Pixel Meta automáticamente');
@@ -1045,9 +1045,11 @@ async function confirmOrder(){
     // mantener fbKey existente y actualizar
     o.fbKey = prodOrders[existProdIdx].fbKey;
     prodOrders[existProdIdx] = o;
+    prodOrders.sort(function(a,b){return Number(a.pedido||0)-Number(b.pedido||0);});
     if(DB_URL&&o.fbKey) await api('produccion/'+o.fbKey,'PUT',o);
   } else {
     prodOrders.push(o);
+    prodOrders.sort(function(a,b){return Number(a.pedido||0)-Number(b.pedido||0);});
     await saveProdFirebase(o);
   }
 
@@ -1133,7 +1135,7 @@ async function confirmOrder(){
       order_id:orderId,
       value:cli.value||total||0,
       event_time:fmtEventTime(cli.event_time),
-      status:'nosubida',fecha:todayStr
+      status:'nosubida',fecha:o.fecha_creacion||todayStr
     };
     const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
     if(existPixelIdx>=0){
