@@ -581,6 +581,80 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .calc-box { background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:14px 16px;margin-bottom:12px;display:none; }
 .empty-state { text-align:center;padding:40px 1rem;color:var(--text-3); }
 .empty-icon { font-size:36px;display:block;margin-bottom:10px;opacity:0.3; }
+
+/* ── DASHBOARD ── */
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  transition: border-color .15s;
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card:hover { border-color: var(--border-md); }
+.kpi-label { font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+.kpi-val { font-size: 24px; font-weight: 700; letter-spacing: -.5px; color: var(--text); margin-bottom: 4px; }
+.kpi-delta {
+  font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 20px;
+}
+.kpi-delta.up   { background: var(--green-dim); color: var(--green); }
+.kpi-delta.down { background: var(--red-dim); color: var(--red); }
+.kpi-delta.flat { background: var(--surface2); color: var(--text-3); }
+.kpi-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+.urgente-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .12s;
+}
+.urgente-row:last-child { border-bottom: none; }
+.urgente-row:hover { background: var(--surface2); margin: 0 -20px; padding: 10px 20px; border-radius: var(--radius); }
+.urgente-num { font-size: 15px; font-weight: 700; color: var(--brand); min-width: 44px; }
+.urgente-info { flex: 1; min-width: 0; }
+.urgente-nombre { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.urgente-semana { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.urgente-prog { min-width: 80px; text-align: right; }
+
+.check-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  border-left: 3px solid var(--red);
+  cursor: pointer;
+  transition: background .12s;
+}
+.check-alert:hover { background: var(--surface3); }
+.check-alert.warn { border-left-color: var(--amber); }
+.check-alert-num { font-size: 13px; font-weight: 700; color: var(--brand); white-space: nowrap; }
+.check-alert-info { flex: 1; min-width: 0; }
+.check-alert-cliente { font-size: 12px; font-weight: 600; color: var(--text); }
+.check-alert-tipo { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.check-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.check-badge.critico { background: var(--red-dim); color: var(--red); }
+.check-badge.warn    { background: var(--amber-dim); color: var(--amber); }
+
+.reciente-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.reciente-row:last-child { border-bottom: none; }
+.reciente-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.empty-dash { text-align: center; padding: 24px; color: var(--text-3); font-size: 13px; }
+
 </style>
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -25093,7 +25167,8 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
   </div>
   <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('prod',this)"><span class="tab-icon">🪵</span> Producción</button>
+    <button class="nav-tab active" onclick="showPage('dash',this)"><span class="tab-icon">⚡</span> Dashboard</button>
+    <button class="nav-tab" onclick="showPage('prod',this)"><span class="tab-icon">🪵</span> Producción</button>
     <button class="nav-tab" onclick="showPage('seg',this)"><span class="tab-icon">📋</span> Seguimiento</button>
     <button class="nav-tab" onclick="showPage('fin',this)"><span class="tab-icon">💰</span> Finanzas</button>
     <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon">📊</span> Pixel Meta</button>
@@ -25101,6 +25176,55 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
 </div>
 <div class="app-body">
+
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dash">
+<div class="main">
+
+  <!-- KPIs -->
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.4px">Buenos días 👋</div>
+      <div style="font-size:13px;color:var(--text-3);margin-top:3px" id="dash-date"></div>
+    </div>
+    <button class="btn-ghost" onclick="renderDash()" style="font-size:12px">↺ Actualizar</button>
+  </div>
+
+  <!-- Fila KPIs mes actual vs anterior -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px" id="dash-kpis"></div>
+
+  <!-- Fila 2: urgentes + checkpoints -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="dash-grid">
+
+    <!-- Pedidos urgentes esta semana -->
+    <div class="table-card" style="padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">📦 Entregas esta semana</div>
+        <div id="dash-urgentes-count" style="font-size:11px;font-weight:600;background:var(--brand-dim);color:var(--brand);padding:3px 8px;border-radius:6px"></div>
+      </div>
+      <div id="dash-urgentes"></div>
+    </div>
+
+    <!-- Checkpoints críticos pendientes -->
+    <div class="table-card" style="padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:700;color:var(--text)">⚠️ Checkpoints pendientes</div>
+        <div id="dash-checks-count" style="font-size:11px;font-weight:600;background:var(--red-dim);color:var(--red);padding:3px 8px;border-radius:6px"></div>
+      </div>
+      <div id="dash-checks"></div>
+    </div>
+
+  </div>
+
+  <!-- Fila 3: actividad reciente -->
+  <div class="table-card" style="padding:20px">
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">🕐 Últimos pedidos ingresados</div>
+    <div id="dash-recientes"></div>
+  </div>
+
+</div>
+</div>
 
 <!-- P1 SEGUIMIENTO -->
 <div class="page" id="page-seg">
@@ -25151,7 +25275,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 </div></div>
 
 <!-- P2 PRODUCCIÓN -->
-<div class="page active" id="page-prod">
+<div class="page" id="page-prod">
 <div class="main">
   <div class="api-banner" id="api-banner">
     <label>🔑 API Key Anthropic:</label>
@@ -25513,11 +25637,12 @@ function showPage(p,btn){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
-  btn.classList.add('active');
+  if(btn) btn.classList.add('active');
   if(p==='fin'){loadFin();}
   if(p==='pixel'){loadPixel();}
   if(p==='cost'){loadCost();}
   if(p==='prod'){loadProd();}
+  if(p==='dash'){renderDash();}
 }
 function dlCSV(rows,fn){
   const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'});
@@ -27019,8 +27144,147 @@ async function initAllModules(){
   renderFin();
   renderPixel();
   renderCost();
+  initDash();
 }
 init().then(()=>{if(DB_URL)initAllModules();});
+
+// ── DASHBOARD ────────────────────────────────────────────────────────
+const SEMANAS_ES_D = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+const MESES_LARGO_D = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function goToSeg(){
+  var btn=document.querySelector('.nav-tab:nth-child(3)');
+  showPage('seg',btn);
+}
+
+function renderDash() {
+  var now = new Date();
+  var mesActual = MESES_ES[now.getMonth()];
+  var mesAnterior = MESES_ES[now.getMonth() === 0 ? 11 : now.getMonth()-1];
+
+  var el = document.getElementById('dash-date');
+  if(el) el.textContent = SEMANAS_ES_D[now.getDay()].charAt(0).toUpperCase()+SEMANAS_ES_D[now.getDay()].slice(1)+', '+now.getDate()+' de '+MESES_LARGO_D[now.getMonth()]+' '+now.getFullYear();
+
+  function finByMonth(m) {
+    return finRecords.filter(function(r){ return extractMonthFromDate(r.fecha_creacion||r.fecha)===m; });
+  }
+  function sumField(arr, field) { return arr.reduce(function(s,r){ return s+(Number(r[field])||0); },0); }
+  function sumAbonos(arr) { return arr.reduce(function(s,r){ return s+(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0); },0); }
+  function sumPend(arr) { return arr.reduce(function(s,r){ var t=Number(r.total)||0; var a=(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0); return s+Math.max(0,t-a); },0); }
+
+  var finMes = finByMonth(mesActual);
+  var finAnt = finByMonth(mesAnterior);
+  var facMes = sumField(finMes,'total');
+  var facAnt = sumField(finAnt,'total');
+  var pedMes = finMes.length;
+  var pedAnt = finAnt.length;
+  var saldoMes = sumPend(finMes);
+  var ticketMes = pedMes ? Math.round(facMes/pedMes) : 0;
+  var ticketAnt = pedAnt ? Math.round(facAnt/pedAnt) : 0;
+  var cobrMes = sumAbonos(finMes);
+
+  function delta(cur, prev) {
+    if(!prev) return {cls:'flat', txt:'sin datos'};
+    var pct = Math.round((cur-prev)/prev*100);
+    return { cls: pct>0?'up':pct<0?'down':'flat', txt: (pct>0?'↑ ':pct<0?'↓ ':'')+Math.abs(pct)+'%' };
+  }
+
+  var mesLabel = mesActual.charAt(0).toUpperCase()+mesActual.slice(1);
+  var kpis = [
+    { label:'Facturación '+mesLabel, val:fmtCLP(facMes), sub:'Ant: '+fmtCLP(facAnt), delta:delta(facMes,facAnt), color:'var(--green)' },
+    { label:'Pedidos '+mesLabel, val:pedMes, sub:'Ant: '+pedAnt+' pedidos', delta:delta(pedMes,pedAnt), color:'var(--brand)' },
+    { label:'Cobrado '+mesLabel, val:fmtCLP(cobrMes), sub:'Saldo: '+fmtCLP(saldoMes), delta:null, color:'var(--text)' },
+    { label:'Saldo por cobrar', val:fmtCLP(saldoMes), sub:pedMes+' pedidos activos', delta:null, color:saldoMes>0?'var(--amber)':'var(--green)' },
+    { label:'Ticket promedio', val:fmtCLP(ticketMes), sub:'Ant: '+fmtCLP(ticketAnt), delta:delta(ticketMes,ticketAnt), color:'var(--text)' },
+    { label:'En producción', val:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===mesActual;}).length, sub:'pedidos este mes', delta:null, color:'var(--brand)' },
+  ];
+
+  var kpiEl = document.getElementById('dash-kpis');
+  if(kpiEl) kpiEl.innerHTML = kpis.map(function(k){
+    var dHtml = k.delta ? '<span class="kpi-delta '+k.delta.cls+'">'+k.delta.txt+'</span>' : '';
+    return '<div class="kpi-card"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div>'+dHtml+'<div class="kpi-sub">'+k.sub+'</div></div>';
+  }).join('');
+
+  // Pedidos urgentes
+  var semanaActual = mesActual.toUpperCase();
+  var urgentes = orders.filter(function(o){ return o.semana && o.semana.toUpperCase().indexOf(semanaActual)!==-1; }).slice(0,8);
+  var urgEl = document.getElementById('dash-urgentes');
+  var urgCnt = document.getElementById('dash-urgentes-count');
+  if(urgCnt) urgCnt.textContent = urgentes.length+' pedidos';
+  if(urgEl){
+    if(!urgentes.length){
+      urgEl.innerHTML = '<div class="empty-dash">No hay entregas detectadas esta semana</div>';
+    } else {
+      urgEl.innerHTML = urgentes.map(function(o){
+        var p = getProgress(o.checks);
+        var pc = p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';
+        return '<div class="urgente-row" onclick="goToSeg()"><div class="urgente-num">'+(o.num||'—')+'</div><div class="urgente-info"><div class="urgente-nombre">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="urgente-semana">'+(o.semana||'')+'</div></div><div class="urgente-prog"><div style="font-size:13px;font-weight:700;color:'+pc+'">'+p.pct+'%</div><div style="height:3px;width:60px;background:var(--surface3);border-radius:2px;margin-top:3px"><div style="height:100%;width:'+p.pct+'%;background:'+pc+';border-radius:2px"></div></div></div></div>';
+      }).join('');
+    }
+  }
+
+  // Checkpoints críticos
+  var CRIT_LABELS = {word:'Orden Word no creada',aviso_sem:'Aviso semana previa',aviso_dia:'Aviso día previo',comprobante:'Comprobante no enviado'};
+  var alerts = [];
+  orders.forEach(function(o){
+    if(getProgress(o.checks).pct===100) return;
+    var mes = extractMonth(o.semana||'');
+    if(mes!==mesActual && mes!==mesAnterior) return;
+    Object.keys(CRIT_LABELS).forEach(function(cid){
+      if(!(o.checks&&o.checks[cid])) alerts.push({o:o,cid:cid,label:CRIT_LABELS[cid]});
+    });
+  });
+  var PRIO = ['aviso_dia','comprobante','aviso_sem','word'];
+  alerts.sort(function(a,b){return PRIO.indexOf(a.cid)-PRIO.indexOf(b.cid);});
+  alerts = alerts.slice(0,10);
+
+  var chkEl = document.getElementById('dash-checks');
+  var chkCnt = document.getElementById('dash-checks-count');
+  if(chkCnt) chkCnt.textContent = alerts.length+' pendientes';
+  if(chkEl){
+    if(!alerts.length){
+      chkEl.innerHTML = '<div class="empty-dash" style="color:var(--green)">&#10003; Sin checkpoints críticos pendientes</div>';
+    } else {
+      chkEl.innerHTML = alerts.map(function(a){
+        var isCrit = a.cid==='aviso_dia'||a.cid==='comprobante';
+        var cls = isCrit ? 'check-alert' : 'check-alert warn';
+        var badge = isCrit ? '<span class="check-badge critico">CRÍTICO</span>' : '<span class="check-badge warn">PENDIENTE</span>';
+        return '<div class="'+cls+'" onclick="goToSeg()"><div><div class="check-alert-num">#'+(a.o.num||'—')+'</div>'+badge+'</div><div class="check-alert-info"><div class="check-alert-cliente">'+(a.o.nombre||'')+' '+(a.o.apellido||'')+'</div><div class="check-alert-tipo">'+a.label+'</div></div></div>';
+      }).join('');
+    }
+  }
+
+  // Recientes
+  var recientes = finRecords.slice().sort(function(a,b){
+    var da=a.fecha_creacion||a.fecha||''; var db=b.fecha_creacion||b.fecha||'';
+    return db.localeCompare(da);
+  }).slice(0,6);
+
+  var recEl = document.getElementById('dash-recientes');
+  if(recEl){
+    if(!recientes.length){
+      recEl.innerHTML = '<div class="empty-dash">No hay pedidos recientes</div>';
+    } else {
+      recEl.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+
+        recientes.map(function(r){
+          var listo=r.doc1_emitida&&r.doc2_emitida;
+          var pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0)));
+          var dc=listo?'var(--green)':pend>0?'var(--amber)':'var(--brand)';
+          return '<div class="reciente-row"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(r.nombre||'')+' '+(r.apellido||'')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.semana||'')+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+( pend>0?'Pend: '+fmtCLP(pend):'&#10003; Pagado')+'</div></div></div>';
+        }).join('')+
+      '</div>';
+    }
+  }
+}
+
+function initDash() {
+  renderDash();
+  setInterval(function(){
+    if(document.getElementById('page-dash').classList.contains('active')) renderDash();
+  }, 30000);
+}
+
+
 </script>
 </body>
 </html>
