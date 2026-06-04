@@ -169,8 +169,12 @@ body {
 .main {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 28px 28px 60px;
+  padding: 32px 32px 60px;
 }
+
+/* Consistencia: todas las páginas arrancan igual */
+.stats-grid { margin-top: 0; }
+.page-header { margin-top: 0; }
 
 /* ── PAGE HEADER ── */
 .page-header {
@@ -199,6 +203,7 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
   margin-bottom: 24px;
+  margin-top: 0;
 }
 .stat-card {
   background: var(--surface);
@@ -234,7 +239,7 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 .filter-group { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 .filter-btn {
@@ -421,7 +426,7 @@ table.seg tr:last-child td { border-bottom:none; }
 .api-banner label { color:var(--amber); font-weight:700; white-space:nowrap; }
 .api-banner input { flex:1; min-width:200px; background:var(--surface2); border:1px solid rgba(251,146,60,0.3); border-radius:var(--radius); padding:7px 10px; font-size:12px; font-family:'Inter',sans-serif; color:var(--text); outline:none; }
 .api-banner .save-btn { background:var(--brand); color:#0F0F0F; border:none; border-radius:var(--radius); padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
-.api-ok { background:var(--green-dim); border:1px solid rgba(74,222,128,0.2); border-radius:var(--radius); padding:8px 14px; font-size:12px; color:var(--green); display:none; align-items:center; gap:8px; margin-bottom:14px; }
+.api-ok { background:var(--green-dim); border:1px solid rgba(45,125,50,0.2); border-radius:var(--radius); padding:8px 14px; font-size:12px; color:var(--green); display:none; align-items:center; gap:8px; margin-bottom:16px; }
 .api-ok.on { display:flex; }
 .uzone { border:2px dashed var(--border-md); border-radius:var(--radius-xl); background:var(--surface); padding:36px 24px; text-align:center; cursor:pointer; position:relative; margin-bottom:16px; transition:all .2s; }
 .uzone:hover,.uzone.drag { border-color:var(--brand); background:var(--brand-dim); }
@@ -526,7 +531,7 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .margen-fill { height:100%;border-radius:2px;transition:width .4s; }
 .btn-cost-add { background:none;border:1px dashed var(--border-md);border-radius:var(--radius);padding:5px 12px;font-size:11px;color:var(--text-3);cursor:pointer;font-family:'Inter',sans-serif;transition:all .2s;margin-top:6px; }
 .btn-cost-add:hover { border-color:var(--green);color:var(--green); }
-.cost-stats { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px; }
+.cost-stats { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px;margin-top:0; }
 
 /* ── MODALS ── */
 .modal-bg { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center;padding:1rem; }
@@ -559,6 +564,7 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 
 /* ── SETUP / MISC ── */
 .setup-banner { background:var(--amber-dim);border:1px solid rgba(251,146,60,0.2);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:20px; }
+.setup-banner[style*="display:none"] { margin:0; }
 .setup-banner h3 { font-size:14px;font-weight:600;color:var(--amber);margin-bottom:8px; }
 .setup-step { font-size:12px;color:var(--amber);line-height:1.7; }
 .setup-input-row { display:flex;gap:8px;flex-wrap:wrap;margin-top:10px; }
@@ -25154,7 +25160,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <span style="font-size:11px;color:var(--text-muted)">Solo en tu navegador</span>
   </div>
   <div class="api-ok" id="api-ok">✓ API Key guardada — listo para analizar pantallazos</div>
-  <div class="stats-grid" style="grid-template-columns:repeat(2,1fr)">
+  <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:24px">
     <div class="stat-card"><div class="stat-label">Pedidos cargados</div><div class="stat-val wood" id="p-ped">0</div></div>
     <div class="stat-card"><div class="stat-label">Líneas producción</div><div class="stat-val" id="p-lin">0</div></div>
   </div>
