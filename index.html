@@ -25649,7 +25649,7 @@ function renderMonthBar(barId,records,currentFilter,setFn,getMonthFn){
 const todayISO=new Date().toISOString().slice(0,16);
 document.getElementById('prod-date').textContent=todayStr;
 function fmtCLP(v){return v?'$'+Number(v).toLocaleString('es-CL'):'—';}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
+function showToast(msg,isErr){const t=document.getElementById('toast');t.textContent=msg;t.style.background=isErr?'var(--red)':'var(--brand)';t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 function showPage(p,btn){
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
@@ -26726,8 +26726,7 @@ function exportFinCSV(){
 
   var label=finMonthFilter==='todos'?'todos':finMonthFilter;
   XLSX.utils.book_append_sheet(wb,ws,'Finanzas '+label);
-  XLSX.writeFile(wb,'zaru_finanzas_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');
-  showToast('✓ Excel exportado');
+  downloadXLSX(wb, 'zaru_finanzas_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');
 }
 
 
@@ -27301,6 +27300,26 @@ function initDash() {
   }, 30000);
 }
 
+
+
+// Descarga confiable cross-browser para XLSX
+function downloadXLSX(wb, filename) {
+  try {
+    var wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    var blob = new Blob([wbout], {type:'application/octet-stream'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); document.body.removeChild(a); }, 200);
+    showToast('✓ Excel descargado');
+  } catch(e) {
+    console.error('Excel error:', e);
+    showToast('Error al generar Excel: ' + e.message, true);
+  }
+}
 
 </script>
 </body>
