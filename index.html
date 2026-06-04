@@ -169,12 +169,14 @@ body {
 .main {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 32px 32px 60px;
+  padding: 28px 28px 60px;
 }
-
-/* Consistencia: todas las páginas arrancan igual */
+/* Consistencia espaciado */
 .stats-grid { margin-top: 0; }
 .page-header { margin-top: 0; }
+.api-banner.hidden { display:none !important; margin:0 !important; padding:0 !important; }
+.api-ok:not(.on) { display:none !important; margin:0 !important; }
+.setup-banner[style*="display:none"] { margin:0 !important; }
 
 /* ── PAGE HEADER ── */
 .page-header {
@@ -25320,11 +25322,22 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="proc" id="proc2" style="margin-top:8px"><div class="spin"></div><span>Analizando segundo pantallazo...</span></div>
     </div>
   </div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-    <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--text)">🪵 General Producción
-      <span style="font-size:12px;color:var(--text-muted);font-family:'DM Sans',sans-serif;font-weight:300;margin-left:8px" id="prod-date"></span>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.3px">🪵 General Producción
+      <span style="font-size:12px;color:var(--text-3);font-weight:400;margin-left:8px" id="prod-date"></span>
     </div>
-    <button class="tbtn" onclick="exportProdCSV()">↓ Exportar CSV</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-ghost" style="font-size:12px" onclick="exportProdXLSX()">↓ Excel</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+    <select id="prod-filter-semana" onchange="renderProd()" style="border:1px solid var(--border-md);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text-2);background:var(--surface);cursor:pointer;outline:none">
+      <option value="">Todas las semanas</option>
+    </select>
+    <select id="prod-filter-madera" onchange="renderProd()" style="border:1px solid var(--border-md);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text-2);background:var(--surface);cursor:pointer;outline:none">
+      <option value="">Todas las maderas</option>
+    </select>
+    <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--red-dim);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
   </div>
   <div id="prod-month-bar" class="month-bar"></div>
   <div class="table-card"><div class="table-wrap">
