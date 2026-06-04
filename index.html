@@ -171,12 +171,19 @@ body {
   margin: 0 auto;
   padding: 28px 28px 60px;
 }
-/* Consistencia espaciado */
+/* Consistencia espaciado — todas las páginas arrancan igual */
 .stats-grid { margin-top: 0; }
+.cost-stats { margin-top: 0; }
 .page-header { margin-top: 0; }
-.api-banner.hidden { display:none !important; margin:0 !important; padding:0 !important; }
-.api-ok:not(.on) { display:none !important; margin:0 !important; }
-.setup-banner[style*="display:none"] { margin:0 !important; }
+.api-banner.hidden { display:none !important; height:0 !important; margin:0 !important; padding:0 !important; overflow:hidden; }
+.api-ok { display:none; }
+.api-ok.on { display:flex !important; margin-bottom:16px; }
+.setup-banner { margin-bottom:20px; }
+/* Toolbar consistente en todas las páginas */
+.toolbar { margin-bottom:14px; }
+.table-card { margin-bottom:0; }
+.month-bar { margin-bottom:14px; }
+.search-wrap { margin-bottom:14px; }
 
 /* ── PAGE HEADER ── */
 .page-header {
@@ -25369,7 +25376,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div style="display:flex;gap:8px">
       <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);font-size:12px">⟳ Sincronizar</button>
-      <button class="tbtn" onclick="exportFinCSV()">↓ CSV</button>
+      <button class="btn-ghost" style="font-size:12px" onclick="exportFinCSV()">↓ Excel</button>
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
     </div>
   </div>
@@ -25416,7 +25423,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="filter-btn" onclick="setPixelFilter('noklav',this)">No Klaviyo</button>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="tbtn" onclick="exportPixelCSV()">↓ CSV Meta</button>
+      <button class="btn-ghost" style="font-size:12px" onclick="exportPixelCSV()">↓ Excel Meta</button>
       <button class="btn-add" onclick="openPixelModal()">+ Agregar manual</button>
     </div>
   </div>
@@ -25450,7 +25457,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="toolbar">
     <div style="font-size:13px;color:var(--text-muted)">Haz clic en un pedido para expandir y agregar costos</div>
     <div style="display:flex;gap:8px">
-      <button class="tbtn" onclick="exportCostCSV()">↓ CSV</button>
+      <button class="btn-ghost" style="font-size:12px" onclick="exportCostCSV()">↓ Excel</button>
     </div>
   </div>
   <div id="cost-month-bar" class="month-bar"></div>
@@ -26870,26 +26877,36 @@ function savePixelRecord(){
 function deletePixelRecord(){if(editingPixelIdx===null)return;if(!confirm('¿Eliminar?'))return;pixelRecords.splice(editingPixelIdx,1);savePixelLocal();renderPixel();closePixelModal();showToast('✓ Eliminado');}
 document.getElementById('modal-pixel-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-pixel-bg'))closePixelModal();});
 function exportPixelCSV(){
-  if(!pixelRecords.length){showToast('No hay registros');return;}
-  const rows=[['email','phone','fn','ln','ct','st','country','gen','event_name','order_id','event_time','value','currency'].join(',')];
-  pixelRecords.forEach(r=>{
-    rows.push([
-      (r.email||'').toLowerCase(),
-      fmtPhone(r.phone),
-      r.fn||'',
-      r.ln||'',
-      r.ct||'',
-      r.st||'',
-      'CL',
-      r.gen||'',
-      'Purchase',
-      r.order_id||'',
-      r.event_time||fmtEventTime(''),
-      r.value||0,
-      'CLP'
-    ].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+  var list=getFilteredPixel();
+  if(!list.length){showToast('No hay registros');return;}
+  var dataRows=list.map(function(r){
+    return {
+      'email':(r.email||'').toLowerCase(),
+      'phone':fmtPhone(r.phone),
+      'fn':r.fn||'',
+      'ln':r.ln||'',
+      'ct':fmtLower(r.ct),
+      'st':fmtLower(r.st),
+      'country':'CL',
+      'gen':r.gen||'',
+      'event_name':'Purchase',
+      'order_id':r.order_id||'',
+      'event_time':r.event_time||fmtEventTime(''),
+      'value':r.value||0,
+      'currency':'CLP',
+      'estado':r.status||''
+    };
   });
-  dlCSV(rows,'zaru_pixel_'+todayStr.replace(/\//g,'-')+'.csv');
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.json_to_sheet(dataRows);
+  ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:4},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  for(var C=range.s.c;C<=range.e.c;C++){
+    var hc=XLSX.utils.encode_cell({r:0,c:C});
+    if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};
+  }
+  var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;
+  downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');
 }
 
 // ── COSTOS DE PRODUCCIÓN ──────────────────────────────
@@ -27074,22 +27091,47 @@ function delCostRow(idx,li){
 }
 
 function exportCostCSV(){
-  if(!costRecords.length){showToast('No hay registros');return;}
-  const rows=[['N° PEDIDO','SEMANA','CLIENTE','PRODUCTO','VENTA TOTAL','DESCRIPCION COSTO','CATEGORIA','CANTIDAD','UNIDAD','VALOR UNIT','TOTAL LINEA','TOTAL COSTOS','GANANCIA','MARGEN %'].join(',')];
-  costRecords.forEach(r=>{
-    const totalCosto=(r.lineas||[]).reduce((s,l)=>s+(Number(l.total)||0),0);
-    const venta=Number(r.venta_total)||0;
-    const ganancia=venta-totalCosto;
-    const margen=venta?Math.round(ganancia/venta*100):0;
+  var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  if(!base.length){showToast('No hay registros');return;}
+  var dataRows=[];
+  base.forEach(function(r){
+    var totalCosto=(r.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0);
+    var venta=Number(r.venta_total)||0;
+    var ganancia=venta-totalCosto;
+    var margen=venta?Math.round(ganancia/venta*100):0;
     if(!(r.lineas||[]).length){
-      rows.push([r.num||'',r.semana||'',`${r.nombre||''} ${r.apellido||''}`,r.producto||'',venta,'','','','','','',totalCosto,ganancia,margen+'%'].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+      dataRows.push({'N° PEDIDO':r.num||'','SEMANA':r.semana||'','CLIENTE':(r.nombre||'')+' '+(r.apellido||''),'PRODUCTO':r.producto||'','VENTA':venta,'DESCRIPCIÓN':'','CATEGORÍA':'','CANTIDAD':'','UNIDAD':'','VALOR UNIT':'','TOTAL LÍNEA':'','TOTAL COSTOS':totalCosto,'GANANCIA':ganancia,'MARGEN %':margen+'%'});
     } else {
-      (r.lineas).forEach((l,li)=>{
-        rows.push([li===0?r.num||'':'',li===0?r.semana||'':'',li===0?`${r.nombre||''} ${r.apellido||''}`:'',li===0?r.producto||'':'',li===0?venta:'',l.desc||'',l.categoria||'',l.qty||'',l.unidad||'',l.unit_val||'',l.total||'',li===0?totalCosto:'',li===0?ganancia:'',li===0?margen+'%':''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));
+      (r.lineas).forEach(function(l,li){
+        dataRows.push({
+          'N° PEDIDO':li===0?(r.num||''):'',
+          'SEMANA':li===0?(r.semana||''):'',
+          'CLIENTE':li===0?((r.nombre||'')+' '+(r.apellido||'')):'',
+          'PRODUCTO':li===0?(r.producto||''):'',
+          'VENTA':li===0?venta:'',
+          'DESCRIPCIÓN':l.desc||'',
+          'CATEGORÍA':l.categoria||'',
+          'CANTIDAD':l.qty||'',
+          'UNIDAD':l.unidad||'',
+          'VALOR UNIT':l.unit_val||'',
+          'TOTAL LÍNEA':l.total||'',
+          'TOTAL COSTOS':li===0?totalCosto:'',
+          'GANANCIA':li===0?ganancia:'',
+          'MARGEN %':li===0?margen+'%':''
+        });
       });
     }
   });
-  dlCSV(rows,'zaru_costos_'+todayStr.replace(/\//g,'-')+'.csv');
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.json_to_sheet(dataRows);
+  ws['!cols']=[{wch:8},{wch:16},{wch:20},{wch:20},{wch:12},{wch:22},{wch:12},{wch:8},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:8}];
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  for(var C=range.s.c;C<=range.e.c;C++){
+    var hc=XLSX.utils.encode_cell({r:0,c:C});
+    if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};
+  }
+  var label=costMonthFilter==='todos'?'todos':costMonthFilter;
+  downloadXLSX(wb,'zaru_costos_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');
 }
 
 // INIT — limpiar datos viejos del Google Sheets si los hay
