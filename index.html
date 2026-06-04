@@ -25331,13 +25331,17 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
-    <select id="prod-filter-semana" onchange="renderProd()" style="border:1px solid var(--border-md);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text-2);background:var(--surface);cursor:pointer;outline:none">
-      <option value="">Todas las semanas</option>
-    </select>
-    <select id="prod-filter-madera" onchange="renderProd()" style="border:1px solid var(--border-md);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text-2);background:var(--surface);cursor:pointer;outline:none">
-      <option value="">Todas las maderas</option>
-    </select>
-    <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--red-dim);border-radius:6px;padding:6px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
+    <div style="position:relative">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
+      <input id="prod-filter-semana" type="text" placeholder="Buscar semana..." oninput="renderProd()"
+        style="padding:7px 12px 7px 30px;border:1px solid var(--border-md);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;width:180px">
+    </div>
+    <div style="position:relative">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
+      <input id="prod-filter-madera" type="text" placeholder="Buscar madera..." oninput="renderProd()"
+        style="padding:7px 12px 7px 30px;border:1px solid var(--border-md);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;width:180px">
+    </div>
+    <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--border-md);border-radius:6px;padding:7px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
   </div>
   <div id="prod-month-bar" class="month-bar"></div>
   <div class="table-card"><div class="table-wrap">
