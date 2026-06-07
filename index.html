@@ -664,6 +664,190 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .reciente-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .empty-dash { text-align: center; padding: 24px; color: var(--text-3); font-size: 13px; }
 
+
+/* ══════════════════════════════════════════
+   RESPONSIVE MÓVIL
+   ══════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  body { flex-direction: column; }
+
+  /* Sidebar → top bar en móvil */
+  .app-header {
+    width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+    position: sticky;
+    top: 0;
+    flex-direction: column;
+    z-index: 200;
+    border-right: none;
+    border-bottom: 1px solid rgba(245,237,227,0.15);
+  }
+  .app-topbar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: none;
+  }
+  .brand-sub { display: none; }
+  .sync-row { margin-top: 0; margin-left: 12px; }
+
+  /* Nav tabs → scroll horizontal */
+  .nav-tabs {
+    flex-direction: row !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0 12px 10px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .tab-icon { display: none; }
+
+  /* Main content */
+  .app-body { min-width: 0; }
+  .main { padding: 16px 12px 80px; }
+
+  /* Stats grid — 2 columnas en móvil */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+  .cost-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat-card { padding: 12px 14px; }
+  .stat-val { font-size: 20px; }
+  .kpi-card { padding: 12px 14px; }
+  .kpi-val { font-size: 18px; }
+
+  /* Toolbar — wrap agresivo */
+  .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
+  .filter-group { flex-wrap: wrap; }
+  .filter-btn { padding: 6px 12px; font-size: 12px; }
+
+  /* Month bar — scroll horizontal */
+  .month-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  .month-bar::-webkit-scrollbar { display: none; }
+  .month-bar .filter-btn { flex-shrink: 0; }
+
+  /* Ocultar tablas en móvil — mostrar tarjetas */
+  .table-wrap { display: none; }
+  .mobile-cards { display: flex; flex-direction: column; gap: 10px; }
+
+  /* En desktop ocultar tarjetas */
+  .desktop-table { display: block; }
+
+  /* Botones acción */
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-add, .tbtn {
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+
+  /* Modal full screen en móvil */
+  .modal-bg { padding: 0; align-items: flex-end; }
+  .modal {
+    width: 100% !important;
+    max-height: 90vh;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  /* Search */
+  .search-wrap input { font-size: 16px; } /* evita zoom en iOS */
+
+  /* Dashboard grid — una columna */
+  #dash-grid { grid-template-columns: 1fr !important; }
+
+  /* Producción filtros */
+  #prod-filter-semana, #prod-filter-madera { width: 100%; }
+
+  /* Prev panel */
+  .prev-header { flex-direction: column; }
+  .prev-img { max-height: 100px; }
+  .chips { gap: 6px; }
+  .chip { padding: 6px 10px; }
+}
+
+@media (min-width: 769px) {
+  .mobile-cards { display: none !important; }
+  .table-wrap { display: block; }
+}
+
+/* ── TARJETAS MÓVIL — Seguimiento ── */
+.seg-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  transition: border-color .15s;
+}
+.seg-card.verde  { border-left: 3px solid var(--green); }
+.seg-card.amarillo { border-left: 3px solid var(--amber); }
+.seg-card.rosado { border-left: 3px solid var(--red); }
+.seg-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+.seg-card-num { font-size: 18px; font-weight: 700; color: var(--brand); }
+.seg-card-client { font-size: 14px; font-weight: 600; color: var(--text); }
+.seg-card-prod { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.seg-card-checks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.seg-card-chk {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 10px; border-radius: var(--radius);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  border: 1px solid var(--border); background: var(--surface2);
+  color: var(--text-3); transition: all .12s;
+}
+.seg-card-chk.done { background: var(--green-dim); color: var(--green); border-color: rgba(45,125,50,.2); }
+.seg-card-chk .chk-icon { font-size: 14px; }
+
+/* ── TARJETAS MÓVIL — Finanzas ── */
+.fin-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.fin-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.fin-card-num { font-size: 16px; font-weight: 700; color: var(--brand); }
+.fin-card-semana { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.fin-card-client { font-size: 14px; font-weight: 600; color: var(--text); }
+.fin-card-prod { font-size: 11px; color: var(--text-3); }
+.fin-card-montos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.fin-card-monto-item { text-align: center; }
+.fin-card-monto-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 2px; }
+.fin-card-monto-val { font-size: 14px; font-weight: 700; color: var(--text); }
+
+/* ── TARJETAS MÓVIL — Producción ── */
+.prod-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+.prod-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.prod-card-num { font-size: 18px; font-weight: 700; color: var(--brand); }
+.prod-card-client { font-size: 13px; font-weight: 600; color: var(--text); }
+.prod-card-semana { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+.prod-linea {
+  padding: 8px 10px; background: var(--surface2);
+  border-radius: var(--radius); margin-bottom: 6px;
+  border-left: 3px solid var(--brand-dim);
+}
+.prod-linea-prod { font-size: 13px; font-weight: 600; color: var(--text); }
+.prod-linea-specs { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+
 </style>
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -25268,6 +25452,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="leg"><div class="leg-dot" style="background:#F4C0D1"></div>Sin iniciar</div>
     <span style="color:var(--text-muted);font-size:11px;margin-left:6px">★ = checkpoint crítico</span>
   </div>
+  <div id="seg-mobile-cards" class="mobile-cards"></div>
   <div class="table-card"><div class="table-wrap">
     <table class="seg">
       <thead><tr>
@@ -25351,6 +25536,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--border-md);border-radius:6px;padding:7px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
   </div>
   <div id="prod-month-bar" class="month-bar"></div>
+  <div id="prod-mobile-cards" class="mobile-cards"></div>
   <div class="table-card"><div class="table-wrap">
     <table class="prod">
       <thead><tr>
@@ -25384,6 +25570,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="fin-search" placeholder="Buscar por cliente o N° venta..." oninput="renderFin()">
   </div>
+  <div id="fin-mobile-cards" class="mobile-cards"></div>
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
@@ -25744,6 +25931,7 @@ function renderSeg(){
   var list=getFilteredOrders(),tbody=document.getElementById('seg-tbody'),empty=document.getElementById('seg-empty');
   renderSegStats();
   renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
+  renderSegCards();
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';scm={};sci=0;orders.forEach(o=>getSC(o.semana));
   tbody.innerHTML=list.map(o=>{
@@ -25938,7 +26126,7 @@ El mensaje de César tiene este formato:
     const cli=parsed.cliente;
     if(cli&&(cli.email||cli.phone||cli.fn)){
       pixelRecords.push({
-        email:(cli.email||'').toLowerCase().trim(),
+        email:fmtEmail(cli.email),
         phone:fmtPhone(cli.phone),
         fn:fmtName(cli.fn||pedidoData.comprador||''),
         ln:fmtName(cli.ln||pedidoData.apellido||''),
@@ -26139,7 +26327,7 @@ async function confirmOrder(){
   const orderId='WTSP'+numStr;
   if(cli&&(cli.email||cli.phone||cli.fn)){
     const pixelData={
-      email:(cli.email||'').toLowerCase().trim(),
+      email:fmtEmail(cli.email),
       phone:fmtPhone(cli.phone),
       fn:fmtName(cli.fn||o.comprador||''),
       ln:fmtName(cli.ln||o.apellido||''),
@@ -26298,6 +26486,7 @@ const PROD_COLORS=['#FDFAF7','#EEE9E3'];
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
   renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion);});
+  renderProdCards();
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
   var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
   tbody.innerHTML=filteredProd.map((o,_oi)=>{
@@ -26426,6 +26615,7 @@ function toggleFinDoc(idx,docNum){
 function renderFin(){
   renderFinStats();
   renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
+  renderFinCards();
   const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
@@ -26744,8 +26934,27 @@ async function loadPixel(){
   if(!DB_URL)return;
   try{
     const raw=await api('pixel');
-    if(raw) pixelRecords=Object.entries(raw).map(e=>Object.assign({},e[1],{fbKey:e[0]}));
-    else pixelRecords=[];
+    if(raw){
+      var all=Object.entries(raw).map(function(e){return Object.assign({},e[1],{fbKey:e[0]});});
+      // Deduplicar por order_id — quedarse con el más reciente
+      var seen={};
+      pixelRecords=[];
+      all.forEach(function(r){
+        var oid=r.order_id||'';
+        if(!oid){pixelRecords.push(r);return;}
+        if(!seen[oid]){seen[oid]=r;pixelRecords.push(r);}
+        else{
+          // Si hay duplicado en Firebase, borrar el viejo
+          var old=seen[oid];
+          if(DB_URL&&old.fbKey&&old.fbKey!==r.fbKey){
+            api('pixel/'+old.fbKey,'DELETE').catch(function(){});
+          }
+          seen[oid]=r;
+          var idx=pixelRecords.findIndex(function(x){return x.order_id===oid;});
+          if(idx>=0) pixelRecords[idx]=r;
+        }
+      });
+    } else pixelRecords=[];
     renderPixel();
   }catch(e){console.error('Error cargando pixel',e);}
 }
@@ -26753,7 +26962,12 @@ async function savePixelLocal(){
   if(!DB_URL)return;
   try{
     const batch={};
-    pixelRecords.forEach((r,i)=>{const k=r.fbKey||('px'+Date.now().toString(36)+i);batch[k]=r;});
+    pixelRecords.forEach(function(r){
+      // Usar order_id como key fija para evitar duplicados en Firebase
+      var k=r.fbKey||(r.order_id?'px_'+r.order_id:('px'+Date.now().toString(36)+Math.random().toString(36).substr(2,4)));
+      if(!r.fbKey) r.fbKey=k;
+      batch[k]=r;
+    });
     await api('pixel','PUT',batch);
   }catch(e){console.error(e);}
 }
@@ -26761,6 +26975,15 @@ async function savePixelLocal(){
 // Normaliza teléfono a solo dígitos sin +56 ni espacios: 975646543
 function fmtPhone(p){if(!p)return'';return String(p).replace(/\D/g,'').replace(/^56/,'');}
 function fmtLower(s){if(!s)return'';return String(s).trim().toLowerCase();}
+function fmtEmail(e){
+  if(!e)return'';
+  var s=String(e).trim().toLowerCase();
+  // Validar que sea email real (tiene @ y .)
+  if(s.indexOf('@')===-1||s.indexOf('.')===-1)return'';
+  // Limpiar prefijos sucios
+  s=s.replace(/^[\s+c56\-]+/,'');
+  return s;
+}
 // Normaliza nombre: capitalizar cada palabra
 function fmtName(n){if(!n)return'';return n.trim().toLowerCase();}
 // Formato de fecha Meta: 2026-04-02T14:01:00-04:00
@@ -26769,7 +26992,10 @@ function fmtEventTime(dt){
     var d=dt?new Date(dt):new Date();
     if(isNaN(d.getTime()))d=new Date();
     var pad=function(n){return String(n).padStart(2,'0');};
-    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00-04:00';
+    // Validar horas/minutos (nunca > 59)
+    var h=Math.min(d.getHours(),23);
+    var m=Math.min(d.getMinutes(),59);
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(h)+':'+pad(m)+':00-04:00';
   }catch(e){
     var now=new Date();
     var pad=function(n){return String(n).padStart(2,'0');};
@@ -26855,7 +27081,7 @@ function closePixelModal(){document.getElementById('modal-pixel-bg').classList.r
 function savePixelRecord(){
   const rawDate=document.getElementById('px-date').value;
   const record={
-    email:(document.getElementById('px-email').value.trim()).toLowerCase(),
+    email:fmtEmail(document.getElementById('px-email').value),
     phone:fmtPhone(document.getElementById('px-phone').value),
     fn:fmtName(document.getElementById('px-fn').value),
     ln:fmtName(document.getElementById('px-ln').value),
@@ -27361,6 +27587,139 @@ function downloadXLSX(wb, filename) {
     console.error('Excel error:', e);
     showToast('Error al generar Excel: ' + e.message, true);
   }
+}
+
+
+
+// ── RENDER TARJETAS MÓVIL ─────────────────────────────────────────
+
+function segCardToggle(el){
+  var fbKey=el.getAttribute('data-fbkey');
+  var cid=el.getAttribute('data-cid');
+  toggleCheck(fbKey,cid);
+}
+
+function renderSegCards() {
+  var el = document.getElementById('seg-mobile-cards');
+  if(!el) return;
+  var list = getFilteredOrders();
+  if(!list.length){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">📋</span>No hay pedidos.</div>';
+    return;
+  }
+  var html2 = '';
+  list.forEach(function(o){
+    var p = getProgress(o.checks);
+    var colorClass = p.pct===100?'verde':p.pct>0?'amarillo':'rosado';
+    var progColor = p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';
+    var chksHtml = '';
+    CHECKS.forEach(function(c){
+      var done = !!(o.checks&&o.checks[c.id]);
+      var safeKey = (o.fbKey||'').replace(/"/g,'');
+      var safeCid = c.id.replace(/"/g,'');
+      var label = c.label.length>16 ? c.label.slice(0,16)+'…' : c.label;
+      chksHtml += '<div class="seg-card-chk'+(done?' done':'')+'" data-fbkey="'+safeKey+'" data-cid="'+safeCid+'" onclick="segCardToggle(this)">'+
+        '<span style="font-size:13px">'+(done?'✓':'○')+'</span>'+
+        '<span>'+label+(c.critical?' ★':'')+'</span>'+
+      '</div>';
+    });
+    var safeKey2 = (o.fbKey||'').replace(/"/g,'');
+    html2 += '<div class="seg-card '+colorClass+'">'+
+      '<div class="seg-card-header">'+
+        '<div>'+
+          '<div class="seg-card-num">#'+(o.num||'—')+'</div>'+
+          '<div class="seg-card-client">'+(o.nombre||'')+' '+(o.apellido||'')+'</div>'+
+          '<div class="seg-card-prod">'+(o.producto||'')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right">'+
+          '<div style="font-size:14px;font-weight:700;color:'+progColor+'">'+p.pct+'%</div>'+
+          '<div style="font-size:10px;color:var(--text-3);margin-bottom:4px">'+(o.semana||'')+'</div>'+
+          '<button class="btn-edit" style="font-size:11px" data-key="'+safeKey2+'" onclick="openModal(this.dataset.key)">Editar</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="seg-card-checks">'+chksHtml+'</div>'+
+    '</div>';
+  });
+  el.innerHTML = html2;
+}
+
+function renderFinCards() {
+  var el = document.getElementById('fin-mobile-cards');
+  if(!el) return;
+  var list = getFilteredFin();
+  if(!list.length){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">💰</span>No hay registros.</div>';
+    return;
+  }
+  var html2 = '';
+  list.forEach(function(r){
+    var idx2 = finRecords.indexOf(r);
+    var pend = Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0)));
+    var listo = r.doc1_emitida&&r.doc2_emitida;
+    html2 += '<div class="fin-card">'+
+      '<div class="fin-card-header">'+
+        '<div>'+
+          '<div class="fin-card-num">#'+(r.num||'—')+'</div>'+
+          '<div class="fin-card-semana">'+(r.semana||'')+'</div>'+
+        '</div>'+
+        '<span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span>'+
+      '</div>'+
+      '<div style="font-size:14px;font-weight:600;color:var(--text)">'+(r.nombre||'')+' '+(r.apellido||'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+(r.producto||'')+'</div>'+
+      '<div class="fin-card-montos">'+
+        '<div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div>'+
+        '<div class="fin-card-monto-item"><div class="fin-card-monto-label">Pendiente</div><div class="fin-card-monto-val" style="color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+fmtCLP(pend||0)+'</div></div>'+
+        '<div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div>'+
+        '<div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div>'+
+      '</div>'+
+      '<button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button>'+
+    '</div>';
+  });
+  el.innerHTML = html2;
+}
+
+function renderProdCards() {
+  var el = document.getElementById('prod-mobile-cards');
+  if(!el) return;
+  var mf = prodMonthFilter;
+  var fs = ((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase();
+  var fm = ((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase();
+  var list = prodOrders.slice();
+  if(mf!=='todos') list=list.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===mf;});
+  if(fs) list=list.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fs)!==-1;});
+  if(fm) list=list.filter(function(o){return (o.lineas||[]).some(function(l){return (l.madera||'').toLowerCase().indexOf(fm)!==-1;});});
+  if(!list.length){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">🪵</span>Sin pedidos.</div>';
+    return;
+  }
+  var html2 = '';
+  list.forEach(function(o){
+    var oi = prodOrders.indexOf(o);
+    var lineasHtml = '';
+    (o.lineas||[]).forEach(function(l){
+      lineasHtml += '<div class="prod-linea">'+
+        '<div class="prod-linea-prod">'+(l.producto||'—')+'</div>'+
+        '<div class="prod-linea-specs">'+[l.madera,l.largo&&l.ancho?(l.largo+'×'+l.ancho+' cm'):'',l.canto,l.acabado].filter(Boolean).join(' · ')+'</div>'+
+      '</div>';
+    });
+    html2 += '<div class="prod-card">'+
+      '<div class="prod-card-header">'+
+        '<div>'+
+          '<div class="prod-card-num">#'+(o.pedido||'—')+'</div>'+
+          '<div class="prod-card-client">'+(o.comprador||'')+' '+(o.apellido||'')+'</div>'+
+          '<div class="prod-card-semana">'+(o.envio||'')+'</div>'+
+        '</div>'+
+      '</div>'+
+      lineasHtml+
+    '</div>';
+  });
+  el.innerHTML = html2;
+}
+
+function renderMobileCards(){
+  renderSegCards();
+  renderFinCards();
+  renderProdCards();
 }
 
 </script>
