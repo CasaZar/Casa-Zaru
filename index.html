@@ -26590,14 +26590,10 @@ function renderMeta(){
   var mesNombre=MESES_LARGO[mesActual].charAt(0).toUpperCase()+MESES_LARGO[mesActual].slice(1);
   var mesStr=String(mesActual+1).padStart(1,'0');  // ej "6" para junio
 
-  // Sumar ventas del mes actual
+  // Sumar ventas del mes actual — igual logica que renderDash (extractMonthFromDate)
+  var mesNombreUpper=MESES_ES[mesActual];  // ej 'JUNIO'
   var facMes=finRecords.reduce(function(s,r){
-    var f=r.fecha_creacion||r.fecha||'';
-    var month=0,year=0;
-    var p=f.split('/');
-    if(p.length>=3){month=parseInt(p[1],10);year=parseInt(p[2],10);}
-    else{var p2=f.split('-');if(p2.length>=3){year=parseInt(p2[0],10);month=parseInt(p2[1],10);}}
-    return (month===mesActual+1&&year===anoActual)?s+(Number(r.total)||0):s;
+    return extractMonthFromDate(r.fecha_creacion||r.fecha)===mesNombreUpper?s+(Number(r.total)||0):s;
   },0);
 
   var pctMeta=META>0?Math.min(100,Math.round(facMes/META*100)):0;
