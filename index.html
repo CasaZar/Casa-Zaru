@@ -26581,64 +26581,83 @@ function renderMeta(){
   if(!metaEl)return;
   var META=30000000;
   var now=new Date();
+  var mesActual=now.getMonth();  // 0-indexed
   var anoActual=now.getFullYear();
-  var inicioAno=new Date(anoActual,0,1);
-  var finAno=new Date(anoActual,11,31);
-  var diasTotales=Math.round((finAno-inicioAno)/86400000)+1;
-  var diasTranscurridos=Math.max(1,Math.round((now-inicioAno)/86400000)+1);
-  var diasRestantes=diasTotales-diasTranscurridos;
-  var facAno=finRecords.reduce(function(s,r){
+  var diasEnMes=new Date(anoActual,mesActual+1,0).getDate();
+  var diaActual=now.getDate();
+  var diasRestantes=diasEnMes-diaActual;
+  var MESES_LARGO=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var mesNombre=MESES_LARGO[mesActual].charAt(0).toUpperCase()+MESES_LARGO[mesActual].slice(1);
+  var mesStr=String(mesActual+1).padStart(1,'0');  // ej "6" para junio
+
+  // Sumar ventas del mes actual
+  var facMes=finRecords.reduce(function(s,r){
     var f=r.fecha_creacion||r.fecha||'';
-    var year=0;
+    var month=0,year=0;
     var p=f.split('/');
-    if(p.length>=3)year=parseInt(p[2],10);
-    else{var p2=f.split('-');if(p2.length>=3)year=parseInt(p2[0],10);}
-    return year===anoActual?s+(Number(r.total)||0):s;
+    if(p.length>=3){month=parseInt(p[1],10);year=parseInt(p[2],10);}
+    else{var p2=f.split('-');if(p2.length>=3){year=parseInt(p2[0],10);month=parseInt(p2[1],10);}}
+    return (month===mesActual+1&&year===anoActual)?s+(Number(r.total)||0):s;
   },0);
-  var pctMeta=META>0?Math.min(100,Math.round(facAno/META*100)):0;
-  var ritmoActual=diasTranscurridos>0?facAno/diasTranscurridos:0;
-  var proyeccion=Math.round(ritmoActual*diasTotales);
-  var falta=Math.max(0,META-facAno);
+
+  var pctMeta=META>0?Math.min(100,Math.round(facMes/META*100)):0;
+  var ritmoActual=diaActual>0?facMes/diaActual:0;
+  var proyeccion=Math.round(ritmoActual*diasEnMes);
+  var falta=Math.max(0,META-facMes);
   var ritmoNecesario=diasRestantes>0?Math.round(falta/diasRestantes):0;
   var metaColor=pctMeta>=100?'var(--green)':pctMeta>=70?'var(--amber)':'var(--red)';
   var proyOK=proyeccion>=META;
+  // Ritmo ideal: META/diasEnMes * diaActual
+  var ritmoIdeal=Math.round(META/diasEnMes*diaActual);
+  var vsIdeal=facMes-ritmoIdeal;
+  var vsIdealColor=vsIdeal>=0?'var(--green)':'var(--red)';
+  var vsIdealTxt=vsIdeal>=0?('+'+'$'+Math.abs(vsIdeal).toLocaleString('es-CL')):('-$'+Math.abs(vsIdeal).toLocaleString('es-CL'));
 
   var html='';
   html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
-  html+='<div style="font-size:14px;font-weight:700;color:var(--text)">&#127919; Meta anual '+anoActual+'</div>';
-  html+='<div style="font-size:12px;font-weight:600;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Meta: $30.000.000</div>';
-  html+='</div>';
+  html+='<div style="font-size:14px;font-weight:700;color:var(--text)">Meta mensual — '+mesNombre+' '+anoActual+'</div>';
+  html+='<div style="display:flex;gap:8px;align-items:center">';
+  html+='<div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Meta: $30.000.000</div>';
+  html+='<div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Dia '+diaActual+' de '+diasEnMes+'</div>';
+  html+='</div></div>';
   html+='<div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:16px">';
   html+='<div>';
-  html+='<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Progreso '+diasTranscurridos+' de '+diasTotales+' dias</div>';
-  html+='<div style="height:10px;background:var(--surface3);border-radius:6px;overflow:hidden">';
-  html+='<div style="height:100%;width:'+pctMeta+'%;background:'+metaColor+';border-radius:6px"></div>';
+  html+='<div style="height:12px;background:var(--surface3);border-radius:6px;overflow:hidden;position:relative">';
+  // Barra de progreso real
+  html+='<div style="height:100%;width:'+pctMeta+'%;background:'+metaColor+';border-radius:6px;transition:width .5s"></div>';
+  // Marcador del ritmo ideal (línea vertical)
+  var idealPct=Math.min(100,Math.round(ritmoIdeal/META*100));
+  html+='<div style="position:absolute;top:0;left:'+idealPct+'%;width:2px;height:100%;background:var(--text-muted);opacity:0.5"></div>';
   html+='</div>';
-  html+='<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:var(--text-muted)">';
-  html+='<span>'+fmtCLP(facAno)+' vendido</span>';
-  html+='<span>'+pctMeta+'% completado</span>';
+  html+='<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px">';
+  html+='<span style="color:var(--text-muted)">'+fmtCLP(facMes)+' vendido</span>';
+  html+='<span style="color:'+vsIdealColor+';font-weight:600">'+vsIdealTxt+' vs ritmo ideal</span>';
   html+='</div>';
   html+='</div>';
   html+='<div style="text-align:center;min-width:80px">';
-  html+='<div style="font-size:28px;font-weight:800;color:'+metaColor+';line-height:1">'+pctMeta+'%</div>';
+  html+='<div style="font-size:32px;font-weight:800;color:'+metaColor+';line-height:1">'+pctMeta+'%</div>';
   html+='<div style="font-size:10px;color:var(--text-muted);margin-top:2px">de la meta</div>';
-  html+='</div>';
-  html+='</div>';
-  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding-top:12px;border-top:1px solid var(--border)">';
+  html+='</div></div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding-top:12px;border-top:1px solid var(--border)">';
   html+='<div style="text-align:center">';
-  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Falta vender</div>';
-  html+='<div style="font-size:15px;font-weight:700;color:'+(falta>0?'var(--amber)':'var(--green)')+'">'+fmtCLP(falta)+'</div>';
+  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Vendido</div>';
+  html+='<div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtCLP(facMes)+'</div>';
+  html+='<div style="font-size:10px;color:var(--text-muted)">de $30.000.000</div>';
+  html+='</div>';
+  html+='<div style="text-align:center">';
+  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Falta vender</div>';
+  html+='<div style="font-size:16px;font-weight:700;color:'+(falta>0?'var(--amber)':'var(--green)')+'">'+fmtCLP(falta)+'</div>';
   html+='<div style="font-size:10px;color:var(--text-muted)">'+diasRestantes+' dias restantes</div>';
   html+='</div>';
   html+='<div style="text-align:center">';
-  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Ritmo necesario</div>';
-  html+='<div style="font-size:15px;font-weight:700;color:var(--text)">'+fmtCLP(ritmoNecesario)+'</div>';
+  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Ritmo necesario</div>';
+  html+='<div style="font-size:16px;font-weight:700;color:var(--text)">'+fmtCLP(ritmoNecesario)+'</div>';
   html+='<div style="font-size:10px;color:var(--text-muted)">por dia para llegar</div>';
   html+='</div>';
   html+='<div style="text-align:center">';
-  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Proyeccion anual</div>';
-  html+='<div style="font-size:15px;font-weight:700;color:'+(proyOK?'var(--green)':'var(--red)')+'">'+fmtCLP(proyeccion)+'</div>';
-  html+='<div style="font-size:10px;color:var(--text-3)">'+(pctMeta>=100?'Meta alcanzada':pctMeta>=70?'Ritmo ajustado':'Por debajo del ritmo')+'</div>';
+  html+='<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px">Proyeccion</div>';
+  html+='<div style="font-size:16px;font-weight:700;color:'+(proyOK?'var(--green)':'var(--red)')+'">'+fmtCLP(proyeccion)+'</div>';
+  html+='<div style="font-size:10px;color:var(--text-3)">'+(pctMeta>=100?'Meta alcanzada':pctMeta>=70?'Ritmo ajustado':'Bajo el ritmo')+'</div>';
   html+='</div>';
   html+='</div>';
   metaEl.innerHTML=html;
