@@ -25967,17 +25967,48 @@ function closeModal(){document.getElementById('modal-seg-bg').classList.remove('
 async function syncFromProd(){
   if(!DB_URL){alert('Conecta Firebase primero.');return;}
   if(!prodOrders.length){showToast('No hay pedidos en Producción');return;}
-  if(!confirm('Esto sincronizará '+prodOrders.length+' pedidos de Producción a Seguimiento.\n¿Continuar?'))return;
+  if(!confirm('Esto reemplazará Seguimiento con los '+prodOrders.length+' pedidos de Producción.\nLos checkpoints existentes se conservan.\n¿Continuar?'))return;
   showToast('Sincronizando...');
-  const checks={};CHECKS.forEach(c=>checks[c.id]=false);let creados=0,actualizados=0;
-  for(const o of prodOrders){
-    const numStr=String(o.pedido||'');if(!numStr)continue;
-    const segData={num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),notas:''};
-    const existSeg=orders.find(x=>String(x.num||'')===numStr);
-    if(existSeg){await api('pedidos/'+numStr,'PATCH',segData);actualizados++;}
-    else{segData.checks={...checks};segData.fecha_creacion=o.fecha_creacion||fechaFromSemana(segData.semana);await api('pedidos/'+numStr,'PUT',segData);creados++;}
+  var emptyChecks={};CHECKS.forEach(function(ch){emptyChecks[ch.id]=false;});
+
+  // 1. Cargar estado actual de /pedidos para rescatar checkpoints
+  var rawSeg=await api('pedidos').catch(function(){return null;});
+  var checkpointMap={};
+  if(rawSeg){
+    Object.entries(rawSeg).forEach(function(e){
+      var r=e[1];var ns=String(r.num||e[0]);
+      // Solo guardar checkpoints de claves numéricas (las válidas)
+      if(/^[0-9]+$/.test(e[0])&&r.checks){
+        checkpointMap[ns]=r.checks;
+      }
+    });
   }
-  await poll();showToast('✓ '+creados+' creados, '+actualizados+' actualizados');
+
+  // 2. Borrar TODO /pedidos de Firebase (limpieza total)
+  await api('pedidos','DELETE').catch(function(){});
+
+  // 3. Reescribir solo con los pedidos de producción
+  var batch={};
+  prodOrders.forEach(function(o){
+    var numStr=String(o.pedido||'');if(!numStr)return;
+    batch[numStr]={
+      num:numStr,
+      semana:o.envio||'',
+      nombre:o.comprador||'',
+      apellido:o.apellido||'',
+      producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',
+      piezas:(o.lineas||[]).reduce(function(s,l){return s+(Number(l.cantidad)||1);},0),
+      notas:'',
+      fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),
+      // Restaurar checkpoints si existían, si no iniciar en false
+      checks:checkpointMap[numStr]?Object.assign({},emptyChecks,checkpointMap[numStr]):Object.assign({},emptyChecks)
+    };
+  });
+
+  // 4. PUT del batch limpio
+  await api('pedidos','PUT',batch);
+  await poll();
+  showToast('✓ Seguimiento sincronizado: '+Object.keys(batch).length+' pedidos (sin duplicados)');
 }
 async function saveOrder(){
   if(!DB_URL){alert('Configura Firebase primero.');return;}
