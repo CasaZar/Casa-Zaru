@@ -26232,6 +26232,12 @@ function renderProd(){
   renderProdCards();
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
   var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+  // Filtros de búsqueda: semana y madera
+  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
+  var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
+  if(fSemana)filteredProd=filteredProd.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
+  if(fMadera)filteredProd=filteredProd.filter(function(o){return (o.lineas||[]).some(function(l){return (l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
+  if(!filteredProd.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">🔍</span>Sin resultados para este filtro</td></tr>';return;}
   tbody.innerHTML=filteredProd.map((o,_oi)=>{
     const oi=prodOrders.indexOf(o),rowBg=PROD_COLORS[oi%2];
     return(o.lineas||[]).map((l,li)=>{
@@ -26252,6 +26258,49 @@ function exportProdCSV(){
   prodOrders.forEach(o=>{(o.lineas||[]).forEach((l,li)=>{const m2=calcM2(l.largo,l.ancho,l.cantidad);rows.push([li===0?o.pedido:'',li===0?(o.envio||''):'',li===0?(o.comprador||''):'',li===0?(o.apellido||''):'',l.producto||'',l.cantidad||1,l.madera||'',l.largo||'',l.ancho||'',l.canto||'',l.acabado||'',l.espesor||'',l.observaciones||'',m2>0?m2.toFixed(2):''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','));});});
   dlCSV(rows,'zaru_produccion_'+todayStr.replace(/\//g,'-')+'.csv');
 }
+function exportProdXLSX(){
+  if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
+  // Aplicar los mismos filtros que renderProd
+  var list=prodMonthFilter==='todos'?prodOrders.slice():prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
+  var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
+  if(fSemana)list=list.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
+  if(fMadera)list=list.filter(function(o){return (o.lineas||[]).some(function(l){return (l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
+  if(!list.length){showToast('No hay pedidos con los filtros actuales');return;}
+  var dataRows=[];
+  list.forEach(function(o){
+    (o.lineas||[]).forEach(function(l,li){
+      var m2=calcM2(l.largo,l.ancho,l.cantidad);
+      dataRows.push({
+        'PEDIDO':li===0?(o.pedido||''):'',
+        'ENVÍO':li===0?(o.envio||''):'',
+        'COMPRADOR':li===0?(o.comprador||''):'',
+        'APELLIDO':li===0?(o.apellido||''):'',
+        'PRODUCTO':l.producto||'',
+        'CANT.':l.cantidad||1,
+        'MADERA':l.madera||'',
+        'LARGO':l.largo||'',
+        'ANCHO':l.ancho||'',
+        'CANTO':l.canto||'',
+        'ACABADO':l.acabado||'',
+        'ESPESOR':l.espesor||'',
+        'OBSERVACIONES':l.observaciones||'',
+        'M2':m2>0?Number(m2.toFixed(2)):''
+      });
+    });
+  });
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);
+  ws['!cols']=[{wch:8},{wch:16},{wch:14},{wch:14},{wch:24},{wch:6},{wch:12},{wch:8},{wch:8},{wch:10},{wch:18},{wch:8},{wch:30},{wch:8}];
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  for(var C=range.s.c;C<=range.e.c;C++){
+    var hc=XLSX.utils.encode_cell({r:0,c:C});
+    if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};
+  }
+  var label=prodMonthFilter==='todos'?'todos':prodMonthFilter;
+  XLSX.utils.book_append_sheet(wb,ws,'Produccion '+label);
+  downloadXLSX(wb,'zaru_produccion_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');
+}
+
 
 // ── FINANZAS ──────────────────────────────────────────────────────────────
 let finRecords=[],editingFinIdx=null,finFilter='todos';
