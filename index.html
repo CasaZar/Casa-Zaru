@@ -21737,8 +21737,7 @@ function make_html_row(ws, r, R, o) {
 }
 
 var HTML_BEGIN = '<html><head><meta charset="utf-8"/><title>SheetJS Table Export</title></head><body>';
-var HTML_END = '</div>
-</body></html>';
+var HTML_END = '</div>\n</body></html>';
 
 function html_to_workbook(str, opts) {
 	var mtch = str.match(/<table[\s\S]*?>[\s\S]*?<\/table>/gi);
