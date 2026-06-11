@@ -26069,7 +26069,7 @@ async function analyzeImage(dataUrl,file,apiKey){
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5-20251001',max_tokens:3000,messages:[{role:'user',content:[
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,messages:[{role:'user',content:[
         {type:'image',source:{type:'base64',media_type:mt,data:base64}},
         {type:'text',text:`Eres extractor de datos para Casa Zaru, empresa de muebles de madera chilena.\nAnaliza el pantallazo y devuelve SOLO JSON válido sin markdown:\n{"tipo":"confirmacion","pedido":{"pedido":${nextNum},"envio":"SEMANA DD MES","comprador":"NOMBRE","apellido":"APELLIDO","lineas":[{"producto":"","cantidad":1,"madera":"COIHUE","largo":0,"ancho":0,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]},"finanzas":{"valor_producto":0,"valor_envio":0,"valor_comision":0,"medio_pago":"TRANSFERENCIA","abono1":0,"abono2":0},"cliente":{"email":"","phone":"","rut":"","fn":"","ln":"","direccion":"","ct":"","st":"","country":"CL","gen":"","order_id":"${nextOrderId}","value":0,"event_time":""}}\nREGLAS: valor_producto=solo mueble (Valor: $X). valor_envio=solo envío (Envío: $X). valor_comision=0 si no dice "3% plataforma". NO uses el Total de César.`}
       ]}]})
@@ -26104,7 +26104,7 @@ async function addSecondImage(file){
     try{
       const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
         headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-sonnet-4-5-20251001',max_tokens:2000,messages:[{role:'user',content:[
+        body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,messages:[{role:'user',content:[
           {type:'image',source:{type:'base64',media_type:mt,data:base64}},
           {type:'text',text:`Extrae SOLO líneas de producto del pedido ${prodPending.pedido}. SOLO JSON sin markdown:\n{"lineas":[{"producto":"","cantidad":1,"madera":"COIHUE","largo":0,"ancho":0,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]}\nSi no hay líneas: {"lineas":[]}`}
         ]}]})
