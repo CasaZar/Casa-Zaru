@@ -26575,40 +26575,47 @@ function generarEtiquetaProd(oi,li){
   var acabado=String(l.acabado||''),tenido=String(l.tenido||'NO'),obs=String(l.observaciones||'');
   var dimStr=largo+' X '+ancho+' CMS';
   var espStr=String(espesor).replace('.',',')+' CMS';
-  var dataUrl=generarImagenTablaCanvas(largo,ancho,espesor);
-  var b64=dataUrl.split(',')[1],bin=atob(b64),bytes=new Uint8Array(bin.length);
-  for(var k=0;k<bin.length;k++)bytes[k]=bin.charCodeAt(k);
-  var imgBuf=bytes.buffer;
+  // Canvas image — si falla se genera el doc igual sin imagen
+  var imgBuf=null;
+  try{
+    var dataUrl=generarImagenTablaCanvas(largo,ancho,espesor);
+    var b64=dataUrl.split(',')[1],bin=atob(b64),bytes=new Uint8Array(bin.length);
+    for(var k=0;k<bin.length;k++)bytes[k]=bin.charCodeAt(k);
+    imgBuf=bytes.buffer;
+  }catch(imgErr){console.warn('Canvas imagen falló:',imgErr);}
   var D=docx,A4W=11906,A4H=16838,mg=1134,cw=A4W-2*mg,half=Math.floor(cw/2);
   var nb={style:'none',size:0,color:'FFFFFF'};
-  var cellB={top:nb,bottom:nb,left:nb,right:nb,insideH:nb,insideV:nb};
+  var cellB={top:nb,bottom:nb,left:nb,right:nb};
   function hCell(lbl,val,w){
     return new D.TableCell({width:{size:w,type:'dxa'},borders:cellB,margins:{top:0,bottom:0,left:0,right:80},children:[
       new D.Paragraph({children:[new D.TextRun({text:lbl,size:16,font:'Arial',color:'888888'})],spacing:{after:40}}),
       new D.Paragraph({children:[new D.TextRun({text:val,size:52,font:'Arial',bold:true})],spacing:{after:80}})
     ]});
   }
+  var children=[
+    new D.Table({width:{size:cw,type:'dxa'},columnWidths:[half,cw-half],borders:{top:nb,bottom:nb,left:nb,right:nb,insideH:nb,insideV:nb},rows:[new D.TableRow({children:[
+      new D.TableCell({width:{size:half,type:'dxa'},borders:cellB,margins:{top:0,bottom:0,left:0,right:0},children:[new D.Paragraph({children:[new D.TextRun({text:'PEDIDO: '+pedido,size:18,font:'Arial'})],spacing:{after:0}})]}),
+      new D.TableCell({width:{size:cw-half,type:'dxa'},borders:cellB,margins:{top:0,bottom:0,left:0,right:0},children:[new D.Paragraph({alignment:'right',children:[new D.TextRun({text:semana,size:18,font:'Arial'})],spacing:{after:0}})]})
+    ]})]})
+    ,new D.Paragraph({children:[new D.TextRun({text:'NOMBRE: '+nombre,size:18,font:'Arial'})],spacing:{before:80,after:40}})
+    ,new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{after:120}})
+    ,new D.Paragraph({border:{bottom:{style:'single',size:8,color:'000000',space:1}},children:[new D.TextRun({text:'',size:4})],spacing:{after:200}})
+    ,new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}})
+    ,new D.Paragraph({alignment:'center',children:[new D.TextRun({text:madera,size:80,font:'Arial',bold:true})],spacing:{after:200}})
+    ,new D.Paragraph({border:{bottom:{style:'single',size:8,color:'000000',space:1}},children:[new D.TextRun({text:'',size:4})],spacing:{after:160}})
+    ,new D.Table({width:{size:cw,type:'dxa'},columnWidths:[half,cw-half],borders:{top:nb,bottom:nb,left:nb,right:nb,insideH:nb,insideV:nb},rows:[
+      new D.TableRow({children:[hCell('ESPESOR',espStr,half),hCell('BORDE',canto,cw-half)]}),
+      new D.TableRow({children:[hCell('ACABADO',acabado,half),hCell('TEÑIDO',tenido,cw-half)]})
+    ]})
+    ,(obs?new D.Paragraph({children:[new D.TextRun({text:'OBS: '+obs,size:18,font:'Arial'})],spacing:{before:160,after:160}}):new D.Paragraph({children:[new D.TextRun({text:'',size:4})],spacing:{before:120,after:120}}))
+  ];
+  if(imgBuf){
+    children.push(new D.Paragraph({alignment:'center',spacing:{before:0},children:[new D.ImageRun({type:'png',data:imgBuf,transformation:{width:430,height:215}})]}));
+  }
   try{
     var doc=new D.Document({sections:[{
       properties:{page:{size:{width:A4W,height:A4H},margin:{top:mg,right:mg,bottom:mg,left:mg}}},
-      children:[
-        new D.Table({width:{size:cw,type:'dxa'},columnWidths:[half,cw-half],borders:cellB,rows:[new D.TableRow({children:[
-          new D.TableCell({width:{size:half,type:'dxa'},borders:cellB,margins:{top:0,bottom:0,left:0,right:0},children:[new D.Paragraph({children:[new D.TextRun({text:'PEDIDO: '+pedido,size:18,font:'Arial'})],spacing:{after:0}})]}),
-          new D.TableCell({width:{size:cw-half,type:'dxa'},borders:cellB,margins:{top:0,bottom:0,left:0,right:0},children:[new D.Paragraph({alignment:'right',children:[new D.TextRun({text:semana,size:18,font:'Arial'})],spacing:{after:0}})]})
-        ]})]})
-        ,new D.Paragraph({children:[new D.TextRun({text:'NOMBRE: '+nombre,size:18,font:'Arial'})],spacing:{before:80,after:40}})
-        ,new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{after:120}})
-        ,new D.Paragraph({border:{bottom:{style:'single',size:8,color:'000000',space:1}},children:[new D.TextRun({text:'',size:4})],spacing:{after:200}})
-        ,new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}})
-        ,new D.Paragraph({alignment:'center',children:[new D.TextRun({text:madera,size:80,font:'Arial',bold:true})],spacing:{after:200}})
-        ,new D.Paragraph({border:{bottom:{style:'single',size:8,color:'000000',space:1}},children:[new D.TextRun({text:'',size:4})],spacing:{after:160}})
-        ,new D.Table({width:{size:cw,type:'dxa'},columnWidths:[half,cw-half],borders:cellB,rows:[
-          new D.TableRow({children:[hCell('ESPESOR',espStr,half),hCell('BORDE',canto,cw-half)]}),
-          new D.TableRow({children:[hCell('ACABADO',acabado,half),hCell('TEÑIDO',tenido,cw-half)]})
-        ]})
-        ,(obs?new D.Paragraph({children:[new D.TextRun({text:'OBS: '+obs,size:18,font:'Arial'})],spacing:{before:160,after:160}}):new D.Paragraph({children:[new D.TextRun({text:'',size:4})],spacing:{before:120,after:120}}))
-        ,new D.Paragraph({alignment:'center',spacing:{before:0},children:[new D.ImageRun({type:'png',data:imgBuf,transformation:{width:430,height:215},altText:{title:'Tabla',description:'Vista de la tabla',name:'tabla'}})]})
-      ]
+      children:children
     }]});
     D.Packer.toBlob(doc).then(function(blob){
       var url=URL.createObjectURL(blob),a=document.createElement('a');
@@ -26616,7 +26623,7 @@ function generarEtiquetaProd(oi,li){
       document.body.appendChild(a);a.click();
       setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);
       showToast('✓ Etiqueta generada — Pedido '+pedido+': '+producto);
-    });
+    }).catch(function(err){showToast('❌ Error al generar etiqueta: '+err.message,true);console.error('Packer error:',err);});
   }catch(err){showToast('❌ Error al generar etiqueta: '+err.message,true);console.error(err);}
 }
 function generarEtiqueta(numStr){
