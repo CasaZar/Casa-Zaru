@@ -25575,6 +25575,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div style="display:flex;gap:8px">
       <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);font-size:12px">⟳ Sincronizar</button>
       <button class="btn-ghost" style="font-size:12px" onclick="exportFinCSV()">↓ Excel</button>
+      <button id="btn-envio-batch" class="btn-add" style="font-size:12px;display:none;background:var(--wood)" onclick="generarEtiquetasEnvioBatch()">📦 Etiquetas envío (<span id="envio-batch-count">0</span>)</button>
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
     </div>
   </div>
@@ -26374,7 +26375,7 @@ function renderFin(){
     const pendiente=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0)));
     const listo=r.doc1_emitida&&r.doc2_emitida;
     const saveStr="finSave('"+numStr+"',null,null,this)";
-    return`<tr class="${listo?'fin-listo':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}</td><td style="background:${bg};font-size:11px">${r.fecha_creacion||r.fecha||'—'}</td><td style="background:${bg}"><span class="semana-badge">${r.semana||'—'}</span></td><td style="background:${bg}"><div style="font-weight:600">${r.nombre||''} ${r.apellido||''}</div><div style="font-size:11px;color:var(--text-3)">${r.email||''}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${r.celular||''}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${r.producto||''}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:100px"><input style="${ni}" value="${r.como||''}" placeholder="Instagram..." ${iF} onchange="finSet('${numStr}','como',this.value,null);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono1)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono1||0}" onchange="finSet('${numStr}','abono1',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono2)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono2||0}" onchange="finSet('${numStr}','abono2',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono3)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono3||0}" onchange="finSet('${numStr}','abono3',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:100px"><span class="monto ${pendiente>0?'rojo':''}" style="font-size:14px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td><td style="background:${bg};min-width:130px"><button class="doc-btn ${r.doc1_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc('${numStr}',1)" style="margin-bottom:4px">${r.doc1_emitida?'✓ Emitida':'— Pendiente'}</button><div style="display:flex;gap:4px;align-items:center"><select onchange="finRecords[${idx}].doc1_tipo=this.value;${saveStr}" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)"><option value="BOLETA"${(r.doc1_tipo||'BOLETA')==='BOLETA'?' selected':''}>Boleta</option><option value="FACTURA"${r.doc1_tipo==='FACTURA'?' selected':''}>Factura</option></select><input type="text" value="${r.doc1_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc1_num=this.value;${saveStr}" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px"></div></td><td style="background:${bg};min-width:130px"><button class="doc-btn ${r.doc2_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc('${numStr}',2)" style="margin-bottom:4px">${r.doc2_emitida?'✓ Emitida':'— Pendiente'}</button><div style="display:flex;gap:4px;align-items:center"><select onchange="finRecords[${idx}].doc2_tipo=this.value;${saveStr}" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)"><option value="BOLETA"${(r.doc2_tipo||'BOLETA')==='BOLETA'?' selected':''}>Boleta</option><option value="FACTURA"${r.doc2_tipo==='FACTURA'?' selected':''}>Factura</option></select><input type="text" value="${r.doc2_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc2_num=this.value;${saveStr}" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px"></div></td><td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span></td><td style="background:${bg}"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta Word">📦 Etiqueta</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
+    return`<tr class="${listo?'fin-listo':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}</td><td style="background:${bg};font-size:11px">${r.fecha_creacion||r.fecha||'—'}</td><td style="background:${bg}"><span class="semana-badge">${r.semana||'—'}</span></td><td style="background:${bg}"><div style="font-weight:600">${r.nombre||''} ${r.apellido||''}</div><div style="font-size:11px;color:var(--text-3)">${r.email||''}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${r.celular||''}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${r.producto||''}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:100px"><input style="${ni}" value="${r.como||''}" placeholder="Instagram..." ${iF} onchange="finSet('${numStr}','como',this.value,null);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono1)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono1||0}" onchange="finSet('${numStr}','abono1',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono2)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono2||0}" onchange="finSet('${numStr}','abono2',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.abono3)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.abono3||0}" onchange="finSet('${numStr}','abono3',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:100px"><span class="monto ${pendiente>0?'rojo':''}" style="font-size:14px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td><td style="background:${bg};min-width:130px"><button class="doc-btn ${r.doc1_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc('${numStr}',1)" style="margin-bottom:4px">${r.doc1_emitida?'✓ Emitida':'— Pendiente'}</button><div style="display:flex;gap:4px;align-items:center"><select onchange="finRecords[${idx}].doc1_tipo=this.value;${saveStr}" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)"><option value="BOLETA"${(r.doc1_tipo||'BOLETA')==='BOLETA'?' selected':''}>Boleta</option><option value="FACTURA"${r.doc1_tipo==='FACTURA'?' selected':''}>Factura</option></select><input type="text" value="${r.doc1_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc1_num=this.value;${saveStr}" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px"></div></td><td style="background:${bg};min-width:130px"><button class="doc-btn ${r.doc2_emitida?'emitida':'pendiente'}" onclick="toggleFinDoc('${numStr}',2)" style="margin-bottom:4px">${r.doc2_emitida?'✓ Emitida':'— Pendiente'}</button><div style="display:flex;gap:4px;align-items:center"><select onchange="finRecords[${idx}].doc2_tipo=this.value;${saveStr}" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)"><option value="BOLETA"${(r.doc2_tipo||'BOLETA')==='BOLETA'?' selected':''}>Boleta</option><option value="FACTURA"${r.doc2_tipo==='FACTURA'?' selected':''}>Factura</option></select><input type="text" value="${r.doc2_num||''}" placeholder="N°" onchange="finRecords[${idx}].doc2_num=this.value;${saveStr}" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px"></div></td><td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span></td><td style="background:${bg}"><input type="checkbox" class="envio-check" style="margin-right:5px;cursor:pointer;vertical-align:middle" onchange="toggleEnvioSel('${numStr}',this.checked)"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta envío">📦</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
   }).join('');
 }
 function deleteFinRecord_inline(numStr){if(!confirm('¿Eliminar este registro?'))return;var idx=finRecords.findIndex(function(x){return String(x.num||'')===String(numStr);});if(idx>=0)finRecords.splice(idx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(function(){});renderFin();showToast('✓ Eliminado');}
@@ -26648,81 +26649,73 @@ function generarEtiquetasBatch(){
     document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});
   }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
 }
+function buildEnvioChildren(r,pageBreak){
+  if(!r)return[];
+  var D=docx;
+  var nombre=(r.nombre||'')+' '+(r.apellido||'');
+  var rut=r.rut||'';
+  var cel=r.celular?'+56'+String(r.celular).replace(/^\+?56/,''):'';
+  var dir=r.direccion||'';
+  var email=r.email||'';
+  var tw=D.convertInchesToTwip;
+  var lines=[];
+  // Nombre: grande, bold, centrado
+  var nameOpts={alignment:'center',children:[new D.TextRun({text:nombre.trim(),bold:true,size:44,font:'Arial'})],spacing:{before:tw(0.8),after:120}};
+  if(pageBreak)nameOpts.pageBreakBefore=true;
+  lines.push(new D.Paragraph(nameOpts));
+  if(rut)lines.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:rut,size:26,font:'Arial'})],spacing:{after:80}}));
+  if(cel)lines.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:cel,size:26,font:'Arial'})],spacing:{after:80}}));
+  if(dir)lines.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dir,size:26,font:'Arial'})],spacing:{after:80}}));
+  if(email)lines.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:email,size:22,font:'Arial',color:'555555'})],spacing:{after:80}}));
+  lines.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:'ENVIAR PAGADO',bold:true,size:36,font:'Arial',color:'CC0000'})],spacing:{before:200,after:tw(0.5)}}));
+  return lines;
+}
+var envioSeleccionados=new Set();
+function toggleEnvioSel(numStr,checked){
+  if(checked)envioSeleccionados.add(numStr);else envioSeleccionados.delete(numStr);
+  var btn=document.getElementById('btn-envio-batch'),cnt=document.getElementById('envio-batch-count');
+  var n=envioSeleccionados.size;
+  if(cnt)cnt.textContent=n;
+  if(btn)btn.style.display=n>0?'inline-flex':'none';
+}
 function generarEtiqueta(numStr){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r){showToast('Registro no encontrado',true);return;}
-  var nombre=(r.nombre||'')+(r.apellido?' '+r.apellido:'');
-  var rut=r.rut||'—';
-  var cel=r.celular||'—';
-  var dir=r.direccion||'—';
-  var email=r.email||'—';
-  var producto=r.producto||'—';
-  var semana=r.semana||'—';
-  var num=r.num||numStr;
-
-  // Generar contenido Word usando docx
+  var ch=buildEnvioChildren(r,false);
+  var tw=docx.convertInchesToTwip;
   try{
-    var doc=new docx.Document({
-      sections:[{
-        properties:{
-          page:{
-            size:{width:docx.convertInchesToTwip(4),height:docx.convertInchesToTwip(6)},
-            margin:{top:docx.convertInchesToTwip(0.5),right:docx.convertInchesToTwip(0.5),bottom:docx.convertInchesToTwip(0.5),left:docx.convertInchesToTwip(0.5)}
-          }
-        },
-        children:[
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'CASA ZARU',bold:true,size:28,color:'5C3D20'})],
-            spacing:{after:100}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'Pedido #'+num+' — '+semana,size:20,color:'888888'})],
-            spacing:{after:200}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'DESTINATARIO',bold:true,size:18,color:'888888',allCaps:true})],
-            spacing:{after:80}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:nombre,bold:true,size:26})],
-            spacing:{after:80}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'RUT: '+rut,size:20})],
-            spacing:{after:80}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'Tel: '+cel,size:20})],
-            spacing:{after:80}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:dir,size:20})],
-            spacing:{after:80}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'Email: '+email,size:18,color:'888888'})],
-            spacing:{after:200}
-          }),
-          new docx.Paragraph({
-            children:[new docx.TextRun({text:'Producto: '+producto,size:18,italics:true,color:'5C3D20'})],
-            spacing:{after:80}
-          }),
-        ]
-      }]
-    });
+    var doc=new docx.Document({sections:[{properties:{page:{size:{width:tw(4.5),height:tw(5.5)},margin:{top:tw(0.4),right:tw(0.5),bottom:tw(0.4),left:tw(0.5)}}},children:ch}]});
     docx.Packer.toBlob(doc).then(function(blob){
-      var url=URL.createObjectURL(blob);
-      var a=document.createElement('a');
-      a.href=url;
-      a.download='etiqueta_'+num+'_'+nombre.replace(/\s+/g,'_')+'.docx';
+      var nombre=(r.nombre||'')+' '+(r.apellido||'');
+      var url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='envio_'+String(r.num||numStr)+'_'+nombre.trim().replace(/\s+/g,'_')+'.docx';
       document.body.appendChild(a);a.click();
       setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);
-      showToast('✓ Etiqueta generada para '+nombre);
-    });
-  }catch(err){
-    showToast('❌ Error: '+err.message,true);
-    console.error(err);
-  }
+      showToast('✓ Etiqueta generada para '+nombre.trim());
+    }).catch(function(err){showToast('❌ Error: '+err.message,true);console.error(err);});
+  }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
+}
+function generarEtiquetasEnvioBatch(){
+  var nums=Array.from(envioSeleccionados);if(!nums.length)return;
+  var tw=docx.convertInchesToTwip,allCh=[];
+  nums.forEach(function(numStr,idx){
+    var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+    buildEnvioChildren(r,idx>0).forEach(function(c){allCh.push(c);});
+  });
+  try{
+    var doc=new docx.Document({sections:[{properties:{page:{size:{width:tw(4.5),height:tw(5.5)},margin:{top:tw(0.4),right:tw(0.5),bottom:tw(0.4),left:tw(0.5)}}},children:allCh}]});
+    docx.Packer.toBlob(doc).then(function(blob){
+      var url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='etiquetas_envio_'+nums.length+'.docx';
+      document.body.appendChild(a);a.click();
+      setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);
+      showToast('✓ '+nums.length+' etiquetas de envío generadas');
+      envioSeleccionados.clear();
+      var btn=document.getElementById('btn-envio-batch'),cnt=document.getElementById('envio-batch-count');
+      if(cnt)cnt.textContent='0';if(btn)btn.style.display='none';
+      document.querySelectorAll('.envio-check').forEach(function(cb){cb.checked=false;});
+    }).catch(function(err){showToast('❌ Error: '+err.message,true);console.error(err);});
+  }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
 }
 loadApiKey();renderProd();updateProdStats();renderFin();renderPixel();renderCost();
 async function initAllModules(){await loadProd();await loadFin();await loadPixel();await loadCost();renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();}
