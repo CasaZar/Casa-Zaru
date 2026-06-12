@@ -25531,6 +25531,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-ghost" style="font-size:12px" onclick="exportProdXLSX()">↓ Excel</button>
+      <button id="btn-gen-batch" class="btn-add" style="font-size:12px;display:none" onclick="generarEtiquetasBatch()">📄 Etiquetas seleccionadas (<span id="batch-count">0</span>)</button>
     </div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
@@ -26246,7 +26247,7 @@ function renderProd(){
       const aOptsS=ACABADOS_PROD.map(a=>`<option${a===l.acabado?' selected':''}>${a}</option>`).join('');
       const inS=`background:${rowBg};border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);width:100%;outline:none;`;
       const iF=`onfocus="this.style.borderBottomColor='var(--wood-light)';this.style.background='#fff'" onblur="this.style.borderBottomColor='transparent';this.style.background='${rowBg}'"`;
-      return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:70px" value="${o.pedido||''}" ${iF} onchange="updateProdField(${oi},'pedido',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-size:11px;width:110px" value="${o.envio||''}" ${iF} onchange="updateProdField(${oi},'envio',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:90px" value="${o.comprador||''}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}width:90px" value="${o.apellido||''}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${l.producto||''}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg}"><select style="${inS}" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${l.observaciones||''}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle"><button class="btn-ghost" style="padding:3px 8px;font-size:11px;white-space:nowrap" onclick="generarEtiquetaProd(${oi},${li})" title="Generar etiqueta">📄</button></td>${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
+      return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:70px" value="${o.pedido||''}" ${iF} onchange="updateProdField(${oi},'pedido',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-size:11px;width:110px" value="${o.envio||''}" ${iF} onchange="updateProdField(${oi},'envio',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:90px" value="${o.comprador||''}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}width:90px" value="${o.apellido||''}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${l.producto||''}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg}"><select style="${inS}" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${l.observaciones||''}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle;white-space:nowrap"><input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel(${oi},${li},this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd(${oi},${li})" title="Generar etiqueta individual">📄</button></td>${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
     }).join('');
   }).join('');
 }
@@ -26561,14 +26562,20 @@ function generarImagenTablaCanvas(largo,ancho,espesor){
   ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW,y0);ctx.lineTo(x0,y0);ctx.closePath();ctx.stroke();
   ctx.beginPath();ctx.moveTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+bW+dX,y0-dY);ctx.lineTo(x0+bW,y0);ctx.stroke();
   // Cotas
-  ctx.fillStyle='#555';ctx.font='bold 11px Arial';ctx.textAlign='center';
+  ctx.font='bold 11px Arial';
+  // Largo: bajo cara frontal
+  ctx.fillStyle='#444';ctx.textAlign='center';
   ctx.fillText(largo+' cms',x0+bW/2,y0+18);
-  ctx.save();ctx.translate(x0+bW+dX+22,y0-bH-dY+dY/2);ctx.rotate(-0.45);ctx.textAlign='left';ctx.fillText(ancho+' cms',0,0);ctx.restore();
+  // Ancho: sobre cara superior, rotado al ángulo del plano
+  var angTop=Math.atan2(-dY,dX);
+  ctx.save();ctx.translate(x0+bW*0.5+dX*0.5,y0-bH-dY*0.5);ctx.rotate(angTop);ctx.textAlign='center';ctx.fillStyle='#333';ctx.fillText(ancho+' cms',0,-7);ctx.restore();
+  // Espesor: a la derecha de la cara lateral
+  ctx.save();ctx.translate(x0+bW+dX+10,y0-dY-bH*0.5);ctx.textAlign='left';ctx.font='bold 10px Arial';ctx.fillStyle='#555';ctx.fillText(espesor+' cms',0,4);ctx.restore();
   return canvas.toDataURL('image/png');
 }
-function generarEtiquetaProd(oi,li){
-  var o=prodOrders[oi];if(!o)return;
-  var l=(o.lineas||[])[li];if(!l)return;
+function buildEtiquetaChildren(oi,li,pageBreak){
+  var o=prodOrders[oi];if(!o)return[];
+  var l=(o.lineas||[])[li];if(!l)return[];
   var pedido=String(o.pedido||''),semana=String(o.envio||''),nombre=(o.comprador||'')+' '+(o.apellido||'');
   var producto=String(l.producto||''),largo=Number(l.largo)||0,ancho=Number(l.ancho)||0;
   var espesor=Number(l.espesor)||0,madera=String(l.madera||''),canto=String(l.canto||'');
@@ -26577,39 +26584,69 @@ function generarEtiquetaProd(oi,li){
   var espStr=String(espesor).replace('.',',')+' CMS';
   var D=docx,mg=docx.convertInchesToTwip(0.8),cw=docx.convertInchesToTwip(8.27)-2*mg,half=Math.floor(cw/2);
   var divider=new D.Paragraph({border:{bottom:{style:'single',size:6,color:'000000',space:1}},children:[new D.TextRun({text:' ',size:4})],spacing:{after:180}});
-  // Canvas image
   var imgBuf=null;
   try{var du=generarImagenTablaCanvas(largo,ancho,espesor),b64=du.split(',')[1],bin=atob(b64),by=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)by[k]=bin.charCodeAt(k);imgBuf=by.buffer;}catch(e){console.warn('canvas:',e);}
-  var children=[
-    // Header: PEDIDO (izq) | SEMANA (der) con tab stop
-    new D.Paragraph({children:[new D.TextRun({text:'PEDIDO: '+pedido,size:18,font:'Arial'}),new D.TextRun({text:'\t',size:18}),new D.TextRun({text:semana,size:18,font:'Arial'})],tabStops:[{type:'right',position:cw}],spacing:{after:60}}),
+  var headerOpts={children:[new D.TextRun({text:'PEDIDO: '+pedido,size:18,font:'Arial'}),new D.TextRun({text:'\t',size:18}),new D.TextRun({text:semana,size:18,font:'Arial'})],tabStops:[{type:'right',position:cw}],spacing:{after:60}};
+  if(pageBreak)headerOpts.pageBreakBefore=true;
+  var ch=[
+    new D.Paragraph(headerOpts),
     new D.Paragraph({children:[new D.TextRun({text:'NOMBRE: '+nombre,size:18,font:'Arial'})],spacing:{after:40}}),
     new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{after:100}}),
     divider,
     new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}}),
     new D.Paragraph({alignment:'center',children:[new D.TextRun({text:madera,size:80,font:'Arial',bold:true})],spacing:{after:180}}),
     divider,
-    // ESPESOR | BORDE labels
     new D.Paragraph({children:[new D.TextRun({text:'ESPESOR',size:16,font:'Arial',color:'888888'}),new D.TextRun({text:'\t',size:16}),new D.TextRun({text:'BORDE',size:16,font:'Arial',color:'888888'})],tabStops:[{type:'left',position:half}],spacing:{after:30}}),
-    // ESPESOR | BORDE values
     new D.Paragraph({children:[new D.TextRun({text:espStr,size:52,font:'Arial',bold:true}),new D.TextRun({text:'\t',size:52}),new D.TextRun({text:canto,size:52,font:'Arial',bold:true})],tabStops:[{type:'left',position:half}],spacing:{after:60}}),
-    // ACABADO | TEÑIDO labels
     new D.Paragraph({children:[new D.TextRun({text:'ACABADO',size:16,font:'Arial',color:'888888'}),new D.TextRun({text:'\t',size:16}),new D.TextRun({text:'TEÑIDO',size:16,font:'Arial',color:'888888'})],tabStops:[{type:'left',position:half}],spacing:{after:30}}),
-    // ACABADO | TEÑIDO values
     new D.Paragraph({children:[new D.TextRun({text:acabado,size:52,font:'Arial',bold:true}),new D.TextRun({text:'\t',size:52}),new D.TextRun({text:tenido,size:52,font:'Arial',bold:true})],tabStops:[{type:'left',position:half}],spacing:{after:160}}),
     new D.Paragraph({children:[new D.TextRun({text:obs?'OBS: '+obs:'',size:18,font:'Arial'})],spacing:{after:160}})
   ];
-  if(imgBuf){children.push(new D.Paragraph({alignment:'center',children:[new D.ImageRun({type:'png',data:imgBuf,transformation:{width:430,height:215}})]}))}
+  if(imgBuf){ch.push(new D.Paragraph({alignment:'center',children:[new D.ImageRun({type:'png',data:imgBuf,transformation:{width:430,height:215}})]}));}
+  return ch;
+}
+function _docxDownload(doc,filename){
+  docx.Packer.toBlob(doc).then(function(blob){
+    var url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+    setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);
+  }).catch(function(err){showToast('❌ Error: '+err.message,true);console.error('Packer:',err);});
+}
+function _docxDoc(children){
+  var mg=docx.convertInchesToTwip(0.8);
+  return new docx.Document({sections:[{properties:{page:{size:{width:docx.convertInchesToTwip(8.27),height:docx.convertInchesToTwip(11.69)},margin:{top:mg,right:mg,bottom:mg,left:mg}}},children:children}]});
+}
+function generarEtiquetaProd(oi,li){
+  var ch=buildEtiquetaChildren(oi,li,false);if(!ch.length)return;
+  var o=prodOrders[oi],l=(o.lineas||[])[li];
+  var pedido=String(o.pedido||''),producto=String((l||{}).producto||'');
+  try{_docxDownload(_docxDoc(ch),'etq_'+pedido+'_'+producto.replace(/\s+/g,'_')+'.docx');showToast('✓ Etiqueta generada — Pedido '+pedido+': '+producto);}
+  catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
+}
+var etiquetasSeleccionadas=new Set();
+function toggleEtiquetaSel(oi,li,checked){
+  var key=oi+'-'+li;
+  if(checked)etiquetasSeleccionadas.add(key);else etiquetasSeleccionadas.delete(key);
+  var btn=document.getElementById('btn-gen-batch'),cnt=document.getElementById('batch-count');
+  var n=etiquetasSeleccionadas.size;
+  if(cnt)cnt.textContent=n;
+  if(btn)btn.style.display=n>0?'inline-flex':'none';
+}
+function generarEtiquetasBatch(){
+  var keys=Array.from(etiquetasSeleccionadas);if(!keys.length)return;
+  var allCh=[];
+  keys.forEach(function(key,idx){
+    var p=key.split('-');
+    buildEtiquetaChildren(Number(p[0]),Number(p[1]),idx>0).forEach(function(c){allCh.push(c);});
+  });
   try{
-    var doc=new D.Document({sections:[{properties:{page:{size:{width:docx.convertInchesToTwip(8.27),height:docx.convertInchesToTwip(11.69)},margin:{top:mg,right:mg,bottom:mg,left:mg}}},children:children}]});
-    D.Packer.toBlob(doc).then(function(blob){
-      var url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;a.download='etq_'+pedido+'_'+producto.replace(/\s+/g,'_')+'.docx';
-      document.body.appendChild(a);a.click();
-      setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);
-      showToast('✓ Etiqueta generada — Pedido '+pedido+': '+producto);
-    }).catch(function(err){showToast('❌ Error: '+err.message,true);console.error('Packer:',err);});
-  }catch(err){showToast('❌ Error: '+err.message,true);console.error('Doc:',err);}
+    _docxDownload(_docxDoc(allCh),'etiquetas_'+keys.length+'_items.docx');
+    showToast('✓ '+keys.length+' etiquetas en un archivo');
+    etiquetasSeleccionadas.clear();
+    var btn=document.getElementById('btn-gen-batch'),cnt=document.getElementById('batch-count');
+    if(cnt)cnt.textContent='0';if(btn)btn.style.display='none';
+    document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});
+  }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
 }
 function generarEtiqueta(numStr){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
