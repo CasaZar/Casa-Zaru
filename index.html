@@ -25370,6 +25370,17 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('fin',this)"><span class="tab-icon">💰</span> Finanzas</button>
     <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon">📊</span> Pixel Meta</button>
     <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon">🔧</span> Costos</button>
+    <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
+  </div>
+  <!-- Sidebar footer -->
+  <div style="padding:10px 8px;border-top:1px solid rgba(245,237,227,0.12)">
+    <div style="position:relative;margin-bottom:8px">
+      <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:rgba(245,237,227,0.5);font-size:13px">⌕</span>
+      <input id="global-search" type="text" placeholder="Buscar en todo..." oninput="renderGlobalSearch()"
+        style="width:100%;padding:7px 8px 7px 26px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:#F5EDE3;background:rgba(245,237,227,0.1);outline:none">
+      <div id="global-results" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border-md);border-radius:8px;box-shadow:var(--shadow-lg);max-height:320px;overflow-y:auto;z-index:200"></div>
+    </div>
+    <button onclick="exportTodoXLSX()" style="width:100%;padding:7px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;color:rgba(245,237,227,0.7);background:rgba(245,237,227,0.08);cursor:pointer;text-align:left">↓ Exportar todo a Excel</button>
   </div>
 </div>
 <div class="app-body">
@@ -25385,7 +25396,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.4px">Buenos días 👋</div>
       <div style="font-size:13px;color:var(--text-3);margin-top:3px" id="dash-date"></div>
     </div>
-    <button class="btn-ghost" onclick="renderDash()" style="font-size:12px">↺ Actualizar</button>
+    <button class="btn-ghost" onclick="renderDash();renderNotif();" style="font-size:12px">↺ Actualizar</button>
   </div>
 
   <!-- Fila KPIs mes actual vs anterior -->
@@ -25421,7 +25432,21 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 
   </div>
 
-  <!-- Fila 3: actividad reciente -->
+  <!-- Fila 3: notificaciones pedidos sin movimiento -->
+  <div class="table-card" style="padding:20px;margin-bottom:16px" id="dash-notif-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:14px;font-weight:700;color:var(--text)">🔔 Pedidos sin movimiento</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span style="font-size:11px;color:var(--text-3)">Días sin completar:</span>
+        <select id="notif-days" onchange="renderNotif()" style="font-size:12px;font-family:'Inter',sans-serif;border:1px solid var(--border-md);border-radius:6px;padding:3px 8px;background:var(--surface);color:var(--text)">
+          <option value="7">7 días</option><option value="14" selected>14 días</option><option value="21">21 días</option><option value="30">30 días</option>
+        </select>
+      </div>
+    </div>
+    <div id="dash-notif"></div>
+  </div>
+
+  <!-- Fila 4: actividad reciente -->
   <div class="table-card" style="padding:20px">
     <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">🕐 Últimos pedidos ingresados</div>
     <div id="dash-recientes"></div>
@@ -25670,6 +25695,36 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div id="cost-list"><div class="cost-empty"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:0.3">🔧</span>Los pedidos aparecen aquí al confirmar un pantallazo</div></div>
 </div></div>
 
+<!-- P6 CLIENTES -->
+<div class="page" id="page-cli">
+<div class="main">
+  <div class="stats-grid" id="cli-stats"></div>
+  <div class="toolbar">
+    <div style="font-size:13px;font-weight:600;color:var(--text)">Base de clientes — generada desde Finanzas</div>
+    <button class="btn-ghost" style="font-size:12px" onclick="renderClientes()">↺ Actualizar</button>
+  </div>
+  <div class="search-wrap"><span class="search-icon">⌕</span>
+    <input type="text" id="cli-search" placeholder="Buscar por nombre, email, celular..." oninput="renderClientes()">
+  </div>
+  <div class="table-card"><div class="table-wrap">
+    <table class="fin">
+      <thead><tr>
+        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th>
+      </tr></thead>
+      <tbody id="cli-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="cli-empty" style="display:none"><span class="empty-icon">👥</span>No hay clientes. Los datos se generan desde Finanzas.</div>
+  </div></div>
+</div></div>
+
+<!-- MODAL HISTORIAL -->
+<div class="modal-bg" id="modal-hist-bg">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><div class="modal-title" id="hist-modal-title">Historial de cambios</div><button class="btn-close" onclick="closeHistModal()">×</button></div>
+    <div id="hist-list" style="max-height:420px;overflow-y:auto;padding:4px 0"></div>
+  </div>
+</div>
+
 <!-- MODAL SEG -->
 <div class="modal-bg" id="modal-seg-bg">
   <div class="modal">
@@ -25691,6 +25746,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="checks-grid-modal" id="checks-grid"></div>
     <div class="modal-footer">
       <button class="btn-del" id="btn-del" style="display:none" onclick="deleteOrder()">Eliminar pedido</button>
+      <button class="btn-ghost" id="btn-hist" style="display:none;font-size:12px" onclick="openHistModal(editingKey)">🕐 Historial</button>
       <button class="btn-sec" onclick="closeModal()">Cancelar</button>
       <button class="btn-pri" onclick="saveOrder()">Guardar</button>
     </div>
@@ -25851,6 +25907,7 @@ function showPage(p,btn){
   if(p==='pixel'){loadPixel();}
   if(p==='cost'){loadCost();}
   if(p==='prod'){loadProd();}
+  if(p==='cli'){renderClientes();}
   if(p==='dash'){
     if(DB_URL){
       Promise.all([finRecords.length===0?loadFin():Promise.resolve(),prodOrders.length===0?loadProd():Promise.resolve()]).then(function(){renderDash();});
@@ -25928,7 +25985,7 @@ async function toggleCheck(numStr,cid){
   if(!DB_URL)return;var o=orders.find(x=>String(x.num||'')===String(numStr));if(!o)return;
   var newVal=!o.checks[cid];o.checks[cid]=newVal;renderSeg();
   pendingOps++;setSyncState('syncing');
-  try{var patch={};patch[cid]=newVal;await api('pedidos/'+numStr+'/checks','PATCH',patch);setSyncState('online');}
+  try{var patch={};patch[cid]=newVal;await api('pedidos/'+numStr+'/checks','PATCH',patch);setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
   catch(e){o.checks[cid]=!newVal;renderSeg();setSyncState('offline');}finally{pendingOps--;}
 }
 function renderSegStats(){
@@ -25958,6 +26015,7 @@ function openModal(numStr){
   editingKey=numStr||null;
   document.getElementById('modal-title').textContent=numStr?'Editar pedido':'Nuevo pedido';
   document.getElementById('btn-del').style.display=numStr?'block':'none';
+  document.getElementById('btn-hist').style.display=numStr?'block':'none';
   var state={};CHECKS.forEach(c=>state[c.id]=false);
   if(numStr){var o=orders.find(x=>String(x.num||'')===String(numStr));if(o){document.getElementById('f-num').value=o.num||'';document.getElementById('f-semana').value=o.semana||'';document.getElementById('f-nombre').value=o.nombre||'';document.getElementById('f-apellido').value=o.apellido||'';document.getElementById('f-producto').value=o.producto||'';document.getElementById('f-piezas').value=o.piezas||'';document.getElementById('f-notas').value=o.notas||'';state=Object.assign({},o.checks);}}
   else{['f-num','f-semana','f-nombre','f-apellido','f-producto','f-piezas','f-notas'].forEach(id=>document.getElementById(id).value='');}
@@ -26025,7 +26083,7 @@ async function saveOrder(){
   try{
     var prev=orders.find(x=>String(x.num||'')===num)||{};
     await api('pedidos/'+num,'PUT',{num,semana,nombre,apellido,producto,piezas,notas,checks:Object.assign({},prev.checks||{},checks)});
-    setSyncState('online');await poll();
+    setSyncState('online');logHistorial(num,editingKey?'Pedido editado':'Pedido creado');await poll();
   }catch(e){setSyncState('offline');}finally{pendingOps--;}
   closeModal();
 }
@@ -26721,6 +26779,179 @@ loadApiKey();renderProd();updateProdStats();renderFin();renderPixel();renderCost
 async function initAllModules(){await loadProd();await loadFin();await loadPixel();await loadCost();renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();}
 init().then(()=>{if(DB_URL)initAllModules();});
 
+// ── HISTORIAL DE CAMBIOS ─────────────────────────────────────────────────────
+var HIST_USER_KEY='cazaru_usuario';
+function getUsuario(){return localStorage.getItem(HIST_USER_KEY)||'Sistema';}
+function logHistorial(numStr,accion){
+  if(!DB_URL||!numStr)return;
+  var ts=Date.now();
+  var entry={accion:accion,usuario:getUsuario(),ts:ts,fecha:new Date(ts).toLocaleString('es-CL')};
+  api('historial/'+numStr+'/'+ts,'PUT',entry).catch(function(){});
+}
+function openHistModal(numStr){
+  if(!numStr){return;}
+  document.getElementById('hist-modal-title').textContent='Historial — Pedido #'+numStr;
+  document.getElementById('hist-list').innerHTML='<div style="padding:16px;text-align:center;color:var(--text-3)">Cargando...</div>';
+  document.getElementById('modal-hist-bg').classList.add('open');
+  if(!DB_URL){document.getElementById('hist-list').innerHTML='<div style="padding:16px;color:var(--text-3)">Firebase no conectado.</div>';return;}
+  api('historial/'+numStr).then(function(raw){
+    if(!raw||!Object.keys(raw).length){document.getElementById('hist-list').innerHTML='<div style="padding:16px;color:var(--text-3)">Sin registros para este pedido.</div>';return;}
+    var entries=Object.values(raw).sort(function(a,b){return(b.ts||0)-(a.ts||0);});
+    document.getElementById('hist-list').innerHTML=entries.map(function(e){
+      return'<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border)">'+
+        '<div style="width:6px;height:6px;border-radius:50%;background:var(--brand);margin-top:5px;flex-shrink:0"></div>'+
+        '<div style="flex:1"><div style="font-size:13px;color:var(--text);font-weight:500">'+e.accion+'</div>'+
+        '<div style="font-size:11px;color:var(--text-3);margin-top:2px">'+e.fecha+' &middot; '+e.usuario+'</div></div></div>';
+    }).join('');
+  }).catch(function(){document.getElementById('hist-list').innerHTML='<div style="padding:16px;color:var(--red)">Error cargando historial.</div>';});
+}
+function closeHistModal(){document.getElementById('modal-hist-bg').classList.remove('open');}
+document.getElementById('modal-hist-bg').addEventListener('click',function(e){if(e.target===document.getElementById('modal-hist-bg'))closeHistModal();});
+
+// ── BÚSQUEDA GLOBAL ───────────────────────────────────────────────────────────
+function renderGlobalSearch(){
+  var q=(document.getElementById('global-search').value||'').trim().toLowerCase();
+  var box=document.getElementById('global-results');
+  if(!q){box.style.display='none';return;}
+  var results=[];
+  // Pedidos (seguimiento)
+  orders.forEach(function(o){
+    var hay=(o.num||'').toLowerCase().includes(q)||(o.nombre||'').toLowerCase().includes(q)||(o.apellido||'').toLowerCase().includes(q)||(o.producto||'').toLowerCase().includes(q);
+    if(hay)results.push({icon:'📋',label:'#'+(o.num||'—')+' '+(o.nombre||'')+' '+(o.apellido||''),sub:'Seguimiento · '+(o.semana||''),page:'seg'});
+  });
+  // Finanzas
+  finRecords.forEach(function(r){
+    var hay=(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q)||(r.email||'').toLowerCase().includes(q)||(r.celular||'').toLowerCase().includes(q);
+    if(hay)results.push({icon:'💰',label:'#'+(r.num||'—')+' '+(r.nombre||'')+' '+(r.apellido||''),sub:'Finanzas · '+fmtCLP(r.total),page:'fin'});
+  });
+  // Producción
+  prodOrders.forEach(function(o){
+    var hay=(String(o.pedido||'')).includes(q)||(o.comprador||'').toLowerCase().includes(q)||(o.apellido||'').toLowerCase().includes(q);
+    if(hay)results.push({icon:'🪵',label:'#'+(o.pedido||'—')+' '+(o.comprador||'')+' '+(o.apellido||''),sub:'Producción · '+(o.envio||''),page:'prod'});
+  });
+  // Pixel
+  pixelRecords.forEach(function(r){
+    var hay=(r.email||'').toLowerCase().includes(q)||(r.fn||'').toLowerCase().includes(q)||(r.ln||'').toLowerCase().includes(q)||(r.order_id||'').toLowerCase().includes(q);
+    if(hay)results.push({icon:'📊',label:(r.fn||'')+' '+(r.ln||'')+' '+(r.email||''),sub:'Pixel · '+(r.order_id||''),page:'pixel'});
+  });
+  if(!results.length){box.style.display='block';box.innerHTML='<div style="padding:12px 16px;font-size:12px;color:var(--text-3)">Sin resultados para "'+q+'"</div>';return;}
+  results=results.slice(0,12);
+  box.style.display='block';
+  box.innerHTML=results.map(function(r,i){
+    return'<div class="gsearch-item" onclick="goToPage(\''+r.page+'\');document.getElementById(\'global-search\').value=\'\';document.getElementById(\'global-results\').style.display=\'none\';" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseenter="this.style.background=\'var(--surface2)\'" onmouseleave="this.style.background=\'\'">'+
+      '<span style="font-size:14px;margin-top:1px">'+r.icon+'</span>'+
+      '<div><div style="font-size:12px;font-weight:600;color:var(--text)">'+r.label+'</div>'+
+      '<div style="font-size:11px;color:var(--text-3)">'+r.sub+'</div></div></div>';
+  }).join('');
+}
+document.addEventListener('click',function(e){
+  var box=document.getElementById('global-results'),inp=document.getElementById('global-search');
+  if(box&&inp&&!box.contains(e.target)&&e.target!==inp)box.style.display='none';
+});
+
+// ── NOTIFICACIONES DE ESTADO ──────────────────────────────────────────────────
+function renderNotif(){
+  var el=document.getElementById('dash-notif');if(!el)return;
+  var dias=parseInt((document.getElementById('notif-days')||{value:'14'}).value)||14;
+  var now=Date.now();
+  var alertas=orders.filter(function(o){
+    if(getProgress(o.checks).pct===100)return false;
+    var fc=o.fecha_creacion||o.fecha||'';if(!fc)return false;
+    var d=new Date(fc.split('/').reverse?fc:fc);
+    if(isNaN(d.getTime())){var p=fc.split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else return false;}
+    var diasPasados=Math.floor((now-d.getTime())/(1000*60*60*24));
+    return diasPasados>=dias;
+  });
+  if(!alertas.length){el.innerHTML='<div class="empty-dash" style="color:var(--green)">✓ Todos los pedidos activos están al día</div>';return;}
+  el.innerHTML=alertas.slice(0,8).map(function(o){
+    var fc=o.fecha_creacion||o.fecha||'';var d=new Date(fc);if(isNaN(d.getTime())){var p=fc.split('/');d=new Date(p[2]+'-'+p[1]+'-'+p[0]);}
+    var diasPasados=Math.floor((now-d.getTime())/(1000*60*60*24));
+    var prog=getProgress(o.checks).pct;
+    return'<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="goToSeg()">'+
+      '<div style="background:var(--amber-dim);color:var(--amber);font-weight:700;font-size:11px;border-radius:6px;padding:3px 8px;flex-shrink:0">'+diasPasados+'d</div>'+
+      '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">#'+(o.num||'—')+' '+(o.nombre||'')+' '+(o.apellido||'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text-3)">'+(o.semana||'')+' · '+prog+'% completado</div></div>'+
+      '<div style="height:4px;width:60px;background:var(--surface3);border-radius:2px"><div style="height:100%;width:'+prog+'%;background:var(--amber);border-radius:2px"></div></div></div>';
+  }).join('');
+}
+
+// ── TAB CLIENTES ──────────────────────────────────────────────────────────────
+function buildClienteMap(){
+  var map={};
+  finRecords.forEach(function(r){
+    var key=((r.nombre||'')+(r.apellido||'')).toLowerCase().replace(/\s/g,'');
+    if(!key)return;
+    if(!map[key]){map[key]={nombre:(r.nombre||''),apellido:(r.apellido||''),email:r.email||'',celular:r.celular||'',pedidos:[],total:0,ultimo:null,ultimaSemana:'',ultimoEstado:''};}
+    map[key].pedidos.push(r.num||'');
+    map[key].total+=(Number(r.total)||0);
+    var fc=r.fecha_creacion||r.fecha||'';
+    if(!map[key].ultimo||fc>map[key].ultimo){map[key].ultimo=fc;map[key].ultimaSemana=r.semana||'';var pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0)));map[key].ultimoEstado=pend>0?'Pendiente':'✓ Pagado';}
+    if(!map[key].email&&r.email)map[key].email=r.email;
+    if(!map[key].celular&&r.celular)map[key].celular=r.celular;
+  });
+  return Object.values(map);
+}
+function renderClientes(){
+  var clientes=buildClienteMap();
+  var q=(document.getElementById('cli-search')||{value:''}).value.toLowerCase().trim();
+  if(q)clientes=clientes.filter(function(c){return((c.nombre+' '+c.apellido).toLowerCase().includes(q)||(c.email||'').toLowerCase().includes(q)||(c.celular||'').includes(q));});
+  clientes.sort(function(a,b){return b.pedidos.length-a.pedidos.length||b.total-a.total;});
+  var tot=clientes.length,multi=clientes.filter(function(c){return c.pedidos.length>1;}).length;
+  var totalFac=clientes.reduce(function(s,c){return s+c.total;},0);
+  var statsEl=document.getElementById('cli-stats');
+  if(statsEl)statsEl.innerHTML='<div class="stat-card"><div class="stat-label">Clientes únicos</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Con 2+ pedidos</div><div class="stat-val green">'+multi+'</div></div><div class="stat-card"><div class="stat-label">Facturación total</div><div class="stat-val amber">'+fmtCLP(totalFac)+'</div></div><div class="stat-card"><div class="stat-label">Ticket promedio</div><div class="stat-val">'+fmtCLP(tot?Math.round(totalFac/tot):0)+'</div></div>';
+  var tbody=document.getElementById('cli-tbody'),empty=document.getElementById('cli-empty');
+  if(!clientes.length){if(tbody)tbody.innerHTML='';if(empty)empty.style.display='block';return;}
+  if(empty)empty.style.display='none';
+  if(tbody)tbody.innerHTML=clientes.map(function(c){
+    var ticket=c.pedidos.length?Math.round(c.total/c.pedidos.length):0;
+    var isRecurrente=c.pedidos.length>1;
+    return'<tr><td><div style="font-weight:600;color:var(--text)">'+c.nombre+' '+c.apellido+(isRecurrente?'<span style="margin-left:6px;font-size:10px;background:var(--green-dim);color:var(--green);border-radius:4px;padding:2px 6px;font-weight:600">RECURRENTE</span>':'')+'</div></td>'+
+      '<td style="font-size:12px;color:var(--text-3)">'+(c.email||'—')+'</td>'+
+      '<td style="font-size:12px">'+(c.celular||'—')+'</td>'+
+      '<td style="text-align:center;font-weight:700;color:var(--brand)">'+c.pedidos.length+'</td>'+
+      '<td style="font-weight:700;color:var(--green)">'+fmtCLP(c.total)+'</td>'+
+      '<td>'+fmtCLP(ticket)+'</td>'+
+      '<td style="font-size:12px;color:var(--text-3)">'+(c.ultimo||'—')+'</td>'+
+      '<td style="font-size:12px">'+(c.ultimaSemana||'—')+'</td>'+
+      '<td><span style="font-size:11px;font-weight:600;color:'+(c.ultimoEstado.includes('Pendiente')?'var(--amber)':'var(--green)')+'">'+c.ultimoEstado+'</span></td></tr>';
+  }).join('');
+}
+
+// ── EXPORTAR TODO A EXCEL ─────────────────────────────────────────────────────
+function exportTodoXLSX(){
+  try{
+    var wb=XLSX.utils.book_new();
+    // Hoja 1: Seguimiento
+    if(orders.length){
+      var segRows=orders.map(function(o){var r={'N°':o.num||'','Semana':o.semana||'','Nombre':o.nombre||'','Apellido':o.apellido||'','Producto':o.producto||'','Piezas':o.piezas||0,'Progreso':getProgress(o.checks).pct+'%','Notas':o.notas||''};CHECKS.forEach(function(c){r[c.label]=o.checks&&o.checks[c.id]?'✓':'';});return r;});
+      var wsSeg=XLSX.utils.json_to_sheet(segRows);XLSX.utils.book_append_sheet(wb,wsSeg,'Seguimiento');
+    }
+    // Hoja 2: Producción
+    if(prodOrders.length){
+      var prodRows=[];prodOrders.forEach(function(o){(o.lineas||[{producto:''}]).forEach(function(l){prodRows.push({'Pedido':o.pedido||'','Comprador':o.comprador||'','Apellido':o.apellido||'','Envío':o.envio||'','Fecha':o.fecha||'','Producto':l.producto||'','Cant.':l.cantidad||1,'Madera':l.madera||'','Largo':l.largo||'','Ancho':l.ancho||'','Canto':l.canto||'','Acabado':l.acabado||'','Espesor':l.espesor||'','M²':l.m2||'','Observaciones':l.observaciones||'',});});});
+      var wsProd=XLSX.utils.json_to_sheet(prodRows);XLSX.utils.book_append_sheet(wb,wsProd,'Producción');
+    }
+    // Hoja 3: Finanzas
+    if(finRecords.length){
+      var finRows=finRecords.map(function(r){return{'N°':r.num||'','Fecha':r.fecha_creacion||r.fecha||'','Semana':r.semana||'','Nombre':(r.nombre||'')+' '+(r.apellido||''),'Email':r.email||'','Celular':r.celular||'','Producto':r.producto||'','Medio pago':r.medio_pago||'','Cómo nos conoció':r.como||'','Val. prod':Number(r.val_prod)||0,'Envío':Number(r.val_envio)||0,'Comisión':Number(r.val_comision)||0,'Total':Number(r.total)||0,'Abono 1':Number(r.abono1)||0,'Abono 2':Number(r.abono2)||0,'Abono 3':Number(r.abono3)||0,'Pendiente':Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),'Estado':(r.doc1_emitida&&r.doc2_emitida)?'Listo':'Pendiente'};});
+      var wsFin=XLSX.utils.json_to_sheet(finRows);XLSX.utils.book_append_sheet(wb,wsFin,'Finanzas');
+    }
+    // Hoja 4: Pixel
+    if(pixelRecords.length){
+      var pixRows=pixelRecords.map(function(r){return{email:r.email||'',phone:r.phone||'',fn:r.fn||'',ln:r.ln||'',ct:r.ct||'',st:r.st||'',country:'CL',gen:r.gen||'',order_id:r.order_id||'',event_time:r.event_time||'',value:r.value||0,currency:'CLP',estado:r.status||''};});
+      var wsPixel=XLSX.utils.json_to_sheet(pixRows);XLSX.utils.book_append_sheet(wb,wsPixel,'Pixel');
+    }
+    // Hoja 5: Clientes
+    var clientes=buildClienteMap();
+    if(clientes.length){
+      var cliRows=clientes.map(function(c){return{'Nombre':c.nombre+' '+c.apellido,'Email':c.email||'','Celular':c.celular||'','Pedidos':c.pedidos.length,'N° pedidos':c.pedidos.join(', '),'Total facturado':c.total,'Ticket promedio':c.pedidos.length?Math.round(c.total/c.pedidos.length):0,'Último pedido':c.ultimo||'','Última semana':c.ultimaSemana||''};});
+      var wsCli=XLSX.utils.json_to_sheet(cliRows);XLSX.utils.book_append_sheet(wb,wsCli,'Clientes');
+    }
+    downloadXLSX(wb,'zaru_completo_'+todayStr.replace(/\//g,'-')+'.xlsx');
+  }catch(e){showToast('Error exportando: '+e.message,true);console.error(e);}
+}
+
 // ── DASHBOARD ────────────────────────────────────────────────────────────
 const SEMANAS_ES_D=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const MESES_LARGO_D=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -26820,7 +27051,7 @@ function renderDash(){
   var recEl=document.getElementById('dash-recientes');
   if(recEl){if(!recientes.length){recEl.innerHTML='<div class="empty-dash">No hay pedidos recientes</div>';}else{recEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+recientes.map(function(r){var listo=r.doc1_emitida&&r.doc2_emitida,pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),dc=listo?'var(--green)':pend>0?'var(--amber)':'var(--brand)';return'<div class="reciente-row" onclick="goToPage(\'fin\')" style="cursor:pointer"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(r.nombre||'')+' '+(r.apellido||'')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.semana||'')+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+( pend>0?'Pend: '+fmtCLP(pend):'&#10003; Pagado')+'</div></div></div>';}).join('')+'</div>';}}
 }
-function initDash(){renderDash();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active'))renderDash();},30000);}
+function initDash(){renderDash();renderNotif();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){renderDash();renderNotif();}},30000);}
 function downloadXLSX(wb,filename){try{var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}),blob=new Blob([wbout],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);showToast('✓ Excel descargado');}catch(e){console.error('Excel error:',e);showToast('Error al generar Excel: '+e.message,true);}}
 
 // ── TARJETAS MÓVIL ────────────────────────────────────────────────────────
