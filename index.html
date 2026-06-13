@@ -25396,7 +25396,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.4px">Buenos días 👋</div>
       <div style="font-size:13px;color:var(--text-3);margin-top:3px" id="dash-date"></div>
     </div>
-    <button class="btn-ghost" onclick="renderDash();renderNotif();" style="font-size:12px">↺ Actualizar</button>
+    <button class="btn-ghost" onclick="renderDash();renderNotif();renderGrafico();renderRanking();" style="font-size:12px">↺ Actualizar</button>
   </div>
 
   <!-- Fila KPIs mes actual vs anterior -->
@@ -25432,7 +25432,19 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 
   </div>
 
-  <!-- Fila 3: notificaciones pedidos sin movimiento -->
+  <!-- Fila 3: gráfico ventas + ranking productos -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="table-card" style="padding:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">📈 Ventas últimos 6 meses</div>
+      <div id="dash-grafico"></div>
+    </div>
+    <div class="table-card" style="padding:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">🏆 Productos más vendidos</div>
+      <div id="dash-ranking"></div>
+    </div>
+  </div>
+
+  <!-- Fila 4: notificaciones pedidos sin movimiento -->
   <div class="table-card" style="padding:20px;margin-bottom:16px" id="dash-notif-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
       <div style="font-size:14px;font-weight:700;color:var(--text)">🔔 Pedidos sin movimiento</div>
@@ -25577,6 +25589,11 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div style="position:relative">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
       <input id="prod-filter-madera" type="text" placeholder="Buscar madera..." oninput="renderProd()"
+        style="padding:7px 12px 7px 30px;border:1px solid var(--border-md);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;width:180px">
+    </div>
+    <div style="position:relative">
+      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
+      <input id="prod-filter-cliente" type="text" placeholder="Buscar cliente..." oninput="renderProd()"
         style="padding:7px 12px 7px 30px;border:1px solid var(--border-md);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;width:180px">
     </div>
     <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--border-md);border-radius:6px;padding:7px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
@@ -25749,8 +25766,11 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="form-grid full"><div class="form-group"><label>Producto</label><input id="f-producto" type="text" placeholder="Mesón Coihue 2.5m"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Piezas</label><input id="f-piezas" type="number" placeholder="1" min="1"></div>
-      <div class="form-group"><label>Notas internas</label><input id="f-notas" type="text"></div>
+      <div class="form-group"><label>Canal de venta</label>
+        <select id="f-canal"><option value="whatsapp">💬 WhatsApp</option><option value="web">🌐 Web</option></select>
+      </div>
     </div>
+    <div class="form-grid full"><div class="form-group"><label>Notas internas</label><input id="f-notas" type="text"></div></div>
     <div class="section-label">Checkpoints completados</div>
     <div class="checks-grid-modal" id="checks-grid"></div>
     <div class="modal-footer">
@@ -25994,7 +26014,7 @@ async function toggleCheck(numStr,cid){
   if(!DB_URL)return;var o=orders.find(x=>String(x.num||'')===String(numStr));if(!o)return;
   var newVal=!o.checks[cid];o.checks[cid]=newVal;renderSeg();
   pendingOps++;setSyncState('syncing');
-  try{var patch={};patch[cid]=newVal;await api('pedidos/'+numStr+'/checks','PATCH',patch);setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
+  try{var patch={};patch[cid]=newVal;patch.last_activity=Date.now();o.last_activity=patch.last_activity;await api('pedidos/'+numStr+'/checks','PATCH',{[cid]:newVal});if(DB_URL)api('pedidos/'+numStr+'/last_activity','PUT',patch.last_activity).catch(function(){});setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
   catch(e){o.checks[cid]=!newVal;renderSeg();setSyncState('offline');}finally{pendingOps--;}
 }
 function renderSegStats(){
@@ -26027,7 +26047,7 @@ function openModal(numStr){
   document.getElementById('btn-del').style.display=numStr?'block':'none';
   document.getElementById('btn-hist').style.display=numStr?'block':'none';
   var state={};CHECKS.forEach(c=>state[c.id]=false);
-  if(numStr){var o=orders.find(x=>String(x.num||'')===String(numStr));if(o){document.getElementById('f-num').value=o.num||'';document.getElementById('f-semana').value=o.semana||'';document.getElementById('f-nombre').value=o.nombre||'';document.getElementById('f-apellido').value=o.apellido||'';document.getElementById('f-producto').value=o.producto||'';document.getElementById('f-piezas').value=o.piezas||'';document.getElementById('f-notas').value=o.notas||'';state=Object.assign({},o.checks);}}
+  if(numStr){var o=orders.find(x=>String(x.num||'')===String(numStr));if(o){document.getElementById('f-num').value=o.num||'';document.getElementById('f-semana').value=o.semana||'';document.getElementById('f-nombre').value=o.nombre||'';document.getElementById('f-apellido').value=o.apellido||'';document.getElementById('f-producto').value=o.producto||'';document.getElementById('f-piezas').value=o.piezas||'';document.getElementById('f-notas').value=o.notas||'';document.getElementById('f-canal').value=o.canal||'whatsapp';state=Object.assign({},o.checks);}}
   else{['f-num','f-semana','f-nombre','f-apellido','f-producto','f-piezas','f-notas'].forEach(id=>document.getElementById(id).value='');}
   document.getElementById('checks-grid').innerHTML=CHECKS.map(c=>'<label class="chk-item '+(state[c.id]?'checked':'')+'" id="ci-'+c.id+'"><input type="checkbox" id="cb-'+c.id+'" '+(state[c.id]?'checked':'')+' onchange="syncChk(\''+c.id+'\')">'+c.label+(c.critical?' <span class="star">★</span>':'')+'</label>').join('');
   document.getElementById('modal-seg-bg').classList.add('open');
@@ -26087,12 +26107,13 @@ async function saveOrder(){
   var semana=document.getElementById('f-semana').value.trim(),nombre=document.getElementById('f-nombre').value.trim(),apellido=document.getElementById('f-apellido').value.trim();
   var producto=document.getElementById('f-producto').value.trim(),notas=document.getElementById('f-notas').value.trim();
   var piezas=Number(document.getElementById('f-piezas').value)||0;
+  var canal=document.getElementById('f-canal').value||'whatsapp';
   var checks={};CHECKS.forEach(c=>checks[c.id]=document.getElementById('cb-'+c.id).checked);
   if(!nombre&&!num){alert('Ingresa al menos nombre o número de pedido.');return;}
   pendingOps++;setSyncState('syncing');
   try{
     var prev=orders.find(x=>String(x.num||'')===num)||{};
-    await api('pedidos/'+num,'PUT',{num,semana,nombre,apellido,producto,piezas,notas,checks:Object.assign({},prev.checks||{},checks)});
+    await api('pedidos/'+num,'PUT',{num,semana,nombre,apellido,producto,piezas,notas,canal,checks:Object.assign({},prev.checks||{},checks)});
     setSyncState('online');logHistorial(num,editingKey?'Pedido editado':'Pedido creado');await poll();
   }catch(e){setSyncState('offline');}finally{pendingOps--;}
   closeModal();
@@ -26306,8 +26327,12 @@ function renderProd(){
   // Filtros de búsqueda: semana y madera
   var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
   var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
+  var fCliente=((document.getElementById('prod-filter-cliente')||{}).value||'').toLowerCase().trim();
   if(fSemana)filteredProd=filteredProd.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
   if(fMadera)filteredProd=filteredProd.filter(function(o){return (o.lineas||[]).some(function(l){return (l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
+  if(fCliente)filteredProd=filteredProd.filter(function(o){return ((o.comprador||'')+' '+(o.apellido||'')).toLowerCase().indexOf(fCliente)!==-1;});
+  var hasFilter=fSemana||fMadera||fCliente;
+  var clearBtn=document.getElementById('prod-clear-filters');if(clearBtn)clearBtn.style.display=hasFilter?'block':'none';
   if(!filteredProd.length){tbody.innerHTML='<tr><td colspan="15" class="empty-state"><span class="empty-icon">🔍</span>Sin resultados para este filtro</td></tr>';return;}
   tbody.innerHTML=filteredProd.map((o,_oi)=>{
     const oi=prodOrders.indexOf(o),rowBg=PROD_COLORS[oi%2];
@@ -26318,10 +26343,22 @@ function renderProd(){
       const aOptsS=ACABADOS_PROD.map(a=>`<option${a===l.acabado?' selected':''}>${a}</option>`).join('');
       const inS=`background:${rowBg};border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);width:100%;outline:none;`;
       const iF=`onfocus="this.style.borderBottomColor='var(--wood-light)';this.style.background='#fff'" onblur="this.style.borderBottomColor='transparent';this.style.background='${rowBg}'"`;
-      return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-family:'DM Serif Display',serif;font-size:15px;color:var(--wood);width:70px" value="${o.pedido||''}" ${iF} onchange="updateProdField(${oi},'pedido',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-size:11px;width:110px" value="${o.envio||''}" ${iF} onchange="updateProdField(${oi},'envio',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:90px" value="${o.comprador||''}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}width:90px" value="${o.apellido||''}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${l.producto||''}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg}"><select style="${inS}" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${l.observaciones||''}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle;white-space:nowrap"><input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel(${oi},${li},this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd(${oi},${li})" title="Generar etiqueta individual">📄</button></td>${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
+      const estadoOpts=PROD_ESTADOS.map(function(e){return'<option'+(e===(o.estado||'En taller')?' selected':'')+'>'+e+'</option>';}).join('');
+      const estColor=o.estado==='Listo'?'var(--green)':o.estado==='Entregado'?'var(--text-3)':'var(--amber)';
+      const estadoSel=isFirst?'<select style="'+inS+'width:100%;margin-top:3px;font-size:10px;color:'+estColor+'" onchange="updateProdEstado('+oi+',this.value)">'+estadoOpts+'</select>':'';
+      const dias=isFirst?diasEnTaller(o):null;
+      const diasBadge=isFirst&&dias!==null?'<div style="font-size:10px;margin-top:2px;font-weight:600;color:'+(dias>14?'var(--red)':dias>7?'var(--amber)':'var(--green-text)')+'">'+dias+'d en taller</div>':'';
+      const _fo='onfocus="this.style.borderBottomColor=\'var(--wood-light)\';this.style.background=\'#fff\'" onblur="this.style.borderBottomColor=\'transparent\';this.style.background=\''+rowBg+'\'"';
+      const pedidoContent=isFirst?'<input style="'+inS+'font-family:\'DM Serif Display\',serif;font-size:15px;color:var(--wood);width:70px" value="'+(o.pedido||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'pedido\',this.value)">'+estadoSel:'';
+      const envioContent=isFirst?'<input style="'+inS+'font-size:11px;width:110px" value="'+(o.envio||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'envio\',this.value)">'+diasBadge:'';
+      return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${pedidoContent}</td><td style="background:${rowBg}">${envioContent}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:90px" value="${o.comprador||''}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)">`:''}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}width:90px" value="${o.apellido||''}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${l.producto||''}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg}"><select style="${inS}" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${l.observaciones||''}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle;white-space:nowrap"><input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel(${oi},${li},this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd(${oi},${li})" title="Generar etiqueta individual">📄</button></td>${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
     }).join('');
   }).join('');
 }
+const PROD_ESTADOS=['En taller','Listo','Entregado'];
+function updateProdEstado(oi,val){var o=prodOrders[oi];if(!o)return;o.estado=val;if(DB_URL)api('produccion/'+String(o.pedido||''),'PUT',o).catch(function(){});}
+function diasEnTaller(o){var fc=o.fecha_creacion||o.fecha||'';if(!fc)return null;var d;var p=fc.split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else d=new Date(fc);if(isNaN(d.getTime()))return null;return Math.floor((Date.now()-d.getTime())/(1000*60*60*24));}
+function clearProdFilters(){['prod-filter-semana','prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
 function updateProdStats(){var fp=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});document.getElementById('p-ped').textContent=fp.length;document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
 function exportProdCSV(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
@@ -26792,6 +26829,81 @@ loadApiKey();renderProd();updateProdStats();renderFin();renderPixel();renderCost
 async function initAllModules(){await loadProd();await loadFin();await loadPixel();await loadCost();renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();}
 init().then(()=>{if(DB_URL)initAllModules();});
 
+// ── META CONFIGURABLE ────────────────────────────────────────────────────────
+function editarMeta(){
+  var actual=Number(localStorage.getItem('cazaru_meta_mensual'))||30000000;
+  var input=prompt('Meta mensual en pesos (sin puntos):', actual);
+  if(input===null)return;
+  var val=Number(String(input).replace(/\./g,'').replace(/,/g,''));
+  if(!val||val<0){alert('Monto inválido');return;}
+  localStorage.setItem('cazaru_meta_mensual',val);
+  renderMeta();showToast('✓ Meta actualizada: '+fmtCLP(val));
+}
+
+// ── GRÁFICO VENTAS ÚLTIMOS 6 MESES ───────────────────────────────────────────
+function renderGrafico(){
+  var el=document.getElementById('dash-grafico');if(!el)return;
+  var now=new Date(),meses=[],labels=[];
+  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);meses.push(MESES_ES[d.getMonth()]);labels.push(MESES_ES[d.getMonth()].slice(0,3));}
+  var vals=meses.map(function(m){return finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===m;}).reduce(function(s,r){return s+(Number(r.total)||0);},0);});
+  var maxVal=Math.max.apply(null,vals)||1;
+  var barW=30,gap=12,h=120,svgW=(barW+gap)*6+gap;
+  var bars=vals.map(function(v,i){
+    var barH=Math.round((v/maxVal)*h);var x=gap+i*(barW+gap);var y=h-barH+20;
+    var isActual=i===5;
+    return'<g>'+
+      '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+barH+'" rx="4" fill="'+(isActual?'var(--brand)':'var(--brand-dim)')+'"/>'+
+      '<text x="'+(x+barW/2)+'" y="'+(y-4)+'" text-anchor="middle" font-size="9" fill="var(--text-3)">'+( v>0?'$'+(v/1000000).toFixed(1)+'M':'')+'</text>'+
+      '<text x="'+(x+barW/2)+'" y="'+(h+36)+'" text-anchor="middle" font-size="9" fill="var(--text-3)">'+labels[i]+'</text>'+
+    '</g>';
+  }).join('');
+  el.innerHTML='<svg viewBox="0 0 '+(svgW)+' '+(h+50)+'" width="100%" xmlns="http://www.w3.org/2000/svg">'+bars+'</svg>';
+}
+
+// ── RANKING PRODUCTOS ─────────────────────────────────────────────────────────
+function renderRanking(){
+  var el=document.getElementById('dash-ranking');if(!el)return;
+  var map={};
+  finRecords.forEach(function(r){
+    var p=(r.producto||'Sin especificar').split(' ').slice(0,3).join(' ');
+    if(!map[p])map[p]={producto:p,count:0,total:0};
+    map[p].count++;map[p].total+=(Number(r.total)||0);
+  });
+  var list=Object.values(map).sort(function(a,b){return b.count-a.count||b.total-a.total;}).slice(0,6);
+  if(!list.length){el.innerHTML='<div class="empty-dash">Sin datos</div>';return;}
+  var maxCount=list[0].count||1;
+  el.innerHTML=list.map(function(item,i){
+    var pct=Math.round((item.count/maxCount)*100);
+    return'<div style="margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'+
+        '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%">'+item.producto+'</div>'+
+        '<div style="font-size:11px;color:var(--text-3)">'+item.count+' · '+fmtCLP(Math.round(item.total/item.count))+'</div>'+
+      '</div>'+
+      '<div style="height:5px;background:var(--surface3);border-radius:3px">'+
+        '<div style="height:100%;width:'+pct+'%;background:var(--brand);border-radius:3px"></div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+// ── AVISO 5 DÍAS SIN MOVIMIENTO (BROWSER NOTIFICATION) ───────────────────────
+function pedidosDias(umbral){
+  var now=Date.now();
+  return orders.filter(function(o){
+    if(getProgress(o.checks).pct===100)return false;
+    var ts=o.last_activity||0;
+    if(!ts){var fc=o.fecha_creacion||o.fecha||'';if(!fc)return false;var p=fc.split('/');var d=p.length===3?new Date(p[2]+'-'+p[1]+'-'+p[0]):new Date(fc);if(isNaN(d.getTime()))return false;ts=d.getTime();}
+    return(now-ts)>=(umbral*24*60*60*1000);
+  });
+}
+async function checkAvisoSinMovimiento(){
+  var lista=pedidosDias(5);if(!lista.length)return;
+  if('Notification' in window&&Notification.permission==='default')await Notification.requestPermission();
+  if('Notification' in window&&Notification.permission==='granted'){
+    new Notification('Casa Zaru — Pedidos sin movimiento',{body:lista.length+' pedido(s) llevan 5+ días sin checkpoints: '+lista.slice(0,3).map(function(o){return'#'+(o.num||'');}).join(', '),icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="%238B5E3C"/><text y="22" x="8" font-size="18">🪵</text></svg>'});
+  }
+}
+
 // ── HISTORIAL DE CAMBIOS ─────────────────────────────────────────────────────
 var HIST_USER_KEY='cazaru_usuario';
 function getUsuario(){return localStorage.getItem(HIST_USER_KEY)||'Sistema';}
@@ -26979,7 +27091,7 @@ function goToPage(page){
 function renderMeta(){
   var metaEl=document.getElementById('dash-meta');
   if(!metaEl)return;
-  var META=30000000;
+  var META=Number(localStorage.getItem('cazaru_meta_mensual'))||30000000;
   var now=new Date();
   var mesActual=now.getMonth();
   var anoActual=now.getFullYear();
@@ -27004,7 +27116,7 @@ function renderMeta(){
   var vsStr=vsIdeal>=0?'+$'+Math.abs(vsIdeal).toLocaleString('es-CL'):'-$'+Math.abs(vsIdeal).toLocaleString('es-CL');
   var html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
   html+='<div style="font-size:14px;font-weight:700;color:var(--text)">Meta mensual — '+mesNombre+' '+anoActual+'</div>';
-  html+='<div style="display:flex;gap:8px"><div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Meta: $30.000.000</div>';
+  html+='<div style="display:flex;gap:8px;align-items:center"><div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Meta: '+fmtCLP(META)+'</div><button onclick="editarMeta()" style="font-size:11px;border:1px solid var(--border-md);border-radius:6px;padding:3px 8px;background:none;color:var(--brand);cursor:pointer">✎</button>';
   html+='<div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Dia '+diaActual+' de '+diasEnMes+'</div></div></div>';
   html+='<div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:16px"><div>';
   html+='<div style="height:12px;background:var(--surface3);border-radius:6px;overflow:hidden;position:relative">';
@@ -27064,7 +27176,7 @@ function renderDash(){
   var recEl=document.getElementById('dash-recientes');
   if(recEl){if(!recientes.length){recEl.innerHTML='<div class="empty-dash">No hay pedidos recientes</div>';}else{recEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+recientes.map(function(r){var listo=r.doc1_emitida&&r.doc2_emitida,pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),dc=listo?'var(--green)':pend>0?'var(--amber)':'var(--brand)';return'<div class="reciente-row" onclick="goToPage(\'fin\')" style="cursor:pointer"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(r.nombre||'')+' '+(r.apellido||'')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.semana||'')+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+( pend>0?'Pend: '+fmtCLP(pend):'&#10003; Pagado')+'</div></div></div>';}).join('')+'</div>';}}
 }
-function initDash(){renderDash();renderNotif();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){renderDash();renderNotif();}},30000);}
+function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();checkAvisoSinMovimiento();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){renderDash();renderNotif();renderGrafico();renderRanking();}},30000);}
 function downloadXLSX(wb,filename){try{var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}),blob=new Blob([wbout],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);showToast('✓ Excel descargado');}catch(e){console.error('Excel error:',e);showToast('Error al generar Excel: '+e.message,true);}}
 
 // ── TARJETAS MÓVIL ────────────────────────────────────────────────────────
