@@ -25541,6 +25541,15 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       </table>
     </div>
     <button class="btn-add-row" onclick="addProdRow()">+ Agregar fila</button>
+    <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
+      <span style="font-size:12px;color:var(--text-3);font-weight:500">Canal de venta:</span>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
+        <input type="radio" name="canal-venta" id="canal-ws" value="whatsapp" checked style="accent-color:var(--green)"> <span>💬 WhatsApp</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">
+        <input type="radio" name="canal-venta" id="canal-web" value="web" style="accent-color:var(--brand)"> <span>🌐 Web</span>
+      </label>
+    </div>
     <div class="prev-actions">
       <button class="btn-confirm" onclick="confirmOrder()">✓ Confirmar y agregar a planilla</button>
       <button class="btn-cancel" style="background:var(--amber-light);color:var(--amber);border-color:var(--amber-mid)" onclick="document.getElementById('fi2').click()">📷 Agregar 2° pantallazo</button>
@@ -26007,8 +26016,9 @@ function renderSeg(){
     var numStr=String(o.num||'');
     var cells=CHECKS.map(c=>{var done=o.checks&&o.checks[c.id];return'<td style="background:'+rowBg+'"><button class="chk '+(done?'done':'pending')+'" style="'+(c.nocount?'opacity:0.6;':'')+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')">'+(done?'&#10003; '+c.label:'&mdash;')+'</button></td>';}).join('');
     var nota=o.notas?'<div class="nota-tag" title="'+o.notas+'">'+o.notas+'</div>':'';
+    var canalBadge=o.canal==='web'?'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:1px 6px">🌐 Web</span>':'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:1px 6px">💬 WA</span>';
     var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+(o.semana||'')+'</span>';
-    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+'"><button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
+    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+'"><button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
   }).join('');
 }
 function openModal(numStr){
@@ -26206,6 +26216,8 @@ function addProdRow(){if(!prodPending)return;prodPending.lineas.push({producto:'
 async function confirmOrder(){
   if(!prodPending)return;
   const o=prodPending;const numStr=String(o.pedido||'');
+  var canalEl=document.querySelector('input[name="canal-venta"]:checked');
+  o.canal=canalEl?canalEl.value:'whatsapp';
   if(!numStr){showToast('❌ El pedido necesita un número',true);return;}
   if(o.fecha_venta&&o.fecha_venta.indexOf('-')!==-1){var _fv=o.fecha_venta.split('-');o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];}
   else{o.fecha_creacion=fechaFromSemana(o.envio||'');}
@@ -26219,7 +26231,7 @@ async function confirmOrder(){
   if(DB_URL){
     const checks={};CHECKS.forEach(c=>checks[c.id]=false);
     const existSeg=orders.find(x=>String(x.num||'')===numStr);
-    const segData={num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),notas:'',checks:existSeg?existSeg.checks:checks,fecha_creacion:o.fecha_creacion};
+    const segData={num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),notas:'',checks:existSeg?existSeg.checks:checks,fecha_creacion:o.fecha_creacion,canal:o.canal||'whatsapp'};
     await api('pedidos/'+numStr,'PUT',segData);await poll();
   }
   // 3. FINANZAS
@@ -26636,6 +26648,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   var o=prodOrders[oi];if(!o)return[];
   var l=(o.lineas||[])[li];if(!l)return[];
   var pedido=String(o.pedido||''),semana=String(o.envio||''),nombre=(o.comprador||'')+' '+(o.apellido||'');
+  var canal=o.canal==='web'?'WEB':'WHATSAPP';
   var producto=String(l.producto||''),largo=Number(l.largo)||0,ancho=Number(l.ancho)||0;
   var espesor=Number(l.espesor)||0,madera=String(l.madera||''),canto=String(l.canto||'');
   var acabado=String(l.acabado||''),tenido=String(l.tenido||'NO'),obs=String(l.observaciones||'');
@@ -26649,7 +26662,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   if(pageBreak)headerOpts.pageBreakBefore=true;
   var ch=[
     new D.Paragraph(headerOpts),
-    new D.Paragraph({children:[new D.TextRun({text:'NOMBRE: '+nombre,size:18,font:'Arial'})],spacing:{after:40}}),
+    new D.Paragraph({children:[new D.TextRun({text:'NOMBRE: '+nombre,size:18,font:'Arial'}),new D.TextRun({text:'\t',size:18}),new D.TextRun({text:canal,size:16,font:'Arial',color:'888888'})],tabStops:[{type:'right',position:cw}],spacing:{after:40}}),
     new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{after:100}}),
     divider,
     new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}}),
