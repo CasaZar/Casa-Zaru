@@ -26694,7 +26694,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   var D=docx,mg=docx.convertInchesToTwip(0.8),cw=docx.convertInchesToTwip(8.27)-2*mg;
   var NB={style:'none',size:0,color:'FFFFFF'};
   var noBorder={top:NB,bottom:NB,left:NB,right:NB};
-  function _cell(text,size,bold,color,align){return new D.TableCell({borders:noBorder,children:[new D.Paragraph({alignment:align||'left',children:[new D.TextRun({text:String(text||''),size:size,font:'Arial',bold:!!bold,color:color||'000000'})]})]});}
+  function _cell(text,size,bold,color,align,widthPct){return new D.TableCell({width:{size:widthPct||50,type:'pct'},borders:noBorder,children:[new D.Paragraph({alignment:align||'left',children:[new D.TextRun({text:String(text||''),size:size,font:'Arial',bold:!!bold,color:color||'000000'})]})]});}
   function _tbl(rows,spacingAfter){return new D.Table({width:{size:100,type:'pct'},borders:{top:NB,bottom:NB,left:NB,right:NB,insideH:NB,insideV:NB},rows:rows,margins:{top:0,bottom:spacingAfter||0,left:0,right:0}});}
   var divider=new D.Paragraph({border:{bottom:{style:'single',size:6,color:'000000',space:1}},children:[new D.TextRun({text:' ',size:4})],spacing:{after:180}});
   var imgBuf=null;
