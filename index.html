@@ -26691,26 +26691,33 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   var acabado=String(l.acabado||''),tenido=String(l.tenido||'NO'),obs=String(l.observaciones||'');
   var dimStr=largo+' X '+ancho+' CMS';
   var espStr=String(espesor).replace('.',',')+' CMS';
-  var D=docx,mg=docx.convertInchesToTwip(0.8),cw=docx.convertInchesToTwip(8.27)-2*mg,half=Math.floor(cw/2);
+  var D=docx,mg=docx.convertInchesToTwip(0.8),cw=docx.convertInchesToTwip(8.27)-2*mg;
+  var NB={style:'none',size:0,color:'FFFFFF'};
+  var noBorder={top:NB,bottom:NB,left:NB,right:NB};
+  function _cell(text,size,bold,color,align){return new D.TableCell({borders:noBorder,children:[new D.Paragraph({alignment:align||'left',children:[new D.TextRun({text:String(text||''),size:size,font:'Arial',bold:!!bold,color:color||'000000'})]})]});}
+  function _tbl(rows,spacingAfter){return new D.Table({width:{size:100,type:'pct'},borders:{top:NB,bottom:NB,left:NB,right:NB,insideH:NB,insideV:NB},rows:rows,margins:{top:0,bottom:spacingAfter||0,left:0,right:0}});}
   var divider=new D.Paragraph({border:{bottom:{style:'single',size:6,color:'000000',space:1}},children:[new D.TextRun({text:' ',size:4})],spacing:{after:180}});
   var imgBuf=null;
   try{var du=generarImagenTablaCanvas(largo,ancho,espesor),b64=du.split(',')[1],bin=atob(b64),by=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)by[k]=bin.charCodeAt(k);imgBuf=by.buffer;}catch(e){console.warn('canvas:',e);}
-  var headerOpts={children:[new D.TextRun({text:'PEDIDO: '+pedido,size:18,font:'Arial'}),new D.TextRun({text:'\t',size:18}),new D.TextRun({text:semana,size:18,font:'Arial'})],tabStops:[{type:'right',position:cw}],spacing:{after:60}};
-  if(pageBreak)headerOpts.pageBreakBefore=true;
-  var ch=[
-    new D.Paragraph(headerOpts),
-    new D.Paragraph({children:[new D.TextRun({text:'NOMBRE: '+nombre,size:18,font:'Arial'}),new D.TextRun({text:'\t',size:18}),new D.TextRun({text:canal,size:16,font:'Arial',color:'888888'})],tabStops:[{type:'right',position:cw}],spacing:{after:40}}),
-    new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{after:100}}),
-    divider,
-    new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}}),
-    new D.Paragraph({alignment:'center',children:[new D.TextRun({text:madera,size:80,font:'Arial',bold:true})],spacing:{after:180}}),
-    divider,
-    new D.Paragraph({children:[new D.TextRun({text:'ESPESOR',size:16,font:'Arial',color:'888888'}),new D.TextRun({text:'\t',size:16}),new D.TextRun({text:'BORDE',size:16,font:'Arial',color:'888888'})],tabStops:[{type:'left',position:half}],spacing:{after:30}}),
-    new D.Paragraph({children:[new D.TextRun({text:espStr,size:52,font:'Arial',bold:true}),new D.TextRun({text:'\t',size:52}),new D.TextRun({text:canto,size:52,font:'Arial',bold:true})],tabStops:[{type:'left',position:half}],spacing:{after:60}}),
-    new D.Paragraph({children:[new D.TextRun({text:'ACABADO',size:16,font:'Arial',color:'888888'}),new D.TextRun({text:'\t',size:16}),new D.TextRun({text:'TEÑIDO',size:16,font:'Arial',color:'888888'})],tabStops:[{type:'left',position:half}],spacing:{after:30}}),
-    new D.Paragraph({children:[new D.TextRun({text:acabado,size:52,font:'Arial',bold:true}),new D.TextRun({text:'\t',size:52}),new D.TextRun({text:tenido,size:52,font:'Arial',bold:true})],tabStops:[{type:'left',position:half}],spacing:{after:160}}),
-    new D.Paragraph({children:[new D.TextRun({text:obs?'OBS: '+obs:'',size:18,font:'Arial'})],spacing:{after:160}})
-  ];
+  var headerRow=new D.TableRow({children:[_cell('PEDIDO: '+pedido,18,false,'000000'),_cell(semana,18,false,'555555','right')]});
+  var nombreRow=new D.TableRow({children:[_cell('NOMBRE: '+nombre,18,false,'000000'),_cell(canal,16,false,'888888','right')]});
+  var headerTbl=_tbl([headerRow,nombreRow],60);
+  if(pageBreak){var firstPara=new D.Paragraph({pageBreakBefore:true,children:[]});var ch=[firstPara,headerTbl];}
+  else{var ch=[headerTbl];}
+  ch.push(new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{before:40,after:100}}));
+  ch.push(divider);
+  ch.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}}));
+  ch.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:madera,size:80,font:'Arial',bold:true})],spacing:{after:180}}));
+  ch.push(divider);
+  ch.push(_tbl([
+    new D.TableRow({children:[_cell('ESPESOR',16,false,'888888'),_cell('BORDE',16,false,'888888')]}),
+    new D.TableRow({children:[_cell(espStr,52,true,'000000'),_cell(canto,52,true,'000000')]})
+  ],60));
+  ch.push(_tbl([
+    new D.TableRow({children:[_cell('ACABADO',16,false,'888888'),_cell('TEÑIDO',16,false,'888888')]}),
+    new D.TableRow({children:[_cell(acabado,52,true,'000000'),_cell(tenido,52,true,'000000')]})
+  ],160));
+  ch.push(new D.Paragraph({children:[new D.TextRun({text:obs?'OBS: '+obs:'',size:18,font:'Arial'})],spacing:{after:160}}));
   if(imgBuf){ch.push(new D.Paragraph({alignment:'center',children:[new D.ImageRun({type:'png',data:imgBuf,transformation:{width:430,height:215}})]}));}
   return ch;
 }
