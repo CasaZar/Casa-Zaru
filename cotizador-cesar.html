@@ -112,7 +112,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .ptier-trans { flex: 1; text-align: right; font-size: 11px; font-weight: 600; color: #2D6A4F; }
 .ptier-note { padding: 4px 9px; font-size: 8px; color: var(--tm); background: var(--crt); border-top: 1px solid var(--crd); text-align: center; }
 .dcto-green { color: #2D6A4F; font-weight: 700; }
-.cuotas-tag { display: inline-block; background: #D1FAE5; color: #065F46; font-size: 8.5px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-left: 2px; }
+.transf-badge { display: inline-block; background: #D1FAE5; color: #065F46; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid #A7F3D0; }
 /* Specs bar */
 .specs { display: flex; border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 9px; background: white; }
 .spec { flex: 1; padding: 6px 5px; text-align: center; border-right: 1px solid var(--bd); }
@@ -490,17 +490,17 @@ function tierTable(rows) {
     return '<div class="ptier-row">' +
       '<span class="ptier-wood">'+r.label+'</span>' +
       '<span class="ptier-total">'+fmt(r.total)+'</span>' +
-      '<span class="ptier-trans">'+fmt(r.total * 0.95)+'</span>' +
+      '<span class="ptier-trans"><span class="transf-badge">'+fmt(r.total * 0.95)+'</span></span>' +
     '</div>';
   }).join('');
   return '<div class="ptier-block">' +
     '<div class="ptier-head">' +
       '<span>Tipo de madera</span>' +
       '<span>Con tarjeta</span>' +
-      '<span>Transferencia</span>' +
+      '<span>Transferencia −5%</span>' +
     '</div>' +
     prows +
-    '<div class="ptier-note">Incluye IVA 19% · Tarjeta: precio indicado · Transferencia: −5%</div>' +
+    '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado</div>' +
   '</div>';
 }
 
@@ -550,7 +550,8 @@ function htmlCubierta(cli, fecha) {
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+esp+'</div></div>' +
       '<div class="spec"><div class="sl">Bordes</div><div class="sv">Recto, redondo o biselado. Tú eliges</div></div>' +
-      '<div class="spec"><div class="sl">Plazo</div><div class="sv">7 a 15 días hábiles</div></div>' +
+      '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
+      '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
     boxes() + warranty()
   );
@@ -597,7 +598,8 @@ function htmlPuerta(cli, fecha) {
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
-      '<div class="spec"><div class="sl">Plazo</div><div class="sv">7 a 15 días hábiles</div></div>' +
+      '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
+      '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
     boxes() + warranty()
   );
@@ -621,7 +623,8 @@ function htmlRev(cli, fecha) {
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">100% sólida del sur de Chile</div></div>' +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
-      '<div class="spec"><div class="sl">Plazo</div><div class="sv">7 a 15 días hábiles</div></div>' +
+      '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
+      '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*30)+' kg</div></div>' +
     '</div>' +
     boxes() + warranty()
   );
@@ -677,7 +680,7 @@ function warranty() {
   return '<div class="warranty">' +
     '<strong>Garantía Casa Zaru · 5 años</strong>' +
     'Si tu pedido presenta un problema estructural de fabricación, lo reparamos o reemplazamos sin costo. ' +
-    'Aplica desde la fecha de compra. No aplica a piezas expuestas a sol o lluvia directos.' +
+    'Aplica desde la fecha de compra. No aplica a piezas expuestas a sol o lluvia directos, ni a temperaturas mayores a 28 °C.' +
   '</div>';
 }
 
