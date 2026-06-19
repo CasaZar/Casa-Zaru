@@ -87,6 +87,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .tbtn { flex: 1; padding: 8px 3px; border-radius: 7px; font-size: 11px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500; border: 1px solid var(--bd); background: white; color: var(--tx); }
 .tbtn.pri { background: var(--g); color: white; border-color: var(--g); }
 #q-out.fs-mode { position: fixed; inset: 0; z-index: 9999; background: var(--cr); overflow-y: auto; padding: 0; }
+#q-out:fullscreen { background: var(--cr); overflow-y: auto; }
+#q-out:-webkit-full-screen { background: var(--cr); overflow-y: auto; }
 .btn-exit-fs { position: fixed; top: 14px; right: 14px; z-index: 10000; background: rgba(0,0,0,.55); color: white; border: none; border-radius: 20px; padding: 8px 18px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; }
 .coti { padding: 13px; max-width: 500px; margin: 0 auto; }
 .coti-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
@@ -492,6 +494,18 @@ function addRow() {
   cont.appendChild(div.firstElementChild);
 }
 
+function cssFullscreen(el) {
+  el.classList.add('fs-mode');
+  var exitBtn = document.createElement('button');
+  exitBtn.className = 'btn-exit-fs';
+  exitBtn.textContent = '✕ Salir';
+  document.body.appendChild(exitBtn);
+  exitBtn.addEventListener('click', function() {
+    el.classList.remove('fs-mode');
+    exitBtn.remove();
+  });
+}
+
 /* ── HELPERS ── */
 var fmt = function(n) { return '$' + Math.round(n).toLocaleString('es-CL'); };
 
@@ -840,16 +854,17 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-full').addEventListener('click', function() {
     var el = document.getElementById('q-out');
-    el.classList.add('fs-mode');
     el.scrollTop = 0;
-    var exitBtn = document.createElement('button');
-    exitBtn.className = 'btn-exit-fs';
-    exitBtn.textContent = '✕ Salir';
-    document.body.appendChild(exitBtn);
-    exitBtn.addEventListener('click', function() {
-      el.classList.remove('fs-mode');
-      exitBtn.remove();
-    });
+    var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
+    if (req) {
+      req.call(el).catch(function() { cssFullscreen(el); });
+    } else {
+      cssFullscreen(el);
+    }
+  });
+  document.addEventListener('fullscreenchange', function() {
+    var el = document.getElementById('q-out');
+    if (!document.fullscreenElement) el.classList.remove('fs-mode');
   });
   document.getElementById('btn-img').addEventListener('click', function() {
     var btn = this;
