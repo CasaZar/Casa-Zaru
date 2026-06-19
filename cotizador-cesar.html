@@ -86,9 +86,16 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .q-toolbar { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--bd); background: white; }
 .tbtn { flex: 1; padding: 8px 3px; border-radius: 7px; font-size: 11px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500; border: 1px solid var(--bd); background: white; color: var(--tx); }
 .tbtn.pri { background: var(--g); color: white; border-color: var(--g); }
-#q-out.fs-mode { position: fixed; inset: 0; z-index: 9999; background: var(--cr); overflow-y: auto; padding: 0; }
-#q-out:fullscreen { background: var(--cr); overflow-y: auto; }
-#q-out:-webkit-full-screen { background: var(--cr); overflow-y: auto; }
+/* pantalla completa */
+#s3:fullscreen .logo-bar,
+#s3:fullscreen .q-toolbar { display: none !important; }
+#s3:fullscreen #q-out { height: 100vh; overflow-y: auto; background: var(--cr); }
+#s3:-webkit-full-screen .logo-bar,
+#s3:-webkit-full-screen .q-toolbar { display: none !important; }
+#s3:-webkit-full-screen #q-out { height: 100vh; overflow-y: auto; background: var(--cr); }
+#s3.fs-mode { position: fixed; inset: 0; z-index: 9999; background: var(--cr); overflow: hidden; }
+#s3.fs-mode .logo-bar, #s3.fs-mode .q-toolbar { display: none !important; }
+#s3.fs-mode #q-out { height: 100%; overflow-y: auto; }
 .btn-exit-fs { position: fixed; top: 14px; right: 14px; z-index: 10000; background: rgba(0,0,0,.55); color: white; border: none; border-radius: 20px; padding: 8px 18px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; }
 .coti { padding: 13px; max-width: 500px; margin: 0 auto; }
 .coti-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
@@ -496,10 +503,12 @@ function addRow() {
 
 function cssFullscreen(el) {
   el.classList.add('fs-mode');
+  document.getElementById('q-out').scrollTop = 0;
   var exitBtn = document.createElement('button');
   exitBtn.className = 'btn-exit-fs';
   exitBtn.textContent = '✕ Salir';
-  document.body.appendChild(exitBtn);
+  el.appendChild(exitBtn);
+  exitBtn.style.cssText = 'position:fixed;top:14px;right:14px;z-index:10001;background:rgba(0,0,0,.55);color:white;border:none;border-radius:20px;padding:8px 18px;font-size:13px;cursor:pointer;font-family:Inter,sans-serif';
   exitBtn.addEventListener('click', function() {
     el.classList.remove('fs-mode');
     exitBtn.remove();
@@ -853,8 +862,8 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-full').addEventListener('click', function() {
-    var el = document.getElementById('q-out');
-    el.scrollTop = 0;
+    var el = document.getElementById('s3');
+    document.getElementById('q-out').scrollTop = 0;
     var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
     if (req) {
       req.call(el).catch(function() { cssFullscreen(el); });
@@ -863,8 +872,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
   document.addEventListener('fullscreenchange', function() {
-    var el = document.getElementById('q-out');
-    if (!document.fullscreenElement) el.classList.remove('fs-mode');
+    if (!document.fullscreenElement) {
+      document.getElementById('s3').classList.remove('fs-mode');
+    }
   });
   document.getElementById('btn-img').addEventListener('click', function() {
     var btn = this;
