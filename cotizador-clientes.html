@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cotizador · Casa Zaru</title>
+<title>Cotizador en Línea · Casa Zaru</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -25,31 +25,17 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .hidden { display: none !important; }
 
 /* ── LOGO BAR ── */
-.logo-bar { padding: 14px 16px 10px; text-align: center; border-bottom: 1px solid var(--bd); background: white; position: relative; }
+.logo-bar { padding: 14px 16px 10px; text-align: center; border-bottom: 1px solid var(--bd); background: white; }
 .logotype { font-family: 'Playfair Display', serif; font-size: 25px; font-weight: 700; letter-spacing: 3px; line-height: 1; }
 .logotype .c { color: var(--gd); }
 .logotype .z { color: var(--g); }
 .tagline { font-size: 8.5px; letter-spacing: 3px; text-transform: uppercase; color: var(--tm); margin-top: 3px; }
 .badge { display: inline-block; background: var(--g); color: white; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 2px 10px; border-radius: 20px; margin-top: 6px; }
-.btn-top-right { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: 1px solid var(--bd); border-radius: 6px; padding: 4px 9px; font-size: 10px; cursor: pointer; color: var(--tm); font-family: 'Inter', sans-serif; }
-.btn-top-right:hover { border-color: var(--gd); color: var(--gd); }
-
-/* ── LOGIN ── */
-.login-wrap { padding: 40px 20px 60px; max-width: 340px; margin: 0 auto; }
-.login-wrap h2 { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--gd); text-align: center; margin-bottom: 6px; }
-.login-wrap p { font-size: 11px; color: var(--tm); text-align: center; margin-bottom: 24px; }
-.flabel { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--gd); margin-bottom: 5px; }
-.finput, .fsel { width: 100%; padding: 10px 12px; border: 1px solid var(--bd); border-radius: 7px; font-size: 14px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); }
-.finput:focus, .fsel:focus { outline: none; border-color: var(--g); }
-.fsec { margin-bottom: 14px; }
-.btn-primary { width: 100%; background: var(--g); color: white; border: none; border-radius: 9px; padding: 13px; font-size: 15px; font-family: 'Playfair Display', serif; cursor: pointer; letter-spacing: 1px; transition: background .15s; margin-top: 4px; }
-.btn-primary:hover { background: var(--gd); }
-.msg-err  { color: #c0392b; font-size: 12px; text-align: center; margin-top: 10px; }
-.msg-info { color: var(--tm); font-size: 12px; text-align: center; margin-top: 10px; }
 
 /* ── DASHBOARD ── */
 .dash-body { padding: 18px 14px 28px; }
-.dash-body h2 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gd); text-align: center; margin-bottom: 14px; }
+.dash-body h2 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gd); text-align: center; margin-bottom: 7px; }
+.dash-intro { font-size: 11.5px; color: var(--tm); text-align: center; line-height: 1.55; margin-bottom: 18px; }
 .pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 460px; margin: 0 auto; }
 .pcard { background: white; border: 1.5px solid var(--bd); border-radius: 10px; padding: 14px 10px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; user-select: none; }
 .pcard:hover { border-color: var(--g); background: var(--crd); }
@@ -58,15 +44,20 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .pcard .pname { font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 600; color: var(--tx); line-height: 1.3; }
 .pcard .psub { font-size: 10px; color: var(--tm); margin-top: 2px; }
 .pcard.wide { grid-column: span 2; }
-.btn-admin-dash { display: block; max-width: 460px; margin: 14px auto 0; padding: 9px 20px; background: none; border: 1px solid var(--gd); border-radius: 7px; color: var(--gd); font-size: 11px; letter-spacing: .5px; cursor: pointer; font-family: 'Inter', sans-serif; width: 100%; }
-.btn-admin-dash:hover { background: var(--crd); }
 
 /* ── FORM ── */
 .form-body { padding: 0 14px 28px; }
 .form-hdr { display: flex; align-items: center; gap: 10px; padding: 14px 0 12px; border-bottom: 1px solid var(--bd); margin-bottom: 16px; }
 .btn-back { background: none; border: 1px solid var(--bd); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: var(--tm); flex-shrink: 0; font-family: 'Inter', sans-serif; }
 .form-hdr h2 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gd); flex: 1; }
-.qnum-lbl { font-size: 10px; color: var(--tm); white-space: nowrap; }
+.flabel { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--gd); margin-bottom: 5px; }
+.flabel .req { color: #c0392b; font-weight: 700; }
+.finput, .fsel { width: 100%; padding: 10px 12px; border: 1px solid var(--bd); border-radius: 7px; font-size: 14px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); }
+.finput:focus, .fsel:focus { outline: none; border-color: var(--g); }
+.fsec { margin-bottom: 14px; }
+.btn-primary { width: 100%; background: var(--g); color: white; border: none; border-radius: 9px; padding: 13px; font-size: 15px; font-family: 'Playfair Display', serif; cursor: pointer; letter-spacing: 1px; transition: background .15s; margin-top: 4px; }
+.btn-primary:hover { background: var(--gd); }
+.msg-err { color: #c0392b; font-size: 12px; text-align: center; margin-top: 8px; }
 .col-labels { display: flex; gap: 5px; margin-bottom: 3px; }
 .col-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; color: var(--tm); text-align: center; flex: 1; }
 .col-lbl.nar { flex: .45; }
@@ -78,9 +69,6 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .dim-row .wid { flex: 1.4; }
 .dim-row input:focus, .dim-row select:focus { outline: none; border-color: var(--g); }
 .btn-add { width: 100%; padding: 7px; border: 1.5px dashed var(--gl); border-radius: 7px; background: none; color: var(--g); font-size: 12px; cursor: pointer; margin-top: 3px; font-family: 'Inter', sans-serif; }
-.extra-row { display: flex; gap: 6px; }
-.extra-row select, .extra-row input { flex: 1; padding: 8px; border: 1px solid var(--bd); border-radius: 7px; font-size: 13px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); }
-.extra-row select:focus, .extra-row input:focus { outline: none; border-color: var(--g); }
 
 /* ── QUOTE ── */
 .q-toolbar { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--bd); background: white; }
@@ -108,12 +96,12 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .coti-meta { font-size: 9px; color: var(--tm); margin-top: 1px; line-height: 1.45; }
 .info-bar { background: var(--crd); border-radius: 6px; padding: 5px 9px; font-size: 10px; color: var(--tm); margin-bottom: 9px; }
 .info-bar strong { color: var(--tx); }
-/* Dimension table (no prices) */
+/* Dimension table */
 .ptable { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
 .ptable th { background: var(--gd); color: white; padding: 5px 3px; text-align: center; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
 .ptable td { padding: 5px 3px; text-align: center; border-bottom: 1px solid var(--bd); background: var(--crt); }
 .ptable .trow td { background: var(--crd); font-weight: 600; font-size: 10.5px; border-top: 1.5px solid var(--gd); border-bottom: none; }
-/* precio por tier — filas simples */
+/* precio por tier */
 .ptier-block { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
 .ptier-head { background: var(--crd); padding: 5px 9px; display: flex; }
 .ptier-head span { font-size: 8px; text-transform: uppercase; letter-spacing: .7px; color: var(--tm); flex: 1; text-align: right; font-weight: 600; }
@@ -148,28 +136,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .warranty { background: var(--crd); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
 .warranty strong { display: block; font-size: 10px; color: var(--gd); margin-bottom: 2px; }
 
-/* ── ADMIN DASHBOARD ── */
-.admin-body { padding: 14px 14px 40px; }
-.admin-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--bd); }
-.admin-hdr h2 { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--gd); flex: 1; }
-.stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-.stat-card { background: white; border: 1px solid var(--bd); border-radius: 10px; padding: 14px 10px; text-align: center; }
-.stat-v { font-family: 'Playfair Display', serif; font-size: 30px; font-weight: 700; color: var(--g); line-height: 1; }
-.stat-l { font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--tm); margin-top: 4px; }
-.admin-section { font-family: 'Playfair Display', serif; font-size: 14px; color: var(--gd); margin: 14px 0 8px; }
-.admin-tbl { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 14px; }
-.admin-tbl th { background: var(--g); color: white; padding: 6px 5px; text-align: left; font-size: 9px; font-weight: 600; text-transform: uppercase; }
-.admin-tbl td { padding: 6px 5px; border-bottom: 1px solid var(--crd); background: white; vertical-align: middle; }
-.admin-tbl tr:nth-child(even) td { background: var(--crt); }
-.estado-sel { font-size: 10px; border: 1px solid var(--bd); border-radius: 4px; padding: 2px 4px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); cursor: pointer; }
-.e-badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 9px; font-weight: 600; text-transform: uppercase; }
-.e-enviada    { background: #FEF3C7; color: #92400E; }
-.e-concretada { background: #D1FAE5; color: #065F46; }
-.e-cancelada  { background: #FEE2E2; color: #991B1B; }
-.loading-msg { text-align: center; padding: 30px 14px; color: var(--tm); font-size: 13px; line-height: 1.6; }
-
 @media print {
-  #s0, #s1, #s4, .logo-bar, .q-toolbar { display: none !important; }
+  #s1, #s2, .logo-bar, .q-toolbar { display: none !important; }
   body { background: white; }
   .coti { padding: 8px; max-width: 100%; }
 }
@@ -177,40 +145,16 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 </head>
 <body>
 
-<!-- ══ s0: LOGIN ══ -->
-<div id="s0">
-  <div class="logo-bar">
-    <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <div class="tagline">Madera del sur de Chile a medida</div>
-    <span class="badge">Uso Interno</span>
-  </div>
-  <div class="login-wrap">
-    <h2>Iniciar sesión</h2>
-    <p>Acceso exclusivo para el equipo Casa Zaru</p>
-    <div class="fsec">
-      <label class="flabel" for="l-email">Correo</label>
-      <input class="finput" type="email" id="l-email" placeholder="hola@casazaru.cl" autocomplete="email">
-    </div>
-    <div class="fsec">
-      <label class="flabel" for="l-pass">Contraseña</label>
-      <input class="finput" type="password" id="l-pass" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <button class="btn-primary" id="btn-login">Entrar →</button>
-    <div class="msg-err hidden" id="login-err"></div>
-    <div class="msg-info hidden" id="login-load">Iniciando sesión…</div>
-  </div>
-</div>
-
 <!-- ══ s1: DASHBOARD ══ -->
-<div id="s1" class="hidden">
+<div id="s1">
   <div class="logo-bar">
     <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
     <div class="tagline">Madera del sur de Chile a medida</div>
-    <span class="badge">Uso Interno</span>
-    <button class="btn-top-right" id="btn-logout">Salir</button>
+    <span class="badge">Cotizador en Línea</span>
   </div>
   <div class="dash-body">
-    <h2>¿Qué cotizamos hoy?</h2>
+    <h2>¿Qué producto te interesa?</h2>
+    <p class="dash-intro">Selecciona el producto, ingresa tus medidas y recibe tu cotización al instante.</p>
     <div class="pgrid">
       <div class="pcard" data-prod="cubierta"><div class="ico">🪵</div><div class="pname">Cubierta</div><div class="psub">2,1 a 4,0 cm</div></div>
       <div class="pcard" data-prod="repisa"><div class="ico">📐</div><div class="pname">Repisa / Cubierta</div><div class="psub">2 cm</div></div>
@@ -220,7 +164,6 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
       <div class="pcard" data-prod="vidrios"><div class="ico">🪟</div><div class="pname">Puerta con Vidrios</div><div class="psub">Valdivia · Pucón…</div></div>
       <div class="pcard wide" data-prod="revestimiento"><div class="ico">🌿</div><div class="pname">Revestimiento</div><div class="psub">Coihue · Ciprés · precio por m²</div></div>
     </div>
-    <button class="btn-admin-dash hidden" id="btn-admin">📊 Dashboard Admin</button>
   </div>
 </div>
 
@@ -228,24 +171,24 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <div id="s2" class="hidden">
   <div class="logo-bar">
     <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <span class="badge">Uso Interno</span>
+    <span class="badge">Cotizador en Línea</span>
   </div>
   <div class="form-body">
     <div class="form-hdr">
       <button class="btn-back" id="btn-back">← Inicio</button>
       <h2 id="f-title">—</h2>
-      <span class="qnum-lbl" id="f-qnum"></span>
     </div>
     <div class="fsec">
-      <label class="flabel">Cliente</label>
-      <input class="finput" type="text" id="f-cli" placeholder="Nombre del cliente" autocomplete="off">
+      <label class="flabel" for="f-cli">Tu nombre <span class="req">*</span></label>
+      <input class="finput" type="text" id="f-cli" placeholder="Ej. Juan Pérez" autocomplete="name">
     </div>
     <div class="fsec">
-      <label class="flabel">Contacto</label>
-      <input class="finput" type="text" id="f-con" placeholder="Teléfono o correo" autocomplete="off">
+      <label class="flabel" for="f-con">Teléfono o correo <span class="req">*</span></label>
+      <input class="finput" type="text" id="f-con" placeholder="Ej. +56 9 1234 5678 o tu@correo.cl" autocomplete="off">
     </div>
     <div id="f-dyn"></div>
-    <button class="btn-primary" id="btn-calc">Generar Cotización →</button>
+    <div class="msg-err hidden" id="f-err">Por favor completa tu nombre y contacto para continuar.</div>
+    <button class="btn-primary" id="btn-calc">Calcular cotización →</button>
   </div>
 </div>
 
@@ -253,7 +196,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <div id="s3" class="hidden">
   <div class="logo-bar">
     <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <span class="badge">Uso Interno</span>
+    <span class="badge">Cotizador en Línea</span>
   </div>
   <div class="q-toolbar">
     <button class="tbtn" id="btn-q-s1">← Inicio</button>
@@ -265,31 +208,14 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
   <div id="q-out" class="coti"></div>
 </div>
 
-<!-- ══ s4: ADMIN DASHBOARD ══ -->
-<div id="s4" class="hidden">
-  <div class="logo-bar">
-    <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <span class="badge">Uso Interno</span>
-  </div>
-  <div class="admin-body">
-    <div class="admin-hdr">
-      <button class="btn-back" id="btn-back-admin">← Volver</button>
-      <h2>Dashboard</h2>
-    </div>
-    <div id="admin-content"><div class="loading-msg">Cargando datos…</div></div>
-  </div>
-</div>
-
 <script>
 /* ── SUPABASE ── */
-const SB_URL   = 'https://cmxqorsyxoltrakxawro.supabase.co';
-const SB_KEY   = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
-const ADMIN_EMAIL = 'hola@casazaru.cl';
-const { createClient } = supabase;
-const sb = createClient(SB_URL, SB_KEY);
+var SB_URL = 'https://padnttpgzuotxeipjrry.supabase.co';
+var SB_KEY = 'sb_publishable_XeCtx06OFHQ3LsYxYk5NTA_kkWHlJHG';
+var sbClient = supabase.createClient(SB_URL, SB_KEY);
 
 /* ── PRECIOS ── */
-const PR = {
+var PR = {
   cubierta:  { alto: 362145, medio: 333184, bajo: 241890 },
   repisa:    { alto: 315066, medio: 289870, bajo: 210444 },
   peldano:   { alto: 315066, medio: 289870, bajo: 210444 },
@@ -298,115 +224,52 @@ const PR = {
   vidrios:   { alto:{m2:304323,fijo:80000}, medio:{m2:279986,fijo:80000}, bajo:{m2:203269,fijo:80000} },
   revestimiento: { coihue:89900, cipres:82900 }
 };
-const WOOD = {
+var WOOD = {
   alto:  'Coihue / Raulí / Lenga',
   medio: 'Castaño / Ciprés / Mañío',
   bajo:  'Pino Oregón'
 };
-const PNAME = {
+var PNAME = {
   cubierta:'Cubiertas', repisa:'Repisa / Cubierta 2cm', peldano:'Peldaños',
   granero:'Puerta Granero', maciza:'Puerta Maciza', vidrios:'Puerta con Vidrios',
   revestimiento:'Revestimiento'
 };
-const MODELOS = {
+var MODELOS = {
   granero: ['Granero Clásico','Granero Cruz','Ensenada Vidrio'],
   maciza:  ['Panguipulli','Lago Ranco','Frutillar','Puerto Varas'],
   vidrios: ['Valdivia','Entrelagos','Chochamó','Pucón']
 };
 
-let prod = '', nrows = 1, qnum = '', currentUser = null, conStr = '';
+var prod = '', nrows = 1, qnum = '', conStr = '';
 
 /* ── QUOTE NUMBER ── */
 function qKey() {
   var d = new Date();
   return String(d.getMonth()+1).padStart(2,'0') + String(d.getFullYear()).slice(2);
 }
-function peekQ() {
-  try {
-    var k = qKey(), s = JSON.parse(localStorage.getItem('czC')||'{}');
-    var n = s.k===k ? (s.n||0)+1 : 1;
-    return 'N° C-'+k+'-'+String(n).padStart(3,'0');
-  } catch(e) { return 'N° C-'+qKey()+'-001'; }
-}
 function nextQ() {
   try {
-    var k = qKey(), s = JSON.parse(localStorage.getItem('czC')||'{}');
+    var k = qKey(), s = JSON.parse(localStorage.getItem('czCL')||'{}');
     var n = s.k===k ? (s.n||0)+1 : 1;
-    localStorage.setItem('czC', JSON.stringify({k:k,n:n}));
-    return 'N° C-'+k+'-'+String(n).padStart(3,'0');
-  } catch(e) { return 'N° C-'+qKey()+'-001'; }
+    localStorage.setItem('czCL', JSON.stringify({k:k,n:n}));
+    return 'N° CL-'+k+'-'+String(n).padStart(3,'0');
+  } catch(e) { return 'N° CL-'+qKey()+'-001'; }
 }
 
 /* ── NAVIGATION ── */
 function show(id) {
-  ['s0','s1','s2','s3','s4'].forEach(function(i) {
+  ['s1','s2','s3'].forEach(function(i) {
     document.getElementById(i).classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
   window.scrollTo(0,0);
 }
 
-/* ── AUTH ── */
-async function initApp() {
-  try {
-    var res = await sb.auth.getSession();
-    if (res.data && res.data.session) {
-      currentUser = res.data.session.user;
-      show('s1');
-      updateAdminBtn();
-    } else {
-      show('s0');
-    }
-  } catch(e) { show('s0'); }
-}
-
-function updateAdminBtn() {
-  var btn = document.getElementById('btn-admin');
-  if (currentUser && currentUser.email === ADMIN_EMAIL) {
-    btn.classList.remove('hidden');
-  } else {
-    btn.classList.add('hidden');
-  }
-}
-
-async function doLogin() {
-  var email = document.getElementById('l-email').value.trim();
-  var pass  = document.getElementById('l-pass').value;
-  var errEl  = document.getElementById('login-err');
-  var loadEl = document.getElementById('login-load');
-  errEl.classList.add('hidden');
-  loadEl.classList.remove('hidden');
-  try {
-    var res = await sb.auth.signInWithPassword({ email: email, password: pass });
-    loadEl.classList.add('hidden');
-    if (res.error) {
-      errEl.textContent = 'Correo o contraseña incorrectos.';
-      errEl.classList.remove('hidden');
-    } else {
-      currentUser = res.data.user;
-      show('s1');
-      updateAdminBtn();
-    }
-  } catch(e) {
-    loadEl.classList.add('hidden');
-    errEl.textContent = 'Error de conexión. Intenta nuevamente.';
-    errEl.classList.remove('hidden');
-  }
-}
-
-async function doLogout() {
-  await sb.auth.signOut();
-  currentUser = null;
-  document.getElementById('l-pass').value = '';
-  show('s0');
-}
-
 /* ── FORM ── */
 function initProd(p) {
   prod = p; nrows = 1;
   document.getElementById('f-title').textContent = PNAME[p];
-  document.getElementById('f-qnum').textContent = peekQ();
-  document.getElementById('f-cli').value = '';
+  document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
   show('s2');
 }
@@ -445,7 +308,7 @@ function renderForm(p) {
       '</div>' +
       (hasExtra ?
         '<div class="fsec">' +
-          '<label class="flabel">Extra vidrio (opcional)</label>' +
+          '<label class="flabel">Vidrio especial (opcional)</label>' +
           '<select class="fsel" id="vt">' +
             '<option value="">Sin extra de vidrio</option>' +
             '<option value="Termopanel">Termopanel (+$40.000 neto/m²)</option>' +
@@ -464,12 +327,6 @@ function renderForm(p) {
 
   c.addEventListener('click', function(e) {
     if (e.target.closest('#btn-add-row')) addRow();
-  });
-  c.addEventListener('change', function(e) {
-    if (e.target.id === 'vt') {
-      var vm = document.getElementById('vm');
-      if (vm) vm.style.display = e.target.value ? 'block' : 'none';
-    }
   });
 }
 
@@ -536,9 +393,15 @@ function tierTable(rows) {
 
 /* ── QUOTE GENERATION ── */
 function generar() {
-  qnum = nextQ();
-  var cli   = document.getElementById('f-cli').value.trim() || 'Cliente';
+  var cli   = document.getElementById('f-cli').value.trim();
   conStr    = document.getElementById('f-con').value.trim();
+  var errEl = document.getElementById('f-err');
+  if (!cli || !conStr) {
+    errEl.classList.remove('hidden');
+    return;
+  }
+  errEl.classList.add('hidden');
+  qnum = nextQ();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
@@ -563,11 +426,11 @@ function htmlCubierta(cli, fecha) {
   var tierRows = [
     {label: 'Pino Oregón',              total: sumM2 * PR[prod].bajo},
     {label: 'Castaño / Ciprés / Mañío', total: sumM2 * PR[prod].medio},
-    {label: 'Coihue / Raulí / Lenga',   total: sumM2 * PR[prod].alto}
+    {label: 'Coihue / Rauí / Lenga',    total: sumM2 * PR[prod].alto}
   ];
   var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '2 cms';
   saveQuote({
-    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'interno',
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'cliente',
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total)
@@ -590,10 +453,10 @@ function htmlCubierta(cli, fecha) {
 
 function htmlPuerta(cli, fecha) {
   var hasExtra = prod==='granero'||prod==='vidrios';
-  var extraTipo='', extraNeto=0;
+  var extraTipo = '';
   if (hasExtra) {
-    var vtEl=document.getElementById('vt'), vmEl=document.getElementById('vm');
-    if (vtEl&&vtEl.value) { extraTipo=vtEl.value; extraNeto=parseFloat(vmEl&&vmEl.value||0)||0; }
+    var vtEl = document.getElementById('vt');
+    if (vtEl && vtEl.value) { extraTipo = vtEl.value; }
   }
   var filas=[];
   for (var i=1; i<=nrows; i++) {
@@ -607,6 +470,7 @@ function htmlPuerta(cli, fecha) {
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
     filas.forEach(function(f) {
+      var extraNeto = extraTipo ? f.m2 * 40000 : 0;
       sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo + extraNeto) * f.ca;
     });
     return {label: WOOD[t], total: sumNeto * 1.19};
@@ -615,11 +479,11 @@ function htmlPuerta(cli, fecha) {
     return '<tr><td>'+f.n+'</td><td style="font-size:9.5px">'+f.mo+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td></tr>';
   }).join('');
   saveQuote({
-    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'interno',
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'cliente',
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total),
-    vidrio_tipo: extraTipo||null, vidrio_monto: extraNeto||null
+    vidrio_tipo: extraTipo||null
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   return shell(PNAME[prod], cli, fecha,
     (extraTipo ? '<div class="info-bar">Vidrio extra: <strong>'+extraTipo+'</strong></div>' : '') +
@@ -640,10 +504,10 @@ function htmlRev(cli, fecha) {
   var m2 = parseFloat((document.getElementById('rm')||{}).value||0);
   var tierRows = [
     {label: 'Ciprés',  total: m2 * PR.revestimiento.cipres},
-    {label: 'Coihue',  total: m2 * PR.revestimiento.coihue}
+    {label: 'Coihue',       total: m2 * PR.revestimiento.coihue}
   ];
   saveQuote({
-    numero:qnum, cliente:cli, producto:'revestimiento', tipo:'interno',
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:'revestimiento', tipo:'cliente',
     total_bajo:  Math.round(tierRows[0].total),
     total_alto:  Math.round(tierRows[1].total)
   }, [{m2:m2}]);
@@ -674,7 +538,7 @@ function shell(nombre, cli, fecha, body) {
       '<div class="coti-meta">Válida por 10 días</div>' +
     '</div>' +
   '</div>' +
-  '<div class="info-bar">Cliente: <strong>'+cli+'</strong>' + (conStr ? ' &nbsp;·&nbsp; '+conStr : '') + '</div>' +
+  '<div class="info-bar">Para: <strong>'+cli+'</strong>' + (conStr ? '  ·  '+conStr : '') + '</div>' +
   body;
 }
 
@@ -718,148 +582,25 @@ function warranty() {
 /* ── SUPABASE SAVE (silent fail) ── */
 async function saveQuote(data, lines) {
   try {
-    if (currentUser) data.user_email = currentUser.email;
-    var res = await sb.from('cotizaciones').insert(data).select().single();
+    var res = await sbClient.from('cotizaciones').insert(data).select().single();
     if (res.error || !res.data) return;
     var cotId = res.data.id;
     if (lines && lines.length > 0) {
       var lineData = lines.map(function(l, i) {
         return Object.assign({ cotizacion_id: cotId, linea: i+1 }, l);
       });
-      await sb.from('cotizacion_lineas').insert(lineData);
+      await sbClient.from('cotizacion_lineas').insert(lineData);
     }
-  } catch(e) { /* silent */ }
-}
-
-/* ── ADMIN DASHBOARD ── */
-async function loadAdmin() {
-  var el = document.getElementById('admin-content');
-  el.innerHTML = '<div class="loading-msg">Cargando datos…</div>';
-  try {
-    var res = await sb.from('cotizaciones').select('*').order('fecha_creacion', {ascending: false});
-    if (res.error) {
-      var msg = res.error.code === '42P01'
-        ? 'Primero ejecuta el SQL de configuración en Supabase SQL Editor para crear las tablas.'
-        : 'Error: ' + res.error.message;
-      el.innerHTML = '<div class="loading-msg">'+msg+'</div>';
-      return;
-    }
-    renderAdmin(res.data || []);
-  } catch(e) {
-    el.innerHTML = '<div class="loading-msg">Error de conexión.</div>';
-  }
-}
-
-function renderAdmin(data) {
-  var total = data.length;
-  var concretadas = data.filter(function(d){ return d.estado==='concretada'; }).length;
-  var conv = total > 0 ? Math.round(concretadas/total*100) : 0;
-
-  // producto más cotizado
-  var prodCount = {};
-  data.forEach(function(d){ prodCount[d.producto] = (prodCount[d.producto]||0)+1; });
-  var topProd = Object.keys(prodCount).sort(function(a,b){ return prodCount[b]-prodCount[a]; })[0] || '—';
-  var topProdNombre = PNAME[topProd] || topProd;
-
-  // máximo total_alto
-  var maxVal = data.reduce(function(acc,d){ return Math.max(acc, d.total_alto||0); }, 0);
-
-  // cotizaciones por cliente
-  var cliCount = {};
-  data.forEach(function(d){ cliCount[d.cliente] = (cliCount[d.cliente]||0)+1; });
-  var topClientes = Object.keys(cliCount)
-    .sort(function(a,b){ return cliCount[b]-cliCount[a]; })
-    .slice(0,8)
-    .map(function(c){ return '<tr><td>'+c+'</td><td style="text-align:right;font-weight:600">'+cliCount[c]+'</td></tr>'; })
-    .join('');
-
-  // últimas cotizaciones
-  var recent = data.slice(0,15).map(function(d) {
-    var dateStr = d.fecha_creacion ? new Date(d.fecha_creacion).toLocaleDateString('es-CL') : '—';
-    var estadoBadge = '<span class="e-badge e-'+d.estado+'">'+d.estado+'</span>';
-    var sel = '<select class="estado-sel" data-id="'+d.id+'">' +
-      '<option value="enviada"'    +(d.estado==='enviada'   ?' selected':'')  +'>enviada</option>' +
-      '<option value="concretada"'+(d.estado==='concretada'?' selected':'')  +'>concretada</option>' +
-      '<option value="cancelada"' +(d.estado==='cancelada' ?' selected':'')  +'>cancelada</option>' +
-    '</select>';
-    var totalStr = d.total_alto ? fmt(d.total_alto) : '—';
-    var tipoBadge = d.tipo === 'cliente'
-      ? '<span class="e-badge" style="background:#EFF6FF;color:#1E40AF">cliente</span>'
-      : '<span class="e-badge" style="background:#F3F4F6;color:#374151">interno</span>';
-    return '<tr>' +
-      '<td>'+d.numero+'</td>' +
-      '<td>'+d.cliente+'</td>' +
-      '<td>'+(PNAME[d.producto]||d.producto)+'</td>' +
-      '<td>'+totalStr+'</td>' +
-      '<td>'+tipoBadge+'</td>' +
-      '<td>'+dateStr+'</td>' +
-      '<td>'+sel+'</td>' +
-    '</tr>';
-  }).join('');
-
-  var html =
-    '<div class="stats-grid">' +
-      '<div class="stat-card"><div class="stat-v">'+total+'</div><div class="stat-l">Cotizaciones</div></div>' +
-      '<div class="stat-card"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>' +
-      '<div class="stat-card"><div class="stat-v">'+concretadas+'</div><div class="stat-l">Concretadas</div></div>' +
-      '<div class="stat-card"><div class="stat-v" style="font-size:13px;padding-top:8px">'+topProdNombre+'</div><div class="stat-l">Más cotizado</div></div>' +
-    '</div>' +
-
-    (maxVal > 0 ?
-      '<div class="stat-card" style="margin-bottom:14px">' +
-        '<div class="stat-v" style="font-size:18px">'+fmt(maxVal)+'</div>' +
-        '<div class="stat-l">Cotización más alta (premium)</div>' +
-      '</div>'
-    : '') +
-
-    '<div class="admin-section">Top clientes</div>' +
-    '<table class="admin-tbl"><thead><tr><th>Cliente</th><th style="text-align:right">Cotizaciones</th></tr></thead>' +
-    '<tbody>'+topClientes+'</tbody></table>' +
-
-    '<div class="admin-section">Últimas cotizaciones</div>' +
-    '<div style="overflow-x:auto">' +
-    '<table class="admin-tbl"><thead><tr>' +
-      '<th>N°</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Tipo</th><th>Fecha</th><th>Estado</th>' +
-    '</tr></thead><tbody>'+recent+'</tbody></table></div>';
-
-  var el = document.getElementById('admin-content');
-  el.innerHTML = html;
-
-  // event delegation para cambio de estado
-  el.addEventListener('change', function(e) {
-    if (e.target.classList.contains('estado-sel')) {
-      var id = e.target.dataset.id;
-      var newEstado = e.target.value;
-      updateEstado(id, newEstado);
-    }
-  });
-}
-
-async function updateEstado(id, estado) {
-  var updates = { estado: estado };
-  if (estado === 'concretada') updates.fecha_concretada = new Date().toISOString();
-  try {
-    await sb.from('cotizaciones').update(updates).eq('id', id);
   } catch(e) { /* silent */ }
 }
 
 /* ── EVENT LISTENERS ── */
 document.addEventListener('DOMContentLoaded', function() {
-  // login
-  document.getElementById('btn-login').addEventListener('click', doLogin);
-  document.getElementById('l-pass').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') doLogin();
-  });
-  // logout
-  document.getElementById('btn-logout').addEventListener('click', doLogout);
-  // product cards
   document.querySelectorAll('.pcard').forEach(function(card) {
     card.addEventListener('click', function() { initProd(card.dataset.prod); });
   });
-  // form nav
   document.getElementById('btn-back').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-calc').addEventListener('click', generar);
-  // quote nav
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-full').addEventListener('click', function() {
@@ -883,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
     btn.disabled = true;
     var el = document.getElementById('q-out');
     html2canvas(el, { scale: 3, useCORS: true, backgroundColor: '#FAF8F2' }).then(function(canvas) {
-      btn.textContent = '📷 Imagen HD';
+      btn.textContent = '📷 HD';
       btn.disabled = false;
       var dataUrl = canvas.toDataURL('image/png');
       var nombre = 'CasaZaru_' + (PNAME[prod]||prod) + '_' + (qnum||'cotizacion') + '.png';
@@ -913,15 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     html2pdf().set(opt).from(el).save();
   });
-  // admin
-  document.getElementById('btn-admin').addEventListener('click', function() {
-    show('s4');
-    loadAdmin();
-  });
-  document.getElementById('btn-back-admin').addEventListener('click', function() { show('s1'); });
 
-  // init
-  initApp();
+  show('s1');
 });
 </script>
 </body>
