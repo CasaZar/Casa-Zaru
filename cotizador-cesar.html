@@ -586,7 +586,6 @@ function htmlPuerta(cli, fecha) {
   var dimRows = filas.map(function(f){
     return '<tr><td>'+f.n+'</td><td style="font-size:9.5px">'+f.mo+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td></tr>';
   }).join('');
-  var extraLbl = extraTipo ? ' · Vidrio: <strong>'+extraTipo+'</strong>' : '';
   saveQuote({
     numero:qnum, cliente:cli, producto:prod,
     total_bajo:  Math.round(tierRows[0].total),
@@ -595,7 +594,7 @@ function htmlPuerta(cli, fecha) {
     vidrio_tipo: extraTipo||null, vidrio_monto: extraNeto||null
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   return shell(PNAME[prod], cli, fecha,
-    (extraTipo ? '<div class="info-bar">Vidrio: <strong>'+extraTipo+'</strong>'+extraLbl+'</div>' : '') +
+    (extraTipo ? '<div class="info-bar">Vidrio extra: <strong>'+extraTipo+'</strong></div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
     tierTable(tierRows) +
