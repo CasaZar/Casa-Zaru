@@ -6,6 +6,7 @@
 <title>Cotizador · Casa Zaru</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 :root {
   --g:   #B8894A;
@@ -832,7 +833,17 @@ document.addEventListener('DOMContentLoaded', function() {
   // quote nav
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
-  document.getElementById('btn-pdf').addEventListener('click', function() { window.print(); });
+  document.getElementById('btn-pdf').addEventListener('click', function() {
+    var el  = document.getElementById('q-out');
+    var opt = {
+      margin: 8,
+      filename: (qnum || 'cotizacion') + '.pdf',
+      image:    { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF:    { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(el).save();
+  });
   // admin
   document.getElementById('btn-admin').addEventListener('click', function() {
     show('s4');
