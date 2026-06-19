@@ -167,6 +167,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .e-concretada { background: #D1FAE5; color: #065F46; }
 .e-cancelada  { background: #FEE2E2; color: #991B1B; }
 .loading-msg { text-align: center; padding: 30px 14px; color: var(--tm); font-size: 13px; line-height: 1.6; }
+.admin-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.atab { flex: 1; padding: 9px; border: 1.5px solid var(--bd); border-radius: 7px; background: white; font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--tm); font-weight: 500; }
+.atab.active { background: var(--g); color: white; border-color: var(--g); font-weight: 600; }
 
 @media print {
   #s0, #s1, #s4, .logo-bar, .q-toolbar { display: none !important; }
@@ -276,6 +279,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
       <button class="btn-back" id="btn-back-admin">← Volver</button>
       <h2>Dashboard</h2>
     </div>
+    <div class="admin-tabs">
+      <button class="atab active" id="tab-interno">Cotizaciones Internas</button>
+      <button class="atab" id="tab-cliente">Clientes Web</button>
+    </div>
     <div id="admin-content"><div class="loading-msg">Cargando datos…</div></div>
   </div>
 </div>
@@ -287,6 +294,10 @@ const SB_KEY   = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
 const ADMIN_EMAIL = 'hola@casazaru.cl';
 const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_KEY);
+
+const SB_CLI_URL = 'https://padnttpgzuotxeipjrry.supabase.co';
+const SB_CLI_KEY = 'sb_publishable_XeCtx06OFHQ3LsYxYk5NTA_kkWHlJHG';
+const sbCli = createClient(SB_CLI_URL, SB_CLI_KEY);
 
 /* ── PRECIOS ── */
 const PR = {
@@ -836,6 +847,75 @@ function renderAdmin(data) {
   });
 }
 
+async function loadClientDash() {
+  var el = document.getElementById('admin-content');
+  el.innerHTML = '<div class="loading-msg">Cargando cotizaciones de clientes…</div>';
+  try {
+    var res = await sbCli.from('cotizaciones').select('*').order('fecha_creacion', {ascending: false});
+    if (res.error) {
+      el.innerHTML = '<div class="loading-msg">Error: ' + res.error.message + '</div>';
+      return;
+    }
+    renderClientDash(res.data || []);
+  } catch(e) {
+    el.innerHTML = '<div class="loading-msg">Error de conexión.</div>';
+  }
+}
+
+function renderClientDash(data) {
+  var total = data.length;
+  var concretadas = data.filter(function(d){ return d.estado==='concretada'; }).length;
+  var conv = total > 0 ? Math.round(concretadas/total*100) : 0;
+
+  var rows = data.slice(0,40).map(function(d) {
+    var dateStr = d.fecha_creacion ? new Date(d.fecha_creacion).toLocaleDateString('es-CL') : '—';
+    var sel = '<select class="estado-sel" data-id="'+d.id+'">' +
+      '<option value="enviada"'    +(d.estado==='enviada'   ?' selected':'')  +'>enviada</option>' +
+      '<option value="concretada"'+(d.estado==='concretada'?' selected':'')  +'>concretada</option>' +
+      '<option value="cancelada"' +(d.estado==='cancelada' ?' selected':'')  +'>cancelada</option>' +
+    '</select>';
+    var totalStr = d.total_alto ? fmt(d.total_alto) : '—';
+    return '<tr>' +
+      '<td>'+d.numero+'</td>' +
+      '<td>'+d.cliente+'</td>' +
+      '<td style="font-size:10px">'+(d.contacto||'—')+'</td>' +
+      '<td>'+(PNAME[d.producto]||d.producto)+'</td>' +
+      '<td>'+totalStr+'</td>' +
+      '<td>'+dateStr+'</td>' +
+      '<td>'+sel+'</td>' +
+    '</tr>';
+  }).join('');
+
+  var html =
+    '<div class="stats-grid">' +
+      '<div class="stat-card"><div class="stat-v">'+total+'</div><div class="stat-l">Cotizaciones</div></div>' +
+      '<div class="stat-card"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>' +
+      '<div class="stat-card"><div class="stat-v">'+concretadas+'</div><div class="stat-l">Concretadas</div></div>' +
+    '</div>' +
+    '<div class="admin-section">Cotizaciones de clientes web</div>' +
+    '<div style="overflow-x:auto">' +
+    '<table class="admin-tbl"><thead><tr>' +
+      '<th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th>' +
+    '</tr></thead><tbody>'+rows+'</tbody></table></div>';
+
+  var el = document.getElementById('admin-content');
+  el.innerHTML = html;
+
+  el.addEventListener('change', function(e) {
+    if (e.target.classList.contains('estado-sel')) {
+      updateEstadoCli(e.target.dataset.id, e.target.value);
+    }
+  });
+}
+
+async function updateEstadoCli(id, estado) {
+  var updates = { estado: estado };
+  if (estado === 'concretada') updates.fecha_concretada = new Date().toISOString();
+  try {
+    await sbCli.from('cotizaciones').update(updates).eq('id', id);
+  } catch(e) { /* silent */ }
+}
+
 async function updateEstado(id, estado) {
   var updates = { estado: estado };
   if (estado === 'concretada') updates.fecha_concretada = new Date().toISOString();
@@ -918,6 +998,16 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-admin').addEventListener('click', function() {
     show('s4');
     loadAdmin();
+  });
+  document.getElementById('tab-interno').addEventListener('click', function() {
+    document.getElementById('tab-interno').classList.add('active');
+    document.getElementById('tab-cliente').classList.remove('active');
+    loadAdmin();
+  });
+  document.getElementById('tab-cliente').addEventListener('click', function() {
+    document.getElementById('tab-cliente').classList.add('active');
+    document.getElementById('tab-interno').classList.remove('active');
+    loadClientDash();
   });
   document.getElementById('btn-back-admin').addEventListener('click', function() { show('s1'); });
 
