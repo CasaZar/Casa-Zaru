@@ -100,19 +100,19 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .ptable th { background: var(--gd); color: white; padding: 5px 3px; text-align: center; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
 .ptable td { padding: 5px 3px; text-align: center; border-bottom: 1px solid var(--bd); background: var(--crt); }
 .ptable .trow td { background: var(--crd); font-weight: 600; font-size: 10.5px; border-top: 1.5px solid var(--gd); border-bottom: none; }
-/* 3-tier price table */
-.tier-block { margin-bottom: 10px; }
-.tier-title { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; color: var(--gd); margin-bottom: 5px; }
-.ptier { width: 100%; border-collapse: collapse; font-size: 11px; }
-.ptier th { padding: 5px 5px; font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; text-align: center; }
-.ptier th.th-lbl { background: var(--crd); color: var(--gd); text-align: left; padding-left: 7px; width: 38%; }
-.ptier th.th-t   { background: var(--g); color: white; }
-.ptier th.th-tr  { background: #2D6A4F; color: white; }
-.ptier td { padding: 6px 5px; text-align: center; border-bottom: 1px solid var(--crd); background: white; vertical-align: middle; }
-.ptier td:first-child { text-align: left; padding-left: 7px; font-size: 9.5px; color: var(--tm); line-height: 1.3; background: var(--cr); }
-.ptier td.td-total { font-weight: 700; font-size: 12px; color: var(--tx); }
-.ptier td.td-trans { font-weight: 600; font-size: 11px; color: #2D6A4F; }
-.tier-note { font-size: 8.5px; color: var(--tm); text-align: center; margin-top: 4px; }
+/* precio por tier — filas simples */
+.ptier-block { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+.ptier-head { background: var(--crd); padding: 5px 9px; display: flex; }
+.ptier-head span { font-size: 8px; text-transform: uppercase; letter-spacing: .7px; color: var(--tm); flex: 1; text-align: right; font-weight: 600; }
+.ptier-head span:first-child { flex: 1.6; text-align: left; font-size: 9px; color: var(--gd); font-weight: 700; letter-spacing: .8px; }
+.ptier-row { display: flex; align-items: center; padding: 7px 9px; border-top: 1px solid var(--crd); background: white; }
+.ptier-row:nth-child(even) { background: var(--cr); }
+.ptier-wood { flex: 1.6; font-size: 10px; color: var(--tm); line-height: 1.3; }
+.ptier-total { flex: 1; text-align: right; font-size: 12.5px; font-weight: 700; color: var(--tx); }
+.ptier-trans { flex: 1; text-align: right; font-size: 11px; font-weight: 600; color: #2D6A4F; }
+.ptier-note { padding: 4px 9px; font-size: 8px; color: var(--tm); background: var(--crt); border-top: 1px solid var(--crd); text-align: center; }
+.dcto-green { color: #2D6A4F; font-weight: 700; }
+.cuotas-tag { display: inline-block; background: #D1FAE5; color: #065F46; font-size: 8.5px; font-weight: 700; padding: 1px 7px; border-radius: 10px; margin-left: 2px; }
 /* Specs bar */
 .specs { display: flex; border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 9px; background: white; }
 .spec { flex: 1; padding: 6px 5px; text-align: center; border-right: 1px solid var(--bd); }
@@ -486,25 +486,21 @@ function addRow() {
 var fmt = function(n) { return '$' + Math.round(n).toLocaleString('es-CL'); };
 
 function tierTable(rows) {
-  var thead =
-    '<thead><tr>' +
-      '<th class="th-lbl">Tipo de madera</th>' +
-      '<th class="th-t">Con tarjeta</th>' +
-      '<th class="th-tr">Transf. −5%</th>' +
-    '</tr></thead>';
-  var tbody = '<tbody>';
-  rows.forEach(function(r) {
-    tbody += '<tr>' +
-      '<td>'+r.label+'</td>' +
-      '<td class="td-total">'+fmt(r.total)+'</td>' +
-      '<td class="td-trans">'+fmt(r.total * 0.95)+'</td>' +
-    '</tr>';
-  });
-  tbody += '</tbody>';
-  return '<div class="tier-block">' +
-    '<div class="tier-title">Precios según tipo de madera</div>' +
-    '<table class="ptier">'+thead+tbody+'</table>' +
-    '<div class="tier-note">Todos los precios incluyen IVA 19% · Tarjeta de crédito sin recargo</div>' +
+  var prows = rows.map(function(r) {
+    return '<div class="ptier-row">' +
+      '<span class="ptier-wood">'+r.label+'</span>' +
+      '<span class="ptier-total">'+fmt(r.total)+'</span>' +
+      '<span class="ptier-trans">'+fmt(r.total * 0.95)+'</span>' +
+    '</div>';
+  }).join('');
+  return '<div class="ptier-block">' +
+    '<div class="ptier-head">' +
+      '<span>Tipo de madera</span>' +
+      '<span>Con tarjeta</span>' +
+      '<span>Transferencia</span>' +
+    '</div>' +
+    prows +
+    '<div class="ptier-note">Incluye IVA 19% · Tarjeta: precio indicado · Transferencia: −5%</div>' +
   '</div>';
 }
 
@@ -667,13 +663,13 @@ function boxes() {
         '<li>Confirmar con <strong>70%</strong> · Transferencia o tarjeta</li>' +
         '<li>Fabricación <strong>7 a 15 días hábiles</strong> desde confirmación</li>' +
         '<li>Te enviamos <strong>foto</strong> cuando tu proyecto esté listo. Pagas saldo <strong>30%</strong> y hacemos el envío</li>' +
-        '<li>Opción de pago con tarjeta en <strong>3 cuotas sin interés</strong> (sin recargo)</li>' +
+        '<li>Tarjeta en <strong>3 cuotas sin interés</strong> <span class="cuotas-tag">sin recargo</span></li>' +
       '</ul></div>' +
     '</div>' +
   '</div>' +
   '<div class="bankrow">' +
     '<strong>Tarjeta de crédito incluida en el precio.</strong><br>' +
-    'Transferencia bancaria: <strong>5% de descuento</strong> sobre el precio indicado<br>' +
+    'Transferencia bancaria: <span class="dcto-green">5% de descuento</span> sobre el precio indicado<br>' +
     '<strong>Muvale Diseño SpA</strong> · RUT 77.157.082-8 · Banco BCI · Cta Cte 97457175 · hola@casazaru.cl' +
   '</div>';
 }
