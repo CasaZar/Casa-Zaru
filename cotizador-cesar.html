@@ -125,7 +125,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .ibox-h { background: var(--g); color: white; padding: 5px 7px; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
 .ibox-b { padding: 7px; background: white; font-size: 9.5px; line-height: 1.55; color: var(--tm); }
 .ibox-b ul { list-style: none; padding: 0; }
-.ibox-b li { padding: 2px 0; border-bottom: 1px solid var(--crd); }
+.ibox-b li { padding: 3px 0 3px 10px; text-indent: -10px; border-bottom: 1px solid var(--crd); line-height: 1.4; }
 .ibox-b li:last-child { border-bottom: none; }
 .ibox-b li::before { content: "· "; color: var(--g); font-weight: 700; }
 /* Bank */
@@ -168,7 +168,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <div id="s0">
   <div class="logo-bar">
     <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <div class="tagline">Madera del sur de Chile</div>
+    <div class="tagline">Madera del sur de Chile a medida</div>
     <span class="badge">Uso Interno</span>
   </div>
   <div class="login-wrap">
@@ -192,7 +192,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <div id="s1" class="hidden">
   <div class="logo-bar">
     <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <div class="tagline">Madera del sur de Chile</div>
+    <div class="tagline">Madera del sur de Chile a medida</div>
     <span class="badge">Uso Interno</span>
     <button class="btn-top-right" id="btn-logout">Salir</button>
   </div>
@@ -631,12 +631,12 @@ function shell(nombre, cli, fecha, body) {
   return '<div class="coti-hdr">' +
     '<div>' +
       '<div class="coti-logo"><span class="c">CASA </span><span class="z">ZARU</span></div>' +
-      '<div class="coti-sub">Madera del sur de Chile</div>' +
+      '<div class="coti-sub">Madera del sur de Chile a medida</div>' +
     '</div>' +
     '<div class="coti-r">' +
       '<div class="coti-title">Cotización '+nombre+'</div>' +
       '<div class="coti-meta">'+qnum+'</div>' +
-      '<div class="coti-meta">Uso Interno &nbsp;·&nbsp; '+fecha+'</div>' +
+      '<div class="coti-meta">'+fecha+'</div>' +
       '<div class="coti-meta">Válida por 10 días</div>' +
     '</div>' +
   '</div>' +
@@ -663,7 +663,7 @@ function boxes() {
         '<li>Confirmar con <strong>70%</strong> · Transferencia o tarjeta</li>' +
         '<li>Fabricación <strong>7 a 15 días hábiles</strong> desde confirmación</li>' +
         '<li>Te enviamos <strong>foto</strong> cuando tu proyecto esté listo. Pagas saldo <strong>30%</strong> y hacemos el envío</li>' +
-        '<li>Tarjeta en <strong>3 cuotas sin interés</strong> <span class="cuotas-tag">sin recargo</span></li>' +
+        '<li>Tarjeta en <strong>3 cuotas sin interés</strong></li>' +
       '</ul></div>' +
     '</div>' +
   '</div>' +
