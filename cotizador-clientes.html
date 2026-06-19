@@ -6,8 +6,6 @@
 <title>Cotizador en Línea · Casa Zaru</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root {
   --g:   #B8894A;
@@ -25,7 +23,11 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .hidden { display: none !important; }
 
 /* ── LOGO BAR ── */
-.logo-bar { padding: 14px 16px 10px; text-align: center; border-bottom: 1px solid var(--bd); background: white; }
+.logo-bar { padding: 14px 16px 10px; text-align: center; border-bottom: 1px solid var(--bd); background: white; position: relative; }
+.btn-nav-sm { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: 1px solid var(--bd); border-radius: 6px; padding: 4px 9px; font-size: 10px; cursor: pointer; color: var(--tm); font-family: 'Inter', sans-serif; }
+.btn-nav-sm:hover { border-color: var(--gd); color: var(--gd); }
+.btn-nav-sm.left { left: 12px; }
+.btn-nav-sm.right { right: 12px; }
 .logotype { font-family: 'Playfair Display', serif; font-size: 25px; font-weight: 700; letter-spacing: 3px; line-height: 1; }
 .logotype .c { color: var(--gd); }
 .logotype .z { color: var(--g); }
@@ -136,6 +138,11 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .warranty { background: var(--crd); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
 .warranty strong { display: block; font-size: 10px; color: var(--gd); margin-bottom: 2px; }
 
+.wa-block { margin: 18px 0 6px; }
+.wa-pitch { font-size: 11.5px; color: var(--tm); line-height: 1.65; text-align: center; margin-bottom: 13px; padding: 0 4px; font-style: italic; }
+.wa-btn { display: block; background: #25D366; color: white; border-radius: 10px; padding: 14px; font-size: 15px; font-family: 'Playfair Display', serif; text-decoration: none; letter-spacing: .5px; text-align: center; }
+.wa-btn:hover { background: #1ebe5d; }
+
 @media print {
   #s1, #s2, .logo-bar, .q-toolbar { display: none !important; }
   body { background: white; }
@@ -195,15 +202,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <!-- ══ s3: QUOTE ══ -->
 <div id="s3" class="hidden">
   <div class="logo-bar">
+    <button class="btn-nav-sm left" id="btn-q-s2">← Editar</button>
     <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
     <span class="badge">Cotizador en Línea</span>
-  </div>
-  <div class="q-toolbar">
-    <button class="tbtn" id="btn-q-s1">← Inicio</button>
-    <button class="tbtn" id="btn-q-s2">Editar</button>
-    <button class="tbtn" id="btn-full">⛶ Pantalla</button>
-    <button class="tbtn pri" id="btn-img">📷 HD</button>
-    <button class="tbtn" id="btn-pdf">PDF</button>
+    <button class="btn-nav-sm right" id="btn-q-s1">Inicio</button>
   </div>
   <div id="q-out" class="coti"></div>
 </div>
@@ -447,7 +449,7 @@ function htmlCubierta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty()
+    boxes() + warranty() + whatsappCTA()
   );
 }
 
@@ -496,7 +498,7 @@ function htmlPuerta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty()
+    boxes() + warranty() + whatsappCTA()
   );
 }
 
@@ -521,7 +523,7 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty()
+    boxes() + warranty() + whatsappCTA()
   );
 }
 
@@ -571,6 +573,15 @@ function boxes() {
   '</div>';
 }
 
+function whatsappCTA() {
+  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zaru.';
+  var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
+  return '<div class="wa-block">' +
+    '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
+    '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar con un asesor →</a>' +
+  '</div>';
+}
+
 function warranty() {
   return '<div class="warranty">' +
     '<strong>Garantía Casa Zaru · 5 años</strong>' +
@@ -603,57 +614,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-calc').addEventListener('click', generar);
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
-  document.getElementById('btn-full').addEventListener('click', function() {
-    var el = document.getElementById('s3');
-    document.getElementById('q-out').scrollTop = 0;
-    var req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen;
-    if (req) {
-      req.call(el).catch(function() { cssFullscreen(el); });
-    } else {
-      cssFullscreen(el);
-    }
-  });
-  document.addEventListener('fullscreenchange', function() {
-    if (!document.fullscreenElement) {
-      document.getElementById('s3').classList.remove('fs-mode');
-    }
-  });
-  document.getElementById('btn-img').addEventListener('click', function() {
-    var btn = this;
-    btn.textContent = '…generando';
-    btn.disabled = true;
-    var el = document.getElementById('q-out');
-    html2canvas(el, { scale: 3, useCORS: true, backgroundColor: '#FAF8F2' }).then(function(canvas) {
-      btn.textContent = '📷 HD';
-      btn.disabled = false;
-      var dataUrl = canvas.toDataURL('image/png');
-      var nombre = 'CasaZaru_' + (PNAME[prod]||prod) + '_' + (qnum||'cotizacion') + '.png';
-      var isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-      if (isMobile) {
-        var win = window.open('about:blank');
-        win.document.write('<style>body{margin:0;background:#111}img{max-width:100%;display:block}</style><img src="' + dataUrl + '">');
-        win.document.title = nombre;
-      } else {
-        var a = document.createElement('a');
-        a.download = nombre;
-        a.href = dataUrl;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      }
-    });
-  });
-  document.getElementById('btn-pdf').addEventListener('click', function() {
-    var el  = document.getElementById('q-out');
-    var opt = {
-      margin: 8,
-      filename: 'CasaZaru_' + (PNAME[prod]||prod) + '_' + (qnum||'cotizacion') + '.pdf',
-      image:    { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF:    { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    html2pdf().set(opt).from(el).save();
-  });
 
   show('s1');
 });
