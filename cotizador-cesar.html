@@ -227,6 +227,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
       <label class="flabel">Cliente</label>
       <input class="finput" type="text" id="f-cli" placeholder="Nombre del cliente" autocomplete="off">
     </div>
+    <div class="fsec">
+      <label class="flabel">Contacto</label>
+      <input class="finput" type="text" id="f-con" placeholder="Teléfono o correo" autocomplete="off">
+    </div>
     <div id="f-dyn"></div>
     <button class="btn-primary" id="btn-calc">Generar Cotización →</button>
   </div>
@@ -295,7 +299,7 @@ const MODELOS = {
   vidrios: ['Valdivia','Entrelagos','Chochamó','Pucón']
 };
 
-let prod = '', nrows = 1, qnum = '', currentUser = null;
+let prod = '', nrows = 1, qnum = '', currentUser = null, conStr = '';
 
 /* ── QUOTE NUMBER ── */
 function qKey() {
@@ -508,6 +512,7 @@ function tierTable(rows) {
 function generar() {
   qnum = nextQ();
   var cli   = document.getElementById('f-cli').value.trim() || 'Cliente';
+  conStr    = document.getElementById('f-con').value.trim();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
@@ -536,7 +541,7 @@ function htmlCubierta(cli, fecha) {
   ];
   var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '2 cms';
   saveQuote({
-    numero:qnum, cliente:cli, producto:prod,
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod,
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total)
@@ -584,7 +589,7 @@ function htmlPuerta(cli, fecha) {
     return '<tr><td>'+f.n+'</td><td style="font-size:9.5px">'+f.mo+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td></tr>';
   }).join('');
   saveQuote({
-    numero:qnum, cliente:cli, producto:prod,
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod,
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total),
@@ -643,7 +648,7 @@ function shell(nombre, cli, fecha, body) {
       '<div class="coti-meta">Válida por 10 días</div>' +
     '</div>' +
   '</div>' +
-  '<div class="info-bar">Cliente: <strong>'+cli+'</strong></div>' +
+  '<div class="info-bar">Cliente: <strong>'+cli+'</strong>' + (conStr ? ' &nbsp;·&nbsp; '+conStr : '') + '</div>' +
   body;
 }
 
