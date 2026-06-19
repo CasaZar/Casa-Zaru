@@ -446,14 +446,11 @@ function renderForm(p) {
       (hasExtra ?
         '<div class="fsec">' +
           '<label class="flabel">Extra vidrio (opcional)</label>' +
-          '<div class="extra-row">' +
-            '<select id="vt">' +
-              '<option value="">Sin extra de vidrio</option>' +
-              '<option value="Termopanel">Termopanel</option>' +
-              '<option value="Biselado">Biselado</option>' +
-            '</select>' +
-            '<input type="number" id="vm" placeholder="Monto neto $" style="display:none">' +
-          '</div>' +
+          '<select class="fsel" id="vt">' +
+            '<option value="">Sin extra de vidrio</option>' +
+            '<option value="Termopanel">Termopanel (+$40.000 neto/m²)</option>' +
+            '<option value="Biselado">Biselado (+$40.000 neto/m²)</option>' +
+          '</select>' +
         '</div>'
       : '');
 
