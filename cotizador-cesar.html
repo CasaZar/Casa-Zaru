@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root {
   --g:   #B8894A;
@@ -246,7 +247,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
   <div class="q-toolbar">
     <button class="tbtn" id="btn-q-s1">← Inicio</button>
     <button class="tbtn" id="btn-q-s2">✎ Editar</button>
-    <button class="tbtn pri" id="btn-pdf">⬇ Guardar PDF</button>
+    <button class="tbtn pri" id="btn-img">📷 Imagen HD</button>
+    <button class="tbtn" id="btn-pdf">⬇ PDF</button>
   </div>
   <div id="q-out" class="coti"></div>
 </div>
@@ -833,11 +835,36 @@ document.addEventListener('DOMContentLoaded', function() {
   // quote nav
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
+  document.getElementById('btn-img').addEventListener('click', function() {
+    var btn = this;
+    btn.textContent = '…generando';
+    btn.disabled = true;
+    var el = document.getElementById('q-out');
+    html2canvas(el, { scale: 3, useCORS: true, backgroundColor: '#FAF8F2' }).then(function(canvas) {
+      btn.textContent = '📷 Imagen HD';
+      btn.disabled = false;
+      var dataUrl = canvas.toDataURL('image/png');
+      var nombre = 'CasaZaru_' + (PNAME[prod]||prod) + '_' + (qnum||'cotizacion') + '.png';
+      var isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+      if (isMobile) {
+        var win = window.open('about:blank');
+        win.document.write('<style>body{margin:0;background:#111}img{max-width:100%;display:block}</style><img src="' + dataUrl + '">');
+        win.document.title = nombre;
+      } else {
+        var a = document.createElement('a');
+        a.download = nombre;
+        a.href = dataUrl;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    });
+  });
   document.getElementById('btn-pdf').addEventListener('click', function() {
     var el  = document.getElementById('q-out');
     var opt = {
       margin: 8,
-      filename: (qnum || 'cotizacion') + '.pdf',
+      filename: 'CasaZaru_' + (PNAME[prod]||prod) + '_' + (qnum||'cotizacion') + '.pdf',
       image:    { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF:    { unit: 'mm', format: 'a4', orientation: 'portrait' }
