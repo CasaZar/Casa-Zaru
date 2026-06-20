@@ -4,147 +4,166 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cotizador en Línea · Casa Zaru</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
-  --g:   #B8894A;
-  --gd:  #7A5620;
-  --gl:  #D4A96A;
+  --bg:  #1a1208;
+  --bg2: #231a0e;
+  --bg3: #2d1f0e;
+  --ac:  #c27c3a;
+  --acl: #d9965a;
+  --tx:  #f5e6c8;
+  --tm:  #9b8060;
+  --bd:  #3d2a14;
+  --bd2: #4d3520;
+  /* light vars para cotizacion s3 */
+  --lg:  #B8894A;
+  --lgd: #7A5620;
   --cr:  #FAF8F2;
   --crd: #F0E6D0;
   --crt: #F7F1E4;
-  --tx:  #2C1A08;
-  --tm:  #6B5840;
-  --bd:  #D9C4A5;
+  --ltx: #2C1A08;
+  --ltm: #6B5840;
+  --lbd: #D9C4A5;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
 .hidden { display: none !important; }
 
-/* ── LOGO BAR ── */
-.logo-bar { padding: 14px 16px 10px; text-align: center; border-bottom: 1px solid var(--bd); background: white; position: relative; }
-.btn-nav-sm { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: 1px solid var(--bd); border-radius: 6px; padding: 4px 9px; font-size: 10px; cursor: pointer; color: var(--tm); font-family: 'Inter', sans-serif; }
-.btn-nav-sm:hover { border-color: var(--gd); color: var(--gd); }
+/* ── LOGO BAR (dark) ── */
+.logo-bar { padding: 18px 16px 14px; text-align: center; border-bottom: 1px solid var(--bd2); background: var(--bg); position: relative; }
+.btn-nav-sm { position: absolute; top: 50%; transform: translateY(-50%); background: none; border: 1px solid var(--bd2); border-radius: 6px; padding: 5px 10px; font-size: 10px; cursor: pointer; color: var(--tm); font-family: 'Jost', sans-serif; letter-spacing: 1px; }
+.btn-nav-sm:hover { border-color: var(--ac); color: var(--ac); }
 .btn-nav-sm.left { left: 12px; }
 .btn-nav-sm.right { right: 12px; }
-.logotype { font-family: 'Playfair Display', serif; font-size: 25px; font-weight: 700; letter-spacing: 3px; line-height: 1; }
-.logotype .c { color: var(--gd); }
-.logotype .z { color: var(--g); }
-.tagline { font-size: 8.5px; letter-spacing: 3px; text-transform: uppercase; color: var(--tm); margin-top: 3px; }
-.badge { display: inline-block; background: var(--g); color: white; font-size: 9px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; padding: 2px 10px; border-radius: 20px; margin-top: 6px; }
+.logotype { font-family: 'Cormorant Garamond', serif; font-size: 27px; font-weight: 600; letter-spacing: 5px; line-height: 1; color: var(--tx); }
+.logotype .sep { color: var(--ac); }
+.tagline { font-family: 'Jost', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--tm); margin-top: 4px; }
+.badge { display: inline-block; background: var(--ac); color: var(--bg); font-family: 'Jost', sans-serif; font-size: 8px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 3px 12px; border-radius: 20px; margin-top: 7px; }
 
 /* ── DASHBOARD ── */
-.dash-body { padding: 18px 14px 28px; }
-.dash-body h2 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gd); text-align: center; margin-bottom: 7px; }
-.dash-intro { font-size: 11.5px; color: var(--tm); text-align: center; line-height: 1.55; margin-bottom: 18px; }
-.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 460px; margin: 0 auto; }
-.pcard { background: white; border: 1.5px solid var(--bd); border-radius: 10px; padding: 14px 10px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; user-select: none; }
-.pcard:hover { border-color: var(--g); background: var(--crd); }
-.pcard:active { transform: scale(.98); }
-.pcard .ico { font-size: 24px; margin-bottom: 5px; }
-.pcard .pname { font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 600; color: var(--tx); line-height: 1.3; }
-.pcard .psub { font-size: 10px; color: var(--tm); margin-top: 2px; }
+.dash-body { padding: 28px 16px 40px; }
+.dash-intro-wrap { text-align: center; margin-bottom: 28px; }
+.dash-body h2 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 400; color: var(--tx); margin-bottom: 8px; letter-spacing: 1px; }
+.dash-divider { width: 40px; height: 1px; background: var(--ac); margin: 12px auto; }
+.dash-intro { font-size: 12px; color: var(--tm); line-height: 1.7; letter-spacing: .3px; }
+
+.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 480px; margin: 0 auto; }
+.pcard { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color .2s, transform .15s; user-select: none; }
+.pcard:hover { border-color: var(--ac); transform: translateY(-2px); }
+.pcard:active { transform: scale(.98) translateY(0); }
 .pcard.wide { grid-column: span 2; }
 
-/* ── FORM ── */
-.form-body { padding: 0 14px 28px; }
-.form-hdr { display: flex; align-items: center; gap: 10px; padding: 14px 0 12px; border-bottom: 1px solid var(--bd); margin-bottom: 16px; }
-.btn-back { background: none; border: 1px solid var(--bd); border-radius: 6px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: var(--tm); flex-shrink: 0; font-family: 'Inter', sans-serif; }
-.form-hdr h2 { font-family: 'Playfair Display', serif; font-size: 17px; color: var(--gd); flex: 1; }
-.flabel { display: block; font-size: 10px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--gd); margin-bottom: 5px; }
-.flabel .req { color: #c0392b; font-weight: 700; }
-.finput, .fsel { width: 100%; padding: 10px 12px; border: 1px solid var(--bd); border-radius: 7px; font-size: 14px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); }
-.finput:focus, .fsel:focus { outline: none; border-color: var(--g); }
-.fsec { margin-bottom: 14px; }
-.btn-primary { width: 100%; background: var(--g); color: white; border: none; border-radius: 9px; padding: 13px; font-size: 15px; font-family: 'Playfair Display', serif; cursor: pointer; letter-spacing: 1px; transition: background .15s; margin-top: 4px; }
-.btn-primary:hover { background: var(--gd); }
-.msg-err { color: #c0392b; font-size: 12px; text-align: center; margin-top: 8px; }
-.col-labels { display: flex; gap: 5px; margin-bottom: 3px; }
-.col-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; color: var(--tm); text-align: center; flex: 1; }
+.pcard-img { width: 100%; aspect-ratio: 4/3; overflow: hidden; background: var(--bg3); position: relative; }
+.pcard.wide .pcard-img { aspect-ratio: 16/7; }
+.pcard-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pcard-img .img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg2) 0%, var(--bg3) 100%); }
+.pcard-img .img-ph svg { width: 36px; height: 36px; opacity: .18; color: var(--tx); }
+.pcard-body { padding: 11px 13px 13px; display: flex; align-items: flex-start; justify-content: space-between; }
+.pcard-body .pinfo { flex: 1; }
+.pcard .pname { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: var(--tx); line-height: 1.2; }
+.pcard .psub { font-size: 10px; color: var(--tm); margin-top: 3px; letter-spacing: .3px; }
+.pcard .parrow { color: var(--ac); font-size: 16px; margin-top: 2px; flex-shrink: 0; }
+
+/* ── FORM (dark) ── */
+.form-body { padding: 0 16px 36px; }
+.form-hdr { display: flex; align-items: center; gap: 10px; padding: 16px 0 14px; border-bottom: 1px solid var(--bd2); margin-bottom: 20px; }
+.btn-back { background: none; border: 1px solid var(--bd2); border-radius: 7px; padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--tm); flex-shrink: 0; font-family: 'Jost', sans-serif; letter-spacing: .5px; }
+.btn-back:hover { border-color: var(--ac); color: var(--ac); }
+.form-hdr h2 { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; color: var(--tx); flex: 1; }
+.flabel { display: block; font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--ac); margin-bottom: 6px; }
+.flabel .req { color: #e57373; }
+.finput, .fsel { width: 100%; padding: 11px 14px; border: 1px solid var(--bd2); border-radius: 8px; font-size: 14px; font-family: 'Jost', sans-serif; background: var(--bg2); color: var(--tx); }
+.finput::placeholder { color: var(--tm); }
+.finput:focus, .fsel:focus { outline: none; border-color: var(--ac); background: var(--bg3); }
+.fsel option { background: var(--bg2); }
+.fsec { margin-bottom: 16px; }
+
+/* ── LIVE PRICE WIDGET ── */
+.live-price-wrap { background: var(--bg3); border: 1px solid var(--bd2); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; text-align: center; }
+.lp-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--tm); margin-bottom: 6px; }
+.lp-range { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--tx); font-weight: 600; line-height: 1.1; }
+.lp-range .sep-dash { color: var(--ac); margin: 0 4px; }
+.lp-note { font-size: 9px; color: var(--tm); margin-top: 4px; }
+.lp-empty { font-family: 'Jost', sans-serif; font-size: 12px; color: var(--tm); font-style: italic; font-weight: 300; }
+
+.btn-primary { width: 100%; background: var(--ac); color: var(--bg); border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-family: 'Cormorant Garamond', serif; font-weight: 600; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: background .15s; margin-top: 4px; }
+.btn-primary:hover { background: var(--acl); }
+.msg-err { color: #e57373; font-size: 12px; text-align: center; margin-top: 8px; }
+
+.col-labels { display: flex; gap: 5px; margin-bottom: 4px; }
+.col-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: var(--tm); text-align: center; flex: 1; }
 .col-lbl.nar { flex: .45; }
 .col-lbl.wide { flex: 1.4; }
-.dim-row { display: flex; gap: 5px; margin-bottom: 5px; align-items: center; }
+.dim-row { display: flex; gap: 5px; margin-bottom: 6px; align-items: center; }
 .rnum { font-size: 10px; color: var(--tm); min-width: 14px; text-align: center; flex-shrink: 0; }
-.dim-row input, .dim-row select { flex: 1; padding: 8px 6px; border: 1px solid var(--bd); border-radius: 6px; font-size: 13px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); min-width: 0; }
+.dim-row input, .dim-row select { flex: 1; padding: 9px 7px; border: 1px solid var(--bd2); border-radius: 7px; font-size: 13px; font-family: 'Jost', sans-serif; background: var(--bg2); color: var(--tx); min-width: 0; }
 .dim-row .nar { flex: .45; }
 .dim-row .wid { flex: 1.4; }
-.dim-row input:focus, .dim-row select:focus { outline: none; border-color: var(--g); }
-.btn-add { width: 100%; padding: 7px; border: 1.5px dashed var(--gl); border-radius: 7px; background: none; color: var(--g); font-size: 12px; cursor: pointer; margin-top: 3px; font-family: 'Inter', sans-serif; }
+.dim-row input:focus, .dim-row select:focus { outline: none; border-color: var(--ac); }
+.dim-row select option { background: var(--bg2); }
+.btn-add { width: 100%; padding: 8px; border: 1.5px dashed var(--bd2); border-radius: 8px; background: none; color: var(--tm); font-size: 12px; cursor: pointer; margin-top: 4px; font-family: 'Jost', sans-serif; letter-spacing: .5px; }
+.btn-add:hover { border-color: var(--ac); color: var(--ac); }
 
-/* ── QUOTE ── */
-.q-toolbar { display: flex; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--bd); background: white; }
-.tbtn { flex: 1; padding: 8px 3px; border-radius: 7px; font-size: 11px; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 500; border: 1px solid var(--bd); background: white; color: var(--tx); }
-.tbtn.pri { background: var(--g); color: white; border-color: var(--g); }
-/* pantalla completa */
-#s3:fullscreen .logo-bar,
-#s3:fullscreen .q-toolbar { display: none !important; }
-#s3:fullscreen #q-out { height: 100vh; overflow-y: auto; background: var(--cr); }
-#s3:-webkit-full-screen .logo-bar,
-#s3:-webkit-full-screen .q-toolbar { display: none !important; }
-#s3:-webkit-full-screen #q-out { height: 100vh; overflow-y: auto; background: var(--cr); }
-#s3.fs-mode { position: fixed; inset: 0; z-index: 9999; background: var(--cr); overflow: hidden; }
-#s3.fs-mode .logo-bar, #s3.fs-mode .q-toolbar { display: none !important; }
-#s3.fs-mode #q-out { height: 100%; overflow-y: auto; }
-.btn-exit-fs { position: fixed; top: 14px; right: 14px; z-index: 10000; background: rgba(0,0,0,.55); color: white; border: none; border-radius: 20px; padding: 8px 18px; font-size: 13px; cursor: pointer; font-family: 'Inter', sans-serif; }
-.coti { padding: 13px; max-width: 500px; margin: 0 auto; }
-.coti-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-.coti-logo { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 700; letter-spacing: 2px; }
-.coti-logo .c { color: var(--gd); }
-.coti-logo .z { color: var(--g); }
-.coti-sub { font-size: 8px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--tm); margin-top: 2px; }
+/* ── QUOTE s3 (light) ── */
+#s3 { background: var(--cr); }
+#s3 .logo-bar { background: var(--ltx); border-bottom: 1px solid #4a3020; }
+#s3 .logotype { color: var(--cr); }
+#s3 .logotype .sep { color: var(--lg); }
+#s3 .badge { background: var(--lg); color: white; }
+#s3 .btn-nav-sm { border-color: #5a3e20; color: var(--crd); }
+#s3 .btn-nav-sm:hover { border-color: var(--lg); color: var(--lg); }
+
+.coti { padding: 14px; max-width: 500px; margin: 0 auto; font-family: 'Jost', sans-serif; }
+.coti-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 11px; }
+.coti-logo { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 700; letter-spacing: 3px; color: var(--ltx); }
+.coti-sub { font-size: 8px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--ltm); margin-top: 2px; }
 .coti-r { text-align: right; }
-.coti-title { font-family: 'Playfair Display', serif; font-size: 14px; color: var(--tx); }
-.coti-meta { font-size: 9px; color: var(--tm); margin-top: 1px; line-height: 1.45; }
-.info-bar { background: var(--crd); border-radius: 6px; padding: 5px 9px; font-size: 10px; color: var(--tm); margin-bottom: 9px; }
-.info-bar strong { color: var(--tx); }
-/* Dimension table */
+.coti-title { font-family: 'Cormorant Garamond', serif; font-size: 14px; color: var(--ltx); }
+.coti-meta { font-size: 9px; color: var(--ltm); margin-top: 1px; line-height: 1.45; }
+.info-bar { background: var(--crd); border-radius: 6px; padding: 5px 9px; font-size: 10px; color: var(--ltm); margin-bottom: 9px; }
+.info-bar strong { color: var(--ltx); }
 .ptable { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
-.ptable th { background: var(--gd); color: white; padding: 5px 3px; text-align: center; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
-.ptable td { padding: 5px 3px; text-align: center; border-bottom: 1px solid var(--bd); background: var(--crt); }
-.ptable .trow td { background: var(--crd); font-weight: 600; font-size: 10.5px; border-top: 1.5px solid var(--gd); border-bottom: none; }
-/* precio por tier */
-.ptier-block { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+.ptable th { background: var(--lgd); color: white; padding: 5px 3px; text-align: center; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+.ptable td { padding: 5px 3px; text-align: center; border-bottom: 1px solid var(--lbd); background: var(--crt); }
+.ptable .trow td { background: var(--crd); font-weight: 600; font-size: 10.5px; border-top: 1.5px solid var(--lgd); border-bottom: none; }
+.ptier-block { border: 1px solid var(--lbd); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
 .ptier-head { background: var(--crd); padding: 5px 9px; display: flex; }
-.ptier-head span { font-size: 8px; text-transform: uppercase; letter-spacing: .7px; color: var(--tm); flex: 1; text-align: right; font-weight: 600; }
-.ptier-head span:first-child { flex: 1.6; text-align: left; font-size: 9px; color: var(--gd); font-weight: 700; letter-spacing: .8px; }
+.ptier-head span { font-size: 8px; text-transform: uppercase; letter-spacing: .7px; color: var(--ltm); flex: 1; text-align: right; font-weight: 600; }
+.ptier-head span:first-child { flex: 1.6; text-align: left; font-size: 9px; color: var(--lgd); font-weight: 700; letter-spacing: .8px; }
 .ptier-row { display: flex; align-items: center; padding: 7px 9px; border-top: 1px solid var(--crd); background: white; }
 .ptier-row:nth-child(even) { background: var(--cr); }
-.ptier-wood { flex: 1.6; font-size: 10px; color: var(--tm); line-height: 1.3; }
-.ptier-total { flex: 1; text-align: right; font-size: 12.5px; font-weight: 700; color: var(--tx); }
+.ptier-wood { flex: 1.6; font-size: 10px; color: var(--ltm); line-height: 1.3; }
+.ptier-total { flex: 1; text-align: right; font-size: 12.5px; font-weight: 700; color: var(--ltx); }
 .ptier-trans { flex: 1; text-align: right; font-size: 11px; font-weight: 600; color: #2D6A4F; }
-.ptier-note { padding: 4px 9px; font-size: 8px; color: var(--tm); background: var(--crt); border-top: 1px solid var(--crd); text-align: center; }
+.ptier-note { padding: 4px 9px; font-size: 8px; color: var(--ltm); background: var(--crt); border-top: 1px solid var(--crd); text-align: center; }
 .dcto-green { color: #2D6A4F; font-weight: 700; }
 .transf-badge { display: inline-block; background: #D1FAE5; color: #065F46; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid #A7F3D0; }
-/* Specs bar */
-.specs { display: flex; border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 9px; background: white; }
-.spec { flex: 1; padding: 6px 5px; text-align: center; border-right: 1px solid var(--bd); }
+.specs { display: flex; border: 1px solid var(--lbd); border-radius: 7px; overflow: hidden; margin-bottom: 9px; background: white; }
+.spec { flex: 1; padding: 6px 5px; text-align: center; border-right: 1px solid var(--lbd); }
 .spec:last-child { border-right: none; }
-.spec .sl { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--gd); }
-.spec .sv { font-size: 9px; color: var(--tm); margin-top: 1px; line-height: 1.3; }
-/* Info boxes */
+.spec .sl { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--lgd); }
+.spec .sv { font-size: 9px; color: var(--ltm); margin-top: 1px; line-height: 1.3; }
 .iboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 9px; }
-.ibox { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; }
-.ibox-h { background: var(--g); color: white; padding: 5px 7px; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
-.ibox-b { padding: 7px; background: white; font-size: 9.5px; line-height: 1.55; color: var(--tm); }
+.ibox { border: 1px solid var(--lbd); border-radius: 7px; overflow: hidden; }
+.ibox-h { background: var(--lg); color: white; padding: 5px 7px; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+.ibox-b { padding: 7px; background: white; font-size: 9.5px; line-height: 1.55; color: var(--ltm); }
 .ibox-b ul { list-style: none; padding: 0; }
 .ibox-b li { padding: 3px 0 3px 10px; text-indent: -10px; border-bottom: 1px solid var(--crd); line-height: 1.4; }
 .ibox-b li:last-child { border-bottom: none; }
-.ibox-b li::before { content: "· "; color: var(--g); font-weight: 700; }
-/* Bank */
-.bankrow { background: var(--crd); border: 1px solid var(--bd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--tm); margin-bottom: 8px; text-align: center; line-height: 1.7; }
-.bankrow strong { color: var(--tx); }
-/* Warranty */
-.warranty { background: var(--crd); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
-.warranty strong { display: block; font-size: 10px; color: var(--gd); margin-bottom: 2px; }
-
+.ibox-b li::before { content: "· "; color: var(--lg); font-weight: 700; }
+.bankrow { background: var(--crd); border: 1px solid var(--lbd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--ltm); margin-bottom: 8px; text-align: center; line-height: 1.7; }
+.bankrow strong { color: var(--ltx); }
+.warranty { background: var(--crd); border: 1px solid var(--lbd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--ltm); text-align: center; line-height: 1.45; }
+.warranty strong { display: block; font-size: 10px; color: var(--lgd); margin-bottom: 2px; }
 .wa-block { margin: 18px 0 6px; }
-.wa-pitch { font-size: 11.5px; color: var(--tm); line-height: 1.65; text-align: center; margin-bottom: 13px; padding: 0 4px; font-style: italic; }
-.wa-btn { display: block; background: #25D366; color: white; border-radius: 10px; padding: 14px; font-size: 15px; font-family: 'Playfair Display', serif; text-decoration: none; letter-spacing: .5px; text-align: center; }
+.wa-pitch { font-size: 11.5px; color: var(--ltm); line-height: 1.65; text-align: center; margin-bottom: 13px; padding: 0 4px; font-style: italic; }
+.wa-btn { display: block; background: #25D366; color: white; border-radius: 10px; padding: 14px; font-size: 15px; font-family: 'Cormorant Garamond', serif; font-weight: 600; text-decoration: none; letter-spacing: 1px; text-align: center; }
 .wa-btn:hover { background: #1ebe5d; }
 
 @media print {
-  #s1, #s2, .logo-bar, .q-toolbar { display: none !important; }
+  #s1, #s2, .logo-bar { display: none !important; }
   body { background: white; }
   .coti { padding: 8px; max-width: 100%; }
 }
@@ -155,21 +174,53 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <!-- ══ s1: DASHBOARD ══ -->
 <div id="s1">
   <div class="logo-bar">
-    <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
+    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
     <div class="tagline">Madera del sur de Chile a medida</div>
-    <span class="badge">Cotizador en Línea</span>
+    <div><span class="badge">Cotizador en Línea</span></div>
   </div>
   <div class="dash-body">
-    <h2>¿Qué producto te interesa?</h2>
-    <p class="dash-intro">Selecciona el producto, ingresa tus medidas y recibe tu cotización al instante.</p>
+    <div class="dash-intro-wrap">
+      <h2>¿Qué producto te interesa?</h2>
+      <div class="dash-divider"></div>
+      <p class="dash-intro">Selecciona el producto, ingresa tus medidas<br>y recibe tu cotización al instante.</p>
+    </div>
     <div class="pgrid">
-      <div class="pcard" data-prod="cubierta"><div class="ico">🪵</div><div class="pname">Cubierta</div><div class="psub">2,1 a 4,0 cm</div></div>
-      <div class="pcard" data-prod="repisa"><div class="ico">📐</div><div class="pname">Repisa / Cubierta</div><div class="psub">2 cm</div></div>
-      <div class="pcard" data-prod="peldano"><div class="ico">🪜</div><div class="pname">Peldaño</div><div class="psub">Escalera</div></div>
-      <div class="pcard" data-prod="granero"><div class="ico">🚪</div><div class="pname">Puerta Granero</div><div class="psub">Clásico · Cruz · Ensenada</div></div>
-      <div class="pcard" data-prod="maciza"><div class="ico">🚪</div><div class="pname">Puerta Maciza</div><div class="psub">Panguipulli · Lago Ranco…</div></div>
-      <div class="pcard" data-prod="vidrios"><div class="ico">🪟</div><div class="pname">Puerta con Vidrios</div><div class="psub">Valdivia · Pucón…</div></div>
-      <div class="pcard wide" data-prod="revestimiento"><div class="ico">🌿</div><div class="pname">Revestimiento</div><div class="psub">Coihue · Ciprés · precio por m²</div></div>
+
+      <div class="pcard" data-prod="cubierta">
+        <div class="pcard-img" id="img-cubierta"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="8" width="18" height="3" rx="1"/><rect x="3" y="14" width="18" height="3" rx="1"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Cubierta</div><div class="psub">2,1 a 4,0 cm</div></div><span class="parrow">→</span></div>
+      </div>
+
+      <div class="pcard" data-prod="repisa">
+        <div class="pcard-img" id="img-repisa"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="11" width="18" height="2" rx="1"/><line x1="7" y1="13" x2="7" y2="20"/><line x1="17" y1="13" x2="17" y2="20"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Repisa / Cubierta</div><div class="psub">2 cm</div></div><span class="parrow">→</span></div>
+      </div>
+
+      <div class="pcard" data-prod="peldano">
+        <div class="pcard-img" id="img-peldano"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M3 20h4v-4h4v-4h4v-4h4V4" stroke-linecap="round"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Peldaño</div><div class="psub">Escalera</div></div><span class="parrow">→</span></div>
+      </div>
+
+      <div class="pcard" data-prod="granero">
+        <div class="pcard-img" id="img-granero"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="4" y="3" width="16" height="20" rx="1"/><path d="M4 10h16"/><path d="M12 3v7"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Puerta Granero</div><div class="psub">Clásico · Cruz · Ensenada</div></div><span class="parrow">→</span></div>
+      </div>
+
+      <div class="pcard" data-prod="maciza">
+        <div class="pcard-img" id="img-maciza"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="4" y="3" width="16" height="20" rx="1"/><circle cx="16.5" cy="12" r="1" fill="currentColor"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Puerta Maciza</div><div class="psub">Panguipulli · Lago Ranco…</div></div><span class="parrow">→</span></div>
+      </div>
+
+      <div class="pcard" data-prod="vidrios">
+        <div class="pcard-img" id="img-vidrios"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="4" y="3" width="16" height="20" rx="1"/><rect x="7" y="6" width="4" height="7" rx=".5"/><rect x="13" y="6" width="4" height="7" rx=".5"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Puerta con Vidrios</div><div class="psub">Valdivia · Pucón…</div></div><span class="parrow">→</span></div>
+      </div>
+
+      <div class="pcard wide" data-prod="revestimiento">
+        <div class="pcard-img" id="img-revestimiento"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="4" width="4" height="16" rx=".5"/><rect x="10" y="4" width="4" height="16" rx=".5"/><rect x="17" y="4" width="4" height="16" rx=".5"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Revestimiento</div><div class="psub">Coihue · Ciprés · precio por m²</div></div><span class="parrow">→</span></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -177,8 +228,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <!-- ══ s2: FORM ══ -->
 <div id="s2" class="hidden">
   <div class="logo-bar">
-    <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <span class="badge">Cotizador en Línea</span>
+    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div><span class="badge">Cotizador en Línea</span></div>
   </div>
   <div class="form-body">
     <div class="form-hdr">
@@ -194,6 +245,11 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
       <input class="finput" type="text" id="f-con" placeholder="Ej. +56 9 1234 5678 o tu@correo.cl" autocomplete="off">
     </div>
     <div id="f-dyn"></div>
+    <div class="live-price-wrap">
+      <div class="lp-label">Precio estimado con IVA</div>
+      <div class="lp-range" id="live-range"><span class="lp-empty">Ingresa las medidas</span></div>
+      <div class="lp-note" id="live-note" style="display:none">Bajo — Alto según tipo de madera · Transferencia −5%</div>
+    </div>
     <div class="msg-err hidden" id="f-err">Por favor completa tu nombre y contacto para continuar.</div>
     <button class="btn-primary" id="btn-calc">Calcular cotización →</button>
   </div>
@@ -203,8 +259,8 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 <div id="s3" class="hidden">
   <div class="logo-bar">
     <button class="btn-nav-sm left" id="btn-q-s2">← Editar</button>
-    <div class="logotype"><span class="c">CASA </span><span class="z">ZARU</span></div>
-    <span class="badge">Cotizador en Línea</span>
+    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div><span class="badge">Cotizador en Línea</span></div>
     <button class="btn-nav-sm right" id="btn-q-s1">Inicio</button>
   </div>
   <div id="q-out" class="coti"></div>
@@ -215,6 +271,17 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 var SB_URL = 'https://padnttpgzuotxeipjrry.supabase.co';
 var SB_KEY = 'sb_publishable_XeCtx06OFHQ3LsYxYk5NTA_kkWHlJHG';
 var sbClient = supabase.createClient(SB_URL, SB_KEY);
+
+/* ── FOTOS — pegar URL de imagen para activar foto en la card ── */
+var FOTOS = {
+  cubierta:      '',
+  repisa:        '',
+  peldano:       '',
+  granero:       '',
+  maciza:        '',
+  vidrios:       '',
+  revestimiento: ''
+};
 
 /* ── PRECIOS ── */
 var PR = {
@@ -244,6 +311,17 @@ var MODELOS = {
 
 var prod = '', nrows = 1, qnum = '', conStr = '';
 
+/* ── FOTOS — reemplaza placeholder con imagen si URL presente ── */
+function applyFotos() {
+  Object.keys(FOTOS).forEach(function(key) {
+    var url = FOTOS[key];
+    if (!url) return;
+    var wrap = document.getElementById('img-' + key);
+    if (!wrap) return;
+    wrap.innerHTML = '<img src="' + url + '" alt="' + key + '" loading="lazy">';
+  });
+}
+
 /* ── QUOTE NUMBER ── */
 function qKey() {
   var d = new Date();
@@ -267,6 +345,55 @@ function show(id) {
   window.scrollTo(0,0);
 }
 
+/* ── LIVE PRICE ── */
+var fmt = function(n) { return '$' + Math.round(n).toLocaleString('es-CL'); };
+
+function calcLive() {
+  var rangeEl = document.getElementById('live-range');
+  var noteEl  = document.getElementById('live-note');
+  if (!rangeEl) return;
+  var bajo = 0, alto = 0;
+
+  if (['cubierta','repisa','peldano'].includes(prod)) {
+    var sumM2 = 0;
+    for (var i=1; i<=nrows; i++) {
+      var lgEl=document.getElementById('lg'+i), anEl=document.getElementById('an'+i), caEl=document.getElementById('ca'+i);
+      if (!lgEl||!lgEl.value||!anEl.value) continue;
+      var lg=parseFloat(lgEl.value)||0, an=parseFloat(anEl.value)||0, ca=parseInt((caEl&&caEl.value)||1)||1;
+      sumM2 += (lg/100)*(an/100)*ca;
+    }
+    if (sumM2 > 0) { bajo = sumM2 * PR[prod].bajo * 1.19; alto = sumM2 * PR[prod].alto * 1.19; }
+
+  } else if (['granero','maciza','vidrios'].includes(prod)) {
+    var vtEl2 = document.getElementById('vt');
+    var extraLive = (vtEl2 && vtEl2.value) ? vtEl2.value : '';
+    var sumBajo = 0, sumAlto = 0;
+    for (var j=1; j<=nrows; j++) {
+      var lge=document.getElementById('lg'+j), ane=document.getElementById('an'+j), cae=document.getElementById('ca'+j);
+      if (!lge||!lge.value||!ane.value) continue;
+      var m2p=(parseFloat(lge.value)||0)/100*(parseFloat(ane.value)||0)/100;
+      var ca2=parseInt((cae&&cae.value)||1)||1;
+      var extra = extraLive ? m2p * 40000 : 0;
+      sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo + extra) * ca2;
+      sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo + extra) * ca2;
+    }
+    if (sumBajo > 0) { bajo = sumBajo * 1.19; alto = sumAlto * 1.19; }
+
+  } else if (prod === 'revestimiento') {
+    var rmEl = document.getElementById('rm');
+    var m2r = parseFloat((rmEl&&rmEl.value)||0)||0;
+    if (m2r > 0) { bajo = m2r * PR.revestimiento.cipres; alto = m2r * PR.revestimiento.coihue; }
+  }
+
+  if (bajo > 0) {
+    rangeEl.innerHTML = fmt(bajo) + '<span class="sep-dash"> — </span>' + fmt(alto);
+    noteEl.style.display = 'block';
+  } else {
+    rangeEl.innerHTML = '<span class="lp-empty">Ingresa las medidas</span>';
+    noteEl.style.display = 'none';
+  }
+}
+
 /* ── FORM ── */
 function initProd(p) {
   prod = p; nrows = 1;
@@ -274,6 +401,7 @@ function initProd(p) {
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
   show('s2');
+  calcLive();
 }
 
 function renderForm(p) {
@@ -330,6 +458,9 @@ function renderForm(p) {
   c.addEventListener('click', function(e) {
     if (e.target.closest('#btn-add-row')) addRow();
   });
+  c.addEventListener('input', calcLive);
+  var vtSel = document.getElementById('vt');
+  if (vtSel) vtSel.addEventListener('change', calcLive);
 }
 
 function dimRow(n) {
@@ -355,42 +486,6 @@ function addRow() {
   var opts = (MODELOS[prod]||[]).map(function(m){ return '<option>'+m+'</option>'; }).join('');
   div.innerHTML = ['granero','maciza','vidrios'].includes(prod) ? doorRow(nrows,opts) : dimRow(nrows);
   cont.appendChild(div.firstElementChild);
-}
-
-function cssFullscreen(el) {
-  el.classList.add('fs-mode');
-  document.getElementById('q-out').scrollTop = 0;
-  var exitBtn = document.createElement('button');
-  exitBtn.className = 'btn-exit-fs';
-  exitBtn.textContent = '✕ Salir';
-  el.appendChild(exitBtn);
-  exitBtn.style.cssText = 'position:fixed;top:14px;right:14px;z-index:10001;background:rgba(0,0,0,.55);color:white;border:none;border-radius:20px;padding:8px 18px;font-size:13px;cursor:pointer;font-family:Inter,sans-serif';
-  exitBtn.addEventListener('click', function() {
-    el.classList.remove('fs-mode');
-    exitBtn.remove();
-  });
-}
-
-/* ── HELPERS ── */
-var fmt = function(n) { return '$' + Math.round(n).toLocaleString('es-CL'); };
-
-function tierTable(rows) {
-  var prows = rows.map(function(r) {
-    return '<div class="ptier-row">' +
-      '<span class="ptier-wood">'+r.label+'</span>' +
-      '<span class="ptier-total">'+fmt(r.total)+'</span>' +
-      '<span class="ptier-trans"><span class="transf-badge">'+fmt(r.total * 0.95)+'</span></span>' +
-    '</div>';
-  }).join('');
-  return '<div class="ptier-block">' +
-    '<div class="ptier-head">' +
-      '<span>Tipo de madera</span>' +
-      '<span>Con tarjeta</span>' +
-      '<span>Transferencia −5%</span>' +
-    '</div>' +
-    prows +
-    '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado</div>' +
-  '</div>';
 }
 
 /* ── QUOTE GENERATION ── */
@@ -428,7 +523,7 @@ function htmlCubierta(cli, fecha) {
   var tierRows = [
     {label: 'Pino Oregón',              total: sumM2 * PR[prod].bajo},
     {label: 'Castaño / Ciprés / Mañío', total: sumM2 * PR[prod].medio},
-    {label: 'Coihue / Rauí / Lenga',    total: sumM2 * PR[prod].alto}
+    {label: 'Coihue / Raúlí / Lenga',   total: sumM2 * PR[prod].alto}
   ];
   var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '2 cms';
   saveQuote({
@@ -506,7 +601,7 @@ function htmlRev(cli, fecha) {
   var m2 = parseFloat((document.getElementById('rm')||{}).value||0);
   var tierRows = [
     {label: 'Ciprés',  total: m2 * PR.revestimiento.cipres},
-    {label: 'Coihue',       total: m2 * PR.revestimiento.coihue}
+    {label: 'Coihue',        total: m2 * PR.revestimiento.coihue}
   ];
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:'revestimiento', tipo:'cliente',
@@ -530,7 +625,7 @@ function htmlRev(cli, fecha) {
 function shell(nombre, cli, fecha, body) {
   return '<div class="coti-hdr">' +
     '<div>' +
-      '<div class="coti-logo"><span class="c">CASA </span><span class="z">ZARU</span></div>' +
+      '<div class="coti-logo">CASA ZARU</div>' +
       '<div class="coti-sub">Madera del sur de Chile a medida</div>' +
     '</div>' +
     '<div class="coti-r">' +
@@ -540,8 +635,27 @@ function shell(nombre, cli, fecha, body) {
       '<div class="coti-meta">Válida por 10 días</div>' +
     '</div>' +
   '</div>' +
-  '<div class="info-bar">Para: <strong>'+cli+'</strong>' + (conStr ? '  ·  '+conStr : '') + '</div>' +
+  '<div class="info-bar">Para: <strong>'+cli+'</strong>' + (conStr ? '  ·  '+conStr : '') + '</div>' +
   body;
+}
+
+function tierTable(rows) {
+  var prows = rows.map(function(r) {
+    return '<div class="ptier-row">' +
+      '<span class="ptier-wood">'+r.label+'</span>' +
+      '<span class="ptier-total">'+fmt(r.total)+'</span>' +
+      '<span class="ptier-trans"><span class="transf-badge">'+fmt(r.total * 0.95)+'</span></span>' +
+    '</div>';
+  }).join('');
+  return '<div class="ptier-block">' +
+    '<div class="ptier-head">' +
+      '<span>Tipo de madera</span>' +
+      '<span>Con tarjeta</span>' +
+      '<span>Transferencia −5%</span>' +
+    '</div>' +
+    prows +
+    '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado</div>' +
+  '</div>';
 }
 
 function boxes() {
@@ -574,7 +688,7 @@ function boxes() {
 }
 
 function whatsappCTA() {
-  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zaru.';
+  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zarú.';
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
@@ -607,6 +721,7 @@ async function saveQuote(data, lines) {
 
 /* ── EVENT LISTENERS ── */
 document.addEventListener('DOMContentLoaded', function() {
+  applyFotos();
   document.querySelectorAll('.pcard').forEach(function(card) {
     card.addEventListener('click', function() { initProd(card.dataset.prod); });
   });
@@ -614,7 +729,6 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-calc').addEventListener('click', generar);
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
-
   show('s1');
 });
 </script>
