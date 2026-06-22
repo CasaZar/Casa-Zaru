@@ -311,7 +311,7 @@ var FOTOS = {
 var PR = {
   cubierta:  { alto: 362145, medio: 333184, bajo: 241890 },
   repisa:    { alto: 315066, medio: 289870, bajo: 210444 },
-  peldano:   { alto: 315066, medio: 289870, bajo: 210444 },
+  peldano:   { alto: 362145, medio: 333184, bajo: 241890 },
   granero:   { bajo:{m2:208450,fijo:50000}, medio:{m2:246450,fijo:50000}, alto:{m2:263250,fijo:50000} },
   maciza:    { alto:{m2:304323,fijo:80000}, medio:{m2:279986,fijo:80000}, bajo:{m2:203269,fijo:80000} },
   vidrios:   { alto:{m2:304323,fijo:80000}, medio:{m2:279986,fijo:80000}, bajo:{m2:203269,fijo:80000} },
@@ -600,7 +600,7 @@ function htmlCubierta(cli, fecha) {
     {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * PR[prod].medio},
     {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * PR[prod].alto}
   ];
-  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '2 cms';
+  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? '4 cms' : '2 cms';
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'cliente',
     total_bajo:  Math.round(tierRows[0].total),
