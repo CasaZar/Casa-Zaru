@@ -601,10 +601,10 @@ function htmlCubierta(cli, fecha) {
 
 function htmlPuerta(cli, fecha) {
   var hasExtra = prod==='granero'||prod==='vidrios';
-  var extraTipo='', extraNeto=0;
+  var extraTipo='';
   if (hasExtra) {
-    var vtEl=document.getElementById('vt'), vmEl=document.getElementById('vm');
-    if (vtEl&&vtEl.value) { extraTipo=vtEl.value; extraNeto=parseFloat(vmEl&&vmEl.value||0)||0; }
+    var vtEl=document.getElementById('vt');
+    if (vtEl&&vtEl.value) { extraTipo=vtEl.value; }
   }
   var filas=[];
   for (var i=1; i<=nrows; i++) {
@@ -618,7 +618,8 @@ function htmlPuerta(cli, fecha) {
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
     filas.forEach(function(f) {
-      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo + extraNeto) * f.ca;
+      var extra = extraTipo ? f.m2 * 40000 : 0;
+      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo + extra) * f.ca;
     });
     return {label: WOOD[t], total: sumNeto * 1.19};
   });
@@ -630,7 +631,7 @@ function htmlPuerta(cli, fecha) {
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total),
-    vidrio_tipo: extraTipo||null, vidrio_monto: extraNeto||null
+    vidrio_tipo: extraTipo||null, vidrio_monto: extraTipo ? Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca*40000;},0)) : null
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   return shell(PNAME[prod], cli, fecha,
     (extraTipo ? '<div class="info-bar">Vidrio extra: <strong>'+extraTipo+'</strong></div>' : '') +
