@@ -422,7 +422,7 @@ function calcLive() {
 function recWood() {
   if (prod === 'revestimiento') return null;
   if (['granero','maciza','vidrios'].includes(prod)) return 'alto';
-  var map = { cocina:'alto', quincho:'alto', peldanos:'alto', comedor:'medio', escritorio:'bajo', repisa:'bajo', otro:'medio' };
+  var map = { cocina:'alto', quincho:'alto', peldanos:'alto', comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
   return map[uso] || 'medio';
 }
 
