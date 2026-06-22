@@ -25414,7 +25414,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:10px;height:10px;border-radius:50%;background:var(--amber);animation:pulse-dot 1.5s infinite"></div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">📦 Entregas esta semana</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">📦 Entregas próximos 6 días</div>
           <div id="dash-urgentes-count" style="font-size:11px;font-weight:600;background:var(--brand-dim);color:var(--brand);padding:3px 8px;border-radius:6px"></div>
         </div>
         <button class="btn-ghost" style="font-size:11px;padding:4px 10px" onclick="poll().then(function(){renderDash();showToast('Seguimiento actualizado');})">↺ Actualizar seguimiento</button>
@@ -25759,6 +25759,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="form-grid">
       <div class="form-group"><label>N° pedido</label><input id="f-num" type="text" placeholder="441"></div>
       <div class="form-group"><label>Semana de envío</label><input id="f-semana" type="text" placeholder="Semana 27"></div>
+      <div class="form-group"><label>Día de envío</label><input id="f-dia-envio" type="date"></div>
     </div>
     <div class="form-grid">
       <div class="form-group"><label>Nombre</label><input id="f-nombre" type="text"></div>
@@ -26038,7 +26039,8 @@ function renderSeg(){
     var cells=CHECKS.map(c=>{var done=o.checks&&o.checks[c.id];return'<td style="background:'+rowBg+'"><button class="chk '+(done?'done':'pending')+'" style="'+(c.nocount?'opacity:0.6;':'')+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')">'+(done?'&#10003; '+c.label:'&mdash;')+'</button></td>';}).join('');
     var nota=o.notas?'<div class="nota-tag" title="'+o.notas+'">'+o.notas+'</div>':'';
     var canalBadge=o.canal==='web'?'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:1px 6px">🌐 Web</span>':'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:1px 6px">💬 WA</span>';
-    var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+(o.semana||'')+'</span>';
+    var diaEnvio='';if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);var diffD=Math.round((de-hoy)/86400000);var diaStr=de.toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});var diaColor=diffD<=0?'var(--red)':diffD<=3?'var(--amber)':'var(--text-3)';diaEnvio='<div style="font-size:10px;color:'+diaColor+';margin-top:3px;font-weight:'+(diffD<=3?'700':'400')+'">📅 '+diaStr+(diffD===0?' (hoy)':diffD===1?' (mañana)':diffD<0?' (vencido)':'')+'</div>';}
+    var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+(o.semana||'')+'</span>'+diaEnvio;
     return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+'"><button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
   }).join('');
 }
@@ -26048,8 +26050,8 @@ function openModal(numStr){
   document.getElementById('btn-del').style.display=numStr?'block':'none';
   document.getElementById('btn-hist').style.display=numStr?'block':'none';
   var state={};CHECKS.forEach(c=>state[c.id]=false);
-  if(numStr){var o=orders.find(x=>String(x.num||'')===String(numStr));if(o){document.getElementById('f-num').value=o.num||'';document.getElementById('f-semana').value=o.semana||'';document.getElementById('f-nombre').value=o.nombre||'';document.getElementById('f-apellido').value=o.apellido||'';document.getElementById('f-producto').value=o.producto||'';document.getElementById('f-piezas').value=o.piezas||'';document.getElementById('f-notas').value=o.notas||'';document.getElementById('f-canal').value=o.canal||'whatsapp';state=Object.assign({},o.checks);}}
-  else{['f-num','f-semana','f-nombre','f-apellido','f-producto','f-piezas','f-notas'].forEach(id=>document.getElementById(id).value='');}
+  if(numStr){var o=orders.find(x=>String(x.num||'')===String(numStr));if(o){document.getElementById('f-num').value=o.num||'';document.getElementById('f-semana').value=o.semana||'';document.getElementById('f-dia-envio').value=o.dia_envio||'';document.getElementById('f-nombre').value=o.nombre||'';document.getElementById('f-apellido').value=o.apellido||'';document.getElementById('f-producto').value=o.producto||'';document.getElementById('f-piezas').value=o.piezas||'';document.getElementById('f-notas').value=o.notas||'';document.getElementById('f-canal').value=o.canal||'whatsapp';state=Object.assign({},o.checks);}}
+  else{['f-num','f-semana','f-dia-envio','f-nombre','f-apellido','f-producto','f-piezas','f-notas'].forEach(id=>document.getElementById(id).value='');}
   document.getElementById('checks-grid').innerHTML=CHECKS.map(c=>'<label class="chk-item '+(state[c.id]?'checked':'')+'" id="ci-'+c.id+'"><input type="checkbox" id="cb-'+c.id+'" '+(state[c.id]?'checked':'')+' onchange="syncChk(\''+c.id+'\')">'+c.label+(c.critical?' <span class="star">★</span>':'')+'</label>').join('');
   document.getElementById('modal-seg-bg').classList.add('open');
 }
@@ -26105,7 +26107,7 @@ async function saveOrder(){
   if(!DB_URL){alert('Configura Firebase primero.');return;}
   var num=document.getElementById('f-num').value.trim();
   if(!num){alert('El número de pedido es requerido.');return;}
-  var semana=document.getElementById('f-semana').value.trim(),nombre=document.getElementById('f-nombre').value.trim(),apellido=document.getElementById('f-apellido').value.trim();
+  var semana=document.getElementById('f-semana').value.trim(),dia_envio=document.getElementById('f-dia-envio').value||'',nombre=document.getElementById('f-nombre').value.trim(),apellido=document.getElementById('f-apellido').value.trim();
   var producto=document.getElementById('f-producto').value.trim(),notas=document.getElementById('f-notas').value.trim();
   var piezas=Number(document.getElementById('f-piezas').value)||0;
   var canal=document.getElementById('f-canal').value||'whatsapp';
@@ -26114,7 +26116,7 @@ async function saveOrder(){
   pendingOps++;setSyncState('syncing');
   try{
     var prev=orders.find(x=>String(x.num||'')===num)||{};
-    await api('pedidos/'+num,'PUT',{num,semana,nombre,apellido,producto,piezas,notas,canal,checks:Object.assign({},prev.checks||{},checks)});
+    await api('pedidos/'+num,'PUT',{num,semana,dia_envio,nombre,apellido,producto,piezas,notas,canal,checks:Object.assign({},prev.checks||{},checks)});
     setSyncState('online');logHistorial(num,editingKey?'Pedido editado':'Pedido creado');await poll();
   }catch(e){setSyncState('offline');}finally{pendingOps--;}
   closeModal();
@@ -27172,9 +27174,22 @@ function renderDash(){
     {label:'En producción',val:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===mesActual;}).length,sub:'pedidos este mes',delta:null,color:'var(--brand)',page:'prod'}
   ];
   var kpiEl=document.getElementById('dash-kpis');if(kpiEl)kpiEl.innerHTML=kpis.map(function(k){var dHtml=k.delta?'<span class="kpi-delta '+k.delta.cls+'">'+k.delta.txt+'</span>':'';return'<div class="kpi-card" onclick="goToPage(\''+k.page+'\')" style="cursor:pointer;transition:transform .12s" onmouseenter="this.style.transform=\'translateY(-2px)\'" onmouseleave="this.style.transform=\'\'"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div>'+dHtml+'<div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
-  var semanaActual=mesActual.toUpperCase();var urgentes=orders.filter(function(o){return o.semana&&o.semana.toUpperCase().indexOf(semanaActual)!==-1;}).slice(0,8);
+  var hoyD=new Date();hoyD.setHours(0,0,0,0);
+  var urgentes=orders.filter(function(o){
+    if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00');var diff=Math.round((de-hoyD)/86400000);return diff>=-1&&diff<=6;}
+    return o.semana&&o.semana.toUpperCase().indexOf(mesActual.toUpperCase())!==-1;
+  }).sort(function(a,b){
+    var da=a.dia_envio?new Date(a.dia_envio+'T12:00:00').getTime():9e12;
+    var db=b.dia_envio?new Date(b.dia_envio+'T12:00:00').getTime():9e12;
+    return da-db;
+  }).slice(0,10);
   var urgEl=document.getElementById('dash-urgentes'),urgCnt=document.getElementById('dash-urgentes-count');if(urgCnt)urgCnt.textContent=urgentes.length+' pedidos';
-  if(urgEl){if(!urgentes.length){urgEl.innerHTML='<div class="empty-dash">No hay entregas detectadas esta semana</div>';}else{urgEl.innerHTML=urgentes.map(function(o){var p=getProgress(o.checks),pc=p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';return'<div class="urgente-row" onclick="goToSeg()"><div class="urgente-num">'+(o.num||'—')+'</div><div class="urgente-info"><div class="urgente-nombre">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="urgente-semana">'+(o.semana||'')+'</div></div><div class="urgente-prog"><div style="font-size:13px;font-weight:700;color:'+pc+'">'+p.pct+'%</div><div style="height:3px;width:60px;background:var(--surface3);border-radius:2px;margin-top:3px"><div style="height:100%;width:'+p.pct+'%;background:'+pc+';border-radius:2px"></div></div></div></div>';}).join('');}}
+  if(urgEl){if(!urgentes.length){urgEl.innerHTML='<div class="empty-dash">No hay entregas en los próximos 6 días</div>';}else{urgEl.innerHTML=urgentes.map(function(o){
+    var p=getProgress(o.checks),pc=p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';
+    var diaInfo='';if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00'),diff=Math.round((de-hoyD)/86400000);var diaStr=de.toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});var diaColor=diff<=0?'var(--red)':diff<=2?'var(--amber)':'var(--text-3)';diaInfo='<div style="font-size:10px;color:'+diaColor+';font-weight:'+(diff<=2?'700':'400')+'">📅 '+diaStr+(diff===0?' HOY':diff===1?' mañana':diff<0?' VENCIDO':'')+'</div>';}
+    else{diaInfo='<div class="urgente-semana">'+(o.semana||'')+'</div>';}
+    return'<div class="urgente-row" onclick="goToSeg()"><div class="urgente-num">'+(o.num||'—')+'</div><div class="urgente-info"><div class="urgente-nombre">'+(o.nombre||'')+' '+(o.apellido||'')+'</div>'+diaInfo+'</div><div class="urgente-prog"><div style="font-size:13px;font-weight:700;color:'+pc+'">'+p.pct+'%</div><div style="height:3px;width:60px;background:var(--surface3);border-radius:2px;margin-top:3px"><div style="height:100%;width:'+p.pct+'%;background:'+pc+';border-radius:2px"></div></div></div></div>';
+  }).join('');}}
   var CRIT_LABELS={word:'Orden Word no creada',aviso_sem:'Aviso semana previa',aviso_dia:'Aviso día previo',comprobante:'Comprobante no enviado'};var alerts=[];
   orders.forEach(function(o){if(getProgress(o.checks).pct===100)return;var mes=extractMonth(o.semana||'');if(mes!==mesActual&&mes!==mesAnterior)return;Object.keys(CRIT_LABELS).forEach(function(cid){if(!(o.checks&&o.checks[cid]))alerts.push({o:o,cid:cid,label:CRIT_LABELS[cid]});});});
   var PRIO=['aviso_dia','comprobante','aviso_sem','word'];alerts.sort(function(a,b){return PRIO.indexOf(a.cid)-PRIO.indexOf(b.cid);});alerts=alerts.slice(0,10);
