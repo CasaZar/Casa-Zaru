@@ -146,6 +146,31 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .wa-btn { display: block; background: #25D366; color: white; border-radius: 10px; padding: 14px; font-size: 15px; font-family: 'Cormorant Garamond', serif; font-weight: 600; text-decoration: none; letter-spacing: 1px; text-align: center; }
 .wa-btn:hover { background: #1ebe5d; }
 
+/* ── VALUE SCREEN s2b ── */
+.val-body { padding: 28px 16px 40px; max-width: 480px; margin: 0 auto; }
+.val-h { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 400; color: var(--tx); text-align: center; margin-bottom: 8px; letter-spacing: .5px; }
+.val-lead { font-size: 12px; color: var(--tm); text-align: center; line-height: 1.7; margin-bottom: 22px; }
+.val-list { list-style: none; margin-bottom: 22px; }
+.val-list li { padding: 10px 0; border-bottom: 1px solid var(--bd); font-size: 13px; color: var(--tx); display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.val-list li:last-child { border-bottom: none; }
+.val-icon { color: var(--ac); font-size: 15px; flex-shrink: 0; margin-top: 2px; }
+.val-steps { background: var(--bg3); border: 1px solid var(--bd); border-radius: 10px; padding: 14px 16px; margin-bottom: 24px; }
+.val-steps-h { font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--acd); margin-bottom: 12px; text-align: center; }
+.val-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.val-step:last-child { margin-bottom: 0; }
+.val-step-n { background: var(--ac); color: white; border-radius: 50%; width: 22px; height: 22px; min-width: 22px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+.val-step-t { font-size: 12px; color: var(--tx); line-height: 1.6; }
+.val-step-t strong { color: var(--acd); }
+/* ── MUESTRARIO ── */
+.muest-block { border: 1px solid var(--bd2); border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; background: var(--crt); text-align: center; }
+.muest-h { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--acd); margin-bottom: 4px; }
+.muest-txt { font-size: 10px; color: var(--tm); line-height: 1.5; margin-bottom: 7px; }
+.muest-link { display: inline-block; border: 1px solid var(--ac); border-radius: 6px; padding: 5px 14px; font-size: 10px; color: var(--ac); text-decoration: none; font-weight: 600; letter-spacing: .5px; }
+.muest-link:hover { background: var(--ac); color: white; }
+/* ── TIER RECOMENDADA ── */
+.ptier-row.rec { background: var(--bg3); border-left: 3px solid var(--ac); }
+.ptier-rec-badge { font-size: 8px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .8px; display: block; margin-top: 2px; }
+
 @media print {
   #s1, #s2, .logo-bar { display: none !important; }
   body { background: white; }
@@ -229,6 +254,33 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   </div>
 </div>
 
+<!-- ══ s2b: VALOR ══ -->
+<div id="s2b" class="hidden">
+  <div class="logo-bar">
+    <button class="btn-nav-sm left" id="btn-s2b-back">← Editar</button>
+    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div><span class="badge">Cotizador en Línea</span></div>
+  </div>
+  <div class="val-body">
+    <h2 class="val-h">Tu pieza, hecha a mano</h2>
+    <div class="dash-divider"></div>
+    <p class="val-lead">Antes de ver el precio, esto es lo que incluye cada pedido de Casa Zaru.</p>
+    <ul class="val-list">
+      <li><span class="val-icon">✦</span><span>Madera maciza <strong>100% sólida</strong> del sur de Chile — sin MDF, sin melamina, sin enchapado.</span></li>
+      <li><span class="val-icon">✦</span><span>Fabricada <strong>a medida en taller propio</strong>, 7 a 15 días hábiles desde la confirmación.</span></li>
+      <li><span class="val-icon">✦</span><span>Terminada a mano, pieza por pieza. Acabados: <strong>vitrificado mate, semibrillo o aceite-cera Osmo</strong>. Tú eliges.</span></li>
+      <li><span class="val-icon">✦</span><span>Incluye <strong>garantía de 5 años</strong> por fallas estructurales de fabricación.</span></li>
+    </ul>
+    <div class="val-steps">
+      <div class="val-steps-h">Cómo funciona el proceso</div>
+      <div class="val-step"><div class="val-step-n">1</div><div class="val-step-t">Confirmas y pagas el <strong>70%</strong> para entrar a producción.</div></div>
+      <div class="val-step"><div class="val-step-n">2</div><div class="val-step-t">Fabricamos tu pieza. <strong>Te enviamos foto</strong> cuando esté terminada, antes de embalarla.</div></div>
+      <div class="val-step"><div class="val-step-n">3</div><div class="val-step-t">Apruebas y pagas el saldo del <strong>30%</strong>. Hacemos el envío.</div></div>
+    </div>
+    <button class="btn-primary" id="btn-ver-coti">Ver mi cotización →</button>
+  </div>
+</div>
+
 <!-- ══ s3: QUOTE ══ -->
 <div id="s3" class="hidden">
   <div class="logo-bar">
@@ -282,7 +334,7 @@ var MODELOS = {
 };
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
-var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '';
+var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '';
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -311,7 +363,7 @@ function nextQ() {
 
 /* ── NAVIGATION ── */
 function show(id) {
-  ['s1','s2','s3'].forEach(function(i) {
+  ['s1','s2','s2b','s3'].forEach(function(i) {
     document.getElementById(i).classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
@@ -367,6 +419,13 @@ function calcLive() {
   }
 }
 
+function recWood() {
+  if (prod === 'revestimiento') return null;
+  if (['granero','maciza','vidrios'].includes(prod)) return 'alto';
+  var map = { cocina:'alto', quincho:'alto', peldanos:'alto', comedor:'medio', escritorio:'bajo', repisa:'bajo', otro:'medio' };
+  return map[uso] || 'medio';
+}
+
 /* ── FORM ── */
 function initProd(p) {
   isPuertas = (p === 'puertas');
@@ -383,7 +442,20 @@ function renderForm(p) {
   var c = document.getElementById('f-dyn');
 
   if (['cubierta','repisa','peldano'].includes(p)) {
-    c.innerHTML =
+    var usoField = (p === 'peldano') ? '' :
+      '<div class="fsec">' +
+        '<label class="flabel">¿Para qué espacio es? <span class="req">*</span></label>' +
+        '<select class="fsel" id="f-uso">' +
+          '<option value="">Selecciona el uso…</option>' +
+          '<option value="cocina">Cocina o baño</option>' +
+          '<option value="comedor">Comedor, mesa o centro de mesa</option>' +
+          '<option value="escritorio">Escritorio o espacio de trabajo</option>' +
+          '<option value="quincho">Quincho o bar</option>' +
+          '<option value="repisa">Repisa o mueble liviano</option>' +
+          '<option value="otro">Otro</option>' +
+        '</select>' +
+      '</div>';
+    c.innerHTML = usoField +
       '<div class="fsec">' +
         '<label class="flabel">Dimensiones</label>' +
         '<div class="col-labels">' +
@@ -494,8 +566,15 @@ function generar() {
   var errEl = document.getElementById('f-err');
   if (!cli || !conStr) { errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
-  qnum = nextQ();
+  var usoEl = document.getElementById('f-uso');
+  uso = usoEl ? (usoEl.value || 'otro') : (prod === 'peldano' ? 'peldanos' : 'otro');
+  show('s2b');
+}
+
+function confirmar() {
+  var cli   = document.getElementById('f-cli').value.trim();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
+  qnum = nextQ();
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
   else if (['granero','maciza','vidrios'].includes(prod)) html = htmlPuerta(cli, fecha);
@@ -517,9 +596,9 @@ function htmlCubierta(cli, fecha) {
     return '<tr><td>'+f.n+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td><td>'+f.m2.toFixed(2)+'</td></tr>';
   }).join('');
   var tierRows = [
-    {label: 'Pino Oregón',              total: sumM2 * PR[prod].bajo},
-    {label: 'Castaño / Ciprés / Mañío', total: sumM2 * PR[prod].medio},
-    {label: 'Coihue / Raulí / Lenga',   total: sumM2 * PR[prod].alto}
+    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * PR[prod].bajo},
+    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * PR[prod].medio},
+    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * PR[prod].alto}
   ];
   var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '2 cms';
   saveQuote({
@@ -533,14 +612,14 @@ function htmlCubierta(cli, fecha) {
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
-    tierTable(tierRows) +
+    tierTable(tierRows, recWood()) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+esp+'</div></div>' +
       '<div class="spec"><div class="sl">Bordes</div><div class="sv">Recto, redondo o biselado. Tú eliges</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + whatsappCTA()
+    boxes() + muestrario() + warranty() + whatsappCTA()
   );
 }
 
@@ -566,7 +645,7 @@ function htmlPuerta(cli, fecha) {
       var extraNeto = extraTipo ? f.m2 * 40000 : 0;
       sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo + extraNeto) * f.ca;
     });
-    return {label: WOOD[t], total: sumNeto * 1.19};
+    return {label: WOOD[t], tier: t, total: sumNeto * 1.19};
   });
   var dimRows = filas.map(function(f){
     return '<tr><td>'+f.n+'</td><td style="font-size:9.5px">'+f.mo+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td></tr>';
@@ -582,22 +661,22 @@ function htmlPuerta(cli, fecha) {
     (extraTipo ? '<div class="info-bar">Vidrio extra: <strong>'+extraTipo+'</strong></div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
-    tierTable(tierRows) +
+    tierTable(tierRows, recWood()) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + whatsappCTA()
+    boxes() + muestrario() + warranty() + whatsappCTA()
   );
 }
 
 function htmlRev(cli, fecha) {
   var m2 = parseFloat((document.getElementById('rm')||{}).value||0);
   var tierRows = [
-    {label: 'Ciprés',  total: m2 * PR.revestimiento.cipres},
-    {label: 'Coihue',  total: m2 * PR.revestimiento.coihue}
+    {label: 'Ciprés',  tier: 'bajo', total: m2 * PR.revestimiento.cipres},
+    {label: 'Coihue',  tier: 'alto', total: m2 * PR.revestimiento.coihue}
   ];
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:'revestimiento', tipo:'cliente',
@@ -614,7 +693,7 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + whatsappCTA()
+    boxes() + muestrario() + warranty() + whatsappCTA()
   );
 }
 
@@ -635,12 +714,15 @@ function shell(nombre, cli, fecha, body) {
   body;
 }
 
-function tierTable(rows) {
+function tierTable(rows, recTier) {
   var prows = rows.map(function(r) {
-    return '<div class="ptier-row">' +
-      '<span class="ptier-wood">'+r.label+'</span>' +
-      '<span class="ptier-total">'+fmt(r.total)+'</span>' +
-      '<span class="ptier-trans"><span class="transf-badge">'+fmt(r.total * 0.95)+'</span></span>' +
+    var isRec = recTier && r.tier === recTier;
+    var badge = isRec ? '<span class="ptier-rec-badge">★ Recomendada para ti</span>' : '';
+    var cls = isRec ? 'ptier-row rec' : 'ptier-row';
+    return '<div class="' + cls + '">' +
+      '<span class="ptier-wood">' + r.label + badge + '</span>' +
+      '<span class="ptier-total">' + fmt(r.total) + '</span>' +
+      '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * 0.95) + '</span></span>' +
     '</div>';
   }).join('');
   return '<div class="ptier-block">' +
@@ -692,6 +774,16 @@ function whatsappCTA() {
   '</div>';
 }
 
+function muestrario() {
+  var msg = 'Hola! Me interesa recibir el muestrario de maderas de Casa Zarú.';
+  var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
+  return '<div class="muest-block">' +
+    '<div class="muest-h">¿Quieres ver y tocar la madera antes?</div>' +
+    '<p class="muest-txt">Te enviamos un muestrario con los tipos de madera a <strong>$10.000 con envío incluido</strong> — ese valor te lo descontamos de tu compra.</p>' +
+    '<a class="muest-link" href="' + url + '" target="_blank">Pedir muestrario por WhatsApp →</a>' +
+  '</div>';
+}
+
 function warranty() {
   return '<div class="warranty">' +
     '<strong>Garantía Casa Zaru · 5 años</strong>' +
@@ -724,6 +816,8 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   document.getElementById('btn-back').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-calc').addEventListener('click', generar);
+  document.getElementById('btn-ver-coti').addEventListener('click', confirmar);
+  document.getElementById('btn-s2b-back').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   show('s1');
