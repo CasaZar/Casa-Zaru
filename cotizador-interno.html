@@ -576,7 +576,7 @@ function htmlCubierta(cli, fecha) {
     {label: 'Castaño / Ciprés / Mañío', total: sumM2 * PR[prod].medio},
     {label: 'Coihue / Raulí / Lenga',   total: sumM2 * PR[prod].alto}
   ];
-  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '2 cms';
+  var esp = prod==='repisa' ? '2,0 cm' : prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '4,0 cm';
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'interno',
     total_bajo:  Math.round(tierRows[0].total),
