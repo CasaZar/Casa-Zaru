@@ -25431,6 +25431,17 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div id="dash-checks"></div>
     </div>
 
+    <!-- Contactos pendientes -->
+    <div class="table-card" style="padding:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">💬 Contactos pendientes</div>
+          <div id="dash-contactos-count" style="font-size:11px;font-weight:600;background:#E8F5E9;color:#2E7D32;padding:3px 8px;border-radius:6px"></div>
+        </div>
+      </div>
+      <div id="dash-contactos"></div>
+    </div>
+
   </div>
 
   <!-- Fila 3: gráfico ventas + ranking productos -->
@@ -27156,6 +27167,55 @@ function renderMeta(){
   html+='</div>';
   metaEl.innerHTML=html;
 }
+function renderContactosPendientes(){
+  var hoy=new Date();hoy.setHours(0,0,0,0);
+  var pendientes=[];
+  orders.forEach(function(o){
+    var numStr=String(o.num||'');
+    var fin=finRecords.find(function(r){return String(r.num||'')===numStr;});
+    var cel=fin?(String(fin.celular||'').replace(/^\+?56/,'')):'';
+    var nombre=o.nombre||'';
+    var producto=o.producto||fin&&fin.producto||'';
+    var semana=o.semana||'';
+    var fechaC=o.fecha_creacion||(fin&&(fin.fecha_creacion||fin.fecha))||'';
+    var diaC=null;
+    if(fechaC){var pts=fechaC.split('/');diaC=pts.length===3?new Date(pts[2]+'-'+pts[1]+'-'+pts[0]+'T12:00:00'):new Date(fechaC+'T12:00:00');}
+    if(diaC&&!isNaN(diaC)){
+      var d1=Math.round((hoy-diaC)/86400000);
+      if(d1>=3&&d1<=6&&!localStorage.getItem('czc_'+numStr+'_c1')){
+        var msg1='Hola '+nombre+'! 👋 Te escribimos desde Casa Zaru para confirmarte que tu pedido #'+numStr+' ('+producto+') ya está en producción. En breve te avisamos la fecha exacta de entrega 🪵';
+        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c1',tag:'Confirmar producción',sub:'Día '+d1+' desde la compra',color:'var(--brand)',msg:msg1});
+      }
+    }
+    if(o.dia_envio){
+      var dE=new Date(o.dia_envio+'T12:00:00');
+      var dfe=Math.round((dE-hoy)/86400000);
+      var fechaEnvStr=dE.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+      if(dfe>=5&&dfe<=8&&!localStorage.getItem('czc_'+numStr+'_c2')){
+        var msg2='Hola '+nombre+'! 😊 Tu pedido de Casa Zaru (#'+numStr+' - '+producto+') estará listo para despacho el '+fechaEnvStr+'. Te confirmamos en cuanto salga 🚛';
+        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c2',tag:'Avisar semana de entrega',sub:'Envío en '+dfe+' días ('+fechaEnvStr+')',color:'var(--amber)',msg:msg2});
+      }
+      if(dfe>=0&&dfe<=2&&!localStorage.getItem('czc_'+numStr+'_c3')){
+        var msg3='Hola '+nombre+'! 🎉 Tu pedido de Casa Zaru (#'+numStr+') sale '+(dfe===0?'hoy':dfe===1?'mañana':'muy pronto')+' para despacho. ¡Muchas gracias por tu compra! 🪵✨';
+        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c3',tag:'Avisar despacho',sub:dfe===0?'¡HOY!':dfe===1?'Mañana':'En '+dfe+' días',color:'var(--red)',msg:msg3});
+      }
+    }
+  });
+  var el=document.getElementById('dash-contactos'),cnt=document.getElementById('dash-contactos-count');
+  if(cnt)cnt.textContent=pendientes.length+(pendientes.length===1?' contacto':' contactos');
+  if(!el)return;
+  if(!pendientes.length){el.innerHTML='<div class="empty-dash" style="color:var(--green)">&#10003; Sin contactos pendientes</div>';return;}
+  el.innerHTML=pendientes.map(function(p){
+    var waUrl=p.cel?'https://wa.me/56'+p.cel+'?text='+encodeURIComponent(p.msg):'';
+    var waBtn=waUrl?'<a href="'+waUrl+'" target="_blank" onclick="marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')" style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;text-decoration:none;white-space:nowrap">📲 Abrir WA</a>':'<span style="font-size:11px;color:var(--text-3)">Sin número</span>';
+    var doneBtn='<button onclick="marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')" style="background:none;border:1px solid var(--border-md);color:var(--text-3);font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap">✓ Ya enviado</button>';
+    return'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-lt)"><div style="width:8px;height:8px;border-radius:50%;background:'+p.color+';flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">#'+p.numStr+' '+p.nombre+'</div><div style="font-size:11px;color:'+p.color+';font-weight:600">'+p.tag+'</div><div style="font-size:11px;color:var(--text-3)">'+p.sub+'</div></div><div style="display:flex;gap:6px;flex-shrink:0">'+waBtn+doneBtn+'</div></div>';
+  }).join('');
+}
+function marcarContacto(numStr,tipo){
+  localStorage.setItem('czc_'+numStr+'_'+tipo,Date.now());
+  renderContactosPendientes();
+}
 function renderDash(){
   renderMeta();
   var now=new Date(),mesActual=MESES_ES[now.getMonth()],mesAnterior=MESES_ES[now.getMonth()===0?11:now.getMonth()-1];
@@ -27201,7 +27261,7 @@ function renderDash(){
   var recEl=document.getElementById('dash-recientes');
   if(recEl){if(!recientes.length){recEl.innerHTML='<div class="empty-dash">No hay pedidos recientes</div>';}else{recEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+recientes.map(function(r){var listo=r.doc1_emitida&&r.doc2_emitida,pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),dc=listo?'var(--green)':pend>0?'var(--amber)':'var(--brand)';return'<div class="reciente-row" onclick="goToPage(\'fin\')" style="cursor:pointer"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(r.nombre||'')+' '+(r.apellido||'')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.semana||'')+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+( pend>0?'Pend: '+fmtCLP(pend):'&#10003; Pagado')+'</div></div></div>';}).join('')+'</div>';}}
 }
-function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();checkAvisoSinMovimiento();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){renderDash();renderNotif();renderGrafico();renderRanking();}},30000);}
+function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();checkAvisoSinMovimiento();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();}},30000);}
 function downloadXLSX(wb,filename){try{var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}),blob=new Blob([wbout],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);showToast('✓ Excel descargado');}catch(e){console.error('Excel error:',e);showToast('Error al generar Excel: '+e.message,true);}}
 
 // ── TARJETAS MÓVIL ────────────────────────────────────────────────────────
