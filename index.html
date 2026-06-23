@@ -27182,7 +27182,7 @@ function renderContactosPendientes(){
     if(fechaC){var pts=fechaC.split('/');diaC=pts.length===3?new Date(pts[2]+'-'+pts[1]+'-'+pts[0]+'T12:00:00'):new Date(fechaC+'T12:00:00');}
     if(diaC&&!isNaN(diaC)){
       var d1=Math.round((hoy-diaC)/86400000);
-      if(d1>=3&&d1<=6&&!localStorage.getItem('czc_'+numStr+'_c1')){
+      if(d1>=3&&d1<=6&&!(o.contactos&&o.contactos.c1)){
         var msg1='Hola '+nombre+'! 👋 Te escribimos desde Casa Zaru para confirmarte que tu pedido #'+numStr+' ('+producto+') ya está en producción. En breve te avisamos la fecha exacta de entrega 🪵';
         pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c1',tag:'Confirmar producción',sub:'Día '+d1+' desde la compra',color:'var(--brand)',msg:msg1});
       }
@@ -27191,11 +27191,11 @@ function renderContactosPendientes(){
       var dE=new Date(o.dia_envio+'T12:00:00');
       var dfe=Math.round((dE-hoy)/86400000);
       var fechaEnvStr=dE.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
-      if(dfe>=5&&dfe<=8&&!localStorage.getItem('czc_'+numStr+'_c2')){
+      if(dfe>=5&&dfe<=8&&!(o.contactos&&o.contactos.c2)){
         var msg2='Hola '+nombre+'! 😊 Tu pedido de Casa Zaru (#'+numStr+' - '+producto+') estará listo para despacho el '+fechaEnvStr+'. Te confirmamos en cuanto salga 🚛';
         pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c2',tag:'Avisar semana de entrega',sub:'Envío en '+dfe+' días ('+fechaEnvStr+')',color:'var(--amber)',msg:msg2});
       }
-      if(dfe>=0&&dfe<=2&&!localStorage.getItem('czc_'+numStr+'_c3')){
+      if(dfe>=0&&dfe<=2&&!(o.contactos&&o.contactos.c3)){
         var msg3='Hola '+nombre+'! 🎉 Tu pedido de Casa Zaru (#'+numStr+') sale '+(dfe===0?'hoy':dfe===1?'mañana':'muy pronto')+' para despacho. ¡Muchas gracias por tu compra! 🪵✨';
         pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c3',tag:'Avisar despacho',sub:dfe===0?'¡HOY!':dfe===1?'Mañana':'En '+dfe+' días',color:'var(--red)',msg:msg3});
       }
@@ -27212,8 +27212,13 @@ function renderContactosPendientes(){
     return'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-lt)"><div style="width:8px;height:8px;border-radius:50%;background:'+p.color+';flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">#'+p.numStr+' '+p.nombre+'</div><div style="font-size:11px;color:'+p.color+';font-weight:600">'+p.tag+'</div><div style="font-size:11px;color:var(--text-3)">'+p.sub+'</div></div><div style="display:flex;gap:6px;flex-shrink:0">'+waBtn+doneBtn+'</div></div>';
   }).join('');
 }
-function marcarContacto(numStr,tipo){
-  localStorage.setItem('czc_'+numStr+'_'+tipo,Date.now());
+async function marcarContacto(numStr,tipo){
+  if(!DB_URL||!numStr)return;
+  var o=orders.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!o)return;
+  if(!o.contactos)o.contactos={};
+  o.contactos[tipo]=Date.now();
+  try{await api('pedidos/'+numStr+'/contactos/'+tipo,'PUT',Date.now());}catch(e){}
   renderContactosPendientes();
 }
 function renderDash(){
@@ -27238,6 +27243,7 @@ function renderDash(){
   var kpiEl=document.getElementById('dash-kpis');if(kpiEl)kpiEl.innerHTML=kpis.map(function(k){var dHtml=k.delta?'<span class="kpi-delta '+k.delta.cls+'">'+k.delta.txt+'</span>':'';return'<div class="kpi-card" onclick="goToPage(\''+k.page+'\')" style="cursor:pointer;transition:transform .12s" onmouseenter="this.style.transform=\'translateY(-2px)\'" onmouseleave="this.style.transform=\'\'"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div>'+dHtml+'<div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
   var hoyD=new Date();hoyD.setHours(0,0,0,0);
   var urgentes=orders.filter(function(o){
+    if(getProgress(o.checks).pct===100)return false;
     if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00');var diff=Math.round((de-hoyD)/86400000);return diff>=-1&&diff<=6;}
     return o.semana&&o.semana.toUpperCase().indexOf(mesActual.toUpperCase())!==-1;
   }).sort(function(a,b){
