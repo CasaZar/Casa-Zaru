@@ -619,7 +619,7 @@ function htmlCubierta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + muestrario() + warranty() + whatsappCTA()
+    boxes() + warranty() + muestrario() + whatsappCTA()
   );
 }
 
@@ -668,7 +668,7 @@ function htmlPuerta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + muestrario() + warranty() + whatsappCTA()
+    boxes() + warranty() + muestrario() + whatsappCTA()
   );
 }
 
@@ -693,7 +693,7 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + muestrario() + warranty() + whatsappCTA()
+    boxes() + warranty() + muestrario() + whatsappCTA()
   );
 }
 
@@ -770,7 +770,7 @@ function whatsappCTA() {
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
-    '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar por WhatsApp →</a>' +
+    '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
   '</div>';
 }
 
@@ -778,9 +778,7 @@ function muestrario() {
   var msg = 'Hola! Me interesa recibir el muestrario de maderas de Casa Zarú.';
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="muest-block">' +
-    '<div class="muest-h">¿Quieres ver y tocar la madera antes?</div>' +
-    '<p class="muest-txt">Te enviamos un muestrario con los tipos de madera a <strong>$10.000 con envío incluido</strong> — ese valor te lo descontamos de tu compra.</p>' +
-    '<a class="muest-link" href="' + url + '" target="_blank">Pedir muestrario por WhatsApp →</a>' +
+    '<p class="muest-txt">¿Quieres ver y tocar la madera antes de confirmar? Te enviamos un muestrario a <strong>$10.000 con envío incluido</strong> — ese valor se descuenta de tu compra. <a href="' + url + '" target="_blank" style="color:var(--ac);font-weight:600;text-decoration:none">Escríbenos →</a></p>' +
   '</div>';
 }
 
