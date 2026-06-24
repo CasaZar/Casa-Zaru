@@ -579,7 +579,7 @@ function htmlCubierta(cli, fecha) {
   ];
   var esp = prod==='repisa' ? '2,0 cm' : prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : '4,0 cm';
   saveQuote({
-    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'interno',
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, user_email: currentUser ? currentUser.email : null,
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total)
@@ -628,7 +628,7 @@ function htmlPuerta(cli, fecha) {
     return '<tr><td>'+f.n+'</td><td style="font-size:9.5px">'+f.mo+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td></tr>';
   }).join('');
   saveQuote({
-    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, tipo:'interno',
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:prod, user_email: currentUser ? currentUser.email : null,
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total),
@@ -657,7 +657,7 @@ function htmlRev(cli, fecha) {
     {label: 'Coihue',  total: m2 * PR.revestimiento.coihue}
   ];
   saveQuote({
-    numero:qnum, cliente:cli, producto:'revestimiento', tipo:'interno',
+    numero:qnum, cliente:cli, producto:'revestimiento', user_email: currentUser ? currentUser.email : null,
     total_bajo:  Math.round(tierRows[0].total),
     total_alto:  Math.round(tierRows[1].total)
   }, [{m2:m2}]);
@@ -750,7 +750,7 @@ async function loadAdmin() {
   var el = document.getElementById('admin-content');
   el.innerHTML = '<div class="loading-msg">Cargando datos…</div>';
   try {
-    var res = await sb.from('cotizaciones').select('*').order('fecha_creacion', {ascending: false});
+    var res = await sb.from('cotizaciones').select('*').not('user_email','is',null).order('fecha_creacion', {ascending: false});
     if (res.error) {
       var msg = res.error.code === '42P01'
         ? 'Primero ejecuta el SQL de configuración en Supabase SQL Editor para crear las tablas.'
@@ -867,7 +867,7 @@ async function loadClientDash() {
   var el = document.getElementById('admin-content');
   el.innerHTML = '<div class="loading-msg">Cargando cotizaciones de clientes…</div>';
   try {
-    var res = await sb.from('cotizaciones').select('*').eq('tipo','cliente').order('fecha_creacion', {ascending: false});
+    var res = await sb.from('cotizaciones').select('*').is('user_email', null).order('fecha_creacion', {ascending: false});
     if (res.error) {
       el.innerHTML = '<div class="loading-msg">Error: ' + res.error.message + '</div>';
       return;
