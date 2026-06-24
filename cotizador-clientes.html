@@ -170,6 +170,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .btn-copy-link { width: 100%; margin-top: 10px; background: none; border: 1.5px solid var(--bd); border-radius: 10px; padding: 11px; font-size: 12px; font-family: 'Jost', sans-serif; color: var(--tm); cursor: pointer; letter-spacing: .5px; transition: border-color .15s, color .15s; }
 .btn-copy-link:hover { border-color: var(--ac); color: var(--ac); }
 .btn-copy-link.copied { border-color: #2D6A4F; color: #2D6A4F; }
+.dcto-tag { display: inline-block; background: #D1FAE5; color: #065F46; font-weight: 700; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: 1px solid #A7F3D0; vertical-align: middle; }
+.tag-link { display: inline-block; border: 1px solid var(--bd); border-radius: 6px; padding: 2px 9px; font-size: 9px; color: var(--tm); text-decoration: none; font-weight: 500; letter-spacing: .3px; vertical-align: middle; }
+.tag-link:hover { border-color: var(--ac); color: var(--ac); }
 /* ── TIER RECOMENDADA ── */
 .ptier-row.rec { background: var(--bg3); border-left: 3px solid var(--ac); }
 .ptier-rec-badge { font-size: 8px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .8px; display: block; margin-top: 2px; }
@@ -764,7 +767,7 @@ function boxes() {
   '</div>' +
   '<div class="bankrow">' +
     '<strong>Tarjeta de crédito incluida en el precio.</strong><br>' +
-    'Transferencia bancaria: <span class="dcto-green">5% de descuento</span> sobre el precio indicado<br>' +
+    'Transferencia bancaria: <span class="dcto-tag">5% de descuento</span> sobre el precio indicado<br>' +
     '<strong>Muvale Diseño SpA</strong> · RUT 77.157.082-8 · Banco BCI · Cta Cte 97457175 · hola@casazaru.cl' +
   '</div>';
 }
@@ -792,21 +795,20 @@ function warranty() {
     '<strong>Garantía Casa Zaru · 5 años</strong>' +
     'Cubre fallas estructurales de fabricación, válida desde la fecha de compra. ' +
     'No cubre exposición a humedad, agua, sol directo o condiciones ambientales inadecuadas, ni daños por uso indebido, instalación incorrecta o intervenciones de terceros. ' +
-    '<a href="https://drive.google.com/file/d/18j3u74v3-BWCeu5nRxQUD_tus1P4U380/view?usp=sharing" target="_blank" style="color:var(--ac);text-decoration:none;font-weight:600">Ver términos y condiciones completos →</a>' +
+    '<a href="https://drive.google.com/file/d/18j3u74v3-BWCeu5nRxQUD_tus1P4U380/view?usp=sharing" target="_blank" class="tag-link">Ver términos y condiciones →</a>' +
   '</div>';
 }
 
 /* ── SHARE LINK ── */
-function buildShareUrl() {
+function getShareData() {
   var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
   var data = { p: prod, cli: cli, con: conStr, uso: uso, qnum: qnum };
   if (['cubierta','repisa','peldano'].includes(prod)) {
     data.rows = [];
     for (var i = 1; i <= nrows; i++) {
       var lgEl = document.getElementById('lg'+i), anEl = document.getElementById('an'+i), caEl = document.getElementById('ca'+i);
-      if (lgEl && lgEl.value && anEl && anEl.value) {
+      if (lgEl && lgEl.value && anEl && anEl.value)
         data.rows.push({lg: parseFloat(lgEl.value), an: parseFloat(anEl.value), ca: parseInt((caEl&&caEl.value)||1)||1});
-      }
     }
   } else if (['granero','maciza','vidrios'].includes(prod)) {
     data.rows = []; data.mods = [];
@@ -823,25 +825,75 @@ function buildShareUrl() {
     var rmEl = document.getElementById('rm');
     data.m2 = parseFloat((rmEl&&rmEl.value)||0)||0;
   }
-  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  return window.location.href.split('#')[0] + '#q=' + enc;
+  return data;
 }
 
-function copyShareLink() {
-  var url = window.location.href;
-  function done() {
-    var btn = document.querySelector('.btn-copy-link');
-    if (btn) {
-      btn.textContent = '✓ Enlace copiado';
-      btn.classList.add('copied');
-      setTimeout(function(){ btn.textContent = '🔗 Copiar enlace de cotización'; btn.classList.remove('copied'); }, 2500);
+function buildShareUrl() {
+  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(getShareData()))));
+  return window.location.href.split('?')[0].split('#')[0] + '#q=' + enc;
+}
+
+function randToken() {
+  var c = 'abcdefghjkmnpqrstuvwxyz23456789', t = '';
+  for (var i = 0; i < 6; i++) t += c[Math.floor(Math.random() * c.length)];
+  return t;
+}
+
+async function buildShortUrl() {
+  var data = getShareData();
+  var token = randToken();
+  try {
+    var res = await sbClient.from('quote_links').insert({token: token, data: data});
+    if (!res.error) return window.location.href.split('?')[0].split('#')[0] + '?s=' + token;
+  } catch(e) {}
+  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  return window.location.href.split('?')[0].split('#')[0] + '#q=' + enc;
+}
+
+function restoreFromData(d) {
+  fromHash = true;
+  if (d.qnum) qnum = d.qnum;
+  uso = d.uso || 'otro'; conStr = d.con || '';
+  document.getElementById('f-cli').value = d.cli || '';
+  document.getElementById('f-con').value = d.con || '';
+  var isPuerta = ['granero','maciza','vidrios'].includes(d.p);
+  initProd(isPuerta ? 'puertas' : d.p);
+  if (isPuerta && d.p !== 'granero') {
+    var dtEl = document.getElementById('door-tipo');
+    if (dtEl) { dtEl.value = d.p; prod = d.p; nrows = 1; renderDoorSub(d.p); }
+  }
+  if (d.vt) { var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt; }
+  if (d.p === 'revestimiento') {
+    var rmEl = document.getElementById('rm'); if (rmEl && d.m2) rmEl.value = d.m2;
+  } else {
+    var rows = d.rows || [], mods = d.mods || [];
+    if (rows[0]) {
+      document.getElementById('lg1').value = rows[0].lg;
+      document.getElementById('an1').value = rows[0].an;
+      document.getElementById('ca1').value = rows[0].ca;
+      if (isPuerta && mods[0]) { var mo1 = document.getElementById('mo1'); if (mo1) mo1.value = mods[0]; }
     }
+    for (var i = 1; i < rows.length; i++) {
+      addRow();
+      document.getElementById('lg'+nrows).value = rows[i].lg;
+      document.getElementById('an'+nrows).value = rows[i].an;
+      document.getElementById('ca'+nrows).value = rows[i].ca;
+      if (isPuerta && mods[i]) { var moN = document.getElementById('mo'+nrows); if (moN) moN.value = mods[i]; }
+    }
+  }
+  confirmar();
+}
+
+async function copyShareLink() {
+  var btn = document.querySelector('.btn-copy-link');
+  if (btn) btn.textContent = 'Generando enlace…';
+  var url = await buildShortUrl();
+  function done() {
+    if (btn) { btn.textContent = '✓ Enlace copiado'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent = '🔗 Copiar enlace de cotización'; btn.classList.remove('copied'); }, 2500); }
   }
   if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done).catch(done); }
   else {
-    var ta = document.createElement('textarea');
-    ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-    done();
+    var ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done();
   }
 }
 
@@ -849,41 +901,18 @@ function loadFromHash() {
   var hash = window.location.hash;
   if (!hash || hash.indexOf('#q=') !== 0) return false;
   try {
-    var d = JSON.parse(decodeURIComponent(escape(atob(hash.slice(3)))));
-    fromHash = true;
-    if (d.qnum) qnum = d.qnum;
-    uso  = d.uso  || 'otro';
-    conStr = d.con || '';
-    document.getElementById('f-cli').value = d.cli || '';
-    document.getElementById('f-con').value = d.con || '';
-    var isPuerta = ['granero','maciza','vidrios'].includes(d.p);
-    initProd(isPuerta ? 'puertas' : d.p);
-    if (isPuerta && d.p !== 'granero') {
-      var dtEl = document.getElementById('door-tipo');
-      if (dtEl) { dtEl.value = d.p; prod = d.p; nrows = 1; renderDoorSub(d.p); }
-    }
-    if (d.vt) { var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt; }
-    if (d.p === 'revestimiento') {
-      var rmEl = document.getElementById('rm'); if (rmEl && d.m2) rmEl.value = d.m2;
-    } else {
-      var rows = d.rows || [], mods = d.mods || [];
-      if (rows[0]) {
-        document.getElementById('lg1').value = rows[0].lg;
-        document.getElementById('an1').value = rows[0].an;
-        document.getElementById('ca1').value = rows[0].ca;
-        if (isPuerta && mods[0]) { var mo1 = document.getElementById('mo1'); if (mo1) mo1.value = mods[0]; }
-      }
-      for (var i = 1; i < rows.length; i++) {
-        addRow();
-        document.getElementById('lg'+nrows).value = rows[i].lg;
-        document.getElementById('an'+nrows).value = rows[i].an;
-        document.getElementById('ca'+nrows).value = rows[i].ca;
-        if (isPuerta && mods[i]) { var moN = document.getElementById('mo'+nrows); if (moN) moN.value = mods[i]; }
-      }
-    }
-    confirmar();
+    restoreFromData(JSON.parse(decodeURIComponent(escape(atob(hash.slice(3))))));
     return true;
   } catch(e) { fromHash = false; return false; }
+}
+
+async function loadFromShortCode(token) {
+  try {
+    var res = await sbClient.from('quote_links').select('data').eq('token', token).single();
+    if (res.error || !res.data) return false;
+    restoreFromData(res.data.data);
+    return true;
+  } catch(e) { return false; }
 }
 
 /* ── SUPABASE SAVE (silent fail) ── */
@@ -914,7 +943,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-s2b-back').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
-  if (!loadFromHash()) show('s1');
+  var sParam = new URLSearchParams(window.location.search).get('s');
+  if (sParam) {
+    loadFromShortCode(sParam).then(function(ok) { if (!ok) show('s1'); });
+  } else if (!loadFromHash()) {
+    show('s1');
+  }
 });
 </script>
 </body>
