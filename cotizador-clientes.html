@@ -167,6 +167,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .muest-txt { font-size: 10px; color: var(--tm); line-height: 1.5; margin-bottom: 7px; }
 .muest-link { display: inline-block; border: 1px solid var(--ac); border-radius: 6px; padding: 5px 14px; font-size: 10px; color: var(--ac); text-decoration: none; font-weight: 600; letter-spacing: .5px; }
 .muest-link:hover { background: var(--ac); color: white; }
+.btn-copy-link { width: 100%; margin-top: 10px; background: none; border: 1.5px solid var(--bd); border-radius: 10px; padding: 11px; font-size: 12px; font-family: 'Jost', sans-serif; color: var(--tm); cursor: pointer; letter-spacing: .5px; transition: border-color .15s, color .15s; }
+.btn-copy-link:hover { border-color: var(--ac); color: var(--ac); }
+.btn-copy-link.copied { border-color: #2D6A4F; color: #2D6A4F; }
 /* ── TIER RECOMENDADA ── */
 .ptier-row.rec { background: var(--bg3); border-left: 3px solid var(--ac); }
 .ptier-rec-badge { font-size: 8px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .8px; display: block; margin-top: 2px; }
@@ -334,7 +337,7 @@ var MODELOS = {
 };
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
-var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '';
+var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '', fromHash = false;
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -574,13 +577,14 @@ function generar() {
 function confirmar() {
   var cli   = document.getElementById('f-cli').value.trim();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
-  qnum = nextQ();
+  if (!qnum) qnum = nextQ();
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
   else if (['granero','maciza','vidrios'].includes(prod)) html = htmlPuerta(cli, fecha);
   else if (prod === 'revestimiento') html = htmlRev(cli, fecha);
   document.getElementById('q-out').innerHTML = html;
   show('s3');
+  window.history.replaceState(null, '', buildShareUrl());
 }
 
 function htmlCubierta(cli, fecha) {
@@ -771,6 +775,7 @@ function whatsappCTA() {
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
+    '<button class="btn-copy-link" onclick="copyShareLink()">🔗 Copiar enlace de cotización</button>' +
   '</div>';
 }
 
@@ -791,8 +796,99 @@ function warranty() {
   '</div>';
 }
 
+/* ── SHARE LINK ── */
+function buildShareUrl() {
+  var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
+  var data = { p: prod, cli: cli, con: conStr, uso: uso, qnum: qnum };
+  if (['cubierta','repisa','peldano'].includes(prod)) {
+    data.rows = [];
+    for (var i = 1; i <= nrows; i++) {
+      var lgEl = document.getElementById('lg'+i), anEl = document.getElementById('an'+i), caEl = document.getElementById('ca'+i);
+      if (lgEl && lgEl.value && anEl && anEl.value) {
+        data.rows.push({lg: parseFloat(lgEl.value), an: parseFloat(anEl.value), ca: parseInt((caEl&&caEl.value)||1)||1});
+      }
+    }
+  } else if (['granero','maciza','vidrios'].includes(prod)) {
+    data.rows = []; data.mods = [];
+    for (var i = 1; i <= nrows; i++) {
+      var lgEl = document.getElementById('lg'+i), anEl = document.getElementById('an'+i), caEl = document.getElementById('ca'+i), moEl = document.getElementById('mo'+i);
+      if (lgEl && lgEl.value && anEl && anEl.value) {
+        data.rows.push({lg: parseFloat(lgEl.value), an: parseFloat(anEl.value), ca: parseInt((caEl&&caEl.value)||1)||1});
+        data.mods.push(moEl ? moEl.value : '');
+      }
+    }
+    var vtEl = document.getElementById('vt');
+    if (vtEl && vtEl.value) data.vt = vtEl.value;
+  } else if (prod === 'revestimiento') {
+    var rmEl = document.getElementById('rm');
+    data.m2 = parseFloat((rmEl&&rmEl.value)||0)||0;
+  }
+  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+  return window.location.href.split('#')[0] + '#q=' + enc;
+}
+
+function copyShareLink() {
+  var url = window.location.href;
+  function done() {
+    var btn = document.querySelector('.btn-copy-link');
+    if (btn) {
+      btn.textContent = '✓ Enlace copiado';
+      btn.classList.add('copied');
+      setTimeout(function(){ btn.textContent = '🔗 Copiar enlace de cotización'; btn.classList.remove('copied'); }, 2500);
+    }
+  }
+  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done).catch(done); }
+  else {
+    var ta = document.createElement('textarea');
+    ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+    done();
+  }
+}
+
+function loadFromHash() {
+  var hash = window.location.hash;
+  if (!hash || hash.indexOf('#q=') !== 0) return false;
+  try {
+    var d = JSON.parse(decodeURIComponent(escape(atob(hash.slice(3)))));
+    fromHash = true;
+    if (d.qnum) qnum = d.qnum;
+    uso  = d.uso  || 'otro';
+    conStr = d.con || '';
+    document.getElementById('f-cli').value = d.cli || '';
+    document.getElementById('f-con').value = d.con || '';
+    var isPuerta = ['granero','maciza','vidrios'].includes(d.p);
+    initProd(isPuerta ? 'puertas' : d.p);
+    if (isPuerta && d.p !== 'granero') {
+      var dtEl = document.getElementById('door-tipo');
+      if (dtEl) { dtEl.value = d.p; prod = d.p; nrows = 1; renderDoorSub(d.p); }
+    }
+    if (d.vt) { var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt; }
+    if (d.p === 'revestimiento') {
+      var rmEl = document.getElementById('rm'); if (rmEl && d.m2) rmEl.value = d.m2;
+    } else {
+      var rows = d.rows || [], mods = d.mods || [];
+      if (rows[0]) {
+        document.getElementById('lg1').value = rows[0].lg;
+        document.getElementById('an1').value = rows[0].an;
+        document.getElementById('ca1').value = rows[0].ca;
+        if (isPuerta && mods[0]) { var mo1 = document.getElementById('mo1'); if (mo1) mo1.value = mods[0]; }
+      }
+      for (var i = 1; i < rows.length; i++) {
+        addRow();
+        document.getElementById('lg'+nrows).value = rows[i].lg;
+        document.getElementById('an'+nrows).value = rows[i].an;
+        document.getElementById('ca'+nrows).value = rows[i].ca;
+        if (isPuerta && mods[i]) { var moN = document.getElementById('mo'+nrows); if (moN) moN.value = mods[i]; }
+      }
+    }
+    confirmar();
+    return true;
+  } catch(e) { fromHash = false; return false; }
+}
+
 /* ── SUPABASE SAVE (silent fail) ── */
 async function saveQuote(data, lines) {
+  if (fromHash) return;
   try {
     var res = await sbClient.from('cotizaciones').insert(data).select().single();
     if (res.error || !res.data) return;
@@ -818,7 +914,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-s2b-back').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
-  show('s1');
+  if (!loadFromHash()) show('s1');
 });
 </script>
 </body>
