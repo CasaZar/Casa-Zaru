@@ -170,6 +170,10 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .admin-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
 .atab { flex: 1; padding: 9px; border: 1.5px solid var(--bd); border-radius: 7px; background: white; font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--tm); font-weight: 500; }
 .atab.active { background: var(--g); color: white; border-color: var(--g); font-weight: 600; }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.filt-input { flex: 1; min-width: 140px; padding: 7px 10px; border: 1.5px solid var(--bd); border-radius: 7px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--tx); background: white; }
+.filt-input:focus { outline: none; border-color: var(--g); }
+.filt-sel { padding: 7px 8px; border: 1.5px solid var(--bd); border-radius: 7px; font-size: 11px; font-family: 'Inter', sans-serif; background: white; color: var(--tx); cursor: pointer; }
 
 @media print {
   #s0, #s1, #s4, .logo-bar, .q-toolbar { display: none !important; }
@@ -295,9 +299,6 @@ const ADMIN_EMAIL = 'hola@casazaru.cl';
 const { createClient } = supabase;
 const sb = createClient(SB_URL, SB_KEY);
 
-const SB_CLI_URL = 'https://padnttpgzuotxeipjrry.supabase.co';
-const SB_CLI_KEY = 'sb_publishable_XeCtx06OFHQ3LsYxYk5NTA_kkWHlJHG';
-const sbCli = createClient(SB_CLI_URL, SB_CLI_KEY);
 
 /* ── PRECIOS ── */
 const PR = {
@@ -786,25 +787,20 @@ function renderAdmin(data) {
     .map(function(c){ return '<tr><td>'+c+'</td><td style="text-align:right;font-weight:600">'+cliCount[c]+'</td></tr>'; })
     .join('');
 
-  // últimas cotizaciones
-  var recent = data.slice(0,15).map(function(d) {
+  // todas las cotizaciones (con filtros)
+  var recent = data.map(function(d) {
     var dateStr = d.fecha_creacion ? new Date(d.fecha_creacion).toLocaleDateString('es-CL') : '—';
-    var estadoBadge = '<span class="e-badge e-'+d.estado+'">'+d.estado+'</span>';
     var sel = '<select class="estado-sel" data-id="'+d.id+'">' +
       '<option value="enviada"'    +(d.estado==='enviada'   ?' selected':'')  +'>enviada</option>' +
       '<option value="concretada"'+(d.estado==='concretada'?' selected':'')  +'>concretada</option>' +
       '<option value="cancelada"' +(d.estado==='cancelada' ?' selected':'')  +'>cancelada</option>' +
     '</select>';
     var totalStr = d.total_alto ? fmt(d.total_alto) : '—';
-    var tipoBadge = d.tipo === 'cliente'
-      ? '<span class="e-badge" style="background:#EFF6FF;color:#1E40AF">cliente</span>'
-      : '<span class="e-badge" style="background:#F3F4F6;color:#374151">interno</span>';
-    return '<tr>' +
+    return '<tr data-cliente="'+(d.cliente||'').toLowerCase()+'" data-producto="'+(d.producto||'')+'" data-estado="'+(d.estado||'')+'">' +
       '<td>'+d.numero+'</td>' +
       '<td>'+d.cliente+'</td>' +
       '<td>'+(PNAME[d.producto]||d.producto)+'</td>' +
       '<td>'+totalStr+'</td>' +
-      '<td>'+tipoBadge+'</td>' +
       '<td>'+dateStr+'</td>' +
       '<td>'+sel+'</td>' +
     '</tr>';
@@ -829,10 +825,29 @@ function renderAdmin(data) {
     '<table class="admin-tbl"><thead><tr><th>Cliente</th><th style="text-align:right">Cotizaciones</th></tr></thead>' +
     '<tbody>'+topClientes+'</tbody></table>' +
 
-    '<div class="admin-section">Últimas cotizaciones</div>' +
+    '<div class="admin-section">Cotizaciones internas</div>' +
+    '<div class="filter-bar">' +
+      '<input class="filt-input" id="filt-q" placeholder="Buscar cliente…" oninput="filtrarAdmin()">' +
+      '<select class="filt-sel" id="filt-prod" onchange="filtrarAdmin()">' +
+        '<option value="">Todos los productos</option>' +
+        '<option value="cubierta">Cubiertas</option>' +
+        '<option value="repisa">Repisa</option>' +
+        '<option value="peldano">Peldaños</option>' +
+        '<option value="granero">Puerta Granero</option>' +
+        '<option value="maciza">Puerta Maciza</option>' +
+        '<option value="vidrios">Puerta con Vidrios</option>' +
+        '<option value="revestimiento">Revestimiento</option>' +
+      '</select>' +
+      '<select class="filt-sel" id="filt-estado" onchange="filtrarAdmin()">' +
+        '<option value="">Todos los estados</option>' +
+        '<option value="enviada">Enviada</option>' +
+        '<option value="concretada">Concretada</option>' +
+        '<option value="cancelada">Cancelada</option>' +
+      '</select>' +
+    '</div>' +
     '<div style="overflow-x:auto">' +
-    '<table class="admin-tbl"><thead><tr>' +
-      '<th>N°</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Tipo</th><th>Fecha</th><th>Estado</th>' +
+    '<table class="admin-tbl" id="tbl-interno"><thead><tr>' +
+      '<th>N°</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th>' +
     '</tr></thead><tbody>'+recent+'</tbody></table></div>';
 
   var el = document.getElementById('admin-content');
@@ -852,7 +867,7 @@ async function loadClientDash() {
   var el = document.getElementById('admin-content');
   el.innerHTML = '<div class="loading-msg">Cargando cotizaciones de clientes…</div>';
   try {
-    var res = await sbCli.from('cotizaciones').select('*').order('fecha_creacion', {ascending: false});
+    var res = await sb.from('cotizaciones').select('*').eq('tipo','cliente').order('fecha_creacion', {ascending: false});
     if (res.error) {
       el.innerHTML = '<div class="loading-msg">Error: ' + res.error.message + '</div>';
       return;
@@ -868,7 +883,7 @@ function renderClientDash(data) {
   var concretadas = data.filter(function(d){ return d.estado==='concretada'; }).length;
   var conv = total > 0 ? Math.round(concretadas/total*100) : 0;
 
-  var rows = data.slice(0,40).map(function(d) {
+  var rows = data.map(function(d) {
     var dateStr = d.fecha_creacion ? new Date(d.fecha_creacion).toLocaleDateString('es-CL') : '—';
     var sel = '<select class="estado-sel" data-id="'+d.id+'">' +
       '<option value="enviada"'    +(d.estado==='enviada'   ?' selected':'')  +'>enviada</option>' +
@@ -876,7 +891,7 @@ function renderClientDash(data) {
       '<option value="cancelada"' +(d.estado==='cancelada' ?' selected':'')  +'>cancelada</option>' +
     '</select>';
     var totalStr = d.total_alto ? fmt(d.total_alto) : '—';
-    return '<tr>' +
+    return '<tr data-cliente="'+(d.cliente||'').toLowerCase()+'" data-producto="'+(d.producto||'')+'" data-estado="'+(d.estado||'')+'">' +
       '<td>'+d.numero+'</td>' +
       '<td>'+d.cliente+'</td>' +
       '<td style="font-size:10px">'+(d.contacto||'—')+'</td>' +
@@ -894,8 +909,27 @@ function renderClientDash(data) {
       '<div class="stat-card"><div class="stat-v">'+concretadas+'</div><div class="stat-l">Concretadas</div></div>' +
     '</div>' +
     '<div class="admin-section">Cotizaciones de clientes web</div>' +
+    '<div class="filter-bar">' +
+      '<input class="filt-input" id="filt-q-cli" placeholder="Buscar cliente…" oninput="filtrarCliente()">' +
+      '<select class="filt-sel" id="filt-prod-cli" onchange="filtrarCliente()">' +
+        '<option value="">Todos los productos</option>' +
+        '<option value="cubierta">Cubiertas</option>' +
+        '<option value="repisa">Repisa</option>' +
+        '<option value="peldano">Peldaños</option>' +
+        '<option value="granero">Puerta Granero</option>' +
+        '<option value="maciza">Puerta Maciza</option>' +
+        '<option value="vidrios">Puerta con Vidrios</option>' +
+        '<option value="revestimiento">Revestimiento</option>' +
+      '</select>' +
+      '<select class="filt-sel" id="filt-estado-cli" onchange="filtrarCliente()">' +
+        '<option value="">Todos los estados</option>' +
+        '<option value="enviada">Enviada</option>' +
+        '<option value="concretada">Concretada</option>' +
+        '<option value="cancelada">Cancelada</option>' +
+      '</select>' +
+    '</div>' +
     '<div style="overflow-x:auto">' +
-    '<table class="admin-tbl"><thead><tr>' +
+    '<table class="admin-tbl" id="tbl-cliente"><thead><tr>' +
       '<th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th>' +
     '</tr></thead><tbody>'+rows+'</tbody></table></div>';
 
@@ -913,7 +947,7 @@ async function updateEstadoCli(id, estado) {
   var updates = { estado: estado };
   if (estado === 'concretada') updates.fecha_concretada = new Date().toISOString();
   try {
-    await sbCli.from('cotizaciones').update(updates).eq('id', id);
+    await sb.from('cotizaciones').update(updates).eq('id', id);
   } catch(e) { /* silent */ }
 }
 
@@ -923,6 +957,30 @@ async function updateEstado(id, estado) {
   try {
     await sb.from('cotizaciones').update(updates).eq('id', id);
   } catch(e) { /* silent */ }
+}
+
+/* ── FILTROS ── */
+function filtrarAdmin() {
+  var q = (document.getElementById('filt-q')||{value:''}).value.toLowerCase();
+  var prod = (document.getElementById('filt-prod')||{value:''}).value;
+  var estado = (document.getElementById('filt-estado')||{value:''}).value;
+  document.querySelectorAll('#tbl-interno tbody tr').forEach(function(tr) {
+    var ok = (!q || (tr.dataset.cliente||'').includes(q)) &&
+             (!prod || tr.dataset.producto === prod) &&
+             (!estado || tr.dataset.estado === estado);
+    tr.style.display = ok ? '' : 'none';
+  });
+}
+function filtrarCliente() {
+  var q = (document.getElementById('filt-q-cli')||{value:''}).value.toLowerCase();
+  var prod = (document.getElementById('filt-prod-cli')||{value:''}).value;
+  var estado = (document.getElementById('filt-estado-cli')||{value:''}).value;
+  document.querySelectorAll('#tbl-cliente tbody tr').forEach(function(tr) {
+    var ok = (!q || (tr.dataset.cliente||'').includes(q)) &&
+             (!prod || tr.dataset.producto === prod) &&
+             (!estado || tr.dataset.estado === estado);
+    tr.style.display = ok ? '' : 'none';
+  });
 }
 
 /* ── EVENT LISTENERS ── */
