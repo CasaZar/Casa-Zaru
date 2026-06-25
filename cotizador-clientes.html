@@ -924,23 +924,25 @@ function showToast(msg, ok) {
   t.style.color = 'white';
   t.textContent = msg;
   t.style.display = 'block';
-  setTimeout(function(){ t.style.display='none'; }, 5000);
+  setTimeout(function(){ t.style.display='none'; }, 15000);
 }
 async function saveQuote(data, lines) {
-  if (fromHash) { showToast('fromHash=true, save omitido', false); return; }
+  if (fromHash) return;
   try {
-    var res = await sbClient.from('cotizaciones').insert(data).select().single();
-    if (res.error) { showToast('Error: ' + res.error.message, false); return; }
-    if (!res.data) { showToast('Sin respuesta de DB', false); return; }
-    showToast('✓ Guardado N° ' + data.numero, true);
-    var cotId = res.data.id;
+    var cotId = (crypto && crypto.randomUUID) ? crypto.randomUUID()
+      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
+        });
+    var payload = Object.assign({}, data, { id: cotId });
+    var res = await sbClient.from('cotizaciones').insert(payload);
+    if (res.error) { showToast('DB error: ' + res.error.message + ' (code ' + res.error.code + ')', false); console.error('saveQuote:', res.error); return; }
+    showToast('✓ Cotización guardada', true);
     if (lines && lines.length > 0) {
-      var lineData = lines.map(function(l, i) {
-        return Object.assign({ cotizacion_id: cotId, linea: i+1 }, l);
-      });
-      await sbClient.from('cotizacion_lineas').insert(lineData);
+      var lineData = lines.map(function(l, i) { return Object.assign({ cotizacion_id: cotId, linea: i+1 }, l); });
+      var r2 = await sbClient.from('cotizacion_lineas').insert(lineData);
+      if (r2.error) console.warn('cotizacion_lineas error:', r2.error);
     }
-  } catch(e) { showToast('Excepción: ' + e.message, false); }
+  } catch(e) { showToast('Excepción: ' + e.message, false); console.error('saveQuote exc:', e); }
 }
 
 /* ── EVENT LISTENERS ── */
