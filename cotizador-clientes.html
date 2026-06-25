@@ -920,7 +920,12 @@ async function saveQuote(data, lines) {
   if (fromHash) return;
   try {
     var res = await sbClient.from('cotizaciones').insert(data).select().single();
-    if (res.error || !res.data) return;
+    if (res.error) {
+      console.error('SAVE ERROR:', res.error.message, res.error.details, res.error.hint);
+      alert('Error guardando: ' + res.error.message);
+      return;
+    }
+    if (!res.data) return;
     var cotId = res.data.id;
     if (lines && lines.length > 0) {
       var lineData = lines.map(function(l, i) {
@@ -928,7 +933,7 @@ async function saveQuote(data, lines) {
       });
       await sbClient.from('cotizacion_lineas').insert(lineData);
     }
-  } catch(e) { /* silent */ }
+  } catch(e) { alert('Error excepcion: ' + e.message); }
 }
 
 /* ── EVENT LISTENERS ── */
