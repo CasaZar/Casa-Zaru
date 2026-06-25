@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Copiloto de Ventas · Casa Zaru</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root {
+  --bg:  #FAF8F2;
+  --bg2: #FFFFFF;
+  --bg3: #F0E6D0;
+  --ac:  #B8894A;
+  --acl: #D4A96A;
+  --acd: #7A5620;
+  --tx:  #2C1A08;
+  --tm:  #6B5840;
+  --bd:  #D9C4A5;
+  --bd2: #E8D0A8;
+  --crt: #F7F1E4;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx); min-height: 100vh; -webkit-tap-highlight-color: transparent; }
+.hidden { display: none !important; }
+
+/* ── LOGO BAR ── */
+.logo-bar { padding: 16px 16px 12px; text-align: center; border-bottom: 1px solid var(--bd); background: white; position: relative; }
+.logotype { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 600; letter-spacing: 5px; color: var(--acd); line-height: 1; }
+.logotype .sep { color: var(--ac); }
+.tagline { font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--tm); margin-top: 3px; }
+.badge-pill { display: inline-block; background: var(--ac); color: white; font-size: 8px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 3px 12px; border-radius: 20px; margin-top: 6px; }
+.bar-btns { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); display: flex; gap: 6px; align-items: center; }
+.btn-gear { background: none; border: 1px solid var(--bd); border-radius: 7px; padding: 6px 8px; font-size: 14px; line-height: 1; cursor: pointer; color: var(--tm); }
+.btn-gear:hover { border-color: var(--ac); }
+.btn-bib { background: none; border: 1px solid var(--bd); border-radius: 7px; padding: 5px 10px; font-size: 10px; letter-spacing: .5px; line-height: 1; cursor: pointer; color: var(--tm); font-family: 'Jost', sans-serif; white-space: nowrap; }
+.btn-bib:hover { border-color: var(--ac); color: var(--ac); }
+
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(44,26,8,0.55); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.modal-box { background: white; border-radius: 14px; padding: 28px 22px; width: 100%; max-width: 340px; box-shadow: 0 8px 32px rgba(44,26,8,0.22); }
+.modal-box h2 { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--acd); margin-bottom: 6px; }
+.modal-box p { font-size: 12px; color: var(--tm); line-height: 1.6; margin-bottom: 20px; }
+.err-inline { color: #B91C1C; font-size: 12px; text-align: center; margin-top: 8px; min-height: 18px; }
+
+/* ── FORM ── */
+.flabel { display: block; font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--acd); margin-bottom: 6px; }
+.flabel-opt { font-size: 9px; color: var(--tm); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.finput, .fsel { width: 100%; padding: 11px 14px; border: 1px solid var(--bd); border-radius: 8px; font-size: 14px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); }
+.ftextarea { width: 100%; padding: 12px 14px; border: 1px solid var(--bd); border-radius: 8px; font-size: 13px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); resize: vertical; min-height: 200px; line-height: 1.55; }
+.finput::placeholder, .ftextarea::placeholder { color: var(--tm); opacity: .65; }
+.finput:focus, .fsel:focus, .ftextarea:focus { outline: none; border-color: var(--ac); }
+.fsec { margin-bottom: 16px; }
+
+/* ── BUTTONS ── */
+.btn-primary { width: 100%; background: var(--ac); color: white; border: none; border-radius: 10px; padding: 13px; font-size: 12px; font-family: 'Jost', sans-serif; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: background .15s; }
+.btn-primary:hover { background: var(--acd); }
+.btn-ghost { width: 100%; background: none; color: var(--tm); border: 1px solid var(--bd); border-radius: 10px; padding: 11px; font-size: 12px; font-family: 'Jost', sans-serif; letter-spacing: .5px; cursor: pointer; }
+.btn-ghost:hover { border-color: var(--ac); color: var(--ac); }
+
+/* ── MAIN ── */
+.main { padding: 20px 16px 64px; max-width: 520px; margin: 0 auto; }
+.section-heading { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--tx); font-weight: 400; margin-bottom: 4px; }
+.section-sub { font-size: 11px; color: var(--tm); line-height: 1.6; margin-bottom: 20px; }
+
+/* ── LOADER ── */
+.loader-wrap { text-align: center; padding: 56px 0; }
+.loader { width: 34px; height: 34px; border: 3px solid var(--bd); border-top-color: var(--ac); border-radius: 50%; animation: spin .75s linear infinite; margin: 0 auto 14px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-txt { font-size: 12px; color: var(--tm); letter-spacing: .3px; }
+
+/* ── ERROR ── */
+.error-box { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 14px 16px; color: #B91C1C; font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+
+/* ── CHIPS ── */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.chip { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: .8px; }
+.chip-frio        { background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; }
+.chip-tibio       { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+.chip-caliente    { background: #FFF7ED; color: #C2410C; border: 1px solid #FDBA74; }
+.chip-cerrando    { background: #F0FDF4; color: #15803D; border: 1px solid #86EFAC; }
+.chip-enfriandose { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+.chip-ideal       { background: #F0FDF4; color: #15803D; border: 1px solid #86EFAC; }
+.chip-dudoso      { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+.chip-no_calza    { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+.chip-neutral     { background: var(--crt); color: var(--tm); border: 1px solid var(--bd); }
+.chip-alza        { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
+.chip-pausa       { background: #F5F3FF; color: #5B21B6; border: 1px solid #DDD6FE; }
+
+/* ── CARDS ── */
+.card { background: white; border: 1px solid var(--bd); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+.card-ttl { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--ac); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.card-body { font-size: 13px; color: var(--tx); line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+
+/* ── PRÓXIMO MENSAJE ── */
+.msg-card { background: var(--acd); border-radius: 14px; padding: 18px; margin-bottom: 12px; }
+.msg-ttl { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--acl); margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+.msg-body { font-size: 14px; color: white; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+.msg-actions { display: flex; gap: 8px; margin-top: 14px; }
+.btn-copy { flex: 1; background: rgba(255,255,255,.14); color: white; border: 1px solid rgba(255,255,255,.28); border-radius: 8px; padding: 9px 12px; font-size: 11px; font-family: 'Jost', sans-serif; letter-spacing: .8px; cursor: pointer; transition: background .15s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.btn-copy:hover, .btn-copy.ok { background: rgba(255,255,255,.25); }
+.btn-wa { background: #25D366; color: white; border: none; border-radius: 8px; padding: 9px 14px; font-size: 11px; font-family: 'Jost', sans-serif; letter-spacing: .8px; cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.btn-wa:hover { background: #1eb859; }
+
+/* ── SEGUIMIENTO ── */
+.seg-row { display: flex; gap: 12px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--bg3); }
+.seg-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.seg-when { font-size: 9px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--ac); min-width: 76px; flex-shrink: 0; padding-top: 2px; }
+.seg-msg { font-size: 13px; color: var(--tx); line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.btn-copy-sm { background: var(--crt); color: var(--ac); border: 1px solid var(--bd); border-radius: 6px; padding: 5px 10px; font-size: 10px; font-family: 'Jost', sans-serif; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; }
+.btn-copy-sm:hover, .btn-copy-sm.ok { background: var(--bg3); }
+
+/* ── DATOS FALTANTES ── */
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { background: var(--bg3); color: var(--tm); border: 1px dashed var(--bd2); border-radius: 20px; padding: 4px 12px; font-size: 11px; }
+
+/* ── OBJECION ── */
+.obj-detected { font-size: 11px; font-weight: 500; color: var(--acd); background: var(--crt); border-radius: 6px; padding: 5px 10px; display: inline-block; margin-bottom: 8px; }
+
+/* ── SAVE SECTION ── */
+.save-section { background: white; border: 1.5px dashed var(--bd2); border-radius: 12px; padding: 16px 18px; margin-bottom: 12px; }
+.save-ttl { font-size: 9px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--tm); margin-bottom: 12px; }
+.res-btns { display: flex; gap: 8px; margin-bottom: 12px; }
+.res-btn { flex: 1; background: none; border: 1.5px solid var(--bd); border-radius: 9px; padding: 9px 4px; font-size: 11px; font-family: 'Jost', sans-serif; cursor: pointer; transition: all .15s; font-weight: 500; color: var(--tm); }
+.res-btn:hover { border-color: var(--ac); color: var(--tx); }
+.res-btn.ganada.active       { background: #F0FDF4; border-color: #86EFAC; color: #15803D; }
+.res-btn.en_desarrollo.active { background: #FFFBEB; border-color: #FDE68A; color: #B45309; }
+.res-btn.perdida.active      { background: #FEF2F2; border-color: #FECACA; color: #B91C1C; }
+.nota-input { width: 100%; padding: 9px 12px; border: 1px solid var(--bd); border-radius: 7px; font-size: 12px; font-family: 'Jost', sans-serif; color: var(--tx); resize: none; height: 56px; margin-bottom: 10px; }
+.nota-input:focus { outline: none; border-color: var(--ac); }
+.save-row { display: flex; align-items: center; gap: 10px; }
+.btn-save { background: var(--ac); color: white; border: none; border-radius: 8px; padding: 9px 18px; font-size: 11px; font-family: 'Jost', sans-serif; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer; }
+.btn-save:hover { background: var(--acd); }
+.btn-save:disabled { background: var(--bd); cursor: default; }
+.save-status { font-size: 12px; color: #15803D; }
+
+/* ── BIBLIOTECA PANEL ── */
+.bib-panel { position: fixed; inset: 0; background: var(--bg); z-index: 300; overflow-y: auto; }
+.bib-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--bd); background: white; position: sticky; top: 0; z-index: 10; }
+.bib-hdr-title { font-family: 'Cormorant Garamond', serif; font-size: 20px; color: var(--acd); flex: 1; }
+.bib-hdr-sub { font-size: 10px; color: var(--tm); margin-top: 1px; }
+.btn-close-bib { background: none; border: 1px solid var(--bd); border-radius: 7px; padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--tm); font-family: 'Jost', sans-serif; white-space: nowrap; }
+.btn-close-bib:hover { border-color: var(--ac); color: var(--ac); }
+.bib-filters { display: flex; gap: 6px; padding: 12px 16px; background: white; border-bottom: 1px solid var(--bd); overflow-x: auto; }
+.bib-filter { background: none; border: 1px solid var(--bd); border-radius: 20px; padding: 5px 14px; font-size: 10px; font-family: 'Jost', sans-serif; font-weight: 600; letter-spacing: .5px; cursor: pointer; white-space: nowrap; color: var(--tm); }
+.bib-filter.active { border-color: var(--ac); color: var(--ac); background: var(--crt); }
+.bib-body { padding: 16px; max-width: 520px; margin: 0 auto; }
+.bib-empty { text-align: center; padding: 48px 0; color: var(--tm); font-size: 13px; line-height: 1.7; }
+.bib-stats { display: flex; gap: 8px; margin-bottom: 16px; }
+.bib-stat { flex: 1; background: white; border: 1px solid var(--bd); border-radius: 10px; padding: 10px 12px; text-align: center; }
+.bib-stat-n { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--acd); font-weight: 600; line-height: 1; }
+.bib-stat-l { font-size: 9px; color: var(--tm); letter-spacing: .5px; text-transform: uppercase; margin-top: 3px; }
+.bib-entry { background: white; border: 1px solid var(--bd); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
+.bib-entry-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.bib-fecha { font-size: 10px; color: var(--tm); }
+.res-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 9px; font-weight: 600; letter-spacing: .8px; }
+.res-badge.ganada       { background: #F0FDF4; color: #15803D; border: 1px solid #86EFAC; }
+.res-badge.en_desarrollo { background: #FFFBEB; color: #B45309; border: 1px solid #FDE68A; }
+.res-badge.perdida      { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+.bib-fuente { font-size: 9px; color: var(--tm); background: var(--crt); border-radius: 10px; padding: 2px 8px; }
+.bib-conv-preview { font-size: 12px; color: var(--tm); line-height: 1.55; margin-bottom: 8px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.bib-nota { font-size: 12px; color: var(--acd); font-style: italic; margin-bottom: 8px; }
+.btn-del { background: none; border: 1px solid #FECACA; color: #B91C1C; border-radius: 6px; padding: 4px 10px; font-size: 10px; cursor: pointer; font-family: 'Jost', sans-serif; }
+.btn-del:hover { background: #FEF2F2; }
+.bib-learned { font-size: 10px; color: #15803D; background: #F0FDF4; border: 1px solid #86EFAC; border-radius: 10px; padding: 2px 8px; }
+</style>
+</head>
+<body>
+
+<!-- ── LOGO BAR ── -->
+<div class="logo-bar">
+  <div class="bar-btns">
+    <button class="btn-bib" onclick="openBiblioteca()">📚 Biblioteca</button>
+    <button class="btn-gear" onclick="openSettings()" title="API key">⚙️</button>
+  </div>
+  <div class="logotype">CASA<span class="sep"> · </span>ZARU</div>
+  <div class="tagline">Madera nativa a medida</div>
+  <div class="badge-pill">Copiloto de ventas</div>
+</div>
+
+<!-- ── API KEY MODAL ── -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal-box">
+    <h2>API Key de Anthropic</h2>
+    <p>Ingresa tu API key para activar el análisis. Se guarda solo en este dispositivo.</p>
+    <div class="fsec">
+      <label class="flabel">Anthropic API Key</label>
+      <input class="finput" type="password" id="apiKeyInput" placeholder="sk-ant-api03-…" onkeydown="if(event.key==='Enter') saveKey()">
+    </div>
+    <button class="btn-primary" onclick="saveKey()">Guardar y entrar</button>
+    <div class="err-inline" id="apiErr"></div>
+  </div>
+</div>
+
+<!-- ── BIBLIOTECA PANEL ── -->
+<div class="bib-panel hidden" id="bibPanel">
+  <div class="bib-header">
+    <div>
+      <div class="bib-hdr-title">Biblioteca</div>
+      <div class="bib-hdr-sub">Las ganadas se usan para mejorar el análisis</div>
+    </div>
+    <button class="btn-close-bib" onclick="closeBiblioteca()">← Volver</button>
+  </div>
+  <div class="bib-filters">
+    <button class="bib-filter active" data-f="todas"        onclick="filterBib(this,'todas')">Todas</button>
+    <button class="bib-filter"        data-f="ganada"       onclick="filterBib(this,'ganada')">✓ Ganadas</button>
+    <button class="bib-filter"        data-f="en_desarrollo" onclick="filterBib(this,'en_desarrollo')">⏳ En desarrollo</button>
+    <button class="bib-filter"        data-f="perdida"      onclick="filterBib(this,'perdida')">✗ Perdidas</button>
+  </div>
+  <div class="bib-body">
+    <div id="bibStats"></div>
+    <div id="bibList"></div>
+  </div>
+</div>
+
+<!-- ── MAIN PANEL ── -->
+<div class="main hidden" id="main">
+
+  <!-- FORM -->
+  <div id="formPanel">
+    <div style="margin:18px 0 20px;">
+      <div class="section-heading">Analizar conversación</div>
+      <div class="section-sub" id="formSub">Pega la conversación de WhatsApp y el copiloto te da el diagnóstico y el próximo mensaje listo para enviar.</div>
+    </div>
+    <div class="fsec">
+      <label class="flabel">Conversación de WhatsApp</label>
+      <textarea class="ftextarea" id="convInput" placeholder="[Cliente] Hola! quería cotizar una cubierta de cocina, mide 1,8m x 60cm aprox&#10;[César] Hola! cómo estás 🙌🏼 buenísima elección..."></textarea>
+    </div>
+    <div class="fsec">
+      <label class="flabel">Fuente del lead <span class="flabel-opt">(opcional)</span></label>
+      <select class="fsel" id="fuenteSelect">
+        <option value="desconocido">No sé / no está claro</option>
+        <option value="instagram">Instagram</option>
+        <option value="referido">Referido de cliente</option>
+        <option value="web">Sitio web</option>
+        <option value="cotizador">Cotizador automático</option>
+      </select>
+    </div>
+    <button class="btn-primary" onclick="analizar()">Analizar →</button>
+  </div>
+
+  <!-- LOADER -->
+  <div class="hidden" id="loaderPanel">
+    <div class="loader-wrap">
+      <div class="loader"></div>
+      <div class="loader-txt" id="loaderTxt">Analizando conversación…</div>
+    </div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="hidden" id="errorPanel">
+    <div class="error-box" id="errorText"></div>
+    <button class="btn-ghost" style="margin-top:12px;" onclick="toForm()">← Volver</button>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="hidden" id="resultsPanel"></div>
+
+</div>
+
+<script>
+/* ── SUPABASE ── */
+var SB_URL = 'https://cmxqorsyxoltrakxawro.supabase.co';
+var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
+var sb = supabase.createClient(SB_URL, SB_KEY);
+
+/* ── STATE ── */
+var MSGS = {};
+var bibEjemplos = [];
+var currentConv = '';
+var currentFuente = '';
+var currentAnalisis = null;
+var resultadoSel = null;
+var bibFiltro = 'todas';
+
+/* ── MAPS ── */
+var TEMP_MAP = {
+  frio:        { cls: 'chip-frio',        lbl: '❄️  Fr\xEDo' },
+  tibio:       { cls: 'chip-tibio',       lbl: '🌤  Tibio' },
+  caliente:    { cls: 'chip-caliente',    lbl: '🔥  Caliente' },
+  cerrando:    { cls: 'chip-cerrando',    lbl: '✅  Cerrando' },
+  enfriandose: { cls: 'chip-enfriandose', lbl: '📉  Enfri\xE1ndose' }
+};
+var FIT_MAP = {
+  ideal:    { cls: 'chip-ideal',    lbl: '✓  Ideal' },
+  dudoso:   { cls: 'chip-dudoso',   lbl: '⚡  Dudoso' },
+  no_calza: { cls: 'chip-no_calza', lbl: '✕  No calza' }
+};
+var TRAMO_MAP  = { bajo: 'Ticket bajo', medio: 'Ticket medio', alto: 'Ticket alto' };
+var FUENTE_MAP = { instagram: 'Instagram', referido: 'Referido', web: 'Web', cotizador: 'Cotizador' };
+var PAUSA_MAP  = {
+  consulta_pareja: '👫 Consulta pareja',
+  presupuesto:     '💰 Presupuesto',
+  depende_obra:    '🏗 Depende de obra',
+  quiere_ver:      '👁 Quiere ver madera',
+  solo_precio:     '💲 Solo precio',
+  volumen:         '📦 Volumen / B2B'
+};
+
+/* ── BRAIN ── */
+var PROMPT_BASE = 'Eres el copiloto de ventas de César, vendedor principal de Casa Zaru: empresa chilena premium de productos a medida en madera nativa maciza (cubiertas, mesones, muebles, revestimientos, puertas, escaleras/peldaños). Taller en Villarrica, despacho a todo Chile. Venta por WhatsApp. Ticket promedio ~$690.000 CLP, rango ~$200.000 a varios millones.\n\nPOR QUÉ VALE: madera nativa maciza (no aglomerado ni enchapado), pieza única a medida, dura 30+ años, se restaura, garantía 5 años. Nunca se compite por barato: se sube el valor percibido EDUCANDO.\n\nVOZ DE CÉSAR: chileno, cercano, honesto, nunca pusher. Abre por el nombre. Confirma con energía ("Buenísimo!", "Súper!"). Diminutivos cálidos ("fotitos"). Honesto aunque cueste. Cero presión ante la duda. Cierre presuntivo suave. Espeja la formalidad del cliente. Emojis moderados (👌 🙌🏼 ✌️). Vende sin que se note.\n\nCALIBRA POR TICKET:\n- Bajo ($200k–$600k): transaccional, cierre rápido.\n- Medio ($600k–$1,5M): consultivo, fotos, muestrario, cotización guiada.\n- Alto (>$1,5M): premium y paciente, propuesta detallada, desactivar riesgo anticipo.\nFuente lead: instagram/referido = caliente. Web/cotizador = frío, requiere más calificación.\n\nCALIFICA ANTES DE COTIZAR: tipo de pieza, medidas/m², uso, comuna, plazo y señales de presupuesto. Si hay señal de precio ajustado, pregunta el rango ANTES de cotizar full.\n\nCOTIZACIÓN COMO PROPUESTA GUIADA — nunca número crudo:\n1. Enmarca el valor.\n2. Recomienda UNA madera + acabado específicos.\n3. Menciona que adjuntarás UNA foto de trabajo parecido.\n4. Cierra con pregunta que avanza: "¿Te reservo producción para [fecha]?" — NO "¿quieres catálogos?".\n5. Ofrece catálogos/links solo si pide.\n6. Da una razón/plazo suave.\n\nREGLA DE MADERA:\n- Cocina / alto tráfico: Coihue en vitrificado mate.\n- Mesa comedor / uso normal: Castaño, Ciprés o Mañío.\n- Escritorio / uso liviano: Pino Oregón.\n- Acabado por defecto: vitrificado mate.\n\nHUECO POST-COTIZACIÓN: si el cliente dice "lo veo con mi pareja/calma", NO respondas "quedo atento". Valida sin presión, dale algo para mostrar, fija próximo contacto con fecha suave.\n\nDE-RISK DEL ANTICIPO: 70% para entrar a producción, 30% cuando el cliente ve la pieza terminada en foto. Mencionarlo cuando dude de pagar anticipado.\n\nSEGUIMIENTO SEGMENTADO:\n- consulta_pareja: dar algo para mostrar + fecha suave.\n- presupuesto: preguntar número + madera más económica.\n- depende_obra: calzar follow-up a SU fecha.\n- quiere_ver: ofrecer muestrario $10.000 descontable.\n- solo_precio: un toque de valor y soltar digno.\n- volumen/alto: llamada + propuesta dedicada.\nMáx 2–3 toques con valor distinto, luego soltar digno.\n\nFIT: "no listo" (gestionar) vs "no calza" (descartar amable).\n\nALZA: solo para calientes con beneficio concreto. NO para quien dijo que anda justo.\n\nOBJECIONES:\n- "Está caro" → EDUCAR: 30+ años vs melamina que cambias en 6.\n- "Lo pienso" → hueco post-cotización.\n- "Más barato en otro lado" → separar material.\n- "No confío" → trabajos previos, muestrario, garantía 5 años.\n- "Presupuesto justo" → preguntar número + madera más económica.\n\nPOST-SÍ: avisar producción/envío proactivamente. Fotos en cada hito. Ante retraso, avisar antes. Pedir atribución y reseña.\n\nRESPONDE SOLO con un objeto JSON válido. Sin texto antes ni después, sin backticks.\n\nESQUEMA JSON:\n{\n  "fuenteLead": "instagram | referido | web | cotizador | desconocido",\n  "tramoTicket": "bajo | medio | alto | desconocido",\n  "temperatura": "frio | tibio | caliente | cerrando | enfriandose",\n  "fitCliente": "ideal | dudoso | no_calza",\n  "razonPausa": "consulta_pareja | presupuesto | depende_obra | quiere_ver | solo_precio | volumen | ninguna",\n  "diagnostico": "2-3 frases: qué está pasando y cuál es la oportunidad o riesgo",\n  "proximoMensaje": "mensaje exacto listo para copiar, en voz de César",\n  "objecion": null,\n  "ramaSeguimiento": "toque correcto según razonPausa",\n  "seguimiento": [ { "cuando": "en 2 días", "mensaje": "mensaje listo con valor específico" } ],\n  "datosFaltantes": ["datos que faltan"],\n  "deRiskAnticipo": "cómo bajar el riesgo del anticipo, o null",\n  "usarAlza": false\n}\nCuando hay objeción: "objecion": { "detectada": "...", "respuesta": "..." }';
+
+function buildPrompt() {
+  var p = PROMPT_BASE;
+  if (bibEjemplos.length > 0) {
+    p += '\n\nCONVERSACIONES GANADORAS DE REFERENCIA (ejemplos reales de Casa Zaru — úsalos para calibrar voz y estrategia):';
+    for (var i = 0; i < bibEjemplos.length; i++) {
+      var ej = bibEjemplos[i];
+      var snip = (ej.conversacion || '').slice(0, 450);
+      var msg  = (ej.analisis && ej.analisis.proximoMensaje) ? ej.analisis.proximoMensaje.slice(0, 200) : '';
+      p += '\n\n[Ejemplo ' + (i + 1) + ' — Ganada]';
+      if (ej.fuente_lead && ej.fuente_lead !== 'desconocido') p += '\nFuente: ' + ej.fuente_lead;
+      p += '\nConversaci\xF3n: ' + snip + (snip.length === 450 ? '...' : '');
+      if (msg) p += '\nMensaje ganador: ' + msg;
+      if (ej.notas) p += '\nNota: ' + ej.notas;
+    }
+    p += '\n\n---';
+  }
+  return p;
+}
+
+/* ── INIT ── */
+function init() {
+  if (!localStorage.getItem('cz_api_key')) {
+    document.getElementById('apiModal').classList.remove('hidden');
+  } else {
+    document.getElementById('apiModal').classList.add('hidden');
+    document.getElementById('main').classList.remove('hidden');
+    loadEjemplos();
+  }
+}
+
+async function loadEjemplos() {
+  try {
+    var r = await sb.from('biblioteca_copiloto')
+      .select('conversacion, analisis, fuente_lead, notas')
+      .eq('resultado', 'ganada')
+      .order('fecha', { ascending: false })
+      .limit(3);
+    if (r.data && r.data.length > 0) {
+      bibEjemplos = r.data;
+      var sub = document.getElementById('formSub');
+      if (sub) sub.textContent = 'Analizando con ' + bibEjemplos.length + ' conversaci\xF3n' + (bibEjemplos.length > 1 ? 'es ganadoras' : ' ganadora') + ' de referencia.';
+    }
+  } catch(e) {}
+}
+
+function openSettings() {
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiErr').textContent = '';
+  document.getElementById('apiModal').classList.remove('hidden');
+}
+
+function saveKey() {
+  var val = document.getElementById('apiKeyInput').value.trim();
+  if (!val || !val.startsWith('sk-ant-')) {
+    document.getElementById('apiErr').textContent = 'La key debe empezar con sk-ant-';
+    return;
+  }
+  localStorage.setItem('cz_api_key', val);
+  document.getElementById('apiModal').classList.add('hidden');
+  document.getElementById('main').classList.remove('hidden');
+  loadEjemplos();
+}
+
+/* ── ANALIZAR ── */
+async function analizar() {
+  var conv = document.getElementById('convInput').value.trim();
+  if (!conv || conv.length < 30) { alert('Pega una conversaci\xF3n m\xE1s completa.'); return; }
+
+  currentConv    = conv;
+  currentFuente  = document.getElementById('fuenteSelect').value;
+  currentAnalisis = null;
+  resultadoSel   = null;
+
+  toLoader(bibEjemplos.length > 0 ? 'Analizando con ejemplos reales…' : 'Analizando conversaci\xF3n…');
+
+  var apiKey  = localStorage.getItem('cz_api_key');
+  var userMsg = 'FUENTE DEL LEAD: ' + currentFuente + '\n\nCONVERSACI\xD3N DE WHATSAPP:\n' + conv + '\n\nAnaliza y devuelve el JSON.';
+
+  try {
+    var res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        system: buildPrompt(),
+        messages: [{ role: 'user', content: userMsg }]
+      })
+    });
+
+    if (!res.ok) {
+      var ed = {};
+      try { ed = await res.json(); } catch(e2) {}
+      var em = (ed.error && ed.error.message) || ('Error ' + res.status);
+      if (res.status === 401) em = 'API key inv\xE1lida. C\xE1mbiala con ⚙️.';
+      throw new Error(em);
+    }
+
+    var data  = await res.json();
+    var raw   = (data.content && data.content[0] && data.content[0].text) || '';
+    var clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+    var parsed;
+    try { parsed = JSON.parse(clean); }
+    catch(pe) { throw new Error('Respuesta inesperada. Intenta de nuevo.\n\n' + raw.slice(0, 200)); }
+
+    currentAnalisis = parsed;
+    renderResults(parsed);
+
+  } catch(e) { toError(e.message); }
+}
+
+/* ── UI STATES ── */
+function toLoader(txt) {
+  document.getElementById('formPanel').classList.add('hidden');
+  document.getElementById('loaderPanel').classList.remove('hidden');
+  document.getElementById('errorPanel').classList.add('hidden');
+  document.getElementById('resultsPanel').classList.add('hidden');
+  var t = document.getElementById('loaderTxt');
+  if (t) t.textContent = txt || 'Analizando…';
+}
+function toError(msg) {
+  document.getElementById('loaderPanel').classList.add('hidden');
+  document.getElementById('errorPanel').classList.remove('hidden');
+  document.getElementById('errorText').textContent = '⚠️  ' + msg;
+}
+function toForm() {
+  document.getElementById('formPanel').classList.remove('hidden');
+  document.getElementById('loaderPanel').classList.add('hidden');
+  document.getElementById('errorPanel').classList.add('hidden');
+  document.getElementById('resultsPanel').classList.add('hidden');
+  document.getElementById('convInput').value = '';
+  resultadoSel = null;
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── RENDER RESULTS ── */
+function renderResults(d) {
+  var html = '';
+  var ts   = Date.now();
+
+  html += '<div class="chips" style="margin-top:6px;">';
+  var ti = TEMP_MAP[d.temperatura] || { cls: 'chip-neutral', lbl: d.temperatura };
+  html += '<span class="chip ' + ti.cls + '">' + ti.lbl + '</span>';
+  if (d.fitCliente) {
+    var fi = FIT_MAP[d.fitCliente] || { cls: 'chip-neutral', lbl: d.fitCliente };
+    html += '<span class="chip ' + fi.cls + '">' + fi.lbl + '</span>';
+  }
+  if (TRAMO_MAP[d.tramoTicket]) html += '<span class="chip chip-neutral">' + TRAMO_MAP[d.tramoTicket] + '</span>';
+  if (FUENTE_MAP[d.fuenteLead]) html += '<span class="chip chip-neutral">' + FUENTE_MAP[d.fuenteLead] + '</span>';
+  if (PAUSA_MAP[d.razonPausa])  html += '<span class="chip chip-pausa">' + PAUSA_MAP[d.razonPausa] + '</span>';
+  if (d.usarAlza)               html += '<span class="chip chip-alza">⬆  Usar alza</span>';
+  if (bibEjemplos.length > 0)   html += '<span class="chip chip-neutral" style="font-size:9px;opacity:.7;">' + bibEjemplos.length + ' ejemplo' + (bibEjemplos.length > 1 ? 's' : '') + ' real' + (bibEjemplos.length > 1 ? 'es' : '') + '</span>';
+  html += '</div>';
+
+  if (d.diagnostico) {
+    html += '<div class="card"><div class="card-ttl"><span>🔍</span> Diagn\xF3stico</div>';
+    html += '<div class="card-body">' + esc(d.diagnostico) + '</div></div>';
+  }
+
+  if (d.proximoMensaje) {
+    var mKey = 'msg_' + ts;
+    MSGS[mKey] = d.proximoMensaje;
+    var waUrl = 'https://wa.me/?text=' + encodeURIComponent(d.proximoMensaje);
+    html += '<div class="msg-card"><div class="msg-ttl"><span>💬</span> Pr\xF3ximo mensaje</div>';
+    html += '<div class="msg-body">' + esc(d.proximoMensaje) + '</div>';
+    html += '<div class="msg-actions">';
+    html += '<button class="btn-copy" id="cp_' + mKey + '" onclick="doCopy(\'' + mKey + '\',this)">📋  Copiar</button>';
+    html += '<a class="btn-wa" href="' + esc(waUrl) + '" target="_blank">WhatsApp ↗</a>';
+    html += '</div></div>';
+  }
+
+  if (d.objecion && d.objecion.detectada) {
+    html += '<div class="card"><div class="card-ttl"><span>⚡</span> Objecci\xF3n detectada</div>';
+    html += '<div class="obj-detected">"' + esc(d.objecion.detectada) + '"</div>';
+    html += '<div class="card-body">' + esc(d.objecion.respuesta) + '</div></div>';
+  }
+
+  if (d.deRiskAnticipo) {
+    html += '<div class="card"><div class="card-ttl"><span>🛡</span> De-risk del anticipo</div>';
+    html += '<div class="card-body">' + esc(d.deRiskAnticipo) + '</div></div>';
+  }
+
+  if (d.seguimiento && d.seguimiento.length) {
+    html += '<div class="card"><div class="card-ttl"><span>📅</span> Seguimiento';
+    if (d.ramaSeguimiento && d.ramaSeguimiento !== 'ninguna') {
+      html += ' <span style="font-weight:400;opacity:.6;font-size:8px;letter-spacing:.3px;text-transform:none;">— ' + esc(d.ramaSeguimiento) + '</span>';
+    }
+    html += '</div>';
+    for (var i = 0; i < d.seguimiento.length; i++) {
+      var s    = d.seguimiento[i];
+      var sKey = 'seg_' + ts + '_' + i;
+      MSGS[sKey] = s.mensaje;
+      html += '<div class="seg-row"><div class="seg-when">' + esc(s.cuando) + '</div>';
+      html += '<div style="flex:1;min-width:0;"><div class="seg-msg">' + esc(s.mensaje) + '</div>';
+      html += '<button class="btn-copy-sm" id="cp_' + sKey + '" onclick="doCopy(\'' + sKey + '\',this)">📋 Copiar</button>';
+      html += '</div></div>';
+    }
+    html += '</div>';
+  }
+
+  if (d.datosFaltantes && d.datosFaltantes.length) {
+    html += '<div class="card"><div class="card-ttl"><span>❓</span> Datos faltantes</div><div class="tags">';
+    for (var j = 0; j < d.datosFaltantes.length; j++) {
+      html += '<span class="tag">' + esc(d.datosFaltantes[j]) + '</span>';
+    }
+    html += '</div></div>';
+  }
+
+  /* GUARDAR */
+  html += '<div class="save-section">';
+  html += '<div class="save-ttl">Guardar en biblioteca</div>';
+  html += '<div class="res-btns">';
+  html += '<button class="res-btn ganada"        onclick="selRes(\'ganada\',this)">✓ Ganada</button>';
+  html += '<button class="res-btn en_desarrollo" onclick="selRes(\'en_desarrollo\',this)">⏳ En desarrollo</button>';
+  html += '<button class="res-btn perdida"       onclick="selRes(\'perdida\',this)">✗ Perdida</button>';
+  html += '</div>';
+  html += '<textarea class="nota-input" id="notaInput" placeholder="Nota opcional (ej: le gustó el Coihue, frenó por precio...)"></textarea>';
+  html += '<div class="save-row"><button class="btn-save" id="btnSave" onclick="guardar()" disabled>Guardar</button>';
+  html += '<div class="save-status" id="saveStatus"></div></div></div>';
+
+  html += '<button class="btn-ghost" style="margin-top:8px;" onclick="toForm()">← Nueva conversaci\xF3n</button>';
+
+  var panel = document.getElementById('resultsPanel');
+  panel.innerHTML = html;
+  panel.classList.remove('hidden');
+  document.getElementById('loaderPanel').classList.add('hidden');
+  window.scrollTo(0, 0);
+}
+
+/* ── SAVE ── */
+function selRes(val, btn) {
+  resultadoSel = val;
+  var all = document.querySelectorAll('.res-btn');
+  for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+  btn.classList.add('active');
+  var b = document.getElementById('btnSave');
+  if (b) b.disabled = false;
+}
+
+async function guardar() {
+  if (!resultadoSel) return;
+  var btn  = document.getElementById('btnSave');
+  var st   = document.getElementById('saveStatus');
+  var nota = (document.getElementById('notaInput').value || '').trim();
+  if (btn) { btn.disabled = true; btn.textContent = 'Guardando…'; }
+
+  try {
+    var ins = await sb.from('biblioteca_copiloto').insert({
+      resultado:    resultadoSel,
+      conversacion: currentConv,
+      fuente_lead:  currentFuente,
+      analisis:     currentAnalisis,
+      notas:        nota || null
+    });
+    if (ins.error) throw ins.error;
+    if (st) { st.textContent = '✓ Guardada'; }
+    if (btn) { btn.textContent = '✓ Guardado'; }
+    if (resultadoSel === 'ganada') loadEjemplos();
+  } catch(e) {
+    if (st) { st.style.color = '#B91C1C'; st.textContent = 'Error al guardar'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Guardar'; }
+  }
+}
+
+/* ── BIBLIOTECA ── */
+async function openBiblioteca() {
+  document.getElementById('bibPanel').classList.remove('hidden');
+  bibFiltro = 'todas';
+  document.querySelectorAll('.bib-filter').forEach(function(b) { b.classList.remove('active'); });
+  var tf = document.querySelector('.bib-filter[data-f="todas"]');
+  if (tf) tf.classList.add('active');
+  await loadBiblioteca();
+}
+
+function closeBiblioteca() {
+  document.getElementById('bibPanel').classList.add('hidden');
+}
+
+function filterBib(btn, val) {
+  bibFiltro = val;
+  document.querySelectorAll('.bib-filter').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  loadBiblioteca();
+}
+
+async function loadBiblioteca() {
+  document.getElementById('bibList').innerHTML = '<div class="bib-empty">Cargando…</div>';
+  document.getElementById('bibStats').innerHTML = '';
+
+  try {
+    /* stats */
+    var allR = await sb.from('biblioteca_copiloto').select('resultado');
+    var tots = { ganada: 0, en_desarrollo: 0, perdida: 0 };
+    if (allR.data) {
+      for (var k = 0; k < allR.data.length; k++) {
+        var r = allR.data[k].resultado;
+        if (tots[r] !== undefined) tots[r]++;
+      }
+    }
+    var sh = '<div class="bib-stats">';
+    sh += '<div class="bib-stat"><div class="bib-stat-n" style="color:#15803D;">' + tots.ganada + '</div><div class="bib-stat-l">Ganadas</div></div>';
+    sh += '<div class="bib-stat"><div class="bib-stat-n" style="color:#B45309;">' + tots.en_desarrollo + '</div><div class="bib-stat-l">En desarrollo</div></div>';
+    sh += '<div class="bib-stat"><div class="bib-stat-n" style="color:#B91C1C;">' + tots.perdida + '</div><div class="bib-stat-l">Perdidas</div></div>';
+    sh += '</div>';
+    document.getElementById('bibStats').innerHTML = sh;
+
+    /* list */
+    var q = sb.from('biblioteca_copiloto')
+      .select('id, fecha, resultado, conversacion, fuente_lead, notas')
+      .order('fecha', { ascending: false });
+    if (bibFiltro !== 'todas') q = q.eq('resultado', bibFiltro);
+    var res = await q;
+    if (res.error) throw res.error;
+
+    if (!res.data || res.data.length === 0) {
+      document.getElementById('bibList').innerHTML = '<div class="bib-empty">No hay conversaciones guardadas' + (bibFiltro !== 'todas' ? ' con este filtro' : '') + '.<br><br>Analiza una conversaci\xF3n y gu\xE1rdala con el resultado.</div>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < res.data.length; i++) {
+      var e = res.data[i];
+      var fl = FUENTE_MAP[e.fuente_lead] || '';
+      var prev = (e.conversacion || '').slice(0, 220);
+      html += '<div class="bib-entry">';
+      html += '<div class="bib-entry-top">';
+      html += '<span class="bib-fecha">' + fmtFecha(e.fecha) + '</span>';
+      var rlbl = e.resultado === 'ganada' ? '✓ Ganada' : (e.resultado === 'en_desarrollo' ? '⏳ En desarrollo' : '✗ Perdida');
+      html += '<span class="res-badge ' + esc(e.resultado) + '">' + rlbl + '</span>';
+      if (fl) html += '<span class="bib-fuente">' + fl + '</span>';
+      if (e.resultado === 'ganada' && bibEjemplos.some(function(ej) { return ej.conversacion === e.conversacion; })) {
+        html += '<span class="bib-learned">✦ Activa</span>';
+      }
+      html += '</div>';
+      if (e.notas) html += '<div class="bib-nota">"' + esc(e.notas) + '"</div>';
+      html += '<div class="bib-conv-preview">' + esc(prev) + (prev.length === 220 ? '…' : '') + '</div>';
+      html += '<div><button class="btn-del" onclick="deleteBib(\'' + esc(e.id) + '\')">Eliminar</button></div>';
+      html += '</div>';
+    }
+    document.getElementById('bibList').innerHTML = html;
+
+  } catch(err) {
+    document.getElementById('bibList').innerHTML = '<div class="bib-empty" style="color:#B91C1C;">Error al cargar. Verifica que la tabla exista en Supabase.</div>';
+  }
+}
+
+async function deleteBib(id) {
+  if (!confirm('\xBFEliminar esta conversaci\xF3n?')) return;
+  try {
+    await sb.from('biblioteca_copiloto').delete().eq('id', id);
+    await loadBiblioteca();
+    await loadEjemplos();
+  } catch(e) {}
+}
+
+/* ── HELPERS ── */
+function fmtFecha(ts) {
+  if (!ts) return '';
+  var d = new Date(ts);
+  var meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return d.getDate() + ' ' + meses[d.getMonth()] + ' · ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
+function doCopy(key, btn) {
+  var text = MSGS[key] || '';
+  if (!text) return;
+  var orig = btn.innerHTML;
+  function ok() {
+    btn.innerHTML = '✓  Copiado';
+    btn.classList.add('ok');
+    setTimeout(function() { btn.innerHTML = orig; btn.classList.remove('ok'); }, 2200);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(ok).catch(function() { fb(text, btn, ok); });
+  } else { fb(text, btn, ok); }
+}
+
+function fb(text, btn, cb) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch(e) {}
+  document.body.removeChild(ta);
+  cb();
+}
+
+/* ── START ── */
+init();
+</script>
+</body>
+</html>
