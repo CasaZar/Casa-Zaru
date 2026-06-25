@@ -178,8 +178,22 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   <div class="badge-pill">Copiloto de ventas</div>
 </div>
 
-<!-- ── API KEY MODAL ── -->
-<div class="modal-overlay" id="apiModal">
+<!-- ── PIN MODAL ── -->
+<div class="modal-overlay" id="pinModal">
+  <div class="modal-box">
+    <h2>Acceso</h2>
+    <p>Ingresa el código de acceso.</p>
+    <div class="fsec">
+      <label class="flabel">Código</label>
+      <input class="finput" type="password" id="pinInput" placeholder="••••••" inputmode="numeric" onkeydown="if(event.key==='Enter') checkPin()">
+    </div>
+    <button class="btn-primary" onclick="checkPin()">Entrar</button>
+    <div class="err-inline" id="pinErr"></div>
+  </div>
+</div>
+
+<!-- ── API KEY MODAL (solo si no hay key embebida) ── -->
+<div class="modal-overlay hidden" id="apiModal">
   <div class="modal-box">
     <h2>API Key de Anthropic</h2>
     <p>Ingresa tu API key para activar el análisis. Se guarda solo en este dispositivo.</p>
@@ -259,6 +273,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 </div>
 
 <script>
+/* ── API KEY — pega tu key de Anthropic aquí ── */
+var HARDCODED_KEY = '';   /* <-- PON TU KEY AQUÍ: 'sk-ant-api03-...' */
+
 /* ── SUPABASE ── */
 var SB_URL = 'https://cmxqorsyxoltrakxawro.supabase.co';
 var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
@@ -319,12 +336,37 @@ function buildPrompt() {
   return p;
 }
 
+/* ── PIN ── */
+var PIN = '326598';
+
+function checkPin() {
+  var val = document.getElementById('pinInput').value.trim();
+  if (val === PIN) {
+    sessionStorage.setItem('cz_auth', '1');
+    document.getElementById('pinModal').classList.add('hidden');
+    afterAuth();
+  } else {
+    document.getElementById('pinErr').textContent = 'C\xF3digo incorrecto.';
+    document.getElementById('pinInput').value = '';
+  }
+}
+
 /* ── INIT ── */
 function init() {
-  if (!localStorage.getItem('cz_api_key')) {
+  if (!sessionStorage.getItem('cz_auth')) {
+    document.getElementById('pinModal').classList.remove('hidden');
+    return;
+  }
+  afterAuth();
+}
+
+function afterAuth() {
+  if (HARDCODED_KEY) {
+    document.getElementById('main').classList.remove('hidden');
+    loadEjemplos();
+  } else if (!localStorage.getItem('cz_api_key')) {
     document.getElementById('apiModal').classList.remove('hidden');
   } else {
-    document.getElementById('apiModal').classList.add('hidden');
     document.getElementById('main').classList.remove('hidden');
     loadEjemplos();
   }
@@ -345,12 +387,6 @@ async function loadEjemplos() {
   } catch(e) {}
 }
 
-function openSettings() {
-  document.getElementById('apiKeyInput').value = '';
-  document.getElementById('apiErr').textContent = '';
-  document.getElementById('apiModal').classList.remove('hidden');
-}
-
 function saveKey() {
   var val = document.getElementById('apiKeyInput').value.trim();
   if (!val || !val.startsWith('sk-ant-')) {
@@ -361,6 +397,13 @@ function saveKey() {
   document.getElementById('apiModal').classList.add('hidden');
   document.getElementById('main').classList.remove('hidden');
   loadEjemplos();
+}
+
+function openSettings() {
+  if (HARDCODED_KEY) return;
+  document.getElementById('apiKeyInput').value = '';
+  document.getElementById('apiErr').textContent = '';
+  document.getElementById('apiModal').classList.remove('hidden');
 }
 
 /* ── ANALIZAR ── */
@@ -375,7 +418,7 @@ async function analizar() {
 
   toLoader(bibEjemplos.length > 0 ? 'Analizando con ejemplos reales…' : 'Analizando conversaci\xF3n…');
 
-  var apiKey  = localStorage.getItem('cz_api_key');
+  var apiKey  = HARDCODED_KEY || localStorage.getItem('cz_api_key');
   var userMsg = 'FUENTE DEL LEAD: ' + currentFuente + '\n\nCONVERSACI\xD3N DE WHATSAPP:\n' + conv + '\n\nAnaliza y devuelve el JSON.';
 
   try {
