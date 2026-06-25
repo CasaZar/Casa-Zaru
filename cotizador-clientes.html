@@ -917,11 +917,22 @@ async function loadFromShortCode(token) {
 }
 
 /* ── SUPABASE SAVE (silent fail) ── */
+function showToast(msg, ok) {
+  var t = document.getElementById('sq-toast');
+  if (!t) { t = document.createElement('div'); t.id='sq-toast'; t.style='position:fixed;bottom:16px;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:8px;font-size:12px;font-family:sans-serif;z-index:9999;max-width:90vw;text-align:center'; document.body.appendChild(t); }
+  t.style.background = ok ? '#065F46' : '#991B1B';
+  t.style.color = 'white';
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(function(){ t.style.display='none'; }, 5000);
+}
 async function saveQuote(data, lines) {
-  if (fromHash) return;
+  if (fromHash) { showToast('fromHash=true, save omitido', false); return; }
   try {
     var res = await sbClient.from('cotizaciones').insert(data).select().single();
-    if (res.error || !res.data) return;
+    if (res.error) { showToast('Error: ' + res.error.message, false); return; }
+    if (!res.data) { showToast('Sin respuesta de DB', false); return; }
+    showToast('✓ Guardado N° ' + data.numero, true);
     var cotId = res.data.id;
     if (lines && lines.length > 0) {
       var lineData = lines.map(function(l, i) {
@@ -929,7 +940,7 @@ async function saveQuote(data, lines) {
       });
       await sbClient.from('cotizacion_lineas').insert(lineData);
     }
-  } catch(e) { /* silent */ }
+  } catch(e) { showToast('Excepción: ' + e.message, false); }
 }
 
 /* ── EVENT LISTENERS ── */
