@@ -177,6 +177,11 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ptier-row.rec { background: var(--bg3); border-left: 3px solid var(--ac); }
 .ptier-rec-badge { font-size: 8px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .8px; display: block; margin-top: 2px; }
 
+.btn-dtab { background:white;border:1.5px solid var(--bd);border-radius:8px;padding:8px 18px;font-size:12px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif; }
+.btn-dtab.active { background:var(--ac);color:white;border-color:var(--ac); }
+.stat-card { background:white;border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center; }
+.stat-v { font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--tx); }
+.stat-l { font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tm);margin-top:2px; }
 @media print {
   #s1, #s2, .logo-bar { display: none !important; }
   body { background: white; }
@@ -298,6 +303,22 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   <div id="q-out" class="coti"></div>
 </div>
 
+<!-- ══ s-dash: PANEL INTERNO ══ -->
+<div id="s-dash" class="hidden">
+  <div class="logo-bar">
+    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div><span class="badge" style="background:var(--acd)">Panel Interno</span></div>
+  </div>
+  <div style="padding:20px 16px 40px;max-width:700px;margin:0 auto">
+    <div style="display:flex;gap:8px;margin-bottom:20px">
+      <button class="btn-dtab active" id="dtab-cli"   onclick="switchDtab('cli')">Clientes Web</button>
+      <button class="btn-dtab"        id="dtab-cesar" onclick="switchDtab('cesar')">César</button>
+    </div>
+    <div id="dash-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <div id="dash-tbl"></div>
+  </div>
+</div>
+
 <script>
 /* ── SUPABASE ── */
 var SB_URL = 'https://cmxqorsyxoltrakxawro.supabase.co';
@@ -340,7 +361,7 @@ var MODELOS = {
 };
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
-var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '', fromHash = false;
+var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null;
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -369,7 +390,7 @@ function nextQ() {
 
 /* ── NAVIGATION ── */
 function show(id) {
-  ['s1','s2','s2b','s3'].forEach(function(i) {
+  ['s1','s2','s2b','s3','s-dash'].forEach(function(i) {
     document.getElementById(i).classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
@@ -933,7 +954,7 @@ async function saveQuote(data, lines) {
       : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
           var r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
         });
-    var payload = Object.assign({}, data, { id: cotId });
+    var payload = Object.assign({}, data, { id: cotId, user_email: srcEmail });
     var res = await sbClient.from('cotizaciones').insert(payload);
     if (res.error) { showToast('DB error: ' + res.error.message + ' (code ' + res.error.code + ')', false); console.error('saveQuote:', res.error); return; }
     showToast('✓ Cotización guardada', true);
@@ -943,6 +964,38 @@ async function saveQuote(data, lines) {
       if (r2.error) console.warn('cotizacion_lineas error:', r2.error);
     }
   } catch(e) { showToast('Excepción: ' + e.message, false); console.error('saveQuote exc:', e); }
+}
+
+/* ── PANEL INTERNO ── */
+var dashData = {cli:[],cesar:[]}, dashMode = 'cli';
+function switchDtab(m) {
+  dashMode = m;
+  document.getElementById('dtab-cli').className  = 'btn-dtab'+(m==='cli'  ?' active':'');
+  document.getElementById('dtab-cesar').className = 'btn-dtab'+(m==='cesar'?' active':'');
+  renderDash();
+}
+async function loadDash() {
+  document.getElementById('dash-tbl').innerHTML = '<div style="padding:20px;text-align:center;color:var(--tm)">Cargando…</div>';
+  var r1 = await sbClient.from('cotizaciones').select('*').is('user_email',null).order('fecha_creacion',{ascending:false});
+  var r2 = await sbClient.from('cotizaciones').select('*').not('user_email','is',null).order('fecha_creacion',{ascending:false});
+  dashData.cli   = r1.data || [];
+  dashData.cesar = r2.data || [];
+  if (r1.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+r1.error.message+'</div>'; return; }
+  renderDash();
+}
+function renderDash() {
+  var d = dashMode==='cli' ? dashData.cli : dashData.cesar;
+  var conc = d.filter(function(x){return x.estado==='concretada';}).length;
+  document.getElementById('dash-stats').innerHTML =
+    '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
+    '<div class="stat-card"><div class="stat-v">'+conc+'</div><div class="stat-l">Concretadas</div></div>'+
+    '<div class="stat-card"><div class="stat-v">'+(d.length?Math.round(conc/d.length*100):0)+'%</div><div class="stat-l">Conversión</div></div>';
+  if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
+  var rows = d.map(function(x){
+    var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') : '—';
+    return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td>'+f+'</td><td>'+(x.estado||'—')+'</td></tr>';
+  }).join('');
+  document.getElementById('dash-tbl').innerHTML='<table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 /* ── EVENT LISTENERS ── */
@@ -957,9 +1010,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-s2b-back').addEventListener('click', function() { show('s2'); });
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
-  var sParam = new URLSearchParams(window.location.search).get('s');
-  if (sParam) {
-    loadFromShortCode(sParam).then(function(ok) { if (!ok) show('s1'); });
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('src') === 'cesar') srcEmail = 'hola@casazaru.cl';
+  if (params.get('panel') === 'zr25') {
+    show('s-dash'); loadDash();
+  } else if (params.get('s')) {
+    loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) show('s1'); });
   } else if (!loadFromHash()) {
     show('s1');
   }
