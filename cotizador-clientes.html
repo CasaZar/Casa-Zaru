@@ -800,7 +800,7 @@ function whatsappCTA() {
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
-    '<button class="btn-copy-link" onclick="copyShareLink()">🔗 Copiar enlace de cotización</button>' +
+    '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' +
   '</div>';
 }
 
@@ -910,12 +910,17 @@ async function copyShareLink() {
   var btn = document.querySelector('.btn-copy-link');
   if (btn) btn.textContent = 'Generando enlace…';
   var url = await buildShortUrl();
+  var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
+  var msg = 'Hola' + (cli ? ' ' + cli : '') + '! 👋\n\n' +
+    'Generamos tu cotización ' + qnum + ' de Casa Zaru.\n\n' +
+    'Puedes verla aquí:\n' + url + '\n\n' +
+    '¿Dudas? Escríbenos.\nAtte. Casa Zaru — casazaru.cl';
   function done() {
-    if (btn) { btn.textContent = '✓ Enlace copiado'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent = '🔗 Copiar enlace de cotización'; btn.classList.remove('copied'); }, 2500); }
+    if (btn) { btn.textContent = '✓ Mensaje copiado'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent = '📋 Copiar mensaje para WhatsApp'; btn.classList.remove('copied'); }, 2500); }
   }
-  if (navigator.clipboard) { navigator.clipboard.writeText(url).then(done).catch(done); }
+  if (navigator.clipboard) { navigator.clipboard.writeText(msg).then(done).catch(done); }
   else {
-    var ta = document.createElement('textarea'); ta.value = url; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done();
+    var ta = document.createElement('textarea'); ta.value = msg; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done();
   }
 }
 
@@ -947,23 +952,14 @@ function showToast(msg, ok) {
   t.style.display = 'block';
   setTimeout(function(){ t.style.display='none'; }, 15000);
 }
-async function saveQuote(data, lines) {
+async function saveQuote(data) {
   if (fromHash) return;
   try {
-    var cotId = (crypto && crypto.randomUUID) ? crypto.randomUUID()
-      : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          var r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16);
-        });
-    var payload = Object.assign({}, data, { id: cotId, user_email: srcEmail });
+    var payload = Object.assign({}, data, { user_email: srcEmail });
     var res = await sbClient.from('cotizaciones').insert(payload);
-    if (res.error) { showToast('DB error: ' + res.error.message + ' (code ' + res.error.code + ')', false); console.error('saveQuote:', res.error); return; }
+    if (res.error) { showToast('DB error: ' + res.error.message, false); console.error('saveQuote:', res.error); return; }
     showToast('✓ Cotización guardada', true);
-    if (lines && lines.length > 0) {
-      var lineData = lines.map(function(l, i) { return Object.assign({ cotizacion_id: cotId, linea: i+1 }, l); });
-      var r2 = await sbClient.from('cotizacion_lineas').insert(lineData);
-      if (r2.error) console.warn('cotizacion_lineas error:', r2.error);
-    }
-  } catch(e) { showToast('Excepción: ' + e.message, false); console.error('saveQuote exc:', e); }
+  } catch(e) { showToast('Error: ' + e.message, false); console.error('saveQuote:', e); }
 }
 
 /* ── PANEL INTERNO ── */
