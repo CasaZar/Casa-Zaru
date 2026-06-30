@@ -26283,7 +26283,7 @@ async function confirmOrder(){
   // 4. PIXEL
   if(cli&&(cli.email||cli.phone||cli.fn)){
     const orderId='WTSP'+numStr;
-    const pixelData={email:fmtEmail(cli.email),phone:fmtPhone(cli.phone),fn:fmtName(cli.fn||o.comprador||''),ln:fmtName(cli.ln||o.apellido||''),ct:cli.ct||'',st:cli.st||'',country:'CL',gen:cli.gen||'',order_id:orderId,value:cli.value||total||0,event_time:fmtEventTime(cli.event_time),status:'nosubida',fecha:o.fecha_creacion};
+    const pixelData={email:fmtEmail(cli.email),phone:fmtPhone(cli.phone),fn:fmtName(cli.fn||o.comprador||''),ln:fmtName(cli.ln||o.apellido||''),ct:fmtRegion(cli.ct||''),st:fmtRegion(cli.st||''),country:'CL',gen:cli.gen||'',order_id:orderId,value:cli.value||total||0,event_time:fmtEventTime(cli.event_time),status:'nosubida',fecha:o.fecha_creacion};
     const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
     if(existPixelIdx>=0){pixelData.status=pixelRecords[existPixelIdx].status||'nosubida';pixelRecords[existPixelIdx]=pixelData;}else pixelRecords.push(pixelData);
     if(DB_URL)await api('pixel/'+numStr,'PUT',pixelData);
@@ -26587,6 +26587,7 @@ async function loadPixel(){
 }
 function fmtPhone(p){if(!p)return'';return String(p).replace(/\D/g,'').replace(/^56/,'');}
 function fmtLower(s){if(!s)return'';return String(s).trim().toLowerCase();}
+function fmtRegion(s){if(!s)return'';var v=String(s).trim().toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/\./g,'').replace(/\s+/g,' ');if(/\b(rm|r\.m|r m|metropolitana|metropolitano|metro)\b/.test(v))return'santiago';return v;}
 function fmtEmail(e){if(!e)return'';var s=String(e).trim().toLowerCase();if(s.indexOf('@')===-1||s.indexOf('.')===-1)return'';s=s.replace(/^[\s+c56\-]+/,'');return s;}
 function fmtName(n){if(!n)return'';return n.trim().toLowerCase();}
 function fmtEventTime(dt){try{var d=dt?new Date(dt):new Date();if(isNaN(d.getTime()))d=new Date();var pad=function(n){return String(n).padStart(2,'0');};return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(Math.min(d.getHours(),23))+':'+pad(Math.min(d.getMinutes(),59))+':00-04:00';}catch(e){var now=new Date();var pad=function(n){return String(n).padStart(2,'0');};return now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'T'+pad(now.getHours())+':'+pad(now.getMinutes())+':00-04:00';}}
@@ -26612,7 +26613,7 @@ function openPixelModal(idx){
 function closePixelModal(){document.getElementById('modal-pixel-bg').classList.remove('open');editingPixelIdx=null;}
 function savePixelRecord(){
   const rawDate=document.getElementById('px-date').value;const orderId=document.getElementById('px-orderid').value.trim();const numStr=orderId.replace(/^WTSP/,'');
-  const record={email:fmtEmail(document.getElementById('px-email').value),phone:fmtPhone(document.getElementById('px-phone').value),fn:fmtName(document.getElementById('px-fn').value),ln:fmtName(document.getElementById('px-ln').value),ct:fmtLower(document.getElementById('px-ct').value),st:fmtLower(document.getElementById('px-st').value),country:'CL',gen:document.getElementById('px-gen').value,order_id:orderId,value:Number(document.getElementById('px-value').value)||0,event_time:fmtEventTime(rawDate),medio:document.getElementById('px-medio').value,status:document.getElementById('px-status').value,fecha:todayStr};
+  const record={email:fmtEmail(document.getElementById('px-email').value),phone:fmtPhone(document.getElementById('px-phone').value),fn:fmtName(document.getElementById('px-fn').value),ln:fmtName(document.getElementById('px-ln').value),ct:fmtRegion(document.getElementById('px-ct').value),st:fmtRegion(document.getElementById('px-st').value),country:'CL',gen:document.getElementById('px-gen').value,order_id:orderId,value:Number(document.getElementById('px-value').value)||0,event_time:fmtEventTime(rawDate),medio:document.getElementById('px-medio').value,status:document.getElementById('px-status').value,fecha:todayStr};
   if(!record.email&&!record.fn){alert('Ingresa al menos email o nombre.');return;}
   if(editingPixelIdx!==null)pixelRecords[editingPixelIdx]=record;else pixelRecords.push(record);
   if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',record).catch(()=>{});renderPixel();closePixelModal();showToast('✓ Registro guardado');
