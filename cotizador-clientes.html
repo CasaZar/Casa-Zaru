@@ -649,7 +649,7 @@ function htmlCubierta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA()
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²')
   );
 }
 
@@ -698,7 +698,7 @@ function htmlPuerta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA()
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
   );
 }
 
@@ -723,7 +723,7 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA()
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²')
   );
 }
 
@@ -795,8 +795,9 @@ function boxes() {
   '</div>';
 }
 
-function whatsappCTA() {
-  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zarú.';
+function whatsappCTA(bajo, alto, det) {
+  var detalle = (bajo && alto) ? ('\n\nProducto: ' + PNAME[prod] + (det ? ' (' + det + ')' : '') + '\nPrecio: ' + fmt(bajo) + ' – ' + fmt(alto) + ' con IVA') : '';
+  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zarú.' + detalle + '\n\nConfirmo por este medio.';
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
