@@ -414,7 +414,7 @@ function calcLive() {
       var lg=parseFloat(lgEl.value)||0, an=parseFloat(anEl.value)||0, ca=parseInt((caEl&&caEl.value)||1)||1;
       sumM2 += (lg/100)*(an/100)*ca;
     }
-    if (sumM2 > 0) { bajo = sumM2 * PR[prod].bajo * 1.19; alto = sumM2 * PR[prod].alto * 1.19; }
+    if (sumM2 > 0) { bajo = sumM2 * PR[prod].bajo; alto = sumM2 * PR[prod].alto; }
 
   } else if (['granero','maciza','vidrios'].includes(prod)) {
     var vtEl2 = document.getElementById('vt');
@@ -429,7 +429,7 @@ function calcLive() {
       sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo + extra) * ca2;
       sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo + extra) * ca2;
     }
-    if (sumBajo > 0) { bajo = sumBajo * 1.19; alto = sumAlto * 1.19; }
+    if (sumBajo > 0) { bajo = sumBajo; alto = sumAlto; }
 
   } else if (prod === 'revestimiento') {
     var rmEl = document.getElementById('rm');
@@ -672,10 +672,10 @@ function htmlPuerta(cli, fecha) {
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
     filas.forEach(function(f) {
-      var extraNeto = extraTipo ? f.m2 * 40000 : 0;
-      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo + extraNeto) * f.ca;
+      var extraIva = extraTipo ? f.m2 * 40000 * 1.19 : 0;
+      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo) * f.ca + extraIva * f.ca;
     });
-    return {label: WOOD[t], tier: t, total: sumNeto * 1.19};
+    return {label: WOOD[t], tier: t, total: sumNeto};
   });
   var dimRows = filas.map(function(f){
     return '<tr><td>'+f.n+'</td><td style="font-size:9.5px">'+f.mo+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td></tr>';
