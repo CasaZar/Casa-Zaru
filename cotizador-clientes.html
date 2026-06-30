@@ -865,9 +865,10 @@ function getShareData() {
   return data;
 }
 
+var BASE_URL = 'https://cotizador.casazaru.cl';
 function buildShareUrl() {
   var enc = btoa(unescape(encodeURIComponent(JSON.stringify(getShareData()))));
-  return window.location.href.split('?')[0].split('#')[0] + '#q=' + enc;
+  return BASE_URL + '#q=' + enc;
 }
 
 function randToken() {
@@ -881,10 +882,10 @@ async function buildShortUrl() {
   var token = randToken();
   try {
     var res = await sbClient.from('quote_links').insert({token: token, data: data});
-    if (!res.error) return window.location.href.split('?')[0].split('#')[0] + '?s=' + token;
+    if (!res.error) return BASE_URL + '?s=' + token;
   } catch(e) {}
   var enc = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
-  return window.location.href.split('?')[0].split('#')[0] + '#q=' + enc;
+  return BASE_URL + '#q=' + enc;
 }
 
 function restoreFromData(d) {
