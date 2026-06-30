@@ -26711,7 +26711,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   var NB={style:'none',size:0,color:'FFFFFF'};
   var noBorder={top:NB,bottom:NB,left:NB,right:NB};
   function _cell(text,size,bold,color,align,w){return new D.TableCell({width:{size:w||Math.floor(cw/2),type:'dxa'},borders:noBorder,children:[new D.Paragraph({alignment:align||'left',children:[new D.TextRun({text:String(text||''),size:size,font:'Arial',bold:!!bold,color:color||'000000'})]})]});}
-  function _tbl(rows,spacingAfter){var half=Math.floor(cw/2);return new D.Table({width:{size:cw,type:'dxa'},columnWidths:[half,half],borders:{top:NB,bottom:NB,left:NB,right:NB,insideH:NB,insideV:NB},rows:rows});}
+  function _tbl(rows,spacingAfter){var half=Math.floor(cw/2);return new D.Table({width:{size:cw,type:'dxa'},layout:D.TableLayoutType.FIXED,columnWidths:[half,half],borders:{top:NB,bottom:NB,left:NB,right:NB,insideH:NB,insideV:NB},rows:rows});}
   var divider=new D.Paragraph({border:{bottom:{style:'single',size:6,color:'000000',space:1}},children:[new D.TextRun({text:' ',size:4})],spacing:{after:180}});
   var imgBuf=null;
   try{var du=generarImagenTablaCanvas(largo,ancho,espesor),b64=du.split(',')[1],bin=atob(b64),by=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)by[k]=bin.charCodeAt(k);imgBuf=by.buffer;}catch(e){console.warn('canvas:',e);}
