@@ -182,6 +182,13 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .stat-card { background:white;border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center; }
 .stat-v { font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--tx); }
 .stat-l { font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tm);margin-top:2px; }
+.btn-extras { width:100%;background:none;border:1px dashed var(--bd);border-radius:8px;padding:9px 14px;font-size:11px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;text-align:left;letter-spacing:.5px;transition:border-color .15s; }
+.btn-extras:hover { border-color:var(--ac);color:var(--ac); }
+.extra-row { display:flex;align-items:center;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--bg3);font-size:12px;color:var(--tx); }
+.extra-row:last-child { border-bottom:none; }
+.extra-row label { flex:1;cursor:pointer;display:flex;align-items:center;gap:8px; }
+.extra-price { color:var(--tm);font-size:10px;white-space:nowrap; }
+.ex-qty { width:48px;border:1px solid var(--bd);border-radius:6px;padding:4px 6px;font-size:12px;font-family:'Jost',sans-serif;text-align:center; }
 @media print {
   #s1, #s2, .logo-bar { display: none !important; }
   body { background: white; }
@@ -438,7 +445,9 @@ function calcLive() {
   }
 
   if (bajo > 0) {
-    rangeEl.innerHTML = fmt(bajo) + '<span class="sep-dash"> — </span>' + fmt(alto);
+    var liveM2 = (typeof sumM2 !== 'undefined' && sumM2) || (typeof m2r !== 'undefined' && m2r) || 0;
+    var exT = getExtrasTotal(liveM2);
+    rangeEl.innerHTML = fmt(bajo + exT) + '<span class="sep-dash"> — </span>' + fmt(alto + exT);
     noteEl.style.display = 'block';
   } else {
     rangeEl.innerHTML = '<span class="lp-empty">Ingresa las medidas</span>';
@@ -461,6 +470,7 @@ function initProd(p) {
   document.getElementById('f-title').textContent = isPuertas ? 'Puertas de madera' : PNAME[p];
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
+  renderExtras();
   show('s2');
   calcLive();
 }
@@ -643,6 +653,7 @@ function htmlCubierta(cli, fecha) {
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
     tierTable(tierRows, recWood()) +
+    extrasBlock(sumM2) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+esp+'</div></div>' +
       '<div class="spec"><div class="sl">Bordes</div><div class="sv">Recto, redondo o biselado. Tú eliges</div></div>' +
@@ -692,6 +703,7 @@ function htmlPuerta(cli, fecha) {
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
     tierTable(tierRows, recWood()) +
+    extrasBlock(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
@@ -717,6 +729,7 @@ function htmlRev(cli, fecha) {
     '<table class="ptable"><thead><tr><th>Superficie (m²)</th></tr></thead>' +
     '<tbody><tr><td style="font-size:16px;font-weight:700;padding:10px">'+m2.toFixed(2)+'</td></tr></tbody></table>' +
     tierTable(tierRows) +
+    extrasBlock(m2) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">100% sólida del sur de Chile</div></div>' +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
@@ -994,6 +1007,51 @@ function renderDash() {
     return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td>'+f+'</td><td>'+(x.estado||'—')+'</td></tr>';
   }).join('');
   document.getElementById('dash-tbl').innerHTML='<table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+/* ── EXTRAS ── */
+var EXTRAS = [
+  { id:'tenido',   label:'Teñido',                          precio:10000, unit:'m²' },
+  { id:'perf_enc', label:'Perf. encimera (lavaplatos)',      precio:14900, unit:'c/u' },
+  { id:'perf_red', label:'Perf. redonda (llave/desagüe)',    precio:5000,  unit:'c/u' },
+  { id:'union45',  label:'Unión en 45°',                     precio:24900, unit:'c/u' }
+];
+
+function renderExtras() {
+  var c = document.getElementById('f-dyn');
+  var rows = EXTRAS.map(function(e) {
+    var priceStr = fmt(e.precio) + '/' + e.unit;
+    if (e.unit === 'm²') {
+      return '<div class="extra-row"><label><input type="checkbox" id="ex_'+e.id+'" onchange="calcLive()"> '+e.label+'</label><span class="extra-price">'+priceStr+'</span></div>';
+    }
+    return '<div class="extra-row"><label>'+e.label+'</label><span class="extra-price">'+priceStr+'</span><input type="number" class="ex-qty" id="ex_'+e.id+'" min="0" value="0" oninput="calcLive()"></div>';
+  }).join('');
+  var wrap = document.createElement('div');
+  wrap.className = 'fsec';
+  wrap.innerHTML = '<button class="btn-extras" id="btn-extras" onclick="document.getElementById(\'extras-body\').classList.toggle(\'hidden\');this.textContent=document.getElementById(\'extras-body\').classList.contains(\'hidden\')?\'+ Extras opcionales\':\'− Extras opcionales\'">+ Extras opcionales</button><div id="extras-body" class="hidden" style="padding:2px 4px 4px">'+rows+'</div>';
+  c.appendChild(wrap);
+}
+
+function getExtrasTotal(m2) {
+  var t = 0;
+  EXTRAS.forEach(function(e) {
+    var el = document.getElementById('ex_'+e.id);
+    if (!el) return;
+    t += e.unit === 'm²' ? (el.checked ? e.precio * m2 : 0) : e.precio * (parseInt(el.value)||0);
+  });
+  return t;
+}
+
+function extrasBlock(m2) {
+  var items = [];
+  EXTRAS.forEach(function(e) {
+    var el = document.getElementById('ex_'+e.id);
+    if (!el) return;
+    var qty = e.unit === 'm²' ? (el.checked ? parseFloat(m2)||0 : 0) : (parseInt(el.value)||0);
+    if (qty > 0) items.push('<tr><td style="text-align:left">'+e.label+'</td><td>'+( e.unit==='m²' ? qty.toFixed(2)+' m²' : qty+' u.' )+'</td><td>'+fmt(e.precio*qty)+'</td></tr>');
+  });
+  if (!items.length) return '';
+  return '<table class="ptable" style="margin-bottom:10px"><thead><tr><th style="text-align:left">Extra</th><th>Cant.</th><th>Subtotal</th></tr></thead><tbody>'+items.join('')+'</tbody></table>';
 }
 
 /* ── EVENT LISTENERS ── */
