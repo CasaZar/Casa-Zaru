@@ -182,6 +182,13 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .stat-card { background:white;border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center; }
 .stat-v { font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--tx); }
 .stat-l { font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tm);margin-top:2px; }
+.dm-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px; }
+@media(max-width:480px){ .dm-grid { grid-template-columns:repeat(2,1fr); } }
+.dm-card { border:2px solid var(--bd);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s; }
+.dm-card img { width:100%;aspect-ratio:3/4;object-fit:cover;display:block; }
+.dm-lbl { font-size:10px;text-align:center;padding:5px 4px;color:var(--tx);line-height:1.3; }
+.dm-card:hover,.dm-card.dm-sel { border-color:var(--ac); }
+.dm-card.dm-sel { box-shadow:0 0 0 1px var(--ac); }
 .btn-extras { width:100%;background:none;border:1px dashed var(--bd);border-radius:8px;padding:9px 14px;font-size:11px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;text-align:left;letter-spacing:.5px;transition:border-color .15s; }
 .btn-extras:hover { border-color:var(--ac);color:var(--ac); }
 .extra-row { display:flex;align-items:center;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--bg3);font-size:12px;color:var(--tx); }
@@ -362,10 +369,40 @@ var PNAME = {
   revestimiento:'Revestimiento'
 };
 var MODELOS = {
-  granero: ['Granero Clásico','Granero Cruz','Ensenada Vidrio'],
+  granero: ['Granero Clásico','Granero Cruz'],
   maciza:  ['Panguipulli','Lago Ranco','Frutillar','Puerto Varas'],
-  vidrios: ['Valdivia','Entrelagos','Chochamó','Pucón']
+  vidrios: ['Valdivia','Entrelagos','Cochamó','Pucón','Ensenada']
 };
+var DOOR_MODELS = [
+  { id:'panguipulli', nombre:'Panguipulli',     tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_48_30.png' },
+  { id:'granero-cla', nombre:'Granero Clásico', tipo:'granero', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_38_25.png' },
+  { id:'valdivia',    nombre:'Valdivia',         tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_16_55.png' },
+  { id:'entrelagos',  nombre:'Entrelagos',       tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_10_01_10.png' },
+  { id:'lago-ranco',  nombre:'Lago Ranco',       tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_58_14.png' },
+  { id:'frutillar',   nombre:'Frutillar',        tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_07_56.png' },
+  { id:'cochamo',     nombre:'Cochamó',           tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_55_16.png' },
+  { id:'granero-cru', nombre:'Granero Cruz',     tipo:'granero', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_48_13.png' },
+  { id:'puertovaras', nombre:'Puerto Varas',     tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_30_54.png' },
+  { id:'pucon',       nombre:'Pucón',             tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_18_54.png' },
+  { id:'ensenada',    nombre:'Ensenada',          tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_56_43.png' }
+];
+var selectedDoorModel = '';
+function selectDoorModel(id) {
+  var model = DOOR_MODELS.find(function(m){ return m.id === id; });
+  if (!model) return;
+  selectedDoorModel = model.nombre;
+  prod = model.tipo;
+  DOOR_MODELS.forEach(function(m) {
+    var card = document.getElementById('dmc-'+m.id);
+    if (card) card.classList.toggle('dm-sel', m.id === id);
+  });
+  document.getElementById('door-sub').classList.remove('hidden');
+  nrows = 1;
+  renderDoorSub(prod);
+  var moEl = document.getElementById('mo1');
+  if (moEl) { Array.from(moEl.options).forEach(function(opt,i){ if(opt.text===model.nombre) moEl.selectedIndex=i; }); }
+  calcLive();
+}
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
 var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null;
@@ -508,25 +545,19 @@ function renderForm(p) {
     c.addEventListener('input', calcLive);
 
   } else if (p === 'puertas') {
+    selectedDoorModel = '';
+    var cards = DOOR_MODELS.map(function(m) {
+      return '<div class="dm-card" id="dmc-'+m.id+'" onclick="selectDoorModel(\''+m.id+'\')">' +
+        '<img src="'+m.img+'&width=300" loading="lazy">' +
+        '<div class="dm-lbl">'+m.nombre+'</div>' +
+      '</div>';
+    }).join('');
     c.innerHTML =
       '<div class="fsec">' +
-        '<label class="flabel">Tipo de puerta</label>' +
-        '<select class="fsel" id="door-tipo">' +
-          '<option value="granero">Puerta Granero</option>' +
-          '<option value="maciza">Puerta Madera</option>' +
-          '<option value="vidrios">Puerta con Vidrios</option>' +
-        '</select>' +
+        '<label class="flabel">Elige el modelo</label>' +
+        '<div class="dm-grid">'+cards+'</div>' +
       '</div>' +
-      '<div id="door-sub"></div>';
-
-    renderDoorSub('granero');
-
-    document.getElementById('door-tipo').addEventListener('change', function() {
-      prod = this.value;
-      nrows = 1;
-      renderDoorSub(prod);
-      calcLive();
-    });
+      '<div id="door-sub" class="hidden"></div>';
     c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-row')) addRow(); });
     c.addEventListener('input', calcLive);
 
