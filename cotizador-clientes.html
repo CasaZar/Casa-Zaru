@@ -651,7 +651,7 @@ function confirmar() {
   else if (prod === 'revestimiento') html = htmlRev(cli, fecha);
   document.getElementById('q-out').innerHTML = html;
   show('s3');
-  window.history.replaceState(null, '', buildShareUrl());
+  try { window.history.replaceState(null, '', buildShareUrl()); } catch(e) {}
 }
 
 function htmlCubierta(cli, fecha) {
