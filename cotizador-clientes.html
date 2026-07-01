@@ -473,6 +473,9 @@ function calcLive() {
       sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo + extra) * ca2;
       sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo + extra) * ca2;
     }
+    var mcMlEl2 = document.getElementById('mc-ml'), mcAnEl2 = document.getElementById('mc-an');
+    var mcM2live = (parseFloat((mcMlEl2&&mcMlEl2.value)||0)||0) * ((parseFloat((mcAnEl2&&mcAnEl2.value)||0)||0)/100);
+    if (mcM2live > 0) { sumBajo += mcM2live * PR.cubierta.bajo; sumAlto += mcM2live * PR.cubierta.alto; }
     if (sumBajo > 0) { bajo = sumBajo; alto = sumAlto; }
 
   } else if (prod === 'revestimiento') {
@@ -507,7 +510,7 @@ function initProd(p) {
   document.getElementById('f-title').textContent = isPuertas ? 'Puertas de madera' : PNAME[p];
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
-  renderExtras();
+  if (['cubierta','repisa','peldano'].includes(p)) renderExtras();
   show('s2');
   calcLive();
 }
@@ -597,7 +600,18 @@ function renderDoorSub(tipo) {
           '<option value="Biselado">Biselado (+$40.000 neto/m²)</option>' +
         '</select>' +
       '</div>'
-    : '');
+    : '') +
+    '<div class="fsec">' +
+      '<label class="flabel">Marco (opcional)</label>' +
+      '<div class="col-labels">' +
+        '<div class="col-lbl">Metros lineales</div>' +
+        '<div class="col-lbl">Ancho marco cm</div>' +
+      '</div>' +
+      '<div class="dim-row">' +
+        '<input type="number" placeholder="ej. 6" min="0" step="0.01" id="mc-ml">' +
+        '<input type="number" placeholder="ej. 10" min="0" id="mc-an">' +
+      '</div>' +
+    '</div>';
   var vtSel = document.getElementById('vt');
   if (vtSel) vtSel.addEventListener('change', calcLive);
 }
@@ -710,6 +724,9 @@ function htmlPuerta(cli, fecha) {
     var m2=(lg/100)*(an/100);
     filas.push({n:i,mo:mo,lg:lg,an:an,ca:ca,m2:m2});
   }
+  var mcMlEl = document.getElementById('mc-ml'), mcAnEl = document.getElementById('mc-an');
+  var mcMl = parseFloat((mcMlEl&&mcMlEl.value)||0)||0, mcAn = parseFloat((mcAnEl&&mcAnEl.value)||0)||0;
+  var mcM2 = mcMl * (mcAn/100);
   var tiers = ['bajo','medio','alto'];
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
@@ -717,6 +734,7 @@ function htmlPuerta(cli, fecha) {
       var extraIva = extraTipo ? f.m2 * 40000 * 1.19 : 0;
       sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo) * f.ca + extraIva * f.ca;
     });
+    if (mcM2 > 0) sumNeto += mcM2 * PR.cubierta[t];
     return {label: WOOD[t], tier: t, total: sumNeto};
   });
   var dimRows = filas.map(function(f){
@@ -734,12 +752,12 @@ function htmlPuerta(cli, fecha) {
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
     tierTable(tierRows, recWood()) +
-    extrasBlock(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
+      (mcM2>0 ? '<div class="spec"><div class="sl">Marco</div><div class="sv">'+mcMl.toFixed(2)+' ml · '+mcM2.toFixed(2)+' m²</div></div>' : '') +
     '</div>' +
     boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
   );
@@ -760,7 +778,6 @@ function htmlRev(cli, fecha) {
     '<table class="ptable"><thead><tr><th>Superficie (m²)</th></tr></thead>' +
     '<tbody><tr><td style="font-size:16px;font-weight:700;padding:10px">'+m2.toFixed(2)+'</td></tr></tbody></table>' +
     tierTable(tierRows) +
-    extrasBlock(m2) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">100% sólida del sur de Chile</div></div>' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">1,2 cm</div></div>' +
@@ -890,6 +907,9 @@ function getShareData() {
     }
     var vtEl = document.getElementById('vt');
     if (vtEl && vtEl.value) data.vt = vtEl.value;
+    var mcMlEl = document.getElementById('mc-ml'), mcAnEl = document.getElementById('mc-an');
+    if (mcMlEl && mcMlEl.value) data.mcMl = parseFloat(mcMlEl.value)||0;
+    if (mcAnEl && mcAnEl.value) data.mcAn = parseFloat(mcAnEl.value)||0;
   } else if (prod === 'revestimiento') {
     var rmEl = document.getElementById('rm');
     data.m2 = parseFloat((rmEl&&rmEl.value)||0)||0;
@@ -932,11 +952,15 @@ function restoreFromData(d) {
   document.getElementById('f-con').value = d.con || '';
   var isPuerta = ['granero','maciza','vidrios'].includes(d.p);
   initProd(isPuerta ? 'puertas' : d.p);
-  if (isPuerta && d.p !== 'granero') {
-    var dtEl = document.getElementById('door-tipo');
-    if (dtEl) { dtEl.value = d.p; prod = d.p; nrows = 1; renderDoorSub(d.p); }
+  if (isPuerta) {
+    prod = d.p;
+    nrows = 1;
+    renderDoorSub(prod);
+    document.getElementById('door-sub').classList.remove('hidden');
   }
   if (d.vt) { var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt; }
+  if (d.mcMl) { var mcMlEl = document.getElementById('mc-ml'); if (mcMlEl) mcMlEl.value = d.mcMl; }
+  if (d.mcAn) { var mcAnEl = document.getElementById('mc-an'); if (mcAnEl) mcAnEl.value = d.mcAn; }
   if (d.p === 'revestimiento') {
     var rmEl = document.getElementById('rm'); if (rmEl && d.m2) rmEl.value = d.m2;
   } else {
