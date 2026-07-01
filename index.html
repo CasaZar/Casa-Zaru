@@ -672,7 +672,7 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 
   body { flex-direction: column; }
 
-  /* Sidebar → top bar en móvil */
+  /* ── Header compacto ── */
   .app-header {
     width: 100% !important;
     min-width: 0 !important;
@@ -682,103 +682,152 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
     flex-direction: column;
     z-index: 200;
     border-right: none;
-    border-bottom: 1px solid rgba(245,237,227,0.15);
+    border-bottom: 1px solid rgba(245,237,227,0.12);
+    box-shadow: 0 2px 8px rgba(139,94,60,0.18);
   }
   .app-topbar {
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
+    padding: 10px 16px;
     border-bottom: none;
   }
   .brand-sub { display: none; }
-  .sync-row { margin-top: 0; margin-left: 12px; }
+  .sync-row { margin-top: 0; margin-left: 10px; }
 
-  /* Nav tabs → scroll horizontal */
+  /* ── Nav tabs — pills scroll horizontal ── */
   .nav-tabs {
     flex-direction: row !important;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 0 12px 10px;
-    gap: 4px;
+    padding: 6px 12px 10px;
+    gap: 5px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
   .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab {
     flex-shrink: 0;
-    padding: 7px 14px;
+    padding: 8px 16px;
     border-radius: 20px;
-    font-size: 12px;
+    font-size: 12.5px;
+    font-weight: 500;
     white-space: nowrap;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+  }
+  .nav-tab.active {
+    background: rgba(245,237,227,0.22) !important;
+    font-weight: 700;
+    letter-spacing: -0.1px;
   }
   .tab-icon { display: none; }
 
-  /* Main content */
+  /* ── Main content ── */
   .app-body { min-width: 0; }
-  .main { padding: 16px 12px 80px; }
+  .main { padding: 14px 12px 90px; }
 
-  /* Stats grid — 2 columnas en móvil */
-  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+  /* ── KPI dashboard — scroll horizontal en lugar de 2 cols ── */
+  #dash-kpis {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 10px !important;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-bottom: 16px;
+  }
+  #dash-kpis::-webkit-scrollbar { display: none; }
+  #dash-kpis .kpi-card {
+    flex-shrink: 0 !important;
+    min-width: 140px !important;
+    width: 140px !important;
+    padding: 12px 14px !important;
+  }
+  .kpi-val { font-size: 17px; }
+  .kpi-label { font-size: 10.5px; }
+
+  /* ── Stats grid — 2 columnas ── */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 14px; }
   .cost-stats { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .stat-card { padding: 12px 14px; }
   .stat-val { font-size: 20px; }
-  .kpi-card { padding: 12px 14px; }
-  .kpi-val { font-size: 18px; }
 
-  /* Toolbar — wrap agresivo */
-  .toolbar { flex-direction: column; align-items: stretch; gap: 8px; }
-  .filter-group { flex-wrap: wrap; }
-  .filter-btn { padding: 6px 12px; font-size: 12px; }
+  /* ── Toolbar — columna con buen gap ── */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 0;
+  }
+  .toolbar > * { width: 100%; }
+  .filter-group { flex-wrap: wrap; gap: 6px; }
+  .filter-btn { padding: 8px 14px; font-size: 12.5px; min-height: 36px; }
 
-  /* Month bar — scroll horizontal */
+  /* ── Month bar — scroll horizontal ── */
   .month-bar {
     flex-wrap: nowrap;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding: 8px 12px;
+    padding: 6px 0 10px;
     gap: 6px;
   }
   .month-bar::-webkit-scrollbar { display: none; }
   .month-bar .filter-btn { flex-shrink: 0; }
 
-  /* Ocultar tablas en móvil — mostrar tarjetas */
+  /* ── Tablas/tarjetas ── */
   .table-wrap { display: none; }
   .mobile-cards { display: flex; flex-direction: column; gap: 10px; }
-
-  /* En desktop ocultar tarjetas */
   .desktop-table { display: block; }
 
-  /* Botones acción */
+  /* ── Botones — tap targets cómodos ── */
   .btn-primary, .btn-secondary, .btn-ghost, .btn-add, .tbtn {
-    padding: 9px 14px;
+    padding: 10px 16px;
     font-size: 13px;
+    min-height: 40px;
   }
 
-  /* Modal full screen en móvil */
+  /* ── Checkboxes seguimiento — más grandes en touch ── */
+  .seg-card-chk {
+    padding: 10px 12px;
+    min-height: 42px;
+    font-size: 12.5px;
+  }
+
+  /* ── Modal slide-up ── */
   .modal-bg { padding: 0; align-items: flex-end; }
   .modal {
     width: 100% !important;
-    max-height: 90vh;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  /* Search */
-  .search-wrap input { font-size: 16px; } /* evita zoom en iOS */
+  /* ── Search — evita zoom iOS ── */
+  .search-wrap input, input[type="text"], input[type="email"],
+  input[type="number"], input[type="tel"], select, textarea {
+    font-size: 16px !important;
+  }
 
-  /* Dashboard grid — una columna */
+  /* ── Dashboard ── */
   #dash-grid { grid-template-columns: 1fr !important; }
 
-  /* Producción filtros */
-  #prod-filter-semana, #prod-filter-madera { width: 100%; }
+  /* ── Producción filtros ── */
+  #prod-filter-semana, #prod-filter-madera, #prod-filter-cliente { width: 100%; }
 
-  /* Prev panel */
+  /* ── Prev panel ── */
   .prev-header { flex-direction: column; }
   .prev-img { max-height: 100px; }
-  .chips { gap: 6px; }
-  .chip { padding: 6px 10px; }
+  .chips { gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 7px 12px; font-size: 12.5px; min-height: 36px; }
+
+  /* ── Form grid — una columna en móvil ── */
+  .form-grid { grid-template-columns: 1fr !important; }
 }
 
 @media (min-width: 769px) {
@@ -25954,7 +26003,7 @@ function showPage(p,btn){
   if(p==='cli'){renderClientes();}
   if(p==='dash'){
     if(DB_URL){
-      Promise.all([finRecords.length===0?loadFin():Promise.resolve(),prodOrders.length===0?loadProd():Promise.resolve()]).then(function(){renderDash();});
+      Promise.all([loadFin(),loadProd()]).then(function(){renderDash();});
     } else {renderDash();}
   }
 }
@@ -27268,7 +27317,7 @@ function renderDash(){
   var recEl=document.getElementById('dash-recientes');
   if(recEl){if(!recientes.length){recEl.innerHTML='<div class="empty-dash">No hay pedidos recientes</div>';}else{recEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+recientes.map(function(r){var listo=r.doc1_emitida&&r.doc2_emitida,pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),dc=listo?'var(--green)':pend>0?'var(--amber)':'var(--brand)';return'<div class="reciente-row" onclick="goToPage(\'fin\')" style="cursor:pointer"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(r.nombre||'')+' '+(r.apellido||'')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.semana||'')+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+( pend>0?'Pend: '+fmtCLP(pend):'&#10003; Pagado')+'</div></div></div>';}).join('')+'</div>';}}
 }
-function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();checkAvisoSinMovimiento();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();}},30000);}
+function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();checkAvisoSinMovimiento();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){if(DB_URL)Promise.all([loadFin(),loadProd()]).then(function(){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();});else{renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();}}},30000);}
 function downloadXLSX(wb,filename){try{var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}),blob=new Blob([wbout],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);showToast('✓ Excel descargado');}catch(e){console.error('Excel error:',e);showToast('Error al generar Excel: '+e.message,true);}}
 
 // ── TARJETAS MÓVIL ────────────────────────────────────────────────────────
