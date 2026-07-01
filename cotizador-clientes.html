@@ -405,7 +405,7 @@ function selectDoorModel(id) {
 }
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
-var prod = '', isPuertas = false, nrows = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null;
+var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null;
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -473,8 +473,7 @@ function calcLive() {
       sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo + extra) * ca2;
       sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo + extra) * ca2;
     }
-    var mcMlEl2 = document.getElementById('mc-ml'), mcAnEl2 = document.getElementById('mc-an');
-    var mcM2live = (parseFloat((mcMlEl2&&mcMlEl2.value)||0)||0) * ((parseFloat((mcAnEl2&&mcAnEl2.value)||0)||0)/100);
+    var mcM2live = getMarcoTotals().m2;
     if (mcM2live > 0) { sumBajo += mcM2live * PR.cubierta.bajo; sumAlto += mcM2live * PR.cubierta.alto; }
     if (sumBajo > 0) { bajo = sumBajo; alto = sumAlto; }
 
@@ -561,7 +560,10 @@ function renderForm(p) {
         '<div class="dm-grid">'+cards+'</div>' +
       '</div>' +
       '<div id="door-sub" class="hidden"></div>';
-    c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-row')) addRow(); });
+    c.addEventListener('click', function(e) {
+      if (e.target.closest('#btn-add-row')) addRow();
+      if (e.target.closest('#btn-add-marco')) addMarcoRow();
+    });
     c.addEventListener('input', calcLive);
 
   } else if (p === 'revestimiento') {
@@ -607,11 +609,10 @@ function renderDoorSub(tipo) {
         '<div class="col-lbl">Metros lineales</div>' +
         '<div class="col-lbl">Ancho marco cm</div>' +
       '</div>' +
-      '<div class="dim-row">' +
-        '<input type="number" placeholder="ej. 6" min="0" step="0.01" id="mc-ml">' +
-        '<input type="number" placeholder="ej. 10" min="0" id="mc-an">' +
-      '</div>' +
+      '<div id="mrows">' + marcoRow(1) + '</div>' +
+      '<button class="btn-add" id="btn-add-marco">+ Agregar marco</button>' +
     '</div>';
+  nMarco = 1;
   var vtSel = document.getElementById('vt');
   if (vtSel) vtSel.addEventListener('change', calcLive);
 }
@@ -639,6 +640,28 @@ function addRow() {
   var opts = (MODELOS[prod]||[]).map(function(m){ return '<option>'+m+'</option>'; }).join('');
   div.innerHTML = ['granero','maciza','vidrios'].includes(prod) ? doorRow(nrows,opts) : dimRow(nrows);
   cont.appendChild(div.firstElementChild);
+}
+function marcoRow(n) {
+  return '<div class="dim-row" id="mr'+n+'">' +
+    '<input type="number" placeholder="ej. 6" min="0" step="0.01" id="mcml'+n+'">' +
+    '<input type="number" placeholder="ej. 10" min="0" id="mcan'+n+'">' +
+  '</div>';
+}
+function addMarcoRow() {
+  nMarco++;
+  var cont = document.getElementById('mrows');
+  var div = document.createElement('div');
+  div.innerHTML = marcoRow(nMarco);
+  cont.appendChild(div.firstElementChild);
+}
+function getMarcoTotals() {
+  var ml = 0, m2 = 0;
+  for (var i=1; i<=nMarco; i++) {
+    var mlEl = document.getElementById('mcml'+i), anEl = document.getElementById('mcan'+i);
+    var mlv = parseFloat((mlEl&&mlEl.value)||0)||0, anv = parseFloat((anEl&&anEl.value)||0)||0;
+    ml += mlv; m2 += mlv * (anv/100);
+  }
+  return {ml:ml, m2:m2};
 }
 
 /* ── QUOTE GENERATION ── */
@@ -724,9 +747,7 @@ function htmlPuerta(cli, fecha) {
     var m2=(lg/100)*(an/100);
     filas.push({n:i,mo:mo,lg:lg,an:an,ca:ca,m2:m2});
   }
-  var mcMlEl = document.getElementById('mc-ml'), mcAnEl = document.getElementById('mc-an');
-  var mcMl = parseFloat((mcMlEl&&mcMlEl.value)||0)||0, mcAn = parseFloat((mcAnEl&&mcAnEl.value)||0)||0;
-  var mcM2 = mcMl * (mcAn/100);
+  var mcT = getMarcoTotals(), mcMl = mcT.ml, mcM2 = mcT.m2;
   var tiers = ['bajo','medio','alto'];
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
@@ -749,6 +770,7 @@ function htmlPuerta(cli, fecha) {
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   return shell(PNAME[prod], cli, fecha,
     (extraTipo ? '<div class="info-bar">Vidrio extra: <strong>'+extraTipo+'</strong></div>' : '') +
+    (mcM2>0 ? '<div class="info-bar">Marco: <strong>'+mcMl.toFixed(2)+' ml · '+mcM2.toFixed(2)+' m²</strong></div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
     tierTable(tierRows, recWood()) +
@@ -757,7 +779,6 @@ function htmlPuerta(cli, fecha) {
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
-      (mcM2>0 ? '<div class="spec"><div class="sl">Marco</div><div class="sv">'+mcMl.toFixed(2)+' ml · '+mcM2.toFixed(2)+' m²</div></div>' : '') +
     '</div>' +
     boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
   );
@@ -907,9 +928,11 @@ function getShareData() {
     }
     var vtEl = document.getElementById('vt');
     if (vtEl && vtEl.value) data.vt = vtEl.value;
-    var mcMlEl = document.getElementById('mc-ml'), mcAnEl = document.getElementById('mc-an');
-    if (mcMlEl && mcMlEl.value) data.mcMl = parseFloat(mcMlEl.value)||0;
-    if (mcAnEl && mcAnEl.value) data.mcAn = parseFloat(mcAnEl.value)||0;
+    data.marco = [];
+    for (var mi = 1; mi <= nMarco; mi++) {
+      var mlEl = document.getElementById('mcml'+mi), maEl = document.getElementById('mcan'+mi);
+      if (mlEl && mlEl.value && maEl && maEl.value) data.marco.push({ml: parseFloat(mlEl.value)||0, an: parseFloat(maEl.value)||0});
+    }
   } else if (prod === 'revestimiento') {
     var rmEl = document.getElementById('rm');
     data.m2 = parseFloat((rmEl&&rmEl.value)||0)||0;
@@ -959,8 +982,15 @@ function restoreFromData(d) {
     document.getElementById('door-sub').classList.remove('hidden');
   }
   if (d.vt) { var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt; }
-  if (d.mcMl) { var mcMlEl = document.getElementById('mc-ml'); if (mcMlEl) mcMlEl.value = d.mcMl; }
-  if (d.mcAn) { var mcAnEl = document.getElementById('mc-an'); if (mcAnEl) mcAnEl.value = d.mcAn; }
+  if (d.marco && d.marco.length) {
+    document.getElementById('mcml1').value = d.marco[0].ml;
+    document.getElementById('mcan1').value = d.marco[0].an;
+    for (var mi = 1; mi < d.marco.length; mi++) {
+      addMarcoRow();
+      document.getElementById('mcml'+nMarco).value = d.marco[mi].ml;
+      document.getElementById('mcan'+nMarco).value = d.marco[mi].an;
+    }
+  }
   if (d.p === 'revestimiento') {
     var rmEl = document.getElementById('rm'); if (rmEl && d.m2) rmEl.value = d.m2;
   } else {
