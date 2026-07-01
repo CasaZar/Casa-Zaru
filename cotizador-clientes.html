@@ -915,8 +915,12 @@ async function buildShortUrl() {
   try {
     var res = await sbClient.from('quote_links').insert({token: token, data: data});
     if (!res.error) return BASE_URL + '?s=' + token;
-  } catch(e) {}
-  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+    console.error('quote_links error:', res.error);
+  } catch(e) { console.error('quote_links ex:', e); }
+  // fallback: hash sin qnum para acortar
+  var d2 = Object.assign({}, data);
+  delete d2.qnum;
+  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(d2))));
   return BASE_URL + '#q=' + enc;
 }
 
