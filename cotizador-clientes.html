@@ -963,10 +963,10 @@ async function copyShareLink() {
   if (btn) btn.textContent = 'Generando enlace…';
   var url = await buildShortUrl();
   var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
-  var msg = 'Hola' + (cli ? ' ' + cli : '') + '! 👋\n\n' +
-    'Generamos tu cotización ' + qnum + ' de Casa Zaru.\n\n' +
-    'Puedes verla aquí:\n' + url + '\n\n' +
-    '¿Dudas? Escríbenos.\nAtte. Casa Zaru — casazaru.cl';
+  var msg = 'Hola' + (cli ? ' ' + cli : '') + '! Te envío la cotización 😊\n\n' +
+    'La puedes revisar en el siguiente link\n' +
+    '👉 ' + url + '\n\n' +
+    'Tenemos un catálogo con las distintas maderas y proyectos realizados, ¿quieres que te lo envíe?';
   function done() {
     if (btn) { btn.textContent = '✓ Mensaje copiado'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent = '📋 Copiar mensaje para WhatsApp'; btn.classList.remove('copied'); }, 2500); }
   }
