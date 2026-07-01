@@ -548,7 +548,7 @@ function renderForm(p) {
     selectedDoorModel = '';
     var cards = DOOR_MODELS.map(function(m) {
       return '<div class="dm-card" id="dmc-'+m.id+'" onclick="selectDoorModel(\''+m.id+'\')">' +
-        '<img src="'+m.img+'&width=300" loading="lazy">' +
+        '<img src="'+m.img+'?width=300" loading="lazy">' +
         '<div class="dm-lbl">'+m.nombre+'</div>' +
       '</div>';
     }).join('');
