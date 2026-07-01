@@ -25449,6 +25449,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="btn-ghost" onclick="renderDash();renderNotif();renderGrafico();renderRanking();" style="font-size:12px">↺ Actualizar</button>
   </div>
 
+  <!-- Selector de mes -->
+  <div id="dash-month-bar" class="month-bar" style="margin-bottom:16px"></div>
+
   <!-- Fila KPIs mes actual vs anterior -->
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px" id="dash-kpis"></div>
 
@@ -25959,7 +25962,9 @@ var finMonthFilter=currentMonthName();
 var prodMonthFilter=currentMonthName();
 var pixelMonthFilter=currentMonthName();
 var costMonthFilter=currentMonthName();
+var dashMonthFilter=currentMonthName();
 function setSegMonth(m){segMonthFilter=m;renderSeg();}
+function setDashMonth(m){dashMonthFilter=m;renderDash();renderNotif();renderGrafico();renderRanking();}
 function fechaFromSemana(semana){
   if(!semana)return todayStr;
   var s=semana.toUpperCase();
@@ -27273,8 +27278,12 @@ async function marcarContacto(numStr,tipo){
 }
 function renderDash(){
   renderMeta();
-  var now=new Date(),mesActual=MESES_ES[now.getMonth()],mesAnterior=MESES_ES[now.getMonth()===0?11:now.getMonth()-1];
+  var now=new Date(),mesHoy=MESES_ES[now.getMonth()];
+  var mesActual=dashMonthFilter||mesHoy;
+  var idxActual=MESES_ES.indexOf(mesActual);
+  var mesAnterior=MESES_ES[idxActual===0?11:idxActual-1];
   var el=document.getElementById('dash-date');if(el)el.textContent=SEMANAS_ES_D[now.getDay()].charAt(0).toUpperCase()+SEMANAS_ES_D[now.getDay()].slice(1)+', '+now.getDate()+' de '+MESES_LARGO_D[now.getMonth()]+' '+now.getFullYear();
+  renderMonthBar('dash-month-bar',finRecords,dashMonthFilter,'setDashMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
   function finByMonth(m){return finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===m;});}
   function sumField(arr,field){return arr.reduce(function(s,r){return s+(Number(r[field])||0);},0);}
   function sumAbonos(arr){return arr.reduce(function(s,r){return s+(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);},0);}
@@ -27309,11 +27318,11 @@ function renderDash(){
     return'<div class="urgente-row" onclick="goToSeg()"><div class="urgente-num">'+(o.num||'—')+'</div><div class="urgente-info"><div class="urgente-nombre">'+(o.nombre||'')+' '+(o.apellido||'')+'</div>'+diaInfo+'</div><div class="urgente-prog"><div style="font-size:13px;font-weight:700;color:'+pc+'">'+p.pct+'%</div><div style="height:3px;width:60px;background:var(--surface3);border-radius:2px;margin-top:3px"><div style="height:100%;width:'+p.pct+'%;background:'+pc+';border-radius:2px"></div></div></div></div>';
   }).join('');}}
   var CRIT_LABELS={word:'Orden Word no creada',aviso_sem:'Aviso semana previa',aviso_dia:'Aviso día previo',comprobante:'Comprobante no enviado'};var alerts=[];
-  orders.forEach(function(o){if(getProgress(o.checks).pct===100)return;var mes=extractMonth(o.semana||'');if(mes!==mesActual&&mes!==mesAnterior)return;Object.keys(CRIT_LABELS).forEach(function(cid){if(!(o.checks&&o.checks[cid]))alerts.push({o:o,cid:cid,label:CRIT_LABELS[cid]});});});
+  orders.forEach(function(o){if(getProgress(o.checks).pct===100)return;var mes=extractMonth(o.semana||'');if(mes!==mesActual)return;Object.keys(CRIT_LABELS).forEach(function(cid){if(!(o.checks&&o.checks[cid]))alerts.push({o:o,cid:cid,label:CRIT_LABELS[cid]});});});
   var PRIO=['aviso_dia','comprobante','aviso_sem','word'];alerts.sort(function(a,b){return PRIO.indexOf(a.cid)-PRIO.indexOf(b.cid);});alerts=alerts.slice(0,10);
   var chkEl=document.getElementById('dash-checks'),chkCnt=document.getElementById('dash-checks-count');if(chkCnt)chkCnt.textContent=alerts.length+' pendientes';
   if(chkEl){if(!alerts.length){chkEl.innerHTML='<div class="empty-dash" style="color:var(--green)">&#10003; Sin checkpoints críticos pendientes</div>';}else{chkEl.innerHTML=alerts.map(function(a){var isCrit=a.cid==='aviso_dia'||a.cid==='comprobante',cls=isCrit?'check-alert':'check-alert warn',badge=isCrit?'<span class="check-badge critico">CRÍTICO</span>':'<span class="check-badge warn">PENDIENTE</span>';return'<div class="'+cls+'" onclick="goToSeg()"><div><div class="check-alert-num">#'+(a.o.num||'—')+'</div>'+badge+'</div><div class="check-alert-info"><div class="check-alert-cliente">'+(a.o.nombre||'')+' '+(a.o.apellido||'')+'</div><div class="check-alert-tipo">'+a.label+'</div></div></div>';}).join('');}}
-  var recientes=finRecords.slice().sort(function(a,b){var da=a.fecha_creacion||a.fecha||'',db=b.fecha_creacion||b.fecha||'';return db.localeCompare(da);}).slice(0,6);
+  var recientes=finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===mesActual;}).sort(function(a,b){var da=a.fecha_creacion||a.fecha||'',db=b.fecha_creacion||b.fecha||'';return db.localeCompare(da);}).slice(0,6);
   var recEl=document.getElementById('dash-recientes');
   if(recEl){if(!recientes.length){recEl.innerHTML='<div class="empty-dash">No hay pedidos recientes</div>';}else{recEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+recientes.map(function(r){var listo=r.doc1_emitida&&r.doc2_emitida,pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),dc=listo?'var(--green)':pend>0?'var(--amber)':'var(--brand)';return'<div class="reciente-row" onclick="goToPage(\'fin\')" style="cursor:pointer"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(r.nombre||'')+' '+(r.apellido||'')+'</div><div style="font-size:11px;color:var(--text-3)">'+(r.semana||'')+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+( pend>0?'Pend: '+fmtCLP(pend):'&#10003; Pagado')+'</div></div></div>';}).join('')+'</div>';}}
 }
