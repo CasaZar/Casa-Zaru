@@ -116,9 +116,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ptier-head { background: var(--bg3); padding: 5px 9px; display: flex; }
 .ptier-head span { font-size: 8px; text-transform: uppercase; letter-spacing: .7px; color: var(--tm); flex: 1; text-align: right; font-weight: 600; }
 .ptier-head span:first-child { flex: 1.6; text-align: left; font-size: 9px; color: var(--acd); font-weight: 700; letter-spacing: .8px; }
-.ptier-row { display: flex; align-items: center; padding: 7px 9px; border-top: 1px solid var(--bg3); background: white; cursor: pointer; }
+.ptier-row { display: flex; align-items: center; padding: 7px 9px; border-top: 1px solid var(--bg3); background: white; }
 .ptier-row:nth-child(even) { background: var(--bg); }
-.ptier-row.selected { box-shadow: inset 0 0 0 2px var(--ac); background: var(--crt); }
 .ptier-wood { flex: 1.6; font-size: 10px; color: var(--tm); line-height: 1.3; }
 .ptier-total { flex: 1; text-align: right; font-size: 12.5px; font-weight: 700; color: var(--tx); }
 .ptier-trans { flex: 1; text-align: right; font-size: 11px; font-weight: 600; color: #2D6A4F; }
@@ -146,10 +145,6 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .wa-pitch { font-size: 11.5px; color: var(--tm); line-height: 1.65; text-align: center; margin-bottom: 13px; padding: 0 4px; font-style: italic; }
 .wa-btn { display: block; background: #25D366; color: white; border-radius: 10px; padding: 14px; font-size: 15px; font-family: 'Cormorant Garamond', serif; font-weight: 600; text-decoration: none; letter-spacing: 1px; text-align: center; }
 .wa-btn:hover { background: #1ebe5d; }
-.shop-btn { display: block; width: 100%; background: var(--ac); color: white; border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-family: 'Cormorant Garamond', serif; font-weight: 600; letter-spacing: 1px; text-align: center; cursor: pointer; margin-bottom: 6px; }
-.shop-btn:hover { background: var(--acd); }
-.shop-btn:disabled { opacity: .6; cursor: default; }
-.shop-note { font-size: 10px; color: var(--tm); text-align: center; margin: 0 0 16px; }
 
 /* ── VALUE SCREEN s2b ── */
 .val-body { padding: 28px 16px 40px; max-width: 480px; margin: 0 auto; }
@@ -343,7 +338,6 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 var SB_URL = 'https://cmxqorsyxoltrakxawro.supabase.co';
 var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
 var sbClient = supabase.createClient(SB_URL, SB_KEY);
-var SHOPIFY_FN_URL = SB_URL + '/functions/v1/create-draft-order';
 
 /* ── FOTOS — pegar URL para activar foto en la card ── */
 var FOTOS = {
@@ -412,7 +406,6 @@ function selectDoorModel(id) {
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
 var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null;
-var selectedTier = null, currentTierRows = [], shopDetalle = '', shopPeso = 0, shopExtrasM2 = 0;
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -689,7 +682,6 @@ function confirmar() {
   var cli   = document.getElementById('f-cli').value.trim();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
   if (!qnum) qnum = nextQ();
-  selectedTier = null;
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
   else if (['granero','maciza','vidrios'].includes(prod)) html = htmlPuerta(cli, fecha);
@@ -736,8 +728,7 @@ function htmlCubierta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²') +
-    (srcEmail ? '' : shopifyCTA(sumM2.toFixed(2) + ' m²', Math.round(sumM2*30), sumM2))
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²')
   );
 }
 
@@ -789,8 +780,7 @@ function htmlPuerta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.') +
-    (srcEmail ? '' : shopifyCTA(filas.length + ' u.', Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)))
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
   );
 }
 
@@ -816,8 +806,7 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*10)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²') +
-    (srcEmail ? '' : shopifyCTA(m2.toFixed(2) + ' m²', Math.round(m2*10)))
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²')
   );
 }
 
@@ -839,14 +828,11 @@ function shell(nombre, cli, fecha, body) {
 }
 
 function tierTable(rows, recTier) {
-  currentTierRows = rows;
-  if (!rows.some(function(r){ return r.tier === selectedTier; })) selectedTier = recTier || rows[0].tier;
   var prows = rows.map(function(r) {
     var isRec = recTier && r.tier === recTier;
-    var isSel = r.tier === selectedTier;
     var badge = isRec ? '<span class="ptier-rec-badge">★ Recomendada para ti</span>' : '';
-    var cls = 'ptier-row' + (isRec ? ' rec' : '') + (isSel ? ' selected' : '');
-    return '<div class="' + cls + '" data-tier="' + r.tier + '" onclick="selectTier(\'' + r.tier + '\')">' +
+    var cls = isRec ? 'ptier-row rec' : 'ptier-row';
+    return '<div class="' + cls + '">' +
       '<span class="ptier-wood">' + r.label + badge + '</span>' +
       '<span class="ptier-total">' + fmt(r.total) + '</span>' +
       '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * 0.95) + '</span></span>' +
@@ -859,18 +845,8 @@ function tierTable(rows, recTier) {
       '<span>Transferencia −5%</span>' +
     '</div>' +
     prows +
-    '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado · Toca una madera para elegirla</div>' +
+    '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado</div>' +
   '</div>';
-}
-
-function selectTier(tier) {
-  selectedTier = tier;
-  document.querySelectorAll('.ptier-row').forEach(function(el) {
-    el.classList.toggle('selected', el.dataset.tier === tier);
-  });
-  var row = currentTierRows.find(function(r){ return r.tier === tier; });
-  var priceEl = document.getElementById('shop-price');
-  if (row && priceEl) priceEl.textContent = fmt(row.total + getExtrasTotal(shopExtrasM2));
 }
 
 function boxes() {
@@ -911,51 +887,6 @@ function whatsappCTA(bajo, alto, det) {
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
     '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' +
   '</div>';
-}
-
-function shopifyCTA(detalle, pesoKg, extrasM2) {
-  shopDetalle = detalle; shopPeso = pesoKg; shopExtrasM2 = extrasM2 || 0;
-  var row = currentTierRows.find(function(r){ return r.tier === selectedTier; }) || currentTierRows[0];
-  var total = row.total + getExtrasTotal(shopExtrasM2);
-  return '<div class="wa-block">' +
-    '<button class="shop-btn" id="shop-btn" onclick="comprarAhora()">🛒 Comprar ahora — <span id="shop-price">' + fmt(total) + '</span></button>' +
-    '<div class="shop-note">Pago 100% online · + envío Starken calculado en el checkout</div>' +
-  '</div>';
-}
-
-function getExtrasSelections() {
-  var sel = {};
-  EXTRAS.forEach(function(e) {
-    var el = document.getElementById('ex_'+e.id);
-    if (!el) return;
-    sel[e.id] = e.unit === 'm²' ? !!el.checked : (parseInt(el.value)||0);
-  });
-  return sel;
-}
-
-async function comprarAhora() {
-  var btn = document.getElementById('shop-btn');
-  var origHtml = btn ? btn.innerHTML : '';
-  if (btn) { btn.disabled = true; btn.textContent = 'Generando pedido…'; }
-  try {
-    var data = getShareData();
-    data.tier = selectedTier;
-    data.pesoKg = shopPeso;
-    data.detalle = shopDetalle;
-    data.extras = getExtrasSelections();
-    var res = await fetch(SHOPIFY_FN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SB_KEY },
-      body: JSON.stringify(data)
-    });
-    var out = await res.json();
-    if (!res.ok || !out.invoice_url) throw new Error(out.error || 'No se pudo generar el pedido');
-    window.location.href = out.invoice_url;
-  } catch(e) {
-    showToast('No se pudo iniciar el pago. Prueba por WhatsApp.', false);
-    console.error('comprarAhora:', e);
-    if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
-  }
 }
 
 function muestrario() {
