@@ -26604,6 +26604,7 @@ function renderFin(){
 function deleteFinRecord_inline(numStr){if(!confirm('¿Eliminar este registro?'))return;var idx=finRecords.findIndex(function(x){return String(x.num||'')===String(numStr);});if(idx>=0)finRecords.splice(idx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(function(){});renderFin();showToast('✓ Eliminado');}
 function recalcFin(idx){const r=finRecords[idx];if(!r)return;const total=(Number(r.val_prod)||0)+(Number(r.val_envio)||0)+(Number(r.val_comision)||0);r.abono_monto=Math.round(total*0.7);r.saldo_monto=total-r.abono_monto;r.sin_com=(Number(r.val_prod)||0)+(Number(r.val_envio)||0);r.sin_iva=Math.round(r.sin_com/1.19);if(total)r.total=total;const numStr=String(r.num||'');if(DB_URL&&numStr)api('finanzas/'+numStr,'PUT',r).catch(()=>{});renderFin();}
 async function syncFinFromProd(){
+  if(DB_URL){showToast('↻ Recargando producción...');await loadProd();}
   if(!prodOrders.length){showToast('No hay pedidos en Producción');return;}
   let creados=0,actualizados=0;
   for(const o of prodOrders){const numStr=String(o.pedido||'');if(!numStr)continue;const prod=(o.lineas&&o.lineas[0])?o.lineas[0].producto:'';const existIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
