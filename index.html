@@ -25610,6 +25610,30 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <div class="chips" id="chips"></div>
       </div>
     </div>
+    <!-- Finanzas editable antes de confirmar -->
+    <div id="prev-fin" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:12px 0 16px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius-lg);border:1px solid var(--border-md)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:2px">💰 Valores — edita si Claude se equivocó</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Valor producto</label>
+        <input type="number" id="pf-vp" min="0" step="100" oninput="recalcPrevFin()" style="width:120px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;font-weight:600;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Envío</label>
+        <input type="number" id="pf-ve" min="0" step="100" oninput="recalcPrevFin()" style="width:100px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Comisión</label>
+        <input type="number" id="pf-vc" min="0" step="100" oninput="recalcPrevFin()" style="width:100px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Abono 1</label>
+        <input type="number" id="pf-a1" min="0" step="100" oninput="recalcPrevFin()" style="width:110px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-left:8px">
+        <label style="font-size:11px;color:var(--text-3)">Total</label>
+        <div id="pf-total" style="font-size:18px;font-weight:700;color:var(--brand);min-width:110px;line-height:1;padding:7px 0">—</div>
+      </div>
+    </div>
     <div class="etable-wrap">
       <table class="etable">
         <thead><tr><th>Producto</th><th>Cant.</th><th>Madera</th><th>Largo</th><th>Ancho</th><th>Canto</th><th>Acabado</th><th>Espesor</th><th>Observaciones</th><th>M²</th><th></th></tr></thead>
@@ -26283,11 +26307,28 @@ async function addSecondImage(file){
   };
   r.readAsDataURL(file);
 }
+function recalcPrevFin(){
+  var vp=Number(document.getElementById('pf-vp').value)||0;
+  var ve=Number(document.getElementById('pf-ve').value)||0;
+  var vc=Number(document.getElementById('pf-vc').value)||0;
+  var total=vp+ve+vc;
+  document.getElementById('pf-total').textContent=total?'$'+total.toLocaleString('es-CL'):'—';
+  if(prodPending){prodPending._finanzas=prodPending._finanzas||{};prodPending._finanzas.valor_producto=vp;prodPending._finanzas.valor_envio=ve;prodPending._finanzas.valor_comision=vc;}
+}
 function renderPrevProd(o){
   var hoy=new Date(),dd=String(hoy.getDate()).padStart(2,'0'),mm=String(hoy.getMonth()+1).padStart(2,'0'),yyyy=hoy.getFullYear();
   var fechaISO=yyyy+'-'+mm+'-'+dd,fechaInicial=o.fecha_venta||fechaISO;
   document.getElementById('chips').innerHTML=`<div class="chip hi"><label>N° Pedido</label><input type="number" value="${o.pedido}" onchange="prodPending.pedido=Number(this.value)" style="width:70px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:14px;color:var(--wood);font-weight:700"></div><div class="chip hi"><label>Cliente</label><span>${o.comprador||''} ${o.apellido||''}</span></div><div class="chip"><label>Semana producción</label><input type="text" value="${o.envio||''}" onchange="prodPending.envio=this.value" style="width:130px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:12px;color:var(--text)"></div><div class="chip"><label>Día de envío</label><input type="date" value="${o.dia_envio||''}" onchange="prodPending.dia_envio=this.value" style="background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:12px;color:var(--text)"></div><div class="chip hi" style="border:1.5px solid var(--wood-light)"><label style="color:var(--wood);font-weight:600">📅 Fecha de venta</label><input type="date" value="${fechaInicial}" onchange="prodPending.fecha_venta=this.value" style="background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:13px;color:var(--wood);font-weight:600"></div><div class="chip"><label>Líneas</label><span>${(o.lineas||[]).length}</span></div>`;
-  prodPending.fecha_venta=prodPending.fecha_venta||fechaISO;renderPrevRows(o.lineas||[]);
+  prodPending.fecha_venta=prodPending.fecha_venta||fechaISO;
+  var fin=o._finanzas||{};
+  var vp=Number(fin.valor_producto)||0,ve=Number(fin.valor_envio)||0,vc=Number(fin.valor_comision)||0;
+  document.getElementById('pf-vp').value=vp||'';
+  document.getElementById('pf-ve').value=ve||'';
+  document.getElementById('pf-vc').value=vc||'';
+  var a1=fin.abono1!=null?Number(fin.abono1):Math.round((vp+ve+vc)*0.7);
+  document.getElementById('pf-a1').value=a1||'';
+  recalcPrevFin();
+  renderPrevRows(o.lineas||[]);
 }
 function renderPrevRows(lineas){
   const CANTOS=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
@@ -26327,10 +26368,13 @@ async function confirmOrder(){
   }
   // 3. FINANZAS
   const fin=o._finanzas||{},cli=o._cliente||{};
-  const vp=Number(fin.valor_producto)||0,ve=Number(fin.valor_envio)||0,vc=Number(fin.valor_comision)||0;
-  const total=vp+ve+vc,abono=total?Math.round(total*0.7):0,saldo=total?total-abono:0,sincom=vp+ve,siniva=sincom?Math.round(sincom/1.19):0;
+  const vp=Number(document.getElementById('pf-vp').value)||Number(fin.valor_producto)||0;
+  const ve=Number(document.getElementById('pf-ve').value)||Number(fin.valor_envio)||0;
+  const vc=Number(document.getElementById('pf-vc').value)||Number(fin.valor_comision)||0;
+  const a1manual=Number(document.getElementById('pf-a1').value);
+  const total=vp+ve+vc,abono=a1manual||0,saldo=total?total-abono:0,sincom=vp+ve,siniva=sincom?Math.round(sincom/1.19):0;
   const existFin=finRecords.find(r=>String(r.num||'')===numStr);
-  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:cli.rut||'',direccion:cli.direccion||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:'',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):Math.round(total*0.7),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:existFin?(existFin.doc1_tipo||'BOLETA'):'BOLETA',doc2_tipo:existFin?(existFin.doc2_tipo||'BOLETA'):'BOLETA',doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:cli.rut||'',direccion:cli.direccion||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:'',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:existFin?(existFin.doc1_tipo||'BOLETA'):'BOLETA',doc2_tipo:existFin?(existFin.doc2_tipo||'BOLETA'):'BOLETA',doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
   const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
   if(existFinIdx>=0)finRecords[existFinIdx]=finData;else finRecords.push(finData);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',finData);
