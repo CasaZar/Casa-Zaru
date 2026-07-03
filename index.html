@@ -26351,6 +26351,8 @@ async function confirmOrder(){
   var canalEl=document.querySelector('input[name="canal-venta"]:checked');
   o.canal=canalEl?canalEl.value:'whatsapp';
   if(!numStr){showToast('❌ El pedido necesita un número',true);return;}
+  const yaExiste=prodOrders.some(p=>String(p.pedido||'')===numStr)||finRecords.some(r=>String(r.num||'')===numStr);
+  if(yaExiste){if(!confirm('⚠️ Ya existe un pedido con el N° '+numStr+' en el sistema.\n\n¿Seguro que quieres sobreescribirlo? Si es un pedido nuevo, cambia el número arriba antes de continuar.'))return;}
   if(o.fecha_venta&&o.fecha_venta.indexOf('-')!==-1){var _fv=o.fecha_venta.split('-');o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];}
   else{o.fecha_creacion=fechaFromSemana(o.envio||'');}
   o.fecha=o.fecha_creacion;
