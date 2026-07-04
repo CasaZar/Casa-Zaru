@@ -182,6 +182,15 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .stat-card { background:white;border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center; }
 .stat-v { font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--tx); }
 .stat-l { font-size:9px;text-transform:uppercase;letter-spacing:1.5px;color:var(--tm);margin-top:2px; }
+.dash-filters { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px; }
+.dash-filters input, .dash-filters select { flex:1 1 110px;min-width:90px;padding:8px 9px;border:1px solid var(--bd);border-radius:8px;font-size:11.5px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
+.dash-filters .df-clear { flex:0 0 auto;background:none;border:1px solid var(--bd);border-radius:8px;padding:8px 12px;font-size:11.5px;color:var(--tm);cursor:pointer;font-family:'Jost',sans-serif; }
+.tbl-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+.dash-estado { padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:10px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
+.dash-estado.ganado { background:#D1FAE5;color:#065F46;border-color:#A7F3D0; }
+.dash-estado.perdida { background:#FEE2E2;color:#991B1B;border-color:#FECACA; }
+.dash-del { background:none;border:1px solid var(--bd);border-radius:6px;color:#991B1B;font-size:11px;padding:3px 8px;cursor:pointer; }
+.dash-del:hover { background:#FEE2E2;border-color:#FECACA; }
 .dm-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px; }
 @media(max-width:480px){ .dm-grid { grid-template-columns:repeat(2,1fr); } }
 .dm-card { border:2px solid var(--bd);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s; }
@@ -329,6 +338,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       <button class="btn-dtab"        id="dtab-cesar" onclick="switchDtab('cesar')">César</button>
     </div>
     <div id="dash-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <div id="dash-filters" class="dash-filters"></div>
     <div id="dash-tbl"></div>
   </div>
 </div>
@@ -885,7 +895,7 @@ function whatsappCTA(bajo, alto, det) {
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
-    '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' +
+    (srcEmail ? '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' : '') +
   '</div>';
 }
 
@@ -1078,6 +1088,7 @@ function switchDtab(m) {
 }
 async function loadDash() {
   document.getElementById('dash-tbl').innerHTML = '<div style="padding:20px;text-align:center;color:var(--tm)">Cargando…</div>';
+  renderDashFilters();
   var r1 = await sbClient.from('cotizaciones').select('*').is('user_email',null).order('fecha_creacion',{ascending:false});
   var r2 = await sbClient.from('cotizaciones').select('*').not('user_email','is',null).order('fecha_creacion',{ascending:false});
   dashData.cli   = r1.data || [];
@@ -1085,19 +1096,83 @@ async function loadDash() {
   if (r1.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+r1.error.message+'</div>'; return; }
   renderDash();
 }
+function renderDashFilters() {
+  var prodOpts = Object.keys(PNAME).map(function(k){ return '<option value="'+k+'">'+PNAME[k]+'</option>'; }).join('');
+  document.getElementById('dash-filters').innerHTML =
+    '<input type="text" id="f-dash-cli" placeholder="Buscar cliente…" oninput="renderDash()">' +
+    '<select id="f-dash-prod" onchange="renderDash()"><option value="">Todos los productos</option>'+prodOpts+'</select>' +
+    '<input type="number" id="f-dash-min" placeholder="Monto desde" oninput="renderDash()">' +
+    '<input type="number" id="f-dash-max" placeholder="Monto hasta" oninput="renderDash()">' +
+    '<select id="f-dash-dias" onchange="renderDash()">' +
+      '<option value="">Todas las fechas</option>' +
+      '<option value="7">Últimos 7 días</option>' +
+      '<option value="30">Últimos 30 días</option>' +
+      '<option value="90">Últimos 90 días</option>' +
+    '</select>' +
+    '<button class="df-clear" onclick="clearDashFilters()">Limpiar</button>';
+}
+function clearDashFilters() {
+  renderDashFilters();
+  renderDash();
+}
+function applyDashFilters(data) {
+  var cliQ  = (document.getElementById('f-dash-cli')||{}).value || '';
+  var prodQ = (document.getElementById('f-dash-prod')||{}).value || '';
+  var minQ  = parseFloat((document.getElementById('f-dash-min')||{}).value);
+  var maxQ  = parseFloat((document.getElementById('f-dash-max')||{}).value);
+  var diasQ = parseInt((document.getElementById('f-dash-dias')||{}).value) || 0;
+  var cutoff = diasQ ? Date.now() - diasQ*24*60*60*1000 : 0;
+  return data.filter(function(x){
+    if (cliQ && (x.cliente||'').toLowerCase().indexOf(cliQ.toLowerCase()) === -1) return false;
+    if (prodQ && x.producto !== prodQ) return false;
+    var total = x.total_alto || 0;
+    if (!isNaN(minQ) && total < minQ) return false;
+    if (!isNaN(maxQ) && total > maxQ) return false;
+    if (cutoff && (!x.fecha_creacion || new Date(x.fecha_creacion).getTime() < cutoff)) return false;
+    return true;
+  });
+}
+async function updateEstado(id, estado) {
+  var res = await sbClient.from('cotizaciones').update({estado: estado}).eq('id', id);
+  if (res.error) { showToast('Error al actualizar: ' + res.error.message, false); return; }
+  [dashData.cli, dashData.cesar].forEach(function(arr){
+    var item = arr.find(function(x){ return x.id === id; });
+    if (item) item.estado = estado;
+  });
+  renderDash();
+  showToast('Estado actualizado', true);
+}
+async function deleteQuote(id, numero) {
+  if (!confirm('¿Eliminar la cotización ' + numero + '? Esta acción no se puede deshacer.')) return;
+  var res = await sbClient.from('cotizaciones').delete().eq('id', id);
+  if (res.error) { showToast('Error al eliminar: ' + res.error.message, false); return; }
+  dashData.cli   = dashData.cli.filter(function(x){ return x.id !== id; });
+  dashData.cesar = dashData.cesar.filter(function(x){ return x.id !== id; });
+  renderDash();
+  showToast('Cotización eliminada', true);
+}
 function renderDash() {
-  var d = dashMode==='cli' ? dashData.cli : dashData.cesar;
-  var conc = d.filter(function(x){return x.estado==='concretada';}).length;
+  var dAll = dashMode==='cli' ? dashData.cli : dashData.cesar;
+  var d = applyDashFilters(dAll);
+  var conc = d.filter(function(x){return x.estado==='ganado';}).length;
   document.getElementById('dash-stats').innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+conc+'</div><div class="stat-l">Concretadas</div></div>'+
+    '<div class="stat-card"><div class="stat-v">'+conc+'</div><div class="stat-l">Ganadas</div></div>'+
     '<div class="stat-card"><div class="stat-v">'+(d.length?Math.round(conc/d.length*100):0)+'%</div><div class="stat-l">Conversión</div></div>';
-  if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
+  if (!dAll.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
+  if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Ninguna cotización coincide con el filtro</div>'; return; }
   var rows = d.map(function(x){
-    var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') : '—';
-    return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td>'+f+'</td><td>'+(x.estado||'—')+'</td></tr>';
+    var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') + ' ' + new Date(x.fecha_creacion).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
+    var est = x.estado || 'enviada';
+    return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td style="font-size:9.5px">'+f+'</td>' +
+      '<td><select class="dash-estado '+est+'" onchange="updateEstado('+x.id+',this.value)">' +
+        '<option value="enviada"'+(est==='enviada'?' selected':'')+'>Enviada</option>' +
+        '<option value="ganado"'+(est==='ganado'?' selected':'')+'>Ganado</option>' +
+        '<option value="perdida"'+(est==='perdida'?' selected':'')+'>Perdida</option>' +
+      '</select></td>' +
+      '<td><button class="dash-del" onclick="deleteQuote('+x.id+',\''+(x.numero||'')+'\')">✕</button></td></tr>';
   }).join('');
-  document.getElementById('dash-tbl').innerHTML='<table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ── EXTRAS ── */
