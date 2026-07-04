@@ -110,6 +110,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .info-bar strong { color: var(--tx); }
 .ptable { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 11px; }
 .ptable th { background: var(--acd); color: white; padding: 5px 3px; text-align: center; font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+.ptable th.th-sort { cursor: pointer; user-select: none; }
+.ptable th.th-sort:hover { background: var(--ac); }
 .ptable td { padding: 5px 3px; text-align: center; border-bottom: 1px solid var(--bd); background: var(--crt); }
 .ptable .trow td { background: var(--bg3); font-weight: 600; font-size: 10.5px; border-top: 1.5px solid var(--acd); border-bottom: none; }
 .ptier-block { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
@@ -1079,7 +1081,24 @@ async function saveQuote(data) {
 }
 
 /* ── PANEL INTERNO ── */
-var dashData = {cli:[],cesar:[]}, dashMode = 'cli';
+var dashData = {cli:[],cesar:[]}, dashMode = 'cli', dashSort = {col:'fecha_creacion', dir:'desc'};
+function setDashSort(col) {
+  if (dashSort.col === col) dashSort.dir = dashSort.dir === 'asc' ? 'desc' : 'asc';
+  else { dashSort.col = col; dashSort.dir = 'asc'; }
+  renderDash();
+}
+function sortArrow(col) {
+  if (dashSort.col !== col) return '';
+  return dashSort.dir === 'asc' ? ' ▲' : ' ▼';
+}
+function sortDashData(data) {
+  var col = dashSort.col, dir = dashSort.dir;
+  return data.slice().sort(function(a,b){
+    var av = col === 'fecha_creacion' ? new Date(a.fecha_creacion||0).getTime() : (a[col]||0);
+    var bv = col === 'fecha_creacion' ? new Date(b.fecha_creacion||0).getTime() : (b[col]||0);
+    return dir === 'asc' ? av - bv : bv - av;
+  });
+}
 function switchDtab(m) {
   dashMode = m;
   document.getElementById('dtab-cli').className  = 'btn-dtab'+(m==='cli'  ?' active':'');
@@ -1133,8 +1152,9 @@ function applyDashFilters(data) {
   });
 }
 async function updateEstado(id, estado) {
-  var res = await sbClient.from('cotizaciones').update({estado: estado}).eq('id', id);
+  var res = await sbClient.from('cotizaciones').update({estado: estado}).eq('id', id).select();
   if (res.error) { showToast('Error al actualizar: ' + res.error.message, false); return; }
+  if (!res.data || !res.data.length) { showToast('No se pudo actualizar — falta el permiso "anon update" en Supabase', false); return; }
   [dashData.cli, dashData.cesar].forEach(function(arr){
     var item = arr.find(function(x){ return x.id === id; });
     if (item) item.estado = estado;
@@ -1144,8 +1164,9 @@ async function updateEstado(id, estado) {
 }
 async function deleteQuote(id, numero) {
   if (!confirm('¿Eliminar la cotización ' + numero + '? Esta acción no se puede deshacer.')) return;
-  var res = await sbClient.from('cotizaciones').delete().eq('id', id);
+  var res = await sbClient.from('cotizaciones').delete().eq('id', id).select();
   if (res.error) { showToast('Error al eliminar: ' + res.error.message, false); return; }
+  if (!res.data || !res.data.length) { showToast('No se pudo eliminar — falta el permiso "anon delete" en Supabase', false); return; }
   dashData.cli   = dashData.cli.filter(function(x){ return x.id !== id; });
   dashData.cesar = dashData.cesar.filter(function(x){ return x.id !== id; });
   renderDash();
@@ -1153,7 +1174,7 @@ async function deleteQuote(id, numero) {
 }
 function renderDash() {
   var dAll = dashMode==='cli' ? dashData.cli : dashData.cesar;
-  var d = applyDashFilters(dAll);
+  var d = sortDashData(applyDashFilters(dAll));
   var conc = d.filter(function(x){return x.estado==='ganado';}).length;
   document.getElementById('dash-stats').innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
@@ -1172,7 +1193,10 @@ function renderDash() {
       '</select></td>' +
       '<td><button class="dash-del" onclick="deleteQuote('+x.id+',\''+(x.numero||'')+'\')">✕</button></td></tr>';
   }).join('');
-  document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th><th>Total</th><th>Fecha</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
+    '<th class="th-sort" onclick="setDashSort(\'total_alto\')">Total'+sortArrow('total_alto')+'</th>' +
+    '<th class="th-sort" onclick="setDashSort(\'fecha_creacion\')">Fecha'+sortArrow('fecha_creacion')+'</th>' +
+    '<th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ── EXTRAS ── */
