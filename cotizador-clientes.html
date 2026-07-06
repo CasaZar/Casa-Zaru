@@ -895,7 +895,8 @@ function boxes() {
 
 function whatsappCTA(bajo, alto, det) {
   var detalle = (bajo && alto) ? ('\n\nProducto: ' + PNAME[prod] + (det ? ' (' + det + ')' : '') + '\nPrecio: ' + fmt(bajo) + ' – ' + fmt(alto) + ' con IVA') : '';
-  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zarú.' + detalle + '\n\nConfirmo por este medio.';
+  var link = '\n\nVer detalle: ' + buildShareUrl();
+  var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zarú.' + detalle + link + '\n\nConfirmo por este medio.';
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
