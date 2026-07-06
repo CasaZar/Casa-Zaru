@@ -193,6 +193,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dash-estado.perdida { background:#FEE2E2;color:#991B1B;border-color:#FECACA; }
 .dash-del { background:none;border:1px solid var(--bd);border-radius:6px;color:#991B1B;font-size:11px;padding:3px 8px;cursor:pointer; }
 .dash-del:hover { background:#FEE2E2;border-color:#FECACA; }
+.seg-row { display:flex;gap:3px;justify-content:center; }
+.seg-row input { width:14px;height:14px;cursor:pointer;accent-color:var(--ac); }
+.seg-dias { width:52px;padding:4px 5px;border:1px solid var(--bd);border-radius:6px;font-size:10.5px;font-family:'Jost',sans-serif;text-align:center; }
 .dm-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px; }
 @media(max-width:480px){ .dm-grid { grid-template-columns:repeat(2,1fr); } }
 .dm-card { border:2px solid var(--bd);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s; }
@@ -1151,6 +1154,30 @@ function applyDashFilters(data) {
     return true;
   });
 }
+async function updateSeguimiento(id, idx, checked) {
+  var item = dashData.cli.find(function(x){ return x.id === id; }) || dashData.cesar.find(function(x){ return x.id === id; });
+  var seg = ((item && item.seguimiento) || [false,false,false,false,false]).slice();
+  seg[idx] = checked;
+  var res = await sbClient.from('cotizaciones').update({seguimiento: seg}).eq('id', id).select();
+  if (res.error) { showToast('Error al guardar seguimiento: ' + res.error.message, false); return; }
+  if (!res.data || !res.data.length) { showToast('No se pudo guardar — falta el permiso "anon update" en Supabase', false); return; }
+  [dashData.cli, dashData.cesar].forEach(function(arr){
+    var x = arr.find(function(x){ return x.id === id; });
+    if (x) x.seguimiento = seg;
+  });
+  showToast('Seguimiento guardado', true);
+}
+async function updateDiasSeguimiento(id, value) {
+  var dias = value === '' ? null : (parseInt(value) || 0);
+  var res = await sbClient.from('cotizaciones').update({dias_seguimiento: dias}).eq('id', id).select();
+  if (res.error) { showToast('Error al guardar días: ' + res.error.message, false); return; }
+  if (!res.data || !res.data.length) { showToast('No se pudo guardar — falta el permiso "anon update" en Supabase', false); return; }
+  [dashData.cli, dashData.cesar].forEach(function(arr){
+    var x = arr.find(function(x){ return x.id === id; });
+    if (x) x.dias_seguimiento = dias;
+  });
+  showToast('Días guardados', true);
+}
 async function updateEstado(id, estado) {
   var res = await sbClient.from('cotizaciones').update({estado: estado}).eq('id', id).select();
   if (res.error) { showToast('Error al actualizar: ' + res.error.message, false); return; }
@@ -1185,18 +1212,24 @@ function renderDash() {
   var rows = d.map(function(x){
     var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') + ' ' + new Date(x.fecha_creacion).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
     var est = x.estado || 'enviada';
+    var seg = x.seguimiento || [false,false,false,false,false];
+    var segBoxes = seg.map(function(chk, i){
+      return '<input type="checkbox" title="Seguimiento '+(i+1)+'"'+(chk?' checked':'')+' onchange="updateSeguimiento(\''+x.id+'\','+i+',this.checked)">';
+    }).join('');
     return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td style="font-size:9.5px">'+f+'</td>' +
       '<td><select class="dash-estado '+est+'" onchange="updateEstado(\''+x.id+'\',this.value)">' +
         '<option value="enviada"'+(est==='enviada'?' selected':'')+'>Enviada</option>' +
         '<option value="ganado"'+(est==='ganado'?' selected':'')+'>Ganado</option>' +
         '<option value="perdida"'+(est==='perdida'?' selected':'')+'>Perdida</option>' +
       '</select></td>' +
+      '<td><div class="seg-row">'+segBoxes+'</div></td>' +
+      '<td><input type="number" class="seg-dias" min="0" placeholder="días" value="'+(x.dias_seguimiento!=null?x.dias_seguimiento:'')+'" onchange="updateDiasSeguimiento(\''+x.id+'\',this.value)"></td>' +
       '<td><button class="dash-del" onclick="deleteQuote(\''+x.id+'\',\''+(x.numero||'').replace(/'/g,"")+'\')">✕</button></td></tr>';
   }).join('');
   document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
     '<th class="th-sort" onclick="setDashSort(\'total_alto\')">Total'+sortArrow('total_alto')+'</th>' +
     '<th class="th-sort" onclick="setDashSort(\'fecha_creacion\')">Fecha'+sortArrow('fecha_creacion')+'</th>' +
-    '<th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    '<th>Estado</th><th>Seguimiento</th><th>Días seg.</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ── EXTRAS ── */
