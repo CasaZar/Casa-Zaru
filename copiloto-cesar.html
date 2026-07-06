@@ -372,19 +372,30 @@ function afterAuth() {
   }
 }
 
+var EJEMPLOS_POOL_MAX = 8;
+
 async function loadEjemplos() {
   try {
     var r = await sb.from('biblioteca_copiloto')
       .select('conversacion, analisis, fuente_lead, notas')
       .eq('resultado', 'ganada')
       .order('fecha', { ascending: false })
-      .limit(3);
+      .limit(50);
     if (r.data && r.data.length > 0) {
-      bibEjemplos = r.data;
+      bibEjemplos = muestraAleatoria(r.data, EJEMPLOS_POOL_MAX);
       var sub = document.getElementById('formSub');
       if (sub) sub.textContent = 'Analizando con ' + bibEjemplos.length + ' conversaci\xF3n' + (bibEjemplos.length > 1 ? 'es ganadoras' : ' ganadora') + ' de referencia.';
     }
   } catch(e) {}
+}
+
+function muestraAleatoria(arr, n) {
+  var copia = arr.slice();
+  for (var i = copia.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = copia[i]; copia[i] = copia[j]; copia[j] = tmp;
+  }
+  return copia.slice(0, n);
 }
 
 function saveKey() {
