@@ -1059,8 +1059,7 @@ async function copyShareLink() {
   var btn = document.querySelector('.btn-copy-link');
   if (btn) btn.textContent = 'Generando enlace…';
   var url = await buildShortUrl();
-  var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
-  var msg = 'Hola' + (cli ? ' ' + cli : '') + '! Te envío la cotización 😊\n\n' +
+  var msg = 'Te envío la cotización 😊\n\n' +
     'La puedes revisar en el siguiente link\n' +
     '👉 ' + url + '\n\n' +
     'Tenemos un catálogo con las distintas maderas y proyectos realizados, ¿quieres que te lo envíe?';
