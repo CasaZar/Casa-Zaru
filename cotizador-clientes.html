@@ -1077,9 +1077,15 @@ async function saveQuote(data) {
   if (fromHash) return;
   try {
     var payload = Object.assign({}, data, { user_email: srcEmail });
-    var res = await sbClient.from('cotizaciones').insert(payload);
+    var res = await sbClient.from('cotizaciones').insert(payload).select();
     if (res.error) { showToast('DB error: ' + res.error.message, false); console.error('saveQuote:', res.error); return; }
     showToast('✓ Cotización guardada', true);
+    if (res.data && res.data[0] && res.data[0].id) {
+      var insertedId = res.data[0].id;
+      buildShortUrl().then(function(url) {
+        sbClient.from('cotizaciones').update({link: url}).eq('id', insertedId);
+      }).catch(function(e){ console.error('saveQuote link:', e); });
+    }
   } catch(e) { showToast('Error: ' + e.message, false); console.error('saveQuote:', e); }
 }
 
@@ -1216,7 +1222,8 @@ function renderDash() {
     var segBoxes = seg.map(function(chk, i){
       return '<input type="checkbox" title="Seguimiento '+(i+1)+'"'+(chk?' checked':'')+' onchange="updateSeguimiento(\''+x.id+'\','+i+',this.checked)">';
     }).join('');
-    return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td style="font-size:9.5px">'+f+'</td>' +
+    var numHtml = x.link ? '<a href="'+x.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+(x.numero||'—')+' ↗</a>' : (x.numero||'—');
+    return '<tr><td>'+numHtml+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td style="font-size:9.5px">'+f+'</td>' +
       '<td><select class="dash-estado '+est+'" onchange="updateEstado(\''+x.id+'\',this.value)">' +
         '<option value="enviada"'+(est==='enviada'?' selected':'')+'>Enviada</option>' +
         '<option value="ganado"'+(est==='ganado'?' selected':'')+'>Ganado</option>' +
