@@ -438,13 +438,28 @@ function qKey() {
   var d = new Date();
   return String(d.getMonth()+1).padStart(2,'0') + String(d.getFullYear()).slice(2);
 }
-function nextQ() {
+async function nextQ() {
+  var k = qKey();
   try {
-    var k = qKey(), s = JSON.parse(localStorage.getItem('czCL')||'{}');
-    var n = s.k===k ? (s.n||0)+1 : 1;
-    localStorage.setItem('czCL', JSON.stringify({k:k,n:n}));
-    return 'N° CL-'+k+'-'+String(n).padStart(3,'0');
-  } catch(e) { return 'N° CL-'+qKey()+'-001'; }
+    var res = await sbClient.from('cotizaciones').select('numero')
+      .ilike('numero', 'N° CL-'+k+'-%')
+      .order('numero', {ascending:false}).limit(1);
+    if (res.error) throw res.error;
+    var maxN = 0;
+    if (res.data && res.data[0]) {
+      var m = res.data[0].numero.match(/-(\d+)$/);
+      if (m) maxN = parseInt(m[1], 10);
+    }
+    return 'N° CL-'+k+'-'+String(maxN+1).padStart(3,'0');
+  } catch(e) {
+    console.error('nextQ:', e);
+    try {
+      var s = JSON.parse(localStorage.getItem('czCL')||'{}');
+      var n = s.k===k ? (s.n||0)+1 : 1;
+      localStorage.setItem('czCL', JSON.stringify({k:k,n:n}));
+      return 'N° CL-'+k+'-'+String(n).padStart(3,'0');
+    } catch(e2) { return 'N° CL-'+k+'-001'; }
+  }
 }
 
 /* ── NAVIGATION ── */
@@ -705,10 +720,10 @@ function generar() {
   show('s2b');
 }
 
-function confirmar() {
+async function confirmar() {
   var cli   = document.getElementById('f-cli').value.trim();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
-  if (!qnum) qnum = nextQ();
+  if (!qnum) qnum = await nextQ();
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
   else if (['granero','maciza','vidrios'].includes(prod)) html = htmlPuerta(cli, fecha);
