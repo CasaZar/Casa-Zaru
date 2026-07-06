@@ -680,13 +680,25 @@ function getMarcoTotals() {
 }
 
 /* ── QUOTE GENERATION ── */
+function hasValidDims() {
+  if (prod === 'revestimiento') {
+    var rmEl = document.getElementById('rm');
+    return !!(rmEl && parseFloat(rmEl.value) > 0);
+  }
+  for (var i = 1; i <= nrows; i++) {
+    var lgEl = document.getElementById('lg'+i), anEl = document.getElementById('an'+i);
+    if (lgEl && anEl && parseFloat(lgEl.value) > 0 && parseFloat(anEl.value) > 0) return true;
+  }
+  return false;
+}
 function generar() {
   fromHash = false;
   qnum = '';
   var cli   = document.getElementById('f-cli').value.trim();
   conStr    = document.getElementById('f-con').value.trim();
   var errEl = document.getElementById('f-err');
-  if (!cli || !conStr) { errEl.classList.remove('hidden'); return; }
+  if (!cli || !conStr) { errEl.textContent = 'Por favor completa tu nombre y contacto para continuar.'; errEl.classList.remove('hidden'); return; }
+  if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
   var usoEl = document.getElementById('f-uso');
   uso = usoEl ? (usoEl.value || 'otro') : (prod === 'peldano' ? 'peldanos' : 'otro');
