@@ -1083,7 +1083,7 @@ async function saveQuote(data) {
     if (res.data && res.data[0] && res.data[0].id) {
       var insertedId = res.data[0].id;
       buildShortUrl().then(function(url) {
-        sbClient.from('cotizaciones').update({link: url}).eq('id', insertedId);
+        return sbClient.from('cotizaciones').update({link: url}).eq('id', insertedId);
       }).catch(function(e){ console.error('saveQuote link:', e); });
     }
   } catch(e) { showToast('Error: ' + e.message, false); console.error('saveQuote:', e); }
