@@ -420,7 +420,7 @@ function selectDoorModel(id) {
 }
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
-var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null;
+var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null, shareShortUrl = '';
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -724,6 +724,7 @@ async function confirmar() {
   var cli   = document.getElementById('f-cli').value.trim();
   var fecha = new Date().toLocaleDateString('es-CL', {day:'numeric',month:'long',year:'numeric'});
   if (!qnum) qnum = await nextQ();
+  shareShortUrl = await buildShortUrl();
   var html  = '';
   if (['cubierta','repisa','peldano'].includes(prod)) html = htmlCubierta(cli, fecha);
   else if (['granero','maciza','vidrios'].includes(prod)) html = htmlPuerta(cli, fecha);
@@ -922,7 +923,7 @@ function boxes() {
 
 function whatsappCTA(bajo, alto, det) {
   var detalle = (bajo && alto) ? ('\n\nProducto: ' + PNAME[prod] + (det ? ' (' + det + ')' : '') + '\nPrecio: ' + fmt(bajo) + ' – ' + fmt(alto) + ' con IVA') : '';
-  var link = '\n\nVer detalle: ' + buildShareUrl();
+  var link = '\n\nVer detalle: ' + (shareShortUrl || buildShareUrl());
   var msg = 'Hola! Me interesa confirmar la cotización ' + qnum + ' de Casa Zarú.' + detalle + link + '\n\nConfirmo por este medio.';
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="wa-block">' +
