@@ -420,7 +420,15 @@ function selectDoorModel(id) {
 }
 
 /* prod holds actual product type (granero/maciza/vidrios when in puertas mode) */
-var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null, shareShortUrl = '';
+var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null, shareShortUrl = '', peldanoEspesor = '4';
+function currentPR() {
+  if (prod === 'peldano') return peldanoEspesor === '2' ? PR.repisa : PR.cubierta;
+  return PR[prod];
+}
+function setPeldanoEspesor(val) {
+  peldanoEspesor = val;
+  calcLive();
+}
 
 /* ── FOTOS ── */
 function applyFotos() {
@@ -488,7 +496,7 @@ function calcLive() {
       var lg=parseFloat(lgEl.value)||0, an=parseFloat(anEl.value)||0, ca=parseInt((caEl&&caEl.value)||1)||1;
       sumM2 += (lg/100)*(an/100)*ca;
     }
-    if (sumM2 > 0) { bajo = sumM2 * PR[prod].bajo; alto = sumM2 * PR[prod].alto; }
+    if (sumM2 > 0) { bajo = sumM2 * currentPR().bajo; alto = sumM2 * currentPR().alto; }
 
   } else if (['granero','maciza','vidrios'].includes(prod)) {
     var vtEl2 = document.getElementById('vt');
@@ -536,6 +544,7 @@ function initProd(p) {
   isPuertas = (p === 'puertas');
   prod = isPuertas ? 'granero' : p;
   nrows = 1;
+  peldanoEspesor = '4';
   document.getElementById('f-title').textContent = isPuertas ? 'Puertas de madera' : PNAME[p];
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
@@ -548,7 +557,14 @@ function renderForm(p) {
   var c = document.getElementById('f-dyn');
 
   if (['cubierta','repisa','peldano'].includes(p)) {
-    var usoField = (p === 'peldano') ? '' :
+    var usoField = (p === 'peldano') ?
+      '<div class="fsec">' +
+        '<label class="flabel">Espesor</label>' +
+        '<select class="fsel" id="f-espesor-peldano" onchange="setPeldanoEspesor(this.value)">' +
+          '<option value="4" selected>4 cm</option>' +
+          '<option value="2">2 cm</option>' +
+        '</select>' +
+      '</div>' :
       '<div class="fsec">' +
         '<label class="flabel">¿Para qué espacio es? <span class="req">*</span></label>' +
         '<select class="fsel" id="f-uso">' +
@@ -747,11 +763,11 @@ function htmlCubierta(cli, fecha) {
     return '<tr><td>'+f.n+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td><td>'+f.m2.toFixed(2)+'</td></tr>';
   }).join('');
   var tierRows = [
-    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * PR[prod].bajo},
-    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * PR[prod].medio},
-    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * PR[prod].alto}
+    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo},
+    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio},
+    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto}
   ];
-  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? '4 cms' : '2 cms';
+  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? (peldanoEspesor + ' cms') : '2 cms';
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:prod,
     total_bajo:  Math.round(tierRows[0].total),
