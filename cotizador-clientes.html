@@ -213,8 +213,17 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .sbtn.win{background:var(--bg3);border-color:var(--acd);color:var(--acd);} .sbtn.lost{color:#991B1B;border-color:#FCA5A5;}
 .seg-block-h { font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;color:var(--acd);margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--bd); }
 .seg-block-h .seg-cnt { vertical-align:3px;margin-left:8px; }
-.seg-owner { display:inline-block;background:#EDE9FE;color:#5B21B6;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
+.seg-owner { display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
+.seg-owner.vend { background:#DBEAFE;color:#1E40AF; }
+.seg-owner.web  { background:#F3F4F6;color:#4B5563; }
+.seg-owner.mix  { background:#FEF3C7;color:#92400E; }
 .seg-qlist { margin-top:6px;border-left:2px solid var(--bd);padding-left:9px; }
+.seg-qdet { margin-top:6px; }
+.seg-qdet > summary { cursor:pointer;font-size:11px;font-weight:600;color:var(--acd);font-family:'Jost',sans-serif;list-style:none;padding:5px 0;user-select:none; }
+.seg-qdet > summary::-webkit-details-marker { display:none; }
+.seg-qdet > summary::before { content:'▸ ';color:var(--ac); }
+.seg-qdet[open] > summary::before { content:'▾ '; }
+.seg-qdet[open] > summary { margin-bottom:2px; }
 .seg-qrow { font-size:10.5px;color:var(--tm);font-family:'Jost',sans-serif;line-height:1.7; }
 .seg-qrow a { color:var(--ac);text-decoration:none; }
 .seg-toques { margin-top:9px;display:flex;flex-direction:column;gap:5px; }
@@ -1191,6 +1200,8 @@ var panelSeller = null;   /* null = admin (ve todo) */
 var dashRows = [];        /* cotizaciones cargadas, ya filtradas al alcance del panel */
 var dashView = 'seg';     /* seg | web | <code de vendedor> */
 var dashSort = {col:'fecha_creacion', dir:'desc'};
+var segSearch = '';           /* buscar cliente en seguimiento */
+var segSort = 'valor';        /* valor | reciente | antiguo */
 var COTIS = {};
 var segPend = 0;
 
@@ -1243,8 +1254,12 @@ function buildSegGroups(){
     if ((lead.estado||'enviada') !== 'enviada') return;   /* cliente cerrado: su última cotización fue ganada o perdida */
     var owner = 'web';
     for (var i=0;i<qs.length;i++){ var oc = ownerCode(qs[i]); if (oc){ owner = oc; break; } }
+    var hasVendor = qs.some(function(q){ return ownerCode(q); });
+    var hasWeb = qs.some(isWeb);
     var valor = qs.reduce(function(a,q){ return Math.max(a, q.total_alto||0); }, 0);
-    groups.push({ key:k, quotes:qs, lead:lead, owner:owner, valor:valor });
+    var suma = qs.reduce(function(a,q){ return a+(q.total_alto||0); }, 0);
+    var promedio = qs.length ? Math.round(suma/qs.length) : 0;
+    groups.push({ key:k, quotes:qs, lead:lead, owner:owner, hasVendor:hasVendor, hasWeb:hasWeb, valor:valor, promedio:promedio });
   });
   return groups;
 }
@@ -1290,8 +1305,22 @@ function renderTabs(){
 }
 function setDashView(v){
   dashView=v; renderTabs();
-  if (v==='seg'){ document.getElementById('dash-filters').innerHTML=''; renderSeguimiento(); }
+  if (v==='seg'){ renderSegFilters(); renderSeguimiento(); }
   else { renderDashFilters(); renderDash(); }
+}
+function renderSegFilters(){
+  document.getElementById('dash-filters').innerHTML =
+    '<input type="text" id="f-seg-q" placeholder="Buscar cliente…" value="'+escA(segSearch)+'" oninput="segSearch=this.value;renderSeguimiento()">'+
+    '<select id="f-seg-sort" onchange="segSort=this.value;renderSeguimiento()">'+
+      '<option value="valor"'+(segSort==='valor'?' selected':'')+'>Mayor monto primero</option>'+
+      '<option value="reciente"'+(segSort==='reciente'?' selected':'')+'>Más reciente primero</option>'+
+      '<option value="antiguo"'+(segSort==='antiguo'?' selected':'')+'>Más antiguo primero</option>'+
+    '</select>';
+}
+function segComparator(){
+  if (segSort==='reciente') return function(a,b){ return new Date(b.lead.fecha_creacion||0)-new Date(a.lead.fecha_creacion||0); };
+  if (segSort==='antiguo')  return function(a,b){ return new Date(a.lead.fecha_creacion||0)-new Date(b.lead.fecha_creacion||0); };
+  return function(a,b){ return b.valor-a.valor; };   /* valor */
 }
 function currentTableRows(){
   if (dashView==='web') return dashRows.filter(isWeb);
@@ -1330,6 +1359,13 @@ async function loadDash() {
 /* ── VISTA SEGUIMIENTO (un recuadro por cliente, bloques por vendedor / web) ── */
 function renderSeguimiento(){
   var groups = buildSegGroups();
+  if (segSearch){
+    var q = segSearch.toLowerCase();
+    groups = groups.filter(function(g){
+      return (g.lead.cliente||'').toLowerCase().indexOf(q)!==-1 || (g.lead.contacto||'').toLowerCase().indexOf(q)!==-1;
+    });
+  }
+  var cmp = segComparator();
   var bloques = [];
   if (isPanelAdmin()){
     VENDEDORES.forEach(function(v){ bloques.push({t:'👤 '+v.nombre, o:v.code}); });
@@ -1347,9 +1383,7 @@ function renderSeguimiento(){
       var d=dueDate(g.lead); if(!d) return;
       if (d<hoy) late.push(g); else if(d===hoy) today.push(g); else if(d<=lim) future.push(g);
     });
-    /* la plata grande primero dentro de cada sección */
-    var porMonto = function(a,c){ return c.valor-a.valor; };
-    late.sort(porMonto); today.sort(porMonto); future.sort(porMonto);
+    late.sort(cmp); today.sort(cmp); future.sort(cmp);
     var pend = late.length+today.length;
     totHoy += pend; totSem += future.length;
     late.concat(today,future).forEach(function(g){ enJuego += g.valor; });
@@ -1376,12 +1410,20 @@ function segClientCard(g, cls){
   var etapa = x.seg_etapa||0;
   var dias = x.fecha_creacion?Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)):0;
   var hist = Array.isArray(x.seg_historial)?x.seg_historial:[];
-  var ownChip = (isPanelAdmin() && g.owner!=='web') ? '<span class="seg-owner">'+(sellerByCode(g.owner)||{nombre:g.owner}).nombre+'</span>' : '';
+  var origen, oClase;
+  if (g.hasVendor && g.hasWeb){ origen='🔁 Cotizó con '+(sellerByCode(g.owner)||{nombre:g.owner}).nombre+' y solo'; oClase='mix'; }
+  else if (g.hasVendor){ origen='Cliente '+(sellerByCode(g.owner)||{nombre:g.owner}).nombre; oClase='vend'; }
+  else { origen='Cotizó solo'; oClase='web'; }
+  var ownChip = '<span class="seg-owner '+oClase+'">'+origen+'</span>';
   var qrows = g.quotes.map(function(q){
     var est = q.estado||'enviada';
     var link = q.link ? ' <a href="'+q.link+'" target="_blank">↗</a>' : '';
-    return '<div class="seg-qrow">'+(q.numero||'—')+' · '+(PNAME[q.producto]||q.producto||'')+' · '+fmt(q.total_alto||0)+(est!=='enviada'?' · '+est:'')+link+'</div>';
+    var f = q.fecha_creacion ? new Date(q.fecha_creacion).toLocaleDateString('es-CL') : '';
+    return '<div class="seg-qrow">'+(q.numero||'—')+' · '+(PNAME[q.producto]||q.producto||'')+' · '+fmt(q.total_alto||0)+(f?' · '+f:'')+(est!=='enviada'?' · '+est:'')+link+'</div>';
   }).join('');
+  var qbody = g.quotes.length>1
+    ? '<details class="seg-qdet"><summary>'+g.quotes.length+' cotizaciones · promedio '+fmt(g.promedio)+' · mayor '+fmt(g.valor)+'</summary><div class="seg-qlist">'+qrows+'</div></details>'
+    : '<div class="seg-qlist">'+qrows+'</div>';
   var toques='';
   for (var n=1;n<=CADENCIA.length;n++){
     var h=null;
@@ -1393,12 +1435,11 @@ function segClientCard(g, cls){
   }
   var phone=waPhone(x.contacto);
   var wa = phone ? '<a class="sbtn wa" target="_blank" href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
-  var nQ = g.quotes.length;
-  var meta = (x.contacto||'sin contacto')+' · '+(nQ===1?'1 cotización':nQ+' cotizaciones')+' · hace '+dias+' día'+(dias===1?'':'s');
+  var meta = (x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
   return '<div class="seg-card '+cls+'">'+
     '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
-    '<div class="seg-qlist">'+qrows+'</div>'+
+    qbody+
     '<div class="seg-toques">'+toques+'</div>'+
     '<div class="seg-btns">'+
       '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
