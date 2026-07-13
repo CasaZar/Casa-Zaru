@@ -203,11 +203,14 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-sec.late   { background:#DC2626;color:#fff;border-left:5px solid #7F1212; }
 .seg-sec.today  { background:#F59E0B;color:#4A2E00;border-left:5px solid #B45309; }
 .seg-sec.future { background:#EAE3D4;color:#6B5840;border-left:5px solid #B8894A; }
+.seg-sec.donehoy { background:#059669;color:#fff;border-left:5px solid #065F46; }
 .seg-cnt { background:rgba(0,0,0,.22);color:#fff;border-radius:11px;padding:2px 10px;font-size:13px;font-weight:800;font-family:'Jost',sans-serif;margin-left:auto; }
 .seg-sec.future .seg-cnt { background:rgba(122,86,32,.22);color:#5A4420; }
 .seg-empty { font-size:12px;color:var(--tm);padding:4px 2px 8px;font-style:italic; }
 .seg-card { background:white;border:1px solid var(--bd);border-left:4px solid var(--bd);border-radius:11px;padding:12px 14px;margin-bottom:10px; }
 .seg-card.late{border-left-color:#DC2626;} .seg-card.today{border-left-color:#D97706;} .seg-card.future{border-left-color:var(--ac);}
+.seg-card.donehoy{border-left-color:#059669;background:#F6FCF9;}
+.sbtn.undo{background:#fff;border-color:#059669;color:#065F46;}
 .seg-card.pez { border-color:#D97706;box-shadow:0 0 0 3px rgba(217,119,6,.16); }
 .pez-badge { display:inline-block;background:#FEF3C7;color:#92400E;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 .seg-cli { font-size:15px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif; }
@@ -1287,6 +1290,13 @@ function clientKey(x){
   var n = String(x.cliente||'').trim().toLowerCase().replace(/\s+/g,' ');
   return n ? 'n'+n : 'q'+x.id;
 }
+/* ¿el cliente tiene algún toque registrado HOY? (para mantenerlo visible tras marcar) */
+function toqueHoy(x){
+  var h = x && x.seg_historial;
+  if (!Array.isArray(h)) return false;
+  var hoy = hoyISO();
+  return h.some(function(e){ return e && String(e.fecha).slice(0,10)===hoy; });
+}
 function buildSegGroups(){
   var map = {};
   dashRows.forEach(function(x){
@@ -1427,17 +1437,18 @@ function renderSeguimiento(){
   var hoy=hoyISO(), lim=addDias(hoy,7);
   var totHoy=0, totSem=0, enJuego=0, html='';
   bloques.forEach(function(b){
-    var late=[], today=[], future=[];
+    var late=[], today=[], future=[], hoyDone=[];
     groups.forEach(function(g){
       if (g.owner!==b.o) return;
+      if (toqueHoy(g.lead)){ hoyDone.push(g); return; }   /* ya contactado hoy: se queda a la vista para anotar/deshacer */
       var d=dueDate(g.lead); if(!d) return;
       if (d<hoy) late.push(g); else if(d===hoy) today.push(g); else if(d<=lim) future.push(g);
     });
-    late.sort(cmp); today.sort(cmp); future.sort(cmp);
+    late.sort(cmp); today.sort(cmp); future.sort(cmp); hoyDone.sort(cmp);
     var pend = late.length+today.length;
     totHoy += pend; totSem += future.length;
     late.concat(today,future).forEach(function(g){ enJuego += g.valor; });
-    if (!late.length && !today.length && !future.length) return;
+    if (!late.length && !today.length && !future.length && !hoyDone.length) return;
     html += '<div class="seg-block-h">'+b.t+(pend?'<span class="seg-cnt">'+pend+'</span>':'')+'</div>';
     function sec(t,cls,arr,vacio){
       var body = arr.length ? arr.map(function(g){ return segClientCard(g,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
@@ -1446,7 +1457,8 @@ function renderSeguimiento(){
     }
     html += sec('🔴 Atrasados','late',late,'Nada atrasado. ¡Bien!')+
       sec('🟡 Para hoy','today',today,'Sin seguimientos para hoy.')+
-      sec('⚪ Próximos 7 días','future',future,'Nada agendado esta semana.');
+      sec('⚪ Próximos 7 días','future',future,'Nada agendado esta semana.')+
+      (hoyDone.length ? sec('✅ Contactados hoy','donehoy',hoyDone,'') : '');
   });
   document.getElementById('dash-stats').innerHTML =
     '<div class="stat-card"><div class="stat-v">'+totHoy+'</div><div class="stat-l">Para hoy</div></div>'+
@@ -1496,11 +1508,20 @@ function segClientCard(g, cls){
     qbody+
     '<div class="seg-toques">'+toques+'</div>'+
     '<div class="seg-btns">'+
+      (cls==='donehoy' ? '<button class="sbtn undo" onclick="segDeshacer(\''+x.id+'\')">↩ Deshacer contacto</button>' : '')+
       '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
       wa+
       '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
       '<button class="sbtn lost" onclick="segPerderUI(\''+x.id+'\')">✗ Perdida</button>'+
     '</div></div>';
+}
+/* deshace el último toque (para el que apretó la casilla por error) */
+async function segDeshacer(id){
+  var x=COTIS[id]; if(!x) return;
+  var etapa=(x.seg_etapa||0);
+  if (etapa<=0){ showToast('No hay toque que deshacer', false); return; }
+  var hist=(Array.isArray(x.seg_historial)?x.seg_historial:[]).filter(function(h){ return h.etapa!==etapa; });
+  segSave(id, {seg_etapa:etapa-1, seg_proxima:null, seg_historial:hist}, 'Contacto deshecho — vuelve a la cola');
 }
 
 /* ── GUARDAR + ACCIONES DE SEGUIMIENTO ── */
