@@ -42,10 +42,10 @@ create policy "vendedores update admin" on vendedores
   for update to authenticated
   using (auth.email() = 'hola@casazaru.cl');
 
--- 3. Primer vendedor: César (CONFIRMAR el correo real antes de ejecutar)
--- insert into vendedores (email, nombre) values ('cesar@casazaru.cl', 'César')
---   on conflict (email) do nothing;
+-- 3. Primer vendedor: César
+insert into vendedores (email, nombre) values ('crodriguez.casazaru@gmail.com', 'César')
+  on conflict (email) do nothing;
 
 -- 4. Recordatorio (manual, no SQL):
 --    Crear la cuenta de César en Supabase → Authentication → Users → Add user,
---    con el MISMO correo que se insertó en la tabla vendedores.
+--    con el correo crodriguez.casazaru@gmail.com (el mismo de la tabla vendedores).
