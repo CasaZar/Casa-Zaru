@@ -211,6 +211,18 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .sbtn { padding:9px 13px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Jost',sans-serif;border:1px solid var(--bd);background:white;color:var(--tx);text-decoration:none;display:inline-block;letter-spacing:.3px; }
 .sbtn.ok{background:#059669;border-color:#059669;color:white;} .sbtn.wa{background:#25D366;border-color:#25D366;color:white;}
 .sbtn.win{background:var(--bg3);border-color:var(--acd);color:var(--acd);} .sbtn.lost{color:#991B1B;border-color:#FCA5A5;}
+.seg-block-h { font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;color:var(--acd);margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--bd); }
+.seg-block-h .seg-cnt { vertical-align:3px;margin-left:8px; }
+.seg-owner { display:inline-block;background:#EDE9FE;color:#5B21B6;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
+.seg-qlist { margin-top:6px;border-left:2px solid var(--bd);padding-left:9px; }
+.seg-qrow { font-size:10.5px;color:var(--tm);font-family:'Jost',sans-serif;line-height:1.7; }
+.seg-qrow a { color:var(--ac);text-decoration:none; }
+.seg-toques { margin-top:9px;display:flex;flex-direction:column;gap:5px; }
+.seg-tq { display:flex;align-items:center;gap:7px; }
+.seg-tq-chk { display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--tm);font-family:'Jost',sans-serif;white-space:nowrap;cursor:pointer;min-width:86px; }
+.seg-tq-chk input { width:16px;height:16px;accent-color:var(--ac);cursor:pointer;flex-shrink:0; }
+.seg-tq-nota { flex:1;padding:6px 9px;border:1px solid var(--bd);border-radius:7px;font-size:11px;font-family:'Jost',sans-serif;background:var(--bg2,#FAFAF7);color:var(--tx);min-width:0; }
+.seg-tq-nota:focus { outline:none;border-color:var(--ac);background:white; }
 .stat-v.money { font-size:16px;line-height:1.2; }
 .badge-red { display:inline-block;background:#DC2626;color:white;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px;font-family:'Jost',sans-serif; }
 .btn-venta { background:var(--ac);border:none;border-radius:8px;color:white;font-size:12px;padding:8px 16px;cursor:pointer;font-family:'Jost',sans-serif;letter-spacing:.5px; }
@@ -1209,9 +1221,36 @@ function dueDate(x){
   if (due < addDias(hoyISO(),-30)) return null;
   return due;
 }
+/* ── AGRUPACIÓN POR CLIENTE (regla planilla: cliente con cotización de vendedor Y web → recuadro del vendedor) ── */
+function clientKey(x){
+  var tel = waPhone(x.contacto);
+  if (tel) return 't'+tel;
+  var c = String(x.contacto||'').trim().toLowerCase();
+  if (c.indexOf('@')!==-1) return 'e'+c;
+  var n = String(x.cliente||'').trim().toLowerCase().replace(/\s+/g,' ');
+  return n ? 'n'+n : 'q'+x.id;
+}
+function buildSegGroups(){
+  var map = {};
+  dashRows.forEach(function(x){
+    var k = clientKey(x);
+    (map[k] = map[k] || []).push(x);
+  });
+  var groups = [];
+  Object.keys(map).forEach(function(k){
+    var qs = map[k].slice().sort(function(a,b){ return new Date(b.fecha_creacion||0) - new Date(a.fecha_creacion||0); });
+    var lead = qs[0];
+    if ((lead.estado||'enviada') !== 'enviada') return;   /* cliente cerrado: su última cotización fue ganada o perdida */
+    var owner = 'web';
+    for (var i=0;i<qs.length;i++){ var oc = ownerCode(qs[i]); if (oc){ owner = oc; break; } }
+    var valor = qs.reduce(function(a,q){ return Math.max(a, q.total_alto||0); }, 0);
+    groups.push({ key:k, quotes:qs, lead:lead, owner:owner, valor:valor });
+  });
+  return groups;
+}
 function computeSegPend(){
   var hoy=hoyISO(); segPend=0;
-  dashRows.forEach(function(x){ var d=dueDate(x); if(d && d<=hoy) segPend++; });
+  buildSegGroups().forEach(function(g){ var d=dueDate(g.lead); if(d && d<=hoy) segPend++; });
 }
 
 /* teléfono chileno → número apto wa.me (o null si no hay teléfono usable) */
@@ -1242,6 +1281,7 @@ function renderTabs(){
     VENDEDORES.forEach(function(v){ tabs.push({id:v.code,label:v.nombre}); });
   } else {
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
+    tabs.push({id:'web',label:'Clientes Web'});
   }
   document.getElementById('dash-tabs').innerHTML = tabs.map(function(t){
     var badge = (t.id==='seg' && segPend>0) ? '<span class="badge-red">'+segPend+'</span>' : '';
@@ -1279,57 +1319,88 @@ async function loadDash() {
   var res = await sbClient.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false});
   if (res.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+res.error.message+'</div>'; return; }
   var all = res.data || [];
-  dashRows = isPanelAdmin() ? all : all.filter(function(x){ return ownerCode(x)===panelSeller.code; });
+  /* vendedor: sus cotizaciones + las web (también les hace seguimiento, en bloque aparte) */
+  dashRows = isPanelAdmin() ? all : all.filter(function(x){ return ownerCode(x)===panelSeller.code || isWeb(x); });
   COTIS = {};
   dashRows.forEach(function(x){ COTIS[x.id]=x; });
   computeSegPend();
   setDashView(dashView);
 }
 
-/* ── VISTA SEGUIMIENTO (cola diaria por cadencia) ── */
+/* ── VISTA SEGUIMIENTO (un recuadro por cliente, bloques por vendedor / web) ── */
 function renderSeguimiento(){
-  var hoy=hoyISO(), lim=addDias(hoy,7);
-  var late=[], today=[], future=[];
-  dashRows.forEach(function(x){
-    var d=dueDate(x); if(!d) return;
-    if (d<hoy) late.push(x); else if(d===hoy) today.push(x); else if(d<=lim) future.push(x);
-  });
-  /* la plata grande primero dentro de cada sección */
-  var porMonto = function(a,b){ return (b.total_alto||0)-(a.total_alto||0); };
-  late.sort(porMonto); today.sort(porMonto); future.sort(porMonto);
-  var enJuego = late.concat(today,future).reduce(function(a,x){ return a+(x.total_alto||0); },0);
-  document.getElementById('dash-stats').innerHTML =
-    '<div class="stat-card"><div class="stat-v">'+(late.length+today.length)+'</div><div class="stat-l">Para hoy</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+future.length+'</div><div class="stat-l">Esta semana</div></div>'+
-    '<div class="stat-card"><div class="stat-v money">'+fmt(enJuego)+'</div><div class="stat-l">En juego</div></div>';
-  function sec(t,cls,arr,vacio){
-    var body = arr.length ? arr.map(function(x){ return segCard(x,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
-    var cnt = arr.length ? '<span class="seg-cnt">'+arr.length+'</span>' : '';
-    return '<div class="seg-sec '+cls+'">'+t+cnt+'</div>'+body;
+  var groups = buildSegGroups();
+  var bloques = [];
+  if (isPanelAdmin()){
+    VENDEDORES.forEach(function(v){ bloques.push({t:'👤 '+v.nombre, o:v.code}); });
+    bloques.push({t:'🌐 Clientes Web', o:'web'});
+  } else {
+    bloques.push({t:'👤 Mis clientes', o:panelSeller.code});
+    bloques.push({t:'🌐 Clientes Web', o:'web'});
   }
-  document.getElementById('dash-tbl').innerHTML =
-    sec('🔴 Atrasados','late',late,'Nada atrasado. ¡Bien!')+
-    sec('🟡 Para hoy','today',today,'Sin seguimientos para hoy.')+
-    sec('⚪ Próximos 7 días','future',future,'Nada agendado esta semana.');
+  var hoy=hoyISO(), lim=addDias(hoy,7);
+  var totHoy=0, totSem=0, enJuego=0, html='';
+  bloques.forEach(function(b){
+    var late=[], today=[], future=[];
+    groups.forEach(function(g){
+      if (g.owner!==b.o) return;
+      var d=dueDate(g.lead); if(!d) return;
+      if (d<hoy) late.push(g); else if(d===hoy) today.push(g); else if(d<=lim) future.push(g);
+    });
+    /* la plata grande primero dentro de cada sección */
+    var porMonto = function(a,c){ return c.valor-a.valor; };
+    late.sort(porMonto); today.sort(porMonto); future.sort(porMonto);
+    var pend = late.length+today.length;
+    totHoy += pend; totSem += future.length;
+    late.concat(today,future).forEach(function(g){ enJuego += g.valor; });
+    if (!late.length && !today.length && !future.length) return;
+    html += '<div class="seg-block-h">'+b.t+(pend?'<span class="seg-cnt">'+pend+'</span>':'')+'</div>';
+    function sec(t,cls,arr,vacio){
+      var body = arr.length ? arr.map(function(g){ return segClientCard(g,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
+      var cnt = arr.length ? '<span class="seg-cnt">'+arr.length+'</span>' : '';
+      return '<div class="seg-sec '+cls+'">'+t+cnt+'</div>'+body;
+    }
+    html += sec('🔴 Atrasados','late',late,'Nada atrasado. ¡Bien!')+
+      sec('🟡 Para hoy','today',today,'Sin seguimientos para hoy.')+
+      sec('⚪ Próximos 7 días','future',future,'Nada agendado esta semana.');
+  });
+  document.getElementById('dash-stats').innerHTML =
+    '<div class="stat-card"><div class="stat-v">'+totHoy+'</div><div class="stat-l">Para hoy</div></div>'+
+    '<div class="stat-card"><div class="stat-v">'+totSem+'</div><div class="stat-l">Esta semana</div></div>'+
+    '<div class="stat-card"><div class="stat-v money">'+fmt(enJuego)+'</div><div class="stat-l">En juego</div></div>';
+  document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
 }
-function segCard(x,cls){
-  var toque=Math.min((x.seg_etapa||0)+1,CADENCIA.length);
-  var dias=x.fecha_creacion?Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)):0;
-  var oc=ownerCode(x);
-  var who = isWeb(x) ? 'Web' : (oc ? (sellerByCode(oc)||{nombre:oc}).nombre : (x.asignado_a||'—'));
-  var meta=(x.numero||'')+' · '+(PNAME[x.producto]||x.producto||'')+' · $'+Math.round(x.total_alto||0).toLocaleString('es-CL')+
-    ' · hace '+dias+' día'+(dias===1?'':'s')+(x.contacto?' · '+x.contacto:'')+(isPanelAdmin()?' · '+who:'');
-  var hist='';
-  if (Array.isArray(x.seg_historial)&&x.seg_historial.length){
-    hist='<div class="seg-hist">'+x.seg_historial.map(function(h){ return (h.nota?h.nota:'Toque '+h.etapa)+' ('+h.fecha+')'; }).join(' · ')+'</div>';
+function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function segClientCard(g, cls){
+  var x = g.lead;
+  var etapa = x.seg_etapa||0;
+  var dias = x.fecha_creacion?Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)):0;
+  var hist = Array.isArray(x.seg_historial)?x.seg_historial:[];
+  var ownChip = (isPanelAdmin() && g.owner!=='web') ? '<span class="seg-owner">'+(sellerByCode(g.owner)||{nombre:g.owner}).nombre+'</span>' : '';
+  var qrows = g.quotes.map(function(q){
+    var est = q.estado||'enviada';
+    var link = q.link ? ' <a href="'+q.link+'" target="_blank">↗</a>' : '';
+    return '<div class="seg-qrow">'+(q.numero||'—')+' · '+(PNAME[q.producto]||q.producto||'')+' · '+fmt(q.total_alto||0)+(est!=='enviada'?' · '+est:'')+link+'</div>';
+  }).join('');
+  var toques='';
+  for (var n=1;n<=CADENCIA.length;n++){
+    var h=null;
+    for (var i=0;i<hist.length;i++){ if(hist[i].etapa===n){ h=hist[i]; break; } }
+    toques += '<div class="seg-tq">'+
+      '<label class="seg-tq-chk"><input type="checkbox"'+(etapa>=n?' checked':'')+' onchange="segMarcar(\''+x.id+'\','+n+',this.checked)"><span>T'+n+' · día '+CADENCIA[n-1]+'</span></label>'+
+      '<input class="seg-tq-nota" type="text" placeholder="¿Qué dijo el cliente?" value="'+escA(h&&h.nota?h.nota:'')+'" onchange="segNota(\''+x.id+'\','+n+',this.value)">'+
+    '</div>';
   }
   var phone=waPhone(x.contacto);
   var wa = phone ? '<a class="sbtn wa" target="_blank" href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
+  var nQ = g.quotes.length;
+  var meta = (x.contacto||'sin contacto')+' · '+(nQ===1?'1 cotización':nQ+' cotizaciones')+' · hace '+dias+' día'+(dias===1?'':'s');
   return '<div class="seg-card '+cls+'">'+
-    '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+toque+'/'+CADENCIA.length+'</span></div>'+
-    '<div class="seg-meta">'+meta+'</div>'+hist+
+    '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+'</div>'+
+    '<div class="seg-meta">'+meta+'</div>'+
+    '<div class="seg-qlist">'+qrows+'</div>'+
+    '<div class="seg-toques">'+toques+'</div>'+
     '<div class="seg-btns">'+
-      '<button class="sbtn ok" onclick="segHecho(\''+x.id+'\')">✓ Contactado</button>'+
       '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
       wa+
       '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
@@ -1349,18 +1420,27 @@ async function segSave(id, updates, okMsg){
   if (okMsg) showToast(okMsg, true);
   return true;
 }
-async function segHecho(id){
+/* marcar/desmarcar una de las 5 casillas de toque */
+async function segMarcar(id, n, checked){
   var x=COTIS[id]; if(!x) return;
-  var etapa=(x.seg_etapa||0)+1;
+  var etapa = checked ? n : n-1;
   var hist=Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
-  hist.push({etapa:etapa, fecha:hoyISO()});
+  if (checked && !hist.some(function(h){ return h.etapa===n; })) hist.push({etapa:n, fecha:hoyISO()});
   var next=null;
-  if (etapa<CADENCIA.length && x.fecha_creacion){
+  if (checked && etapa<CADENCIA.length && x.fecha_creacion){
     var b=new Date(x.fecha_creacion); b.setDate(b.getDate()+CADENCIA[etapa]);
     var porCad=isoDate(b), minimo=addDias(hoyISO(),2);
     next = porCad>minimo ? porCad : minimo;
   }
-  segSave(id, {seg_etapa:etapa, seg_proxima:next, seg_historial:hist}, next?'Contacto registrado':'Cadencia completa');
+  segSave(id, {seg_etapa:etapa, seg_proxima:next, seg_historial:hist}, checked?'Toque '+n+' registrado':'Toque '+n+' desmarcado');
+}
+/* nota de lo que dijo el cliente en el toque n */
+async function segNota(id, n, txt){
+  var x=COTIS[id]; if(!x) return;
+  var hist=Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
+  var h=null; for(var i=0;i<hist.length;i++){ if(hist[i].etapa===n){ h=hist[i]; break; } }
+  if (h) h.nota = txt; else hist.push({etapa:n, fecha:hoyISO(), nota:txt});
+  segSave(id, {seg_historial:hist}, 'Nota guardada');
 }
 function segPosponerUI(id){
   var x=COTIS[id]; if(!x) return;
@@ -1376,7 +1456,7 @@ function segPosponer(id, dias, fechaISO){
   var x=COTIS[id]; if(!x) return;
   var fecha=fechaISO||addDias(hoyISO(),dias);
   var hist=Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
-  hist.push({etapa:x.seg_etapa||0, fecha:hoyISO(), nota:'Pospuesto a '+fecha});
+  hist.push({etapa:0, fecha:hoyISO(), nota:'Pospuesto a '+fecha});   /* etapa 0 = no ocupa casilla de toque */
   pClose();
   segSave(id, {seg_proxima:fecha, seg_historial:hist}, 'Pospuesto a '+fecha);
 }
