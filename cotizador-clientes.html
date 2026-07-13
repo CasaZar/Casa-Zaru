@@ -214,6 +214,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .sbtn { padding:9px 13px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Jost',sans-serif;border:1px solid var(--bd);background:white;color:var(--tx);text-decoration:none;display:inline-block;letter-spacing:.3px; }
 .sbtn.ok{background:#059669;border-color:#059669;color:white;} .sbtn.wa{background:#25D366;border-color:#25D366;color:white;}
 .sbtn.win{background:var(--bg3);border-color:var(--acd);color:var(--acd);} .sbtn.lost{color:#991B1B;border-color:#FCA5A5;}
+.seg-chips { display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-bottom:8px; }
+.seg-chip { padding:6px 13px;border:1.5px solid var(--bd);border-radius:20px;background:white;font-size:12px;cursor:pointer;font-family:'Jost',sans-serif;color:var(--tm);white-space:nowrap; }
+.seg-chip.on { background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600; }
 .seg-block-h { font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;color:var(--acd);margin:22px 0 4px;padding-bottom:6px;border-bottom:2px solid var(--bd); }
 .seg-block-h .seg-cnt { vertical-align:3px;margin-left:8px;background:var(--ac);color:#fff; }
 .seg-owner { display:inline-block;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
@@ -1205,6 +1208,7 @@ var dashView = 'seg';     /* seg | web | <code de vendedor> */
 var dashSort = {col:'fecha_creacion', dir:'desc'};
 var segSearch = '';           /* buscar cliente en seguimiento */
 var segSort = 'valor';        /* valor | reciente | antiguo */
+var segBloque = '';           /* '' = todos los bloques | code de vendedor | 'web' */
 var COTIS = {};
 var segPend = 0;
 
@@ -1311,8 +1315,18 @@ function setDashView(v){
   if (v==='seg'){ renderSegFilters(); renderSeguimiento(); }
   else { renderDashFilters(); renderDash(); }
 }
+function segBloquesDef(){
+  var b=[];
+  if (isPanelAdmin()){ VENDEDORES.forEach(function(v){ b.push({t:'👤 '+v.nombre, o:v.code}); }); b.push({t:'🌐 Clientes Web', o:'web'}); }
+  else { b.push({t:'👤 Mis clientes', o:panelSeller.code}); b.push({t:'🌐 Clientes Web', o:'web'}); }
+  return b;
+}
+function setSegBloque(o){ segBloque=o; renderSegFilters(); renderSeguimiento(); }
 function renderSegFilters(){
+  var chips = '<button class="seg-chip'+(segBloque===''?' on':'')+'" onclick="setSegBloque(\'\')">Todos</button>'+
+    segBloquesDef().map(function(b){ return '<button class="seg-chip'+(segBloque===b.o?' on':'')+'" onclick="setSegBloque(\''+b.o+'\')">'+b.t+'</button>'; }).join('');
   document.getElementById('dash-filters').innerHTML =
+    '<div class="seg-chips">'+chips+'</div>'+
     '<input type="text" id="f-seg-q" placeholder="Buscar cliente…" value="'+escA(segSearch)+'" oninput="segSearch=this.value;renderSeguimiento()">'+
     '<select id="f-seg-sort" onchange="segSort=this.value;renderSeguimiento()">'+
       '<option value="valor"'+(segSort==='valor'?' selected':'')+'>Mayor monto primero</option>'+
@@ -1369,14 +1383,8 @@ function renderSeguimiento(){
     });
   }
   var cmp = segComparator();
-  var bloques = [];
-  if (isPanelAdmin()){
-    VENDEDORES.forEach(function(v){ bloques.push({t:'👤 '+v.nombre, o:v.code}); });
-    bloques.push({t:'🌐 Clientes Web', o:'web'});
-  } else {
-    bloques.push({t:'👤 Mis clientes', o:panelSeller.code});
-    bloques.push({t:'🌐 Clientes Web', o:'web'});
-  }
+  var bloques = segBloquesDef();
+  if (segBloque) bloques = bloques.filter(function(b){ return b.o===segBloque; });
   var hoy=hoyISO(), lim=addDias(hoy,7);
   var totHoy=0, totSem=0, enJuego=0, html='';
   bloques.forEach(function(b){
@@ -1613,10 +1621,15 @@ function renderDash() {
   var dAll = currentTableRows();
   var d = sortDashData(applyDashFilters(dAll));
   var ganadas = d.filter(function(x){ return x.estado==='ganado'; });
+  var perdidas = d.filter(function(x){ return x.estado==='perdida'; }).length;
+  var cerradas = ganadas.length + perdidas;
+  var conv = cerradas > 0 ? Math.round(ganadas.length/cerradas*100) : 0;
   var cotizado = d.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
   var vendido  = ganadas.reduce(function(a,x){ return a + (x.monto_cierre||x.total_medio||x.total_alto||0); }, 0);
   document.getElementById('dash-stats').innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
+    '<div class="stat-card"><div class="stat-v" style="color:#059669">'+ganadas.length+'</div><div class="stat-l">Ganadas</div></div>'+
+    '<div class="stat-card" title="Ganadas sobre las decididas (ganadas + perdidas)"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(cotizado)+'</div><div class="stat-l">Total cotizado</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(vendido)+'</div><div class="stat-l">Total vendido</div></div>';
   if (!dAll.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
