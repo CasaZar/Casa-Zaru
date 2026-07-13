@@ -167,8 +167,9 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .e-concretada { background: #D1FAE5; color: #065F46; }
 .e-cancelada  { background: #FEE2E2; color: #991B1B; }
 .loading-msg { text-align: center; padding: 30px 14px; color: var(--tm); font-size: 13px; line-height: 1.6; }
-.admin-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
-.atab { flex: 1; padding: 9px; border: 1.5px solid var(--bd); border-radius: 7px; background: white; font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--tm); font-weight: 500; }
+.admin-tabs { display: flex; gap: 6px; margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.admin-tabs::-webkit-scrollbar { display: none; }
+.atab { flex: 1 0 auto; white-space: nowrap; padding: 9px 12px; border: 1.5px solid var(--bd); border-radius: 7px; background: white; font-size: 12px; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--tm); font-weight: 500; }
 .atab.active { background: var(--g); color: white; border-color: var(--g); font-weight: 600; }
 .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .filt-input { flex: 1; min-width: 140px; padding: 7px 10px; border: 1.5px solid var(--bd); border-radius: 7px; font-size: 12px; font-family: 'Inter', sans-serif; color: var(--tx); background: white; }
@@ -190,7 +191,7 @@ body { font-family: 'Inter', sans-serif; background: var(--cr); color: var(--tx)
 .seg-meta { font-size: 10.5px; color: var(--tm); margin-top: 3px; line-height: 1.55; }
 .seg-hist { font-size: 9.5px; color: var(--tm); margin-top: 4px; font-style: italic; }
 .seg-btns { display: flex; gap: 6px; margin-top: 9px; flex-wrap: wrap; }
-.sbtn { padding: 7px 10px; border-radius: 7px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; border: 1px solid var(--bd); background: white; color: var(--tx); text-decoration: none; display: inline-block; }
+.sbtn { padding: 10px 13px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: 'Inter', sans-serif; border: 1px solid var(--bd); background: white; color: var(--tx); text-decoration: none; display: inline-block; }
 .sbtn.ok   { background: #059669; border-color: #059669; color: white; }
 .sbtn.wa   { background: #25D366; border-color: #25D366; color: white; }
 .sbtn.win  { background: var(--crd); border-color: var(--gd); color: var(--gd); }
