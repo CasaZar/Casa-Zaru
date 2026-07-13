@@ -1246,6 +1246,7 @@ var PEZ_GORDO = 2000000;            /* monto sobre el cual un atrasado se marca 
 var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Otro'];
 var panelSeller = null;   /* null = admin (ve todo) */
 var dashRows = [];        /* cotizaciones cargadas, ya filtradas al alcance del panel */
+var allRows = [];         /* todas las cargadas (incluye eliminadas), para la pestaña Eliminadas */
 var dashView = 'seg';     /* seg | web | <code de vendedor> */
 var dashSort = {col:'fecha_creacion', dir:'desc'};
 var segSearch = '';           /* buscar cliente en seguimiento */
@@ -1350,6 +1351,7 @@ function renderTabs(){
   if (isPanelAdmin()){
     tabs.push({id:'web',label:'Clientes Web'});
     VENDEDORES.forEach(function(v){ tabs.push({id:v.code,label:v.nombre}); });
+    tabs.push({id:'elim',label:'🗑 Eliminadas'});
   } else {
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
     tabs.push({id:'web',label:'Clientes Web'});
@@ -1362,6 +1364,7 @@ function renderTabs(){
 function setDashView(v){
   dashView=v; renderTabs();
   if (v==='seg'){ renderSegFilters(); renderSeguimiento(); }
+  else if (v==='elim'){ renderEliminadas(); }
   else { renderDashFilters(); renderDash(); }
 }
 function segBloquesDef(){
@@ -1413,7 +1416,9 @@ async function loadDash() {
   document.getElementById('dash-tbl').innerHTML = '<div style="padding:20px;text-align:center;color:var(--tm)">Cargando…</div>';
   var res = await sbClient.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false});
   if (res.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+res.error.message+'</div>'; return; }
-  var all = res.data || [];
+  allRows = res.data || [];
+  /* las eliminadas no se muestran en el panel normal (solo en la pestaña Eliminadas del admin) */
+  var all = allRows.filter(function(x){ return !x.eliminada; });
   /* vendedor: sus cotizaciones + las web (también les hace seguimiento, en bloque aparte) */
   dashRows = isPanelAdmin() ? all : all.filter(function(x){ return ownerCode(x)===panelSeller.code || isWeb(x); });
   COTIS = {};
@@ -1672,14 +1677,46 @@ async function updateEstado(id, estado) {
   segSave(id, {estado:estado, seg_proxima:null}, 'Estado actualizado');
 }
 async function deleteQuote(id, numero) {
-  if (!confirm('¿Eliminar la cotización ' + numero + '? Esta acción no se puede deshacer.')) return;
-  var res = await sbClient.from('cotizaciones').delete().eq('id', id).select();
-  if (res.error) { showToast('Error al eliminar: ' + res.error.message, false); return; }
-  if (!res.data || !res.data.length) { showToast('No se pudo eliminar — falta el permiso "anon delete" en Supabase', false); return; }
+  var motivo = prompt('¿Por qué eliminas la cotización ' + numero + '?\n(Queda registrada para el administrador)');
+  if (motivo === null) return;                 /* canceló */
+  motivo = motivo.trim();
+  if (!motivo) { showToast('Debes indicar un motivo para eliminar', false); return; }
+  var quien = panelSeller ? panelSeller.nombre : 'Admin';
+  var res = await sbClient.from('cotizaciones').update({
+    eliminada:true, elim_motivo:motivo, elim_por:quien, elim_fecha:new Date().toISOString()
+  }).eq('id', id).select();
+  if (res.error) { showToast('Error: ' + res.error.message + ' — ¿ejecutaste supabase/eliminaciones.sql?', false); return; }
+  if (!res.data || !res.data.length) { showToast('No se pudo eliminar — falta el permiso "anon update" en Supabase', false); return; }
+  var r = allRows.find(function(x){ return x.id===id; }); if (r) { r.eliminada=true; r.elim_motivo=motivo; r.elim_por=quien; r.elim_fecha=new Date().toISOString(); }
   dashRows = dashRows.filter(function(x){ return x.id !== id; });
   delete COTIS[id];
-  computeSegPend(); renderTabs(); renderDash();
-  showToast('Cotización eliminada', true);
+  computeSegPend(); renderTabs(); if (dashView==='seg') renderSeguimiento(); else renderDash();
+  showToast('Cotización eliminada (queda en el registro)', true);
+}
+async function restaurarQuote(id){
+  var res = await sbClient.from('cotizaciones').update({ eliminada:false }).eq('id', id).select();
+  if (res.error) { showToast('Error: ' + res.error.message, false); return; }
+  var r = allRows.find(function(x){ return x.id===id; }); if (r) r.eliminada=false;
+  showToast('Cotización restaurada — recargando…', true);
+  loadDash();
+}
+function renderEliminadas(){
+  document.getElementById('dash-filters').innerHTML='';
+  var elim = allRows.filter(function(x){ return x.eliminada; })
+    .sort(function(a,b){ return new Date(b.elim_fecha||0)-new Date(a.elim_fecha||0); });
+  document.getElementById('dash-stats').innerHTML =
+    '<div class="stat-card"><div class="stat-v">'+elim.length+'</div><div class="stat-l">Eliminadas</div></div>';
+  if (!elim.length){ document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">No hay cotizaciones eliminadas</div>'; return; }
+  var rows = elim.map(function(x){
+    var f = x.elim_fecha ? new Date(x.elim_fecha).toLocaleDateString('es-CL')+' '+new Date(x.elim_fecha).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
+    return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td>'+
+      '<td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td>'+
+      '<td><strong>'+(x.elim_por||'—')+'</strong></td><td>'+(x.elim_motivo||'—')+'</td><td style="font-size:9.5px">'+f+'</td>'+
+      '<td><button class="sbtn" onclick="restaurarQuote(\''+x.id+'\')">↩ Restaurar</button></td></tr>';
+  }).join('');
+  document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr>'+
+    '<th>N°</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Eliminó</th><th>Motivo</th><th>Fecha</th><th></th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>';
 }
 function renderDash() {
   var dAll = currentTableRows();
