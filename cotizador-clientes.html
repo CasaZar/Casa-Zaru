@@ -141,6 +141,14 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ibox-b li::before { content: "· "; color: var(--ac); font-weight: 700; }
 .bankrow { background: var(--bg3); border: 1px solid var(--bd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--tm); margin-bottom: 8px; text-align: center; line-height: 1.7; }
 .bankrow strong { color: var(--tx); }
+.transf-box { margin-top:9px;border:1px solid var(--bd);border-radius:8px;overflow:hidden;text-align:left;background:#fff; }
+.transf-h { background:var(--crd,#F0E6D0);padding:7px 10px;font-size:11px;font-weight:700;color:var(--acd,#7A5620);display:flex;justify-content:space-between;align-items:center;gap:8px; }
+.transf-row { display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid var(--bg3);font-size:12px; }
+.transf-row .tl { color:var(--tm);font-size:9px;text-transform:uppercase;letter-spacing:.4px;min-width:70px; }
+.transf-row .tv { flex:1;font-weight:700;color:var(--tx);font-size:13px; }
+.cp-btn, .cp-all { border:1px solid var(--bd);background:#fff;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:'Jost',sans-serif;color:var(--acd,#7A5620);white-space:nowrap; }
+.cp-all { background:var(--ac);color:#fff;border-color:var(--ac); }
+.cp-btn.cp-ok, .cp-all.cp-ok { background:#059669;color:#fff;border-color:#059669; }
 .warranty { background: var(--bg3); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
 .warranty strong { display: block; font-size: 10px; color: var(--acd); margin-bottom: 2px; }
 .wa-block { margin: 18px 0 6px; }
@@ -206,6 +214,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-empty { font-size:12px;color:var(--tm);padding:4px 2px 8px;font-style:italic; }
 .seg-card { background:white;border:1px solid var(--bd);border-left:4px solid var(--bd);border-radius:11px;padding:12px 14px;margin-bottom:10px; }
 .seg-card.late{border-left-color:#DC2626;} .seg-card.today{border-left-color:#D97706;} .seg-card.future{border-left-color:var(--ac);}
+.seg-card.pez { border-color:#D97706;box-shadow:0 0 0 3px rgba(217,119,6,.16); }
+.pez-badge { display:inline-block;background:#FEF3C7;color:#92400E;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 .seg-cli { font-size:15px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif; }
 .seg-touch { display:inline-block;background:var(--bg3);color:var(--acd);font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
 .seg-meta { font-size:11px;color:var(--tm);margin-top:4px;line-height:1.6;font-family:'Jost',sans-serif; }
@@ -990,9 +1000,38 @@ function boxes() {
   '</div>' +
   '<div class="bankrow">' +
     '<strong>Tarjeta de crédito incluida en el precio.</strong><br>' +
-    'Transferencia bancaria: <span class="dcto-tag">5% de descuento</span> sobre el precio indicado<br>' +
-    '<strong>Muvale Diseño SpA</strong> · RUT 77.157.082-8 · Banco BCI · Cta Cte 97457175 · hola@casazaru.cl' +
+    'Transferencia bancaria: <span class="dcto-tag">5% de descuento</span> sobre el precio indicado' +
+    '<div class="transf-box">' +
+      '<div class="transf-h"><span>Datos para transferencia</span><button class="cp-all" onclick="copiarTransfer(this)">📋 Copiar todo</button></div>' +
+      transfRow('Nombre', 'Muvale Diseño SpA') +
+      transfRow('RUT', '77.157.082-8') +
+      transfRow('Banco', 'BCI') +
+      transfRow('Cuenta Corriente', '97457175') +
+      transfRow('Email', 'hola@casazaru.cl') +
+    '</div>' +
   '</div>';
+}
+
+function transfRow(label, val){
+  return '<div class="transf-row"><span class="tl">'+label+'</span><span class="tv">'+val+'</span>'+
+    '<button class="cp-btn" data-val="'+val+'" onclick="copiarCampo(this)">Copiar</button></div>';
+}
+function doCopy(text, btn, okLabel){
+  var done = function(){ var o=btn.textContent; btn.textContent=okLabel; btn.classList.add('cp-ok'); setTimeout(function(){ btn.textContent=o; btn.classList.remove('cp-ok'); }, 1400); };
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text); done(); });
+  } else { fallbackCopy(text); done(); }
+}
+function fallbackCopy(text){
+  var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch(e){}
+  document.body.removeChild(ta);
+}
+function copiarCampo(btn){ doCopy(btn.dataset.val, btn, '✓ Copiado'); }
+function copiarTransfer(btn){
+  var texto = 'Muvale Diseño SpA\nRUT: 77.157.082-8\nBanco BCI\nCuenta Corriente 97457175\nhola@casazaru.cl';
+  doCopy(texto, btn, '✓ Copiado');
 }
 
 function whatsappCTA(bajo, alto, det) {
@@ -1201,6 +1240,7 @@ var VENDEDORES = [
   { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] }
 ];
 var CADENCIA = [1, 3, 7, 14, 30];   /* días desde la cotización para los 5 toques */
+var PEZ_GORDO = 2000000;            /* monto sobre el cual un atrasado se marca como "pez gordo" */
 var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Otro'];
 var panelSeller = null;   /* null = admin (ve todo) */
 var dashRows = [];        /* cotizaciones cargadas, ya filtradas al alcance del panel */
@@ -1445,10 +1485,14 @@ function segClientCard(g, cls){
     '</div>';
   }
   var phone=waPhone(x.contacto);
-  var wa = phone ? '<a class="sbtn wa" target="_blank" href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
+  /* al abrir WhatsApp, registra el toque automáticamente (si aún queda cadencia) */
+  var waAction = (etapa < CADENCIA.length) ? ' onclick="segHecho(\''+x.id+'\')"' : '';
+  var wa = phone ? '<a class="sbtn wa" target="_blank"'+waAction+' href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
+  var pez = (cls==='late' && g.valor>=PEZ_GORDO);
+  var pezBadge = pez ? '<span class="pez-badge">🐋 No dejar enfriar</span>' : '';
   var meta = (x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
-  return '<div class="seg-card '+cls+'">'+
-    '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+'</div>'+
+  return '<div class="seg-card '+cls+(pez?' pez':'')+'">'+
+    '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
     '<div class="seg-toques">'+toques+'</div>'+
