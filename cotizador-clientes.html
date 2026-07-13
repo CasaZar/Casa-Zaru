@@ -179,7 +179,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ptier-row.rec { background: var(--bg3); border-left: 3px solid var(--ac); }
 .ptier-rec-badge { font-size: 8px; font-weight: 700; color: var(--ac); text-transform: uppercase; letter-spacing: .8px; display: block; margin-top: 2px; }
 
-.btn-dtab { background:white;border:1.5px solid var(--bd);border-radius:8px;padding:8px 18px;font-size:12px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif; }
+.btn-dtab { background:white;border:1.5px solid var(--bd);border-radius:8px;padding:8px 18px;font-size:12px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;white-space:nowrap;flex-shrink:0; }
 .btn-dtab.active { background:var(--ac);color:white;border-color:var(--ac); }
 .stat-card { background:white;border:1px solid var(--bd);border-radius:10px;padding:14px;text-align:center; }
 .stat-v { font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;color:var(--tx); }
@@ -196,6 +196,33 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-row { display:flex;gap:3px;justify-content:center; }
 .seg-row input { width:14px;height:14px;cursor:pointer;accent-color:var(--ac); }
 .seg-dias { width:52px;padding:4px 5px;border:1px solid var(--bd);border-radius:6px;font-size:10.5px;font-family:'Jost',sans-serif;text-align:center; }
+/* ── SEGUIMIENTO (cola diaria) ── */
+.seg-sec { font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;margin:18px 0 10px;display:flex;align-items:center;gap:8px; }
+.seg-sec.late{color:#B91C1C;} .seg-sec.today{color:#B45309;} .seg-sec.future{color:var(--tm);}
+.seg-cnt { background:#DC2626;color:white;border-radius:11px;padding:1px 8px;font-size:11px;font-weight:700;font-family:'Jost',sans-serif; }
+.seg-empty { font-size:12px;color:var(--tm);padding:4px 2px 8px;font-style:italic; }
+.seg-card { background:white;border:1px solid var(--bd);border-left:4px solid var(--bd);border-radius:11px;padding:12px 14px;margin-bottom:10px; }
+.seg-card.late{border-left-color:#DC2626;} .seg-card.today{border-left-color:#D97706;} .seg-card.future{border-left-color:var(--ac);}
+.seg-cli { font-size:15px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif; }
+.seg-touch { display:inline-block;background:var(--bg3);color:var(--acd);font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
+.seg-meta { font-size:11px;color:var(--tm);margin-top:4px;line-height:1.6;font-family:'Jost',sans-serif; }
+.seg-hist { font-size:10px;color:var(--tm);margin-top:5px;font-style:italic;font-family:'Jost',sans-serif; }
+.seg-btns { display:flex;gap:7px;margin-top:11px;flex-wrap:wrap; }
+.sbtn { padding:9px 13px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Jost',sans-serif;border:1px solid var(--bd);background:white;color:var(--tx);text-decoration:none;display:inline-block;letter-spacing:.3px; }
+.sbtn.ok{background:#059669;border-color:#059669;color:white;} .sbtn.wa{background:#25D366;border-color:#25D366;color:white;}
+.sbtn.win{background:var(--bg3);border-color:var(--acd);color:var(--acd);} .sbtn.lost{color:#991B1B;border-color:#FCA5A5;}
+.stat-v.money { font-size:16px;line-height:1.2; }
+.badge-red { display:inline-block;background:#DC2626;color:white;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px;font-family:'Jost',sans-serif; }
+.btn-venta { background:var(--ac);border:none;border-radius:8px;color:white;font-size:12px;padding:8px 16px;cursor:pointer;font-family:'Jost',sans-serif;letter-spacing:.5px; }
+.btn-venta:hover{background:var(--acd);}
+/* ── MODAL panel ── */
+.pmodal-bg { position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px; }
+.pmodal { background:white;border-radius:14px;padding:20px;max-width:380px;width:100%;max-height:85vh;overflow-y:auto; }
+.pmodal h3 { font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:var(--acd);margin-bottom:14px; }
+.mbtn { display:block;width:100%;padding:11px 13px;margin-bottom:8px;border:1px solid var(--bd);border-radius:9px;background:white;font-size:13px;cursor:pointer;font-family:'Jost',sans-serif;text-align:left;color:var(--tx); }
+.mbtn:hover { border-color:var(--ac);background:var(--bg3); }
+.mbtn.pri { background:var(--ac);color:white;border-color:var(--ac);text-align:center;letter-spacing:.5px; }
+.mbtn.cancel { border:none;color:var(--tm);text-align:center;font-size:12px; }
 .dm-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px; }
 @media(max-width:480px){ .dm-grid { grid-template-columns:repeat(2,1fr); } }
 .dm-card { border:2px solid var(--bd);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s,box-shadow .15s; }
@@ -338,15 +365,16 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <div><span class="badge" style="background:var(--acd)">Panel Interno</span></div>
   </div>
   <div style="padding:20px 16px 40px;max-width:700px;margin:0 auto">
-    <div style="display:flex;gap:8px;margin-bottom:20px">
-      <button class="btn-dtab active" id="dtab-cli"   onclick="switchDtab('cli')">Clientes Web</button>
-      <button class="btn-dtab"        id="dtab-cesar" onclick="switchDtab('cesar')">César</button>
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+      <div id="dash-tabs" style="display:flex;gap:8px;overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch"></div>
+      <button class="btn-venta" id="btn-venta" onclick="ventaUI()">+ Venta</button>
     </div>
     <div id="dash-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
     <div id="dash-filters" class="dash-filters"></div>
     <div id="dash-tbl"></div>
   </div>
 </div>
+<div class="pmodal-bg hidden" id="pmodal-bg"><div class="pmodal" id="pmodal"></div></div>
 
 <script>
 /* ── SUPABASE ── */
@@ -1139,7 +1167,96 @@ async function saveQuote(data) {
 }
 
 /* ── PANEL INTERNO ── */
-var dashData = {cli:[],cesar:[]}, dashMode = 'cli', dashSort = {col:'fecha_creacion', dir:'desc'};
+/* Vendedores: para agregar uno nuevo, añade una línea aquí y dale su link ?panel=<code>.
+   'legacy' = correos antiguos con que ya quedaron guardadas sus cotizaciones. */
+var PANEL_ADMIN = 'zr25';
+var VENDEDORES = [
+  { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] }
+];
+var CADENCIA = [1, 3, 7, 14, 30];   /* días desde la cotización para los 5 toques */
+var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Otro'];
+var panelSeller = null;   /* null = admin (ve todo) */
+var dashRows = [];        /* cotizaciones cargadas, ya filtradas al alcance del panel */
+var dashView = 'seg';     /* seg | web | <code de vendedor> */
+var dashSort = {col:'fecha_creacion', dir:'desc'};
+var COTIS = {};
+var segPend = 0;
+
+function isPanelAdmin(){ return panelSeller === null; }
+function sellerByCode(code){ return VENDEDORES.find(function(v){ return v.code === code; }) || null; }
+function ownerCode(x){
+  for (var i=0;i<VENDEDORES.length;i++){
+    var v = VENDEDORES[i];
+    if (x.user_email===v.email || x.asignado_a===v.email || (v.legacy && v.legacy.indexOf(x.user_email)!==-1)) return v.code;
+  }
+  return null;
+}
+function isWeb(x){ return !x.user_email && ownerCode(x)===null; }
+
+function isoDate(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function hoyISO(){ return isoDate(new Date()); }
+function addDias(iso,n){ var p=iso.split('-'); var dt=new Date(+p[0],+p[1]-1,+p[2]); dt.setDate(dt.getDate()+n); return isoDate(dt); }
+function dueDate(x){
+  if ((x.estado||'enviada')!=='enviada') return null;
+  var due;
+  if (x.seg_proxima) due = String(x.seg_proxima).slice(0,10);
+  else {
+    var etapa = x.seg_etapa||0;
+    if (etapa>=CADENCIA.length || !x.fecha_creacion) return null;
+    var b=new Date(x.fecha_creacion); b.setDate(b.getDate()+CADENCIA[etapa]); due = isoDate(b);
+  }
+  /* cadencia vencida: más de 30 días sin gestión → fuera de la cola diaria (sigue en las tablas) */
+  if (due < addDias(hoyISO(),-30)) return null;
+  return due;
+}
+function computeSegPend(){
+  var hoy=hoyISO(); segPend=0;
+  dashRows.forEach(function(x){ var d=dueDate(x); if(d && d<=hoy) segPend++; });
+}
+
+/* teléfono chileno → número apto wa.me (o null si no hay teléfono usable) */
+function waPhone(contacto){
+  var d = String(contacto||'').replace(/\D/g,'');
+  if (d.length===11 && d.slice(0,3)==='569') return d;
+  if (d.length===9  && d[0]==='9')          return '56'+d;
+  if (d.length===8)                          return '569'+d;
+  if (d.length===11 && d.slice(0,2)==='56')  return d;
+  return null;
+}
+function waMsg(x){
+  var toque=(x.seg_etapa||0)+1;
+  var nom=(x.cliente||'').trim().split(' ')[0];
+  var num=x.numero||'tu cotización';
+  if (toque<=1) return 'Hola '+nom+'! Te saluda Casa Zaru 🌲 ¿Te llegó bien la cotización '+num+'? Cualquier duda sobre medidas o maderas, encantados de ayudarte.';
+  if (toque<=3) return 'Hola '+nom+'! ¿Cómo va tu proyecto? Tu cotización '+num+' sigue vigente. Al confirmar partimos la fabricación: 7 a 15 días hábiles y te enviamos foto cuando esté lista.';
+  return 'Hola '+nom+'! No queremos que se te pase 😊 Por tu cotización '+num+': pagando por transferencia tienes un 5% de descuento. ¿La dejamos confirmada esta semana?';
+}
+
+function pModal(html){ document.getElementById('pmodal').innerHTML=html; document.getElementById('pmodal-bg').classList.remove('hidden'); }
+function pClose(){ document.getElementById('pmodal-bg').classList.add('hidden'); }
+
+function renderTabs(){
+  var tabs=[{id:'seg',label:'Seguimiento'}];
+  if (isPanelAdmin()){
+    tabs.push({id:'web',label:'Clientes Web'});
+    VENDEDORES.forEach(function(v){ tabs.push({id:v.code,label:v.nombre}); });
+  } else {
+    tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
+  }
+  document.getElementById('dash-tabs').innerHTML = tabs.map(function(t){
+    var badge = (t.id==='seg' && segPend>0) ? '<span class="badge-red">'+segPend+'</span>' : '';
+    return '<button class="btn-dtab'+(dashView===t.id?' active':'')+'" onclick="setDashView(\''+t.id+'\')">'+t.label+badge+'</button>';
+  }).join('');
+}
+function setDashView(v){
+  dashView=v; renderTabs();
+  if (v==='seg'){ document.getElementById('dash-filters').innerHTML=''; renderSeguimiento(); }
+  else { renderDashFilters(); renderDash(); }
+}
+function currentTableRows(){
+  if (dashView==='web') return dashRows.filter(isWeb);
+  return dashRows.filter(function(x){ return ownerCode(x)===dashView; });
+}
 function setDashSort(col) {
   if (dashSort.col === col) dashSort.dir = dashSort.dir === 'asc' ? 'desc' : 'asc';
   else { dashSort.col = col; dashSort.dir = 'asc'; }
@@ -1157,21 +1274,159 @@ function sortDashData(data) {
     return dir === 'asc' ? av - bv : bv - av;
   });
 }
-function switchDtab(m) {
-  dashMode = m;
-  document.getElementById('dtab-cli').className  = 'btn-dtab'+(m==='cli'  ?' active':'');
-  document.getElementById('dtab-cesar').className = 'btn-dtab'+(m==='cesar'?' active':'');
-  renderDash();
-}
 async function loadDash() {
   document.getElementById('dash-tbl').innerHTML = '<div style="padding:20px;text-align:center;color:var(--tm)">Cargando…</div>';
-  renderDashFilters();
-  var r1 = await sbClient.from('cotizaciones').select('*').is('user_email',null).order('fecha_creacion',{ascending:false});
-  var r2 = await sbClient.from('cotizaciones').select('*').not('user_email','is',null).order('fecha_creacion',{ascending:false});
-  dashData.cli   = r1.data || [];
-  dashData.cesar = r2.data || [];
-  if (r1.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+r1.error.message+'</div>'; return; }
-  renderDash();
+  var res = await sbClient.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false});
+  if (res.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+res.error.message+'</div>'; return; }
+  var all = res.data || [];
+  dashRows = isPanelAdmin() ? all : all.filter(function(x){ return ownerCode(x)===panelSeller.code; });
+  COTIS = {};
+  dashRows.forEach(function(x){ COTIS[x.id]=x; });
+  computeSegPend();
+  setDashView(dashView);
+}
+
+/* ── VISTA SEGUIMIENTO (cola diaria por cadencia) ── */
+function renderSeguimiento(){
+  var hoy=hoyISO(), lim=addDias(hoy,7);
+  var late=[], today=[], future=[];
+  dashRows.forEach(function(x){
+    var d=dueDate(x); if(!d) return;
+    if (d<hoy) late.push(x); else if(d===hoy) today.push(x); else if(d<=lim) future.push(x);
+  });
+  /* la plata grande primero dentro de cada sección */
+  var porMonto = function(a,b){ return (b.total_alto||0)-(a.total_alto||0); };
+  late.sort(porMonto); today.sort(porMonto); future.sort(porMonto);
+  var enJuego = late.concat(today,future).reduce(function(a,x){ return a+(x.total_alto||0); },0);
+  document.getElementById('dash-stats').innerHTML =
+    '<div class="stat-card"><div class="stat-v">'+(late.length+today.length)+'</div><div class="stat-l">Para hoy</div></div>'+
+    '<div class="stat-card"><div class="stat-v">'+future.length+'</div><div class="stat-l">Esta semana</div></div>'+
+    '<div class="stat-card"><div class="stat-v money">'+fmt(enJuego)+'</div><div class="stat-l">En juego</div></div>';
+  function sec(t,cls,arr,vacio){
+    var body = arr.length ? arr.map(function(x){ return segCard(x,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
+    var cnt = arr.length ? '<span class="seg-cnt">'+arr.length+'</span>' : '';
+    return '<div class="seg-sec '+cls+'">'+t+cnt+'</div>'+body;
+  }
+  document.getElementById('dash-tbl').innerHTML =
+    sec('🔴 Atrasados','late',late,'Nada atrasado. ¡Bien!')+
+    sec('🟡 Para hoy','today',today,'Sin seguimientos para hoy.')+
+    sec('⚪ Próximos 7 días','future',future,'Nada agendado esta semana.');
+}
+function segCard(x,cls){
+  var toque=Math.min((x.seg_etapa||0)+1,CADENCIA.length);
+  var dias=x.fecha_creacion?Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)):0;
+  var oc=ownerCode(x);
+  var who = isWeb(x) ? 'Web' : (oc ? (sellerByCode(oc)||{nombre:oc}).nombre : (x.asignado_a||'—'));
+  var meta=(x.numero||'')+' · '+(PNAME[x.producto]||x.producto||'')+' · $'+Math.round(x.total_alto||0).toLocaleString('es-CL')+
+    ' · hace '+dias+' día'+(dias===1?'':'s')+(x.contacto?' · '+x.contacto:'')+(isPanelAdmin()?' · '+who:'');
+  var hist='';
+  if (Array.isArray(x.seg_historial)&&x.seg_historial.length){
+    hist='<div class="seg-hist">'+x.seg_historial.map(function(h){ return (h.nota?h.nota:'Toque '+h.etapa)+' ('+h.fecha+')'; }).join(' · ')+'</div>';
+  }
+  var phone=waPhone(x.contacto);
+  var wa = phone ? '<a class="sbtn wa" target="_blank" href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
+  return '<div class="seg-card '+cls+'">'+
+    '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+toque+'/'+CADENCIA.length+'</span></div>'+
+    '<div class="seg-meta">'+meta+'</div>'+hist+
+    '<div class="seg-btns">'+
+      '<button class="sbtn ok" onclick="segHecho(\''+x.id+'\')">✓ Contactado</button>'+
+      '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
+      wa+
+      '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
+      '<button class="sbtn lost" onclick="segPerderUI(\''+x.id+'\')">✗ Perdida</button>'+
+    '</div></div>';
+}
+
+/* ── GUARDAR + ACCIONES DE SEGUIMIENTO ── */
+async function segSave(id, updates, okMsg){
+  var res = await sbClient.from('cotizaciones').update(updates).eq('id', id).select();
+  if (res.error){ showToast('Error: '+res.error.message, false); return false; }
+  if (!res.data || !res.data.length){ showToast('No se pudo guardar — falta el permiso "anon update" en Supabase', false); return false; }
+  if (COTIS[id]) Object.assign(COTIS[id], updates);
+  var r=dashRows.find(function(x){ return x.id===id; }); if(r) Object.assign(r, updates);
+  computeSegPend(); renderTabs();
+  if (dashView==='seg') renderSeguimiento(); else renderDash();
+  if (okMsg) showToast(okMsg, true);
+  return true;
+}
+async function segHecho(id){
+  var x=COTIS[id]; if(!x) return;
+  var etapa=(x.seg_etapa||0)+1;
+  var hist=Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
+  hist.push({etapa:etapa, fecha:hoyISO()});
+  var next=null;
+  if (etapa<CADENCIA.length && x.fecha_creacion){
+    var b=new Date(x.fecha_creacion); b.setDate(b.getDate()+CADENCIA[etapa]);
+    var porCad=isoDate(b), minimo=addDias(hoyISO(),2);
+    next = porCad>minimo ? porCad : minimo;
+  }
+  segSave(id, {seg_etapa:etapa, seg_proxima:next, seg_historial:hist}, next?'Contacto registrado':'Cadencia completa');
+}
+function segPosponerUI(id){
+  var x=COTIS[id]; if(!x) return;
+  pModal('<h3>Posponer — '+(x.cliente||'')+'</h3>'+
+    '<button class="mbtn" onclick="segPosponer(\''+id+'\',7)">En 7 días</button>'+
+    '<button class="mbtn" onclick="segPosponer(\''+id+'\',15)">En 15 días (cliente cotiza más adelante)</button>'+
+    '<button class="mbtn" onclick="segPosponer(\''+id+'\',30)">En 30 días</button>'+
+    '<div class="fsec" style="margin-top:6px"><label class="flabel">O elige una fecha</label><input class="finput" type="date" id="pos-fecha" min="'+addDias(hoyISO(),1)+'"></div>'+
+    '<button class="mbtn pri" onclick="segPosponerFecha(\''+id+'\')">Guardar fecha</button>'+
+    '<button class="mbtn cancel" onclick="pClose()">Cancelar</button>');
+}
+function segPosponer(id, dias, fechaISO){
+  var x=COTIS[id]; if(!x) return;
+  var fecha=fechaISO||addDias(hoyISO(),dias);
+  var hist=Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
+  hist.push({etapa:x.seg_etapa||0, fecha:hoyISO(), nota:'Pospuesto a '+fecha});
+  pClose();
+  segSave(id, {seg_proxima:fecha, seg_historial:hist}, 'Pospuesto a '+fecha);
+}
+function segPosponerFecha(id){ var v=(document.getElementById('pos-fecha')||{}).value; if(v) segPosponer(id,0,v); }
+function pedirMonto(x){
+  var def=x.monto_cierre||x.total_medio||x.total_alto||'';
+  var v=prompt('Monto final de la venta ($):', def);
+  if (v===null) return undefined;
+  var n=parseInt(String(v).replace(/\D/g,''),10);
+  return isNaN(n)?undefined:n;
+}
+function segPerderUI(id){
+  var x=COTIS[id]; if(!x) return;
+  pModal('<h3>¿Por qué se perdió — '+(x.cliente||'')+'?</h3>'+
+    MOTIVOS.map(function(m){ return '<button class="mbtn" onclick="segPerder(\''+id+'\',\''+m+'\')">'+m+'</button>'; }).join('')+
+    '<button class="mbtn cancel" onclick="pClose()">Cancelar</button>');
+}
+function segPerder(id, motivo){ pClose(); segSave(id, {estado:'perdida', motivo_perdida:motivo}, 'Marcada como perdida'); }
+
+/* ── REGISTRAR VENTA DIRECTA ── */
+function panelNextNum(){ var d=new Date(); return 'V-'+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()).slice(2)+'-'+String(d.getTime()).slice(-4); }
+function ventaUI(){
+  var prodOpts=Object.keys(PNAME).map(function(k){ return '<option value="'+k+'">'+PNAME[k]+'</option>'; }).join('');
+  var vendSel='';
+  if (isPanelAdmin() && VENDEDORES.length){
+    vendSel='<div class="fsec"><label class="flabel">Vendedor</label><select class="fsel" id="v-vend"><option value="">Web / sin asignar</option>'+
+      VENDEDORES.map(function(v){ return '<option value="'+v.code+'">'+v.nombre+'</option>'; }).join('')+'</select></div>';
+  }
+  pModal('<h3>Registrar venta</h3>'+
+    '<div class="fsec"><label class="flabel">Cliente</label><input class="finput" id="v-cli" placeholder="Nombre"></div>'+
+    '<div class="fsec"><label class="flabel">Teléfono</label><input class="finput" id="v-con" placeholder="+56 9 1234 5678"></div>'+
+    '<div class="fsec"><label class="flabel">Producto</label><select class="fsel" id="v-prod">'+prodOpts+'</select></div>'+
+    '<div class="fsec"><label class="flabel">Monto final ($)</label><input class="finput" id="v-monto" type="number" inputmode="numeric" placeholder="450000"></div>'+
+    vendSel+
+    '<button class="mbtn pri" onclick="ventaGuardar()">Guardar venta</button>'+
+    '<button class="mbtn cancel" onclick="pClose()">Cancelar</button>');
+}
+async function ventaGuardar(){
+  var cli=((document.getElementById('v-cli')||{}).value||'').trim();
+  var monto=parseInt((document.getElementById('v-monto')||{}).value,10);
+  if (!cli || isNaN(monto)){ showToast('Completa cliente y monto', false); return; }
+  var code = isPanelAdmin() ? ((document.getElementById('v-vend')||{}).value||'') : panelSeller.code;
+  var seller = code ? sellerByCode(code) : null;
+  var data={ numero:panelNextNum(), cliente:cli, contacto:((document.getElementById('v-con')||{}).value||'').trim()||null,
+    producto:(document.getElementById('v-prod')||{}).value, estado:'ganado', monto_cierre:monto,
+    total_alto:monto, user_email: seller ? seller.email : null };
+  var res=await sbClient.from('cotizaciones').insert(data).select();
+  if (res.error){ showToast('Error: '+res.error.message, false); return; }
+  if (!res.data || !res.data.length){ showToast('No se pudo guardar — falta el permiso "anon insert" en Supabase', false); return; }
+  pClose(); showToast('Venta registrada ✓', true); loadDash();
 }
 function renderDashFilters() {
   var prodOpts = Object.keys(PNAME).map(function(k){ return '<option value="'+k+'">'+PNAME[k]+'</option>'; }).join('');
@@ -1209,83 +1464,56 @@ function applyDashFilters(data) {
     return true;
   });
 }
-async function updateSeguimiento(id, idx, checked) {
-  var item = dashData.cli.find(function(x){ return x.id === id; }) || dashData.cesar.find(function(x){ return x.id === id; });
-  var seg = ((item && item.seguimiento) || [false,false,false,false,false]).slice();
-  seg[idx] = checked;
-  var res = await sbClient.from('cotizaciones').update({seguimiento: seg}).eq('id', id).select();
-  if (res.error) { showToast('Error al guardar seguimiento: ' + res.error.message, false); return; }
-  if (!res.data || !res.data.length) { showToast('No se pudo guardar — falta el permiso "anon update" en Supabase', false); return; }
-  [dashData.cli, dashData.cesar].forEach(function(arr){
-    var x = arr.find(function(x){ return x.id === id; });
-    if (x) x.seguimiento = seg;
-  });
-  showToast('Seguimiento guardado', true);
-}
-async function updateDiasSeguimiento(id, value) {
-  var dias = value === '' ? null : (parseInt(value) || 0);
-  var res = await sbClient.from('cotizaciones').update({dias_seguimiento: dias}).eq('id', id).select();
-  if (res.error) { showToast('Error al guardar días: ' + res.error.message, false); return; }
-  if (!res.data || !res.data.length) { showToast('No se pudo guardar — falta el permiso "anon update" en Supabase', false); return; }
-  [dashData.cli, dashData.cesar].forEach(function(arr){
-    var x = arr.find(function(x){ return x.id === id; });
-    if (x) x.dias_seguimiento = dias;
-  });
-  showToast('Días guardados', true);
-}
 async function updateEstado(id, estado) {
-  var res = await sbClient.from('cotizaciones').update({estado: estado}).eq('id', id).select();
-  if (res.error) { showToast('Error al actualizar: ' + res.error.message, false); return; }
-  if (!res.data || !res.data.length) { showToast('No se pudo actualizar — falta el permiso "anon update" en Supabase', false); return; }
-  [dashData.cli, dashData.cesar].forEach(function(arr){
-    var item = arr.find(function(x){ return x.id === id; });
-    if (item) item.estado = estado;
-  });
-  renderDash();
-  showToast('Estado actualizado', true);
+  var x = COTIS[id] || {};
+  if (estado === 'ganado') {
+    var m = pedirMonto(x);
+    if (m === undefined) { if(dashView!=='seg') renderDash(); return; }
+    segSave(id, {estado:'ganado', monto_cierre:m}, '¡Venta ganada! 🎉');
+    return;
+  }
+  if (estado === 'perdida') { if(dashView!=='seg') renderDash(); segPerderUI(id); return; }
+  segSave(id, {estado:estado, seg_proxima:null}, 'Estado actualizado');
 }
 async function deleteQuote(id, numero) {
   if (!confirm('¿Eliminar la cotización ' + numero + '? Esta acción no se puede deshacer.')) return;
   var res = await sbClient.from('cotizaciones').delete().eq('id', id).select();
   if (res.error) { showToast('Error al eliminar: ' + res.error.message, false); return; }
   if (!res.data || !res.data.length) { showToast('No se pudo eliminar — falta el permiso "anon delete" en Supabase', false); return; }
-  dashData.cli   = dashData.cli.filter(function(x){ return x.id !== id; });
-  dashData.cesar = dashData.cesar.filter(function(x){ return x.id !== id; });
-  renderDash();
+  dashRows = dashRows.filter(function(x){ return x.id !== id; });
+  delete COTIS[id];
+  computeSegPend(); renderTabs(); renderDash();
   showToast('Cotización eliminada', true);
 }
 function renderDash() {
-  var dAll = dashMode==='cli' ? dashData.cli : dashData.cesar;
+  var dAll = currentTableRows();
   var d = sortDashData(applyDashFilters(dAll));
-  var conc = d.filter(function(x){return x.estado==='ganado';}).length;
+  var ganadas = d.filter(function(x){ return x.estado==='ganado'; });
+  var cotizado = d.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
+  var vendido  = ganadas.reduce(function(a,x){ return a + (x.monto_cierre||x.total_medio||x.total_alto||0); }, 0);
   document.getElementById('dash-stats').innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+conc+'</div><div class="stat-l">Ganadas</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+(d.length?Math.round(conc/d.length*100):0)+'%</div><div class="stat-l">Conversión</div></div>';
+    '<div class="stat-card"><div class="stat-v money">'+fmt(cotizado)+'</div><div class="stat-l">Total cotizado</div></div>'+
+    '<div class="stat-card"><div class="stat-v money">'+fmt(vendido)+'</div><div class="stat-l">Total vendido</div></div>';
   if (!dAll.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
   if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Ninguna cotización coincide con el filtro</div>'; return; }
   var rows = d.map(function(x){
     var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') + ' ' + new Date(x.fecha_creacion).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
     var est = x.estado || 'enviada';
-    var seg = x.seguimiento || [false,false,false,false,false];
-    var segBoxes = seg.map(function(chk, i){
-      return '<input type="checkbox" title="Seguimiento '+(i+1)+'"'+(chk?' checked':'')+' onchange="updateSeguimiento(\''+x.id+'\','+i+',this.checked)">';
-    }).join('');
     var numHtml = x.link ? '<a href="'+x.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+(x.numero||'—')+' ↗</a>' : (x.numero||'—');
-    return '<tr><td>'+numHtml+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td><td style="font-size:9.5px">'+f+'</td>' +
+    var montoTxt = est==='ganado' && x.monto_cierre ? '$'+Math.round(x.monto_cierre).toLocaleString('es-CL') : '$'+Math.round(x.total_alto||0).toLocaleString('es-CL');
+    return '<tr><td>'+numHtml+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>'+montoTxt+'</td><td style="font-size:9.5px">'+f+'</td>' +
       '<td><select class="dash-estado '+est+'" onchange="updateEstado(\''+x.id+'\',this.value)">' +
         '<option value="enviada"'+(est==='enviada'?' selected':'')+'>Enviada</option>' +
         '<option value="ganado"'+(est==='ganado'?' selected':'')+'>Ganado</option>' +
         '<option value="perdida"'+(est==='perdida'?' selected':'')+'>Perdida</option>' +
       '</select></td>' +
-      '<td><div class="seg-row">'+segBoxes+'</div></td>' +
-      '<td><input type="number" class="seg-dias" min="0" placeholder="días" value="'+(x.dias_seguimiento!=null?x.dias_seguimiento:'')+'" onchange="updateDiasSeguimiento(\''+x.id+'\',this.value)"></td>' +
       '<td><button class="dash-del" onclick="deleteQuote(\''+x.id+'\',\''+(x.numero||'').replace(/'/g,"")+'\')">✕</button></td></tr>';
   }).join('');
   document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
     '<th class="th-sort" onclick="setDashSort(\'total_alto\')">Total'+sortArrow('total_alto')+'</th>' +
     '<th class="th-sort" onclick="setDashSort(\'fecha_creacion\')">Fecha'+sortArrow('fecha_creacion')+'</th>' +
-    '<th>Estado</th><th>Seguimiento</th><th>Días seg.</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    '<th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ── EXTRAS ── */
@@ -1347,7 +1575,14 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   var params = new URLSearchParams(window.location.search);
   if (params.get('src') === 'cesar') srcEmail = 'hola@casazaru.cl';
-  if (params.get('panel') === 'zr25') {
+  var pmb = document.getElementById('pmodal-bg');
+  if (pmb) pmb.addEventListener('click', function(e){ if(e.target===this) pClose(); });
+  var pcode = params.get('panel'), pOK = false;
+  if (pcode) {
+    if (pcode === PANEL_ADMIN) { panelSeller = null; pOK = true; }
+    else { var sv = sellerByCode(pcode); if (sv) { panelSeller = sv; pOK = true; } }
+  }
+  if (pOK) {
     show('s-dash'); loadDash();
   } else if (params.get('s')) {
     loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) show('s1'); });
