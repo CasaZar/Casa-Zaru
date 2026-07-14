@@ -210,7 +210,29 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-card { background:white;border:1px solid var(--bd);border-left:4px solid var(--bd);border-radius:11px;padding:12px 14px;margin-bottom:10px; }
 .seg-card.late{border-left-color:#DC2626;} .seg-card.today{border-left-color:#D97706;} .seg-card.future{border-left-color:var(--ac);}
 .seg-card.donehoy{border-left-color:#059669;background:#F6FCF9;}
+.seg-card.dorm{border-left-color:#6B7280;}
+.seg-sec.dorm{ background:#6B7280;color:#fff;border-left:5px solid #374151; }
 .sbtn.undo{background:#fff;border-color:#059669;color:#065F46;}
+/* fichas del día (tablero rápido) */
+.day-bar{ display:grid;grid-template-columns:repeat(4,1fr);gap:7px; }
+.day-bar .stat-card{ padding:11px 5px; }
+.day-bar .stat-v{ font-size:24px; }
+.day-bar .stat-l{ font-size:9px; }
+.stat-card.tap{ cursor:pointer;transition:transform .1s,box-shadow .1s; }
+.stat-card.tap:hover{ box-shadow:0 2px 8px rgba(0,0,0,.12);transform:translateY(-1px); }
+.stat-card.seg-latef{ border-top:3px solid #DC2626; }
+.stat-card.seg-todayf{ border-top:3px solid #F59E0B; }
+.stat-card.seg-donehoyf{ border-top:3px solid #059669; }
+.speed-alert{ background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;border-radius:9px;padding:10px 13px;font-size:12.5px;font-weight:600;font-family:'Jost',sans-serif;margin-bottom:10px;cursor:pointer; }
+.speed-alert:hover{ background:#FEE2E2; }
+/* ¿por qué perdemos? */
+.perde-box{ background:#fff;border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-bottom:14px; }
+.perde-h{ font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:700;color:var(--acd);margin-bottom:8px; }
+.perde-row{ display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px; }
+.perde-l{ min-width:110px;color:var(--tx); }
+.perde-bar{ flex:1;background:var(--bg3);border-radius:6px;height:12px;overflow:hidden; }
+.perde-bar>span{ display:block;height:100%;background:#DC2626;border-radius:6px; }
+.perde-n{ min-width:22px;text-align:right;font-weight:700;color:var(--tx); }
 .seg-card.pez { border-color:#D97706;box-shadow:0 0 0 3px rgba(217,119,6,.16); }
 .pez-badge { display:inline-block;background:#FEF3C7;color:#92400E;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 .seg-cli { font-size:15px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif; }
@@ -1351,10 +1373,12 @@ function renderTabs(){
   if (isPanelAdmin()){
     tabs.push({id:'web',label:'Clientes Web'});
     VENDEDORES.forEach(function(v){ tabs.push({id:v.code,label:v.nombre}); });
+    tabs.push({id:'dormidos',label:'😴 Dormidos'});
     tabs.push({id:'elim',label:'🗑 Eliminadas'});
   } else {
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
     tabs.push({id:'web',label:'Clientes Web'});
+    tabs.push({id:'dormidos',label:'😴 Dormidos'});
   }
   document.getElementById('dash-tabs').innerHTML = tabs.map(function(t){
     var badge = (t.id==='seg' && segPend>0) ? '<span class="badge-red">'+segPend+'</span>' : '';
@@ -1365,7 +1389,24 @@ function setDashView(v){
   dashView=v; renderTabs();
   if (v==='seg'){ renderSegFilters(); renderSeguimiento(); }
   else if (v==='elim'){ renderEliminadas(); }
+  else if (v==='dormidos'){ renderDormidos(); }
   else { renderDashFilters(); renderDash(); }
+}
+/* Dormidos: enviadas que se cayeron de la cola (cadencia agotada o +30 días sin gestión) */
+function renderDormidos(){
+  document.getElementById('dash-filters').innerHTML='';
+  var dorm = buildSegGroups().filter(function(g){ return dueDate(g.lead)===null; });
+  dorm.sort(function(a,b){ return b.valor-a.valor; });
+  var enJuego = dorm.reduce(function(a,g){ return a+(g.valor||0); }, 0);
+  var st=document.getElementById('dash-stats'); st.style.display='grid';
+  st.innerHTML =
+    '<div class="stat-card"><div class="stat-v">'+dorm.length+'</div><div class="stat-l">Dormidos</div></div>'+
+    '<div class="stat-card"><div class="stat-v money">'+fmt(enJuego)+'</div><div class="stat-l">Valor dormido</div></div>';
+  if (!dorm.length){ document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">No hay leads dormidos 🎉</div>'; return; }
+  document.getElementById('dash-tbl').innerHTML =
+    '<div class="seg-sec dorm">😴 Para reactivar<span class="seg-cnt">'+dorm.length+'</span></div>'+
+    '<div class="seg-empty" style="margin:-4px 0 10px">Clientes que se enfriaron. Un mensaje puede revivir la venta.</div>'+
+    dorm.map(function(g){ return segClientCard(g,'dorm'); }).join('');
 }
 function segBloquesDef(){
   var b=[];
@@ -1440,7 +1481,7 @@ function renderSeguimiento(){
   var bloques = segBloquesDef();
   if (segBloque) bloques = bloques.filter(function(b){ return b.o===segBloque; });
   var hoy=hoyISO(), lim=addDias(hoy,7);
-  var totHoy=0, totSem=0, enJuego=0, html='';
+  var totLate=0, totToday=0, totDone=0, enJuego=0, html='';
   bloques.forEach(function(b){
     var late=[], today=[], future=[], hoyDone=[];
     groups.forEach(function(g){
@@ -1450,27 +1491,54 @@ function renderSeguimiento(){
       if (d<hoy) late.push(g); else if(d===hoy) today.push(g); else if(d<=lim) future.push(g);
     });
     late.sort(cmp); today.sort(cmp); future.sort(cmp); hoyDone.sort(cmp);
-    var pend = late.length+today.length;
-    totHoy += pend; totSem += future.length;
+    totLate += late.length; totToday += today.length; totDone += hoyDone.length;
     late.concat(today,future).forEach(function(g){ enJuego += g.valor; });
     if (!late.length && !today.length && !future.length && !hoyDone.length) return;
+    var pend = late.length+today.length;
     html += '<div class="seg-block-h">'+b.t+(pend?'<span class="seg-cnt">'+pend+'</span>':'')+'</div>';
     function sec(t,cls,arr,vacio){
       var body = arr.length ? arr.map(function(g){ return segClientCard(g,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
       var cnt = arr.length ? '<span class="seg-cnt">'+arr.length+'</span>' : '';
-      return '<div class="seg-sec '+cls+'">'+t+cnt+'</div>'+body;
+      return '<div class="seg-sec '+cls+'" id="secblk-'+b.o+'-'+cls+'">'+t+cnt+'</div>'+body;
     }
     html += sec('🔴 Atrasados','late',late,'Nada atrasado. ¡Bien!')+
       sec('🟡 Para hoy','today',today,'Sin seguimientos para hoy.')+
       sec('⚪ Próximos 7 días','future',future,'Nada agendado esta semana.')+
       (hoyDone.length ? sec('✅ Contactados hoy','donehoy',hoyDone,'') : '');
   });
-  document.getElementById('dash-stats').innerHTML =
-    '<div class="stat-card"><div class="stat-v">'+totHoy+'</div><div class="stat-l">Para hoy</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+totSem+'</div><div class="stat-l">Esta semana</div></div>'+
-    '<div class="stat-card"><div class="stat-v money">'+fmt(enJuego)+'</div><div class="stat-l">En juego</div></div>';
+  /* alerta de velocidad: cotizaciones web sin primer contacto hace +24h */
+  var lentos = 0;
+  if (segBloque==='' || segBloque==='web'){
+    groups.forEach(function(g){
+      var x=g.lead;
+      if (isWeb(x) && (x.seg_etapa||0)===0 && x.fecha_creacion &&
+          (Date.now()-new Date(x.fecha_creacion).getTime()) > 86400000) lentos++;
+    });
+  }
+  var banner = lentos>0
+    ? '<div class="speed-alert" onclick="setSegBloque(\'web\')">⚡ '+lentos+' cotizaci'+(lentos===1?'ón':'ones')+' web sin primer contacto hace +24h — contáctalas primero →</div>'
+    : '';
+  function ficha(cls,emo,label,n){
+    return '<div class="stat-card tap seg-'+cls+'f" onclick="scrollToSec(\''+cls+'\')"><div class="stat-v">'+n+'</div><div class="stat-l">'+emo+' '+label+'</div></div>';
+  }
+  var st = document.getElementById('dash-stats');
+  st.style.display='block';
+  st.innerHTML = banner +
+    '<div class="day-bar">'+
+      ficha('late','🔴','Atrasados',totLate)+
+      ficha('today','🟡','Hoy',totToday)+
+      ficha('donehoy','✅','Contactados',totDone)+
+      '<div class="stat-card"><div class="stat-v money" style="font-size:19px">'+fmtM(enJuego)+'</div><div class="stat-l">💰 En juego</div></div>'+
+    '</div>';
   document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
 }
+/* salta a la primera sección de ese tipo (fichas del día) */
+function scrollToSec(cls){
+  var el = document.querySelector('.seg-sec.'+cls);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+/* monto compacto para las fichas: $358M / $45k */
+function fmtM(n){ n=n||0; if(n>=1e6) return '$'+(n/1e6).toFixed(n>=1e7?0:1)+'M'; if(n>=1e3) return '$'+Math.round(n/1e3)+'k'; return '$'+Math.round(n); }
 function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function segClientCard(g, cls){
   var x = g.lead;
@@ -1704,7 +1772,8 @@ function renderEliminadas(){
   document.getElementById('dash-filters').innerHTML='';
   var elim = allRows.filter(function(x){ return x.eliminada; })
     .sort(function(a,b){ return new Date(b.elim_fecha||0)-new Date(a.elim_fecha||0); });
-  document.getElementById('dash-stats').innerHTML =
+  var st0=document.getElementById('dash-stats'); st0.style.display='grid';
+  st0.innerHTML =
     '<div class="stat-card"><div class="stat-v">'+elim.length+'</div><div class="stat-l">Eliminadas</div></div>';
   if (!elim.length){ document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">No hay cotizaciones eliminadas</div>'; return; }
   var rows = elim.map(function(x){
@@ -1727,12 +1796,25 @@ function renderDash() {
   var conv = cerradas > 0 ? Math.round(ganadas.length/cerradas*100) : 0;
   var cotizado = d.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
   var vendido  = ganadas.reduce(function(a,x){ return a + (x.monto_cierre||x.total_medio||x.total_alto||0); }, 0);
-  document.getElementById('dash-stats').innerHTML =
+  var stD=document.getElementById('dash-stats'); stD.style.display='grid';
+  stD.innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
     '<div class="stat-card"><div class="stat-v" style="color:#059669">'+ganadas.length+'</div><div class="stat-l">Ganadas</div></div>'+
     '<div class="stat-card" title="Ganadas sobre las decididas (ganadas + perdidas)"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(cotizado)+'</div><div class="stat-l">Total cotizado</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(vendido)+'</div><div class="stat-l">Total vendido</div></div>';
+  /* ¿por qué perdemos? — desglose de motivos de las perdidas */
+  var motivos={}, totMot=0;
+  d.forEach(function(x){ if(x.estado==='perdida' && x.motivo_perdida){ motivos[x.motivo_perdida]=(motivos[x.motivo_perdida]||0)+1; totMot++; } });
+  var perdeHtml='';
+  if (totMot>0){
+    var keys=Object.keys(motivos).sort(function(a,b){ return motivos[b]-motivos[a]; });
+    perdeHtml = '<div class="perde-box"><div class="perde-h">¿Por qué perdemos? ('+totMot+')</div>'+
+      keys.map(function(k){
+        var pct=Math.round(motivos[k]/totMot*100);
+        return '<div class="perde-row"><span class="perde-l">'+k+'</span><span class="perde-bar"><span style="width:'+pct+'%"></span></span><span class="perde-n">'+motivos[k]+'</span></div>';
+      }).join('')+'</div>';
+  }
   if (!dAll.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
   if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Ninguna cotización coincide con el filtro</div>'; return; }
   var rows = d.map(function(x){
@@ -1748,7 +1830,7 @@ function renderDash() {
       '</select></td>' +
       '<td><button class="dash-del" onclick="deleteQuote(\''+x.id+'\',\''+(x.numero||'').replace(/'/g,"")+'\')">✕</button></td></tr>';
   }).join('');
-  document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
+  document.getElementById('dash-tbl').innerHTML= perdeHtml + '<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
     '<th class="th-sort" onclick="setDashSort(\'total_alto\')">Total'+sortArrow('total_alto')+'</th>' +
     '<th class="th-sort" onclick="setDashSort(\'fecha_creacion\')">Fecha'+sortArrow('fecha_creacion')+'</th>' +
     '<th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
