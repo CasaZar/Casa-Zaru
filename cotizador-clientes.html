@@ -225,6 +225,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .stat-card.seg-donehoyf{ border-top:3px solid #059669; }
 .speed-alert{ background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;border-radius:9px;padding:10px 13px;font-size:12.5px;font-weight:600;font-family:'Jost',sans-serif;margin-bottom:10px;cursor:pointer; }
 .speed-alert:hover{ background:#FEE2E2; }
+.month-metrics{ background:#fff;border:1px solid var(--bd);border-radius:9px;padding:8px 12px;font-size:12px;color:var(--tm);text-align:center;margin:8px 0 4px;font-family:'Jost',sans-serif; }
+.month-metrics strong{ color:var(--acd);font-size:14px; }
 /* ¿por qué perdemos? */
 .perde-box{ background:#fff;border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-bottom:14px; }
 .perde-h{ font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:700;color:var(--acd);margin-bottom:8px; }
@@ -631,6 +633,16 @@ function recWood() {
   var map = { cocina:'alto', quincho:'alto', peldanos:'alto', comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
   return map[uso] || 'medio';
 }
+/* texto del badge: la más pedida, según uso/producto (prueba social en vez de "para ti") */
+function recBadgeText() {
+  if (['granero','maciza','vidrios'].includes(prod)) return '★ La más pedida para puertas';
+  var usoLbl = { cocina:'cubiertas de cocina', quincho:'quinchos', peldanos:'peldaños', comedor:'comedores', escritorio:'escritorios', repisa:'repisas' };
+  if (usoLbl[uso]) return '★ La más pedida para ' + usoLbl[uso];
+  if (prod==='cubierta') return '★ La más pedida para cubiertas';
+  if (prod==='peldano')  return '★ La más pedida para peldaños';
+  if (prod==='repisa')   return '★ La más pedida para repisas';
+  return '★ La más pedida en el taller';
+}
 
 /* ── FORM ── */
 function initProd(p) {
@@ -995,7 +1007,7 @@ function shell(nombre, cli, fecha, body) {
 function tierTable(rows, recTier) {
   var prows = rows.map(function(r) {
     var isRec = recTier && r.tier === recTier;
-    var badge = isRec ? '<span class="ptier-rec-badge">★ Recomendada para ti</span>' : '';
+    var badge = isRec ? '<span class="ptier-rec-badge">' + recBadgeText() + '</span>' : '';
     var cls = isRec ? 'ptier-row rec' : 'ptier-row';
     return '<div class="' + cls + '">' +
       '<span class="ptier-wood">' + r.label + badge + '</span>' +
@@ -1524,6 +1536,20 @@ function renderSeguimiento(){
   function ficha(cls,emo,label,n){
     return '<div class="stat-card tap seg-'+cls+'f" onclick="scrollToSec(\''+cls+'\')"><div class="stat-v">'+n+'</div><div class="stat-l">'+emo+' '+label+'</div></div>';
   }
+  /* métricas del mes: conversión y % contactadas en <24h */
+  var ahora=new Date(), mesAct=ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
+  var mesRows = dashRows.filter(function(x){ return x.fecha_creacion && String(x.fecha_creacion).slice(0,7)===mesAct; });
+  var ganadasMes = mesRows.filter(function(x){ return x.estado==='ganado'; }).length;
+  var convMes = mesRows.length ? Math.round(ganadasMes/mesRows.length*100) : 0;
+  var rapidas = mesRows.filter(function(x){
+    if (!Array.isArray(x.seg_historial) || !x.seg_historial.length) return false;
+    var fechas = x.seg_historial.map(function(h){ return String(h.fecha).slice(0,10); }).filter(Boolean).sort();
+    if (!fechas.length) return false;
+    var creado=new Date(String(x.fecha_creacion).slice(0,10)), primer=new Date(fechas[0]);
+    var dif = primer - creado;
+    return dif <= 86400000 && dif >= -86400000;   /* mismo día o el siguiente ≈ <24h */
+  }).length;
+  var rapidPct = mesRows.length ? Math.round(rapidas/mesRows.length*100) : 0;
   var st = document.getElementById('dash-stats');
   st.style.display='block';
   st.innerHTML = banner +
@@ -1532,7 +1558,8 @@ function renderSeguimiento(){
       ficha('today','🟡','Hoy',totToday)+
       ficha('donehoy','✅','Contactados',totDone)+
       '<div class="stat-card"><div class="stat-v money" style="font-size:19px">'+fmtM(enJuego)+'</div><div class="stat-l">💰 En juego</div></div>'+
-    '</div>';
+    '</div>'+
+    '<div class="month-metrics">📅 Este mes · Conversión <strong>'+convMes+'%</strong> ('+ganadasMes+'/'+mesRows.length+') &nbsp;·&nbsp; Contacto &lt;24h <strong>'+rapidPct+'%</strong></div>';
   document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
 }
 /* salta a la primera sección de ese tipo (fichas del día) */
@@ -1562,7 +1589,7 @@ function segClientCard(g, cls){
     return '<div class="seg-qrow">'+(q.numero||'—')+' · '+(PNAME[q.producto]||q.producto||'')+' · '+fmt(q.total_alto||0)+(f?' · '+f:'')+(est!=='enviada'?' · '+est:'')+link+'</div>';
   }).join('');
   var qbody = g.quotes.length>1
-    ? '<details class="seg-qdet"><summary>'+g.quotes.length+' cotizaciones · promedio '+fmt(g.promedio)+' · mayor '+fmt(g.valor)+'</summary><div class="seg-qlist">'+qrows+'</div></details>'
+    ? '<details class="seg-qdet"><summary>venta probable <strong>'+fmt(g.valor)+'</strong> · '+g.quotes.length+' cotizaciones</summary><div class="seg-qlist">'+qrows+'</div></details>'
     : '<div class="seg-qlist">'+qrows+'</div>';
   var toques='';
   for (var n=1;n<=CADENCIA.length;n++){
