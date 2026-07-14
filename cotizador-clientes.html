@@ -473,6 +473,10 @@ var MODELOS = {
   maciza:  ['Panguipulli','Lago Ranco','Frutillar','Puerto Varas'],
   vidrios: ['Valdivia','Entrelagos','Cochamó','Pucón','Ensenada']
 };
+/* Ajuste por modelo: se resta a la fórmula general, por unidad (IVA incluido).
+   Ensenada es más simple de fabricar que el resto de las puertas con vidrio. */
+var DESC_MODELO = { 'Ensenada': 50000 };
+function descModelo(mo){ return DESC_MODELO[mo] || 0; }
 var DOOR_MODELS = [
   { id:'panguipulli', nombre:'Panguipulli',     tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_48_30.png' },
   { id:'granero-cla', nombre:'Granero Clásico', tipo:'granero', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_38_25.png' },
@@ -592,11 +596,13 @@ function calcLive() {
     for (var j=1; j<=nrows; j++) {
       var lge=document.getElementById('lg'+j), ane=document.getElementById('an'+j), cae=document.getElementById('ca'+j);
       if (!lge||!lge.value||!ane.value) continue;
+      var moe=document.getElementById('mo'+j);
+      var dsc=descModelo(moe?moe.value:'');
       var m2p=(parseFloat(lge.value)||0)/100*(parseFloat(ane.value)||0)/100;
       var ca2=parseInt((cae&&cae.value)||1)||1;
       var extra = extraLive ? m2p * 40000 : 0;
-      sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo + extra) * ca2;
-      sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo + extra) * ca2;
+      sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo - dsc + extra) * ca2;
+      sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo - dsc + extra) * ca2;
     }
     var mcM2live = getMarcoTotals().m2;
     if (mcM2live > 0) { sumBajo += mcM2live * PR.cubierta.bajo; sumAlto += mcM2live * PR.cubierta.alto; }
@@ -912,7 +918,7 @@ function htmlPuerta(cli, fecha) {
     var sumNeto=0;
     filas.forEach(function(f) {
       var extraIva = extraTipo ? f.m2 * 40000 * 1.19 : 0;
-      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo) * f.ca + extraIva * f.ca;
+      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo - descModelo(f.mo)) * f.ca + extraIva * f.ca;
     });
     if (mcM2 > 0) sumNeto += mcM2 * PR.cubierta[t];
     return {label: WOOD[t], tier: t, total: sumNeto};
