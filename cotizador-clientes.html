@@ -263,8 +263,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-qrow a { color:var(--ac);text-decoration:none; }
 .seg-toques { margin-top:9px;display:flex;flex-direction:column;gap:5px; }
 .seg-tq { display:flex;align-items:center;gap:7px; }
-.seg-tq-chk { display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--tm);font-family:'Jost',sans-serif;white-space:nowrap;cursor:pointer;min-width:86px; }
+.seg-tq-chk { display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600;color:var(--tm);font-family:'Jost',sans-serif;white-space:nowrap;cursor:pointer;min-width:118px; }
 .seg-tq-chk input { width:16px;height:16px;accent-color:var(--ac);cursor:pointer;flex-shrink:0; }
+.tq-fecha { background:#D1FAE5;color:#065F46;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:2px; }
 .seg-tq-nota { flex:1;padding:6px 9px;border:1px solid var(--bd);border-radius:7px;font-size:11px;font-family:'Jost',sans-serif;background:var(--bg2,#FAFAF7);color:var(--tx);min-width:0; }
 .seg-tq-nota:focus { outline:none;border-color:var(--ac);background:white; }
 .stat-v.money { font-size:16px;line-height:1.2; }
@@ -1539,6 +1540,8 @@ function scrollToSec(cls){
 }
 /* monto compacto para las fichas: $358M / $45k */
 function fmtM(n){ n=n||0; if(n>=1e6) return '$'+(n/1e6).toFixed(n>=1e7?0:1)+'M'; if(n>=1e3) return '$'+Math.round(n/1e3)+'k'; return '$'+Math.round(n); }
+/* fecha corta dd/mm para mostrar el día del toque */
+function fmtFechaCorta(iso){ var p=String(iso).slice(0,10).split('-'); return p.length===3 ? p[2]+'/'+p[1] : String(iso); }
 function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function segClientCard(g, cls){
   var x = g.lead;
@@ -1563,8 +1566,9 @@ function segClientCard(g, cls){
   for (var n=1;n<=CADENCIA.length;n++){
     var h=null;
     for (var i=0;i<hist.length;i++){ if(hist[i].etapa===n){ h=hist[i]; break; } }
+    var fechaTq = (h && h.fecha) ? '<span class="tq-fecha">'+fmtFechaCorta(h.fecha)+'</span>' : '';
     toques += '<div class="seg-tq">'+
-      '<label class="seg-tq-chk"><input type="checkbox"'+(etapa>=n?' checked':'')+' onchange="segMarcar(\''+x.id+'\','+n+',this.checked)"><span>T'+n+' · día '+CADENCIA[n-1]+'</span></label>'+
+      '<label class="seg-tq-chk"><input type="checkbox"'+(etapa>=n?' checked':'')+' onchange="segMarcar(\''+x.id+'\','+n+',this.checked)"><span>T'+n+' · día '+CADENCIA[n-1]+'</span>'+fechaTq+'</label>'+
       '<input class="seg-tq-nota" type="text" placeholder="¿Qué dijo el cliente?" value="'+escA(h&&h.nota?h.nota:'')+'" onchange="segNota(\''+x.id+'\','+n+',this.value)">'+
     '</div>';
   }
