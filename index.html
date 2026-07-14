@@ -25766,7 +25766,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="filter-btn" onclick="setPixelFilter('noklav',this)">No Klaviyo</button>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="btn-ghost" style="font-size:12px" onclick="exportPixelCSV()">↓ Excel Meta</button>
+      <button class="btn-ghost" style="font-size:12px" onclick="exportPixelCSV()">↓ Excel No subidas</button>
       <button class="btn-add" onclick="openPixelModal()">+ Agregar manual</button>
     </div>
   </div>
@@ -26848,7 +26848,7 @@ function savePixelRecord(){
 }
 function deletePixelRecord(){if(editingPixelIdx===null)return;if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[editingPixelIdx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(editingPixelIdx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(()=>{});renderPixel();closePixelModal();showToast('✓ Eliminado');}
 document.getElementById('modal-pixel-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-pixel-bg'))closePixelModal();});
-function exportPixelCSV(){var list=getFilteredPixel();if(!list.length){showToast('No hay registros');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','gen':r.gen||'','event_name':'Purchase','order_id':r.order_id||'','event_time':r.event_time||fmtEventTime(''),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:4},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
+function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return r.status==='nosubida';});if(!list.length){showToast('No hay registros sin subir');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','gen':r.gen||'','event_name':'Purchase','order_id':r.order_id||'','event_time':r.event_time||fmtEventTime(''),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:4},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
 
 // ── COSTOS ──────────────────────────────────────────────────────────────────
 let costRecords=[];
