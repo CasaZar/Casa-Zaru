@@ -571,6 +571,12 @@ function qKey() {
 }
 async function nextQ() {
   var k = qKey();
+  /* 1) función server-side (con RLS): número global sin que el público lea la tabla */
+  try {
+    var r = await sbClient.rpc('next_quote_number', { k: k });
+    if (!r.error && r.data) return r.data;
+  } catch(e) { /* la función aún no existe (antes del SQL): seguimos */ }
+  /* 2) antes del RLS: leer la tabla directo */
   try {
     var res = await sbClient.from('cotizaciones').select('numero')
       .ilike('numero', 'N° CL-'+k+'-%')
@@ -581,9 +587,11 @@ async function nextQ() {
       var m = res.data[0].numero.match(/-(\d+)$/);
       if (m) maxN = parseInt(m[1], 10);
     }
-    return 'N° CL-'+k+'-'+String(maxN+1).padStart(3,'0');
+    if (res.data && res.data.length) return 'N° CL-'+k+'-'+String(maxN+1).padStart(3,'0');
+    throw new Error('sin datos');
   } catch(e) {
     console.error('nextQ:', e);
+    /* 3) respaldo local */
     try {
       var s = JSON.parse(localStorage.getItem('czCL')||'{}');
       var n = s.k===k ? (s.n||0)+1 : 1;
@@ -1293,6 +1301,12 @@ function loadFromHash() {
 }
 
 async function loadFromShortCode(token) {
+  /* 1) función server-side (con RLS): lee solo ese link, sin abrir la tabla al público */
+  try {
+    var r = await sbClient.rpc('get_quote_link', { tok: token });
+    if (!r.error && r.data) { restoreFromData(r.data); return true; }
+  } catch(e) { /* la función aún no existe (antes del SQL): seguimos */ }
+  /* 2) antes del RLS: lectura directa */
   try {
     var res = await sbClient.from('quote_links').select('data').eq('token', token).single();
     if (res.error || !res.data) return false;
