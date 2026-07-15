@@ -231,6 +231,13 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .b2b-h{ font-weight:700;color:#1E40AF;font-size:13px;margin-bottom:7px;font-family:'Jost',sans-serif; }
 .b2b-box .fsel{ width:100%; }
 .b2b-note{ font-size:10.5px;color:#3B5B8C;margin-top:6px;font-family:'Jost',sans-serif; }
+/* login del panel */
+.login-box{ max-width:360px;margin:40px auto;padding:0 20px; }
+.login-h{ font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--acd);text-align:center;margin-bottom:4px; }
+.login-sub{ font-size:12px;color:var(--tm);text-align:center;margin-bottom:22px;font-family:'Jost',sans-serif; }
+.login-err{ background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;border-radius:8px;padding:9px 12px;font-size:12.5px;text-align:center;margin-top:12px;font-family:'Jost',sans-serif; }
+.btn-logout{ background:none;border:1px solid rgba(255,255,255,.5);color:#fff;border-radius:7px;padding:4px 11px;font-size:11px;cursor:pointer;font-family:'Jost',sans-serif;margin-left:6px; }
+.btn-logout:hover{ background:rgba(255,255,255,.15); }
 /* ¿por qué perdemos? */
 .perde-box{ background:#fff;border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-bottom:14px; }
 .perde-h{ font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:700;color:var(--acd);margin-bottom:8px; }
@@ -422,11 +429,27 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   <div id="q-out" class="coti"></div>
 </div>
 
+<!-- ══ s-login: ACCESO AL PANEL ══ -->
+<div id="s-login" class="hidden">
+  <div class="logo-bar">
+    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div><span class="badge" style="background:var(--acd)">Panel Interno</span></div>
+  </div>
+  <div class="login-box">
+    <h2 class="login-h">Iniciar sesión</h2>
+    <p class="login-sub">Acceso exclusivo del equipo Casa Zaru</p>
+    <div class="fsec"><label class="flabel" for="lg-email">Correo</label><input class="finput" type="email" id="lg-email" autocomplete="username" placeholder="tu@correo.cl"></div>
+    <div class="fsec"><label class="flabel" for="lg-pass">Contraseña</label><input class="finput" type="password" id="lg-pass" autocomplete="current-password" placeholder="••••••••"></div>
+    <button class="btn-primary" id="btn-login" onclick="doPanelLogin()">Entrar →</button>
+    <div class="login-err hidden" id="lg-err"></div>
+  </div>
+</div>
+
 <!-- ══ s-dash: PANEL INTERNO ══ -->
 <div id="s-dash" class="hidden">
   <div class="logo-bar">
     <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
-    <div><span class="badge" style="background:var(--acd)">Panel Interno</span></div>
+    <div><span class="badge" style="background:var(--acd)">Panel Interno</span> <button class="btn-logout" id="btn-logout" onclick="doPanelLogout()">Salir</button></div>
   </div>
   <div style="padding:20px 16px 40px;max-width:700px;margin:0 auto">
     <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
@@ -572,8 +595,8 @@ async function nextQ() {
 
 /* ── NAVIGATION ── */
 function show(id) {
-  ['s1','s2','s2b','s3','s-dash'].forEach(function(i) {
-    document.getElementById(i).classList.add('hidden');
+  ['s1','s2','s2b','s3','s-dash','s-login'].forEach(function(i) {
+    var el = document.getElementById(i); if (el) el.classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
   window.scrollTo(0,0);
@@ -1309,6 +1332,8 @@ async function saveQuote(data) {
 /* Vendedores: para agregar uno nuevo, añade una línea aquí y dale su link ?panel=<code>.
    'legacy' = correos antiguos con que ya quedaron guardadas sus cotizaciones. */
 var PANEL_ADMIN = 'zr25';
+var ADMIN_EMAIL = 'hola@casazaru.cl';   /* la cuenta admin puede entrar a cualquier panel */
+var panelPcode = null;                  /* código de panel pedido (?panel=...), para tras el login */
 var VENDEDORES = [
   { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] },
   { code:'jepe',  nombre:'Jepe',  email:'jeperomanosorio@gmail.com', b2b:true }
@@ -1508,6 +1533,39 @@ function sortDashData(data) {
     return dir === 'asc' ? av - bv : bv - av;
   });
 }
+/* ── ACCESO AL PANEL (login) ── */
+function panelAccessOK(email, pcode){
+  if (email === ADMIN_EMAIL) return true;          /* admin entra a cualquier panel */
+  if (pcode === PANEL_ADMIN) return false;         /* solo admin al panel admin */
+  var sv = sellerByCode(pcode);
+  return !!(sv && sv.email === email);             /* vendedor: solo su propio panel */
+}
+function showLoginErr(msg){
+  var e=document.getElementById('lg-err'); if(!e) return;
+  if (msg){ e.textContent=msg; e.classList.remove('hidden'); } else { e.classList.add('hidden'); }
+}
+async function doPanelLogin(){
+  var email=(document.getElementById('lg-email').value||'').trim();
+  var pass=document.getElementById('lg-pass').value||'';
+  var btn=document.getElementById('btn-login');
+  showLoginErr('');
+  if (!email || !pass){ showLoginErr('Ingresa tu correo y contraseña.'); return; }
+  btn.disabled=true; btn.textContent='Entrando…';
+  function reset(){ btn.disabled=false; btn.textContent='Entrar →'; }
+  try {
+    var res=await sbClient.auth.signInWithPassword({ email:email, password:pass });
+    if (res.error){ showLoginErr('Correo o contraseña incorrectos.'); reset(); return; }
+    var em=res.data.user.email;
+    if (!panelAccessOK(em, panelPcode)){
+      await sbClient.auth.signOut();
+      showLoginErr('Esta cuenta no tiene acceso a este panel.');
+      reset(); return;
+    }
+    show('s-dash'); loadDash();
+  } catch(e){ showLoginErr('Error de conexión. Intenta de nuevo.'); reset(); }
+}
+async function doPanelLogout(){ try{ await sbClient.auth.signOut(); }catch(e){} location.reload(); }
+
 async function loadDash() {
   document.getElementById('dash-tbl').innerHTML = '<div style="padding:20px;text-align:center;color:var(--tm)">Cargando…</div>';
   var res = await sbClient.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false});
@@ -1990,7 +2048,19 @@ document.addEventListener('DOMContentLoaded', function() {
     else { var sv = sellerByCode(pcode); if (sv) { panelSeller = sv; pOK = true; } }
   }
   if (pOK) {
-    show('s-dash'); loadDash();
+    panelPcode = pcode;
+    var lgPass = document.getElementById('lg-pass');
+    if (lgPass) lgPass.addEventListener('keydown', function(e){ if(e.key==='Enter') doPanelLogin(); });
+    /* el panel requiere sesión iniciada; el cotizador público NO cambia */
+    sbClient.auth.getSession().then(function(res){
+      var sess = res.data && res.data.session;
+      if (sess && panelAccessOK(sess.user.email, pcode)) { show('s-dash'); loadDash(); }
+      else {
+        if (sess) { sbClient.auth.signOut(); showLoginErr('Esta cuenta no tiene acceso a este panel.'); }
+        var le = document.getElementById('lg-email'); if (le && sess) le.value = sess.user.email;
+        show('s-login');
+      }
+    }).catch(function(){ show('s-login'); });
   } else if (params.get('s')) {
     loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) show('s1'); });
   } else if (!loadFromHash()) {
