@@ -1248,10 +1248,9 @@ async function copyShareLink() {
   var btn = document.querySelector('.btn-copy-link');
   if (btn) btn.textContent = 'Generando enlace…';
   var url = await buildShortUrl();
-  var msg = 'Te envío la cotización 😊\n\n' +
-    'La puedes revisar en el siguiente link\n' +
-    '👉 ' + url + '\n\n' +
-    'Tenemos un catálogo con las distintas maderas y proyectos realizados, ¿quieres que te lo envíe?';
+  var msg = 'Te envío tu cotización, la puedes revisar en este link:\n' +
+    url + '\n\n' +
+    'Tenemos un catálogo con las distintas maderas y proyectos que hemos hecho, ¿quieres que te lo envíe?';
   function done() {
     if (btn) { btn.textContent = '✓ Mensaje copiado'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent = '📋 Copiar mensaje para WhatsApp'; btn.classList.remove('copied'); }, 2500); }
   }
@@ -1408,12 +1407,17 @@ function waPhone(contacto){
   return null;
 }
 function waMsg(x){
-  var toque=(x.seg_etapa||0)+1;
+  var toque=Math.min((x.seg_etapa||0)+1, 5);
   var nom=(x.cliente||'').trim().split(' ')[0];
   var num=x.numero||'tu cotización';
-  if (toque<=1) return 'Hola '+nom+'! Te saluda Casa Zaru 🌲 ¿Te llegó bien la cotización '+num+'? Cualquier duda sobre medidas o maderas, encantados de ayudarte.';
-  if (toque<=3) return 'Hola '+nom+'! ¿Cómo va tu proyecto? Tu cotización '+num+' sigue vigente. Al confirmar partimos la fabricación: 7 a 15 días hábiles y te enviamos foto cuando esté lista.';
-  return 'Hola '+nom+'! No queremos que se te pase 😊 Por tu cotización '+num+': pagando por transferencia tienes un 5% de descuento. ¿La dejamos confirmada esta semana?';
+  var msgs = {
+    1: 'Hola '+nom+'! Te escribo de Casa Zaru. ¿Alcanzaste a revisar la cotización '+num+'? Si tienes cualquier duda con las medidas o el tipo de madera, dime y lo vemos.',
+    2: 'Hola '+nom+', ¿cómo vas con tu proyecto? Cualquier cosa que quieras ajustar de la cotización '+num+' —medidas, madera o plazos— lo cambiamos sin problema. Quedo atento.',
+    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de proyectos que ya hemos hecho y el catálogo con las distintas maderas. Tu cotización '+num+' sigue vigente, ¿te los mando?',
+    4: 'Hola '+nom+', ¿te gustaría avanzar con tu pedido? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).',
+    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas tu proyecto ('+num+'), acá estoy para ayudarte y te puedo mantener el precio. Quedo atento cuando lo necesites.'
+  };
+  return msgs[toque] || msgs[1];
 }
 
 function pModal(html){ document.getElementById('pmodal').innerHTML=html; document.getElementById('pmodal-bg').classList.remove('hidden'); }
