@@ -1336,7 +1336,8 @@ async function saveQuote(data) {
        para no necesitar permiso público de "update" en la tabla. */
     var payload = Object.assign({}, data, { user_email: srcEmail, link: shareShortUrl || null });
     if (b2bDcto > 0) payload.b2b_dcto = b2bDcto;   /* solo cotizaciones B2B con descuento (requiere columna) */
-    var res = await sbClient.from('cotizaciones').insert(payload).select();
+    /* sin .select(): con RLS el público solo puede insertar, no leer de vuelta la fila */
+    var res = await sbClient.from('cotizaciones').insert(payload);
     if (res.error) { savedQnum = null; showToast('DB error: ' + res.error.message, false); console.error('saveQuote:', res.error); return; }
     showToast('✓ Cotización guardada', true);
   } catch(e) { showToast('Error: ' + e.message, false); console.error('saveQuote:', e); }
