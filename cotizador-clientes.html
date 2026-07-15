@@ -227,6 +227,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .speed-alert:hover{ background:#FEE2E2; }
 .month-metrics{ background:#fff;border:1px solid var(--bd);border-radius:9px;padding:8px 12px;font-size:12px;color:var(--tm);text-align:center;margin:8px 0 4px;font-family:'Jost',sans-serif; }
 .month-metrics strong{ color:var(--acd);font-size:14px; }
+.b2b-box{ background:#EEF6FF;border:1.5px solid #93C5FD;border-radius:10px;padding:11px 13px;margin:4px 0 14px; }
+.b2b-h{ font-weight:700;color:#1E40AF;font-size:13px;margin-bottom:7px;font-family:'Jost',sans-serif; }
+.b2b-box .fsel{ width:100%; }
+.b2b-note{ font-size:10.5px;color:#3B5B8C;margin-top:6px;font-family:'Jost',sans-serif; }
 /* ¿por qué perdemos? */
 .perde-box{ background:#fff;border:1px solid var(--bd);border-radius:10px;padding:11px 13px;margin-bottom:14px; }
 .perde-h{ font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:700;color:var(--acd);margin-bottom:8px; }
@@ -369,6 +373,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       <input class="finput" type="text" id="f-con" placeholder="Ej. +56 9 1234 5678 o tu@correo.cl" autocomplete="off">
     </div>
     <div id="f-dyn"></div>
+    <div id="b2b-wrap" class="hidden"></div>
     <div class="live-price-wrap">
       <div class="lp-label">Precio estimado con IVA</div>
       <div class="lp-range" id="live-range"><span class="lp-empty">Ingresa las medidas</span></div>
@@ -514,6 +519,8 @@ function selectDoorModel(id) {
 var prod = '', isPuertas = false, nrows = 1, nMarco = 1, qnum = '', conStr = '', uso = '', fromHash = false, srcEmail = null, shareShortUrl = '', peldanoEspesor = '4';
 var confirming = false;   /* evita que doble clic en "Ver cotización" genere duplicados */
 var savedQnum = null;     /* número de cotización ya guardado en esta sesión (anti-duplicado) */
+var b2bMode = false;      /* true solo en el link privado de Jepe (?src=jepe&pro=zr): muestra el selector de descuento */
+var b2bDcto = 0;          /* % extra Casa Zaru Profesionales (0-5); >0 aplica descuento aunque no se vea el selector (link compartido) */
 function currentPR() {
   if (prod === 'peldano') return peldanoEspesor === '2' ? PR.repisa : PR.cubierta;
   return PR[prod];
@@ -643,6 +650,23 @@ function recBadgeText() {
   if (prod==='repisa')   return '★ La más pedida para repisas';
   return '★ La más pedida en el taller';
 }
+/* factor de transferencia: 5% normal, o 5%+descuento profesionales si aplica */
+function transferFactor(){ return b2bDcto>0 ? (1 - (5 + b2bDcto)/100) : 0.95; }
+/* selector de descuento B2B — solo en el link privado de Jepe */
+function renderB2B(){
+  var w = document.getElementById('b2b-wrap');
+  if (!w) return;
+  if (!b2bMode){ w.classList.add('hidden'); w.innerHTML=''; return; }
+  var opts='';
+  for (var i=0;i<=5;i++){ opts += '<option value="'+i+'"'+(b2bDcto===i?' selected':'')+'>'+(i===0?'Sin descuento extra':i+'% extra')+'</option>'; }
+  w.classList.remove('hidden');
+  w.innerHTML =
+    '<div class="b2b-box">'+
+      '<div class="b2b-h">★ Descuento Casa Zaru Profesionales</div>'+
+      '<select class="fsel" id="b2b-sel" onchange="b2bDcto=parseInt(this.value)||0;calcLive()">'+opts+'</select>'+
+      '<div class="b2b-note">Se suma al 5% de transferencia. Solo tú (Jepe) ves esto.</div>'+
+    '</div>';
+}
 
 /* ── FORM ── */
 function initProd(p) {
@@ -654,6 +678,7 @@ function initProd(p) {
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
   if (['cubierta','repisa','peldano'].includes(p)) renderExtras();
+  renderB2B();
   show('s2');
   calcLive();
 }
@@ -1005,6 +1030,8 @@ function shell(nombre, cli, fecha, body) {
 }
 
 function tierTable(rows, recTier) {
+  var tf = transferFactor();
+  var esPro = b2bDcto > 0;
   var prows = rows.map(function(r) {
     var isRec = recTier && r.tier === recTier;
     var badge = isRec ? '<span class="ptier-rec-badge">' + recBadgeText() + '</span>' : '';
@@ -1012,16 +1039,21 @@ function tierTable(rows, recTier) {
     return '<div class="' + cls + '">' +
       '<span class="ptier-wood">' + r.label + badge + '</span>' +
       '<span class="ptier-total">' + fmt(r.total) + '</span>' +
-      '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * 0.95) + '</span></span>' +
+      '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * tf) + '</span></span>' +
     '</div>';
   }).join('');
+  var transLbl = esPro ? ('Transferencia −' + (5 + b2bDcto) + '%') : 'Transferencia −5%';
+  var proNote = esPro
+    ? '<div class="ptier-note" style="background:#EEF6FF;color:#1E40AF;font-weight:600">★ Incluye Descuento Casa Zaru Profesionales: ' + b2bDcto + '% extra</div>'
+    : '';
   return '<div class="ptier-block">' +
     '<div class="ptier-head">' +
       '<span>Tipo de madera</span>' +
       '<span>Con tarjeta</span>' +
-      '<span>Transferencia −5%</span>' +
+      '<span>' + transLbl + '</span>' +
     '</div>' +
     prows +
+    proNote +
     '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado</div>' +
   '</div>';
 }
@@ -1106,6 +1138,7 @@ function warranty() {
 function getShareData() {
   var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
   var data = { p: prod, cli: cli, con: conStr, uso: uso, qnum: qnum };
+  if (b2bDcto > 0) data.b2b = b2bDcto;   /* el link compartido conserva el descuento profesionales */
   if (['cubierta','repisa','peldano'].includes(prod)) {
     data.rows = [];
     for (var i = 1; i <= nrows; i++) {
@@ -1166,6 +1199,7 @@ async function buildShortUrl() {
 function restoreFromData(d) {
   fromHash = true;
   if (d.qnum) qnum = d.qnum;
+  b2bDcto = parseInt(d.b2b) || 0;   /* aplica el descuento al mostrar, sin mostrar el selector */
   uso = d.uso || 'otro'; conStr = d.con || '';
   document.getElementById('f-cli').value = d.cli || '';
   document.getElementById('f-con').value = d.con || '';
@@ -1265,6 +1299,7 @@ async function saveQuote(data) {
     /* el link ya se construyó en confirmar() (shareShortUrl); lo guardamos en el mismo insert
        para no necesitar permiso público de "update" en la tabla. */
     var payload = Object.assign({}, data, { user_email: srcEmail, link: shareShortUrl || null });
+    if (b2bDcto > 0) payload.b2b_dcto = b2bDcto;   /* solo cotizaciones B2B con descuento (requiere columna) */
     var res = await sbClient.from('cotizaciones').insert(payload).select();
     if (res.error) { savedQnum = null; showToast('DB error: ' + res.error.message, false); console.error('saveQuote:', res.error); return; }
     showToast('✓ Cotización guardada', true);
@@ -1276,7 +1311,8 @@ async function saveQuote(data) {
    'legacy' = correos antiguos con que ya quedaron guardadas sus cotizaciones. */
 var PANEL_ADMIN = 'zr25';
 var VENDEDORES = [
-  { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] }
+  { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] },
+  { code:'jepe',  nombre:'Jepe',  email:'jeperomanosorio@gmail.com', b2b:true }
 ];
 var CADENCIA = [1, 3, 7, 14, 30];   /* días desde la cotización para los 5 toques */
 var PEZ_GORDO = 2000000;            /* monto sobre el cual un atrasado se marca como "pez gordo" */
@@ -1392,7 +1428,7 @@ function renderTabs(){
     tabs.push({id:'elim',label:'🗑 Eliminadas'});
   } else {
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
-    tabs.push({id:'web',label:'Clientes Web'});
+    if (!panelSeller.b2b) tabs.push({id:'web',label:'Clientes Web'});
     tabs.push({id:'dormidos',label:'😴 Dormidos'});
   }
   document.getElementById('dash-tabs').innerHTML = tabs.map(function(t){
@@ -1426,7 +1462,7 @@ function renderDormidos(){
 function segBloquesDef(){
   var b=[];
   if (isPanelAdmin()){ VENDEDORES.forEach(function(v){ b.push({t:'👤 '+v.nombre, o:v.code}); }); b.push({t:'🌐 Clientes Web', o:'web'}); }
-  else { b.push({t:'👤 Mis clientes', o:panelSeller.code}); b.push({t:'🌐 Clientes Web', o:'web'}); }
+  else { b.push({t:'👤 Mis clientes', o:panelSeller.code}); if(!panelSeller.b2b) b.push({t:'🌐 Clientes Web', o:'web'}); }
   return b;
 }
 function setSegBloque(o){ segBloque=o; renderSegFilters(); renderSeguimiento(); }
@@ -1475,8 +1511,11 @@ async function loadDash() {
   allRows = res.data || [];
   /* las eliminadas no se muestran en el panel normal (solo en la pestaña Eliminadas del admin) */
   var all = allRows.filter(function(x){ return !x.eliminada; });
-  /* vendedor: sus cotizaciones + las web (también les hace seguimiento, en bloque aparte) */
-  dashRows = isPanelAdmin() ? all : all.filter(function(x){ return ownerCode(x)===panelSeller.code || isWeb(x); });
+  /* vendedor: sus cotizaciones + las web (salvo B2B como Jepe, que solo ve su propio canal) */
+  dashRows = isPanelAdmin() ? all : all.filter(function(x){
+    if (ownerCode(x) === panelSeller.code) return true;
+    return isWeb(x) && !panelSeller.b2b;
+  });
   COTIS = {};
   dashRows.forEach(function(x){ COTIS[x.id]=x; });
   computeSegPend();
@@ -1772,6 +1811,12 @@ async function updateEstado(id, estado) {
     var m = pedirMonto(x);
     if (m === undefined) { if(dashView!=='seg') renderDash(); return; }
     segSave(id, {estado:'ganado', monto_cierre:m}, '¡Venta ganada! 🎉');
+    /* canal automático para el P&L (web / césar / jepe). Best-effort: requiere columna 'canal'. */
+    var canal = ownerCode(x) || 'web';
+    sbClient.from('cotizaciones').update({canal:canal}).eq('id',id).then(function(r){
+      if (r && r.error) console.warn('canal (¿falta ejecutar el SQL?):', r.error.message);
+      else if (COTIS[id]) COTIS[id].canal = canal;
+    });
     return;
   }
   if (estado === 'perdida') { if(dashView!=='seg') renderDash(); segPerderUI(id); return; }
@@ -1927,7 +1972,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   var params = new URLSearchParams(window.location.search);
-  if (params.get('src') === 'cesar') srcEmail = 'hola@casazaru.cl';
+  var srcParam = params.get('src');
+  if (srcParam === 'cesar') srcEmail = 'hola@casazaru.cl';
+  else if (srcParam === 'jepe') {
+    srcEmail = 'jeperomanosorio@gmail.com';               /* canal Jepe (invisible para el cliente) */
+    b2bMode = (params.get('pro') === 'zr');               /* solo el link privado de Jepe muestra el descuento */
+  }
   var pmb = document.getElementById('pmodal-bg');
   if (pmb) pmb.addEventListener('click', function(e){ if(e.target===this) pClose(); });
   var pcode = params.get('panel'), pOK = false;
