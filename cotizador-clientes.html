@@ -231,6 +231,11 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .b2b-h{ font-weight:700;color:#1E40AF;font-size:13px;margin-bottom:7px;font-family:'Jost',sans-serif; }
 .b2b-box .fsel{ width:100%; }
 .b2b-note{ font-size:10.5px;color:#3B5B8C;margin-top:6px;font-family:'Jost',sans-serif; }
+/* aviso de uso exterior (bajo techo) */
+.uso-aviso{ background:#FEF6E7;border:1px solid #F0C775;border-radius:8px;padding:9px 11px;font-size:11.5px;line-height:1.5;color:#7A5620;margin-top:8px;font-family:'Jost',sans-serif; }
+.uso-aviso strong{ color:#5C3D10; }
+.aviso-ext{ background:#FEF6E7;border:1px solid #F0C775;border-radius:7px;padding:7px 10px;font-size:10px;line-height:1.5;color:#7A5620;margin-bottom:9px;text-align:center; }
+.aviso-ext strong{ color:#5C3D10; }
 /* login del panel */
 .login-box{ max-width:360px;margin:40px auto;padding:0 20px; }
 .login-h{ font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--acd);text-align:center;margin-bottom:4px; }
@@ -673,6 +678,14 @@ function recWood() {
               comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
   return map[uso] || 'medio';
 }
+/* aviso para uso exterior: la madera debe ir bajo techo (la garantía no cubre sol/lluvia directos) */
+var AVISO_EXTERIOR = 'Para uso exterior recomendamos instalarla <strong>bajo techo</strong> (terraza cubierta, quincho techado o alero). La madera expuesta directamente al sol y la lluvia se deteriora, y la garantía no cubre ese daño.';
+function usoAviso(){
+  var el = document.getElementById('uso-aviso'), sel = document.getElementById('f-uso');
+  if (!el || !sel) return;
+  if (sel.value === 'exterior') { el.innerHTML = '☂️ ' + AVISO_EXTERIOR; el.classList.remove('hidden'); }
+  else { el.classList.add('hidden'); el.innerHTML = ''; }
+}
 /* texto del badge: la más pedida, según uso/producto (prueba social en vez de "para ti") */
 function recBadgeText() {
   if (['granero','maciza','vidrios'].includes(prod)) return '★ La más pedida para puertas';
@@ -731,7 +744,7 @@ function renderForm(p) {
       '</div>' :
       '<div class="fsec">' +
         '<label class="flabel">¿Para qué espacio es? <span class="req">*</span></label>' +
-        '<select class="fsel" id="f-uso">' +
+        '<select class="fsel" id="f-uso" onchange="usoAviso()">' +
           '<option value="">Selecciona el uso…</option>' +
           '<option value="cocina">Cocina</option>' +
           '<option value="bano">Baño</option>' +
@@ -742,6 +755,7 @@ function renderForm(p) {
           '<option value="exterior">Exterior</option>' +
           '<option value="otro">Otro</option>' +
         '</select>' +
+        '<div id="uso-aviso" class="uso-aviso hidden"></div>' +
       '</div>';
     c.innerHTML = usoField +
       '<div class="fsec">' +
@@ -954,6 +968,7 @@ function htmlCubierta(cli, fecha) {
     total_alto:  Math.round(tierRows[2].total)
   }, filas.map(function(f){ return {largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   return shell(PNAME[prod], cli, fecha,
+    (uso === 'exterior' ? '<div class="aviso-ext">☂️ ' + AVISO_EXTERIOR + '</div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Largo cm</th><th>Ancho cm</th><th>Cant.</th><th>M² total</th></tr></thead>' +
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
