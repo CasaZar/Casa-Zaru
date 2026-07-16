@@ -1473,12 +1473,21 @@ function waMsg(x){
   var toque=Math.min((x.seg_etapa||0)+1, 5);
   var nom=(x.cliente||'').trim().split(' ')[0];
   var num=x.numero||'tu cotización';
+  var link = (x.link||'').trim();
+  /* El link se reenvía recién del toque 3 (día 7) en adelante: para entonces el chat
+     ya se enterró y el cliente no la encuentra. En los toques 1-2 no, porque la acaba
+     de recibir y reenviarla se siente robótico. Si la cotización no tiene link, el
+     mensaje sale igual sin él. */
   var msgs = {
     1: 'Hola '+nom+'! Te escribo de Casa Zaru. ¿Alcanzaste a revisar la cotización '+num+'? Si tienes cualquier duda con las medidas o el tipo de madera, dime y lo vemos.',
     2: 'Hola '+nom+', ¿cómo vas con tu proyecto? Cualquier cosa que quieras ajustar de la cotización '+num+' —medidas, madera o plazos— lo cambiamos sin problema. Quedo atento.',
-    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de proyectos que ya hemos hecho y el catálogo con las distintas maderas. Tu cotización '+num+' sigue vigente, ¿te los mando?',
-    4: 'Hola '+nom+', ¿te gustaría avanzar con tu pedido? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).',
-    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas tu proyecto ('+num+'), acá estoy para ayudarte y te puedo mantener el precio. Quedo atento cuando lo necesites.'
+    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de proyectos que ya hemos hecho y el catálogo con las distintas maderas. ' +
+       (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
+             : 'Tu cotización '+num+' sigue vigente, ¿te los mando?'),
+    4: 'Hola '+nom+', ¿te gustaría avanzar con tu pedido? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).' +
+       (link ? '\n\nAcá la tienes a mano:\n'+link : ''),
+    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas tu proyecto ('+num+'), acá estoy para ayudarte y te puedo mantener el precio.' +
+       (link ? '\n\nTe dejo tu cotización por si la necesitas:\n'+link : ' Quedo atento cuando lo necesites.')
   };
   return msgs[toque] || msgs[1];
 }
