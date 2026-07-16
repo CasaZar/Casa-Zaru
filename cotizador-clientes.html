@@ -668,13 +668,16 @@ function calcLive() {
 function recWood() {
   if (prod === 'revestimiento') return null;
   if (['granero','maciza','vidrios'].includes(prod)) return 'alto';
-  var map = { cocina:'alto', quincho:'alto', peldanos:'alto', comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
+  /* baño y exterior → medio (Ciprés/Castaño, los que mejor aguantan humedad) */
+  var map = { cocina:'alto', quincho:'alto', peldanos:'alto', bano:'medio', exterior:'medio',
+              comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
   return map[uso] || 'medio';
 }
 /* texto del badge: la más pedida, según uso/producto (prueba social en vez de "para ti") */
 function recBadgeText() {
   if (['granero','maciza','vidrios'].includes(prod)) return '★ La más pedida para puertas';
-  var usoLbl = { cocina:'cubiertas de cocina', quincho:'quinchos', peldanos:'peldaños', comedor:'comedores', escritorio:'escritorios', repisa:'repisas' };
+  var usoLbl = { cocina:'cubiertas de cocina', bano:'baños', quincho:'quinchos y bares', peldanos:'peldaños',
+                 comedor:'comedores y mesas', escritorio:'escritorios', repisa:'repisas y muebles livianos', exterior:'exteriores' };
   if (usoLbl[uso]) return '★ La más pedida para ' + usoLbl[uso];
   if (prod==='cubierta') return '★ La más pedida para cubiertas';
   if (prod==='peldano')  return '★ La más pedida para peldaños';
@@ -730,11 +733,13 @@ function renderForm(p) {
         '<label class="flabel">¿Para qué espacio es? <span class="req">*</span></label>' +
         '<select class="fsel" id="f-uso">' +
           '<option value="">Selecciona el uso…</option>' +
-          '<option value="cocina">Cocina o baño</option>' +
-          '<option value="comedor">Comedor, mesa o centro de mesa</option>' +
+          '<option value="cocina">Cocina</option>' +
+          '<option value="bano">Baño</option>' +
+          '<option value="comedor">Comedor, mesa o mesa de centro</option>' +
           '<option value="escritorio">Escritorio o espacio de trabajo</option>' +
           '<option value="quincho">Quincho o bar</option>' +
           '<option value="repisa">Repisa o mueble liviano</option>' +
+          '<option value="exterior">Exterior</option>' +
           '<option value="otro">Otro</option>' +
         '</select>' +
       '</div>';
