@@ -1234,16 +1234,19 @@ function randToken() {
 
 async function buildShortUrl() {
   var data = getShareData();
-  var token = randToken();
-  try {
-    var res = await sbClient.from('quote_links').insert({token: token, data: data});
-    if (!res.error) return BASE_URL + '?s=' + token;
-    console.error('quote_links error:', res.error);
-  } catch(e) { console.error('quote_links ex:', e); }
-  // fallback: hash sin qnum para acortar
-  var d2 = Object.assign({}, data);
-  delete d2.qnum;
-  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(d2))));
+  /* 3 intentos con token nuevo: cubre hipos de red y el caso raro de token repetido.
+     Antes bastaba un fallo para caer al link largo. */
+  for (var i = 0; i < 3; i++) {
+    var token = randToken();
+    try {
+      var res = await sbClient.from('quote_links').insert({token: token, data: data});
+      if (!res.error) return BASE_URL + '?s=' + token;
+      console.error('quote_links intento ' + (i+1) + ':', res.error);
+    } catch(e) { console.error('quote_links intento ' + (i+1) + ' ex:', e); }
+    await new Promise(function(r){ setTimeout(r, 400); });
+  }
+  /* respaldo: link largo autocontenido (conserva el N° de cotización) */
+  var enc = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
   return BASE_URL + '#q=' + enc;
 }
 
