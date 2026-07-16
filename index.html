@@ -26718,6 +26718,28 @@ function renderFinStats(){
 }
 function getFilteredFin(){var q=(document.getElementById('fin-search').value||'').toLowerCase().trim();var list=finRecords.slice();if(finMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});if(finFilter==='pendiente')list=list.filter(r=>!r.doc1_emitida||!r.doc2_emitida);if(finFilter==='listo')list=list.filter(r=>r.doc1_emitida&&r.doc2_emitida);if(q)list=list.filter(r=>(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));return list;}
 function setFinFilter(f,btn){finFilter=f;document.querySelectorAll('#page-fin .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderFin();}
+function _limpiarRut(v){return String(v||'').replace(/[^0-9kK]/g,'').toUpperCase();}
+function _rutValido(v){
+  var rut=_limpiarRut(v);if(rut.length<2)return false;
+  var cuerpo=rut.slice(0,-1),dv=rut.slice(-1);if(!/^\d+$/.test(cuerpo))return false;
+  var suma=0,multiplo=2;
+  for(var i=cuerpo.length-1;i>=0;i--){suma+=parseInt(cuerpo[i],10)*multiplo;multiplo=multiplo<7?multiplo+1:2;}
+  var resto=11-(suma%11),dvEsperado=resto===11?'0':resto===10?'K':String(resto);
+  return dv===dvEsperado;
+}
+function _datosFaltantesParaEmitir(r,tipo){
+  var faltan=[];
+  if(r.rut&&!_rutValido(r.rut))faltan.push('RUT inválido');
+  if(tipo==='FACTURA'){
+    if(!r.rut)faltan.push('RUT');
+    if(!r.razon_social&&!(r.nombre&&r.apellido))faltan.push('Razón social (o Nombre y Apellido)');
+    if(!r.giro)faltan.push('Giro');
+    if(!r.direccion)faltan.push('Dirección');
+    if(!r.comuna)faltan.push('Comuna');
+    if(!r.ciudad)faltan.push('Ciudad');
+  }
+  return faltan;
+}
 function _aplicarResultadoWasabil(r,docNum,data){
   var emitidaKey='doc'+docNum+'_emitida',numKey='doc'+docNum+'_num',pdfKey='doc'+docNum+'_pdf_url',uuidKey='doc'+docNum+'_uuid',procKey='doc'+docNum+'_procesando';
   if(data&&data.success){
@@ -26737,6 +26759,13 @@ async function toggleFinDoc(numStr,docNum){
   }
   if(r[procKey])return; // ya está "Procesando" — hay que usar el botón "Verificar estado", nunca re-emitir
   var tipo=r[tipoKey]||'BOLETA';
+  var faltan=_datosFaltantesParaEmitir(r,tipo);
+  if(faltan.length){
+    showToast('Faltan datos para emitir: '+faltan.join(', ')+'. Completalos en el formulario que se abrió.');
+    var idxAbrir=finRecords.indexOf(r);
+    openFinModal(idxAbrir);
+    return;
+  }
   var nombreCliente=(r.nombre||'')+' '+(r.apellido||'');
   if(!confirm('Vas a EMITIR una '+tipo+' real por '+fmtCLP(r.total)+' para el pedido '+numStr+' ('+nombreCliente.trim()+').\n\nSe envía directo al SII y no se deshace con un click. ¿Confirmas?'))return;
   finEmitiendo[emKey]=true;renderFin();
