@@ -141,8 +141,16 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ibox-b li::before { content: "· "; color: var(--ac); font-weight: 700; }
 .bankrow { background: var(--bg3); border: 1px solid var(--bd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--tm); margin-bottom: 8px; text-align: center; line-height: 1.7; }
 .bankrow strong { color: var(--tx); }
-.cp-all { border:1px solid var(--ac);background:var(--ac);color:#fff;border-radius:6px;padding:5px 14px;font-size:11px;cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap; }
-.cp-all.cp-ok { background:#059669;border-color:#059669; }
+.cp-all { border:1px solid var(--bd);background:#fff;color:var(--acd);border-radius:6px;padding:5px 11px;font-size:10.5px;cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;opacity:.9; }
+.cp-all:hover { border-color:var(--ac);opacity:1; }
+.cp-all.cp-ok { background:#059669;border-color:#059669;color:#fff;opacity:1; }
+.finput-hint { font-size:10.5px;color:var(--tm);margin-top:5px;font-family:'Jost',sans-serif;line-height:1.4; }
+/* bloque de datos de contacto, al final del formulario */
+.datos-sec { background:var(--bg2,#FBF7F0);border:1px solid var(--bd);border-radius:11px;padding:13px 13px 14px;margin-bottom:12px; }
+.datos-h { font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:600;color:var(--acd);margin-bottom:11px; }
+/* campos de medida más cómodos para el dedo en celular */
+.dim-row input, .dim-row select { min-height:44px; }
+.finput { min-height:44px; }
 .warranty { background: var(--bg3); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
 .warranty strong { display: block; font-size: 10px; color: var(--acd); margin-bottom: 2px; }
 .wa-block { margin: 18px 0 6px; }
@@ -376,14 +384,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       <button class="btn-back" id="btn-back">← Inicio</button>
       <h2 id="f-title">—</h2>
     </div>
-    <div class="fsec">
-      <label class="flabel" for="f-cli">Tu nombre <span class="req">*</span></label>
-      <input class="finput" type="text" id="f-cli" placeholder="Ej. Juan Pérez" autocomplete="name">
-    </div>
-    <div class="fsec">
-      <label class="flabel" for="f-con">Teléfono o correo <span class="req">*</span></label>
-      <input class="finput" type="text" id="f-con" placeholder="Ej. +56 9 1234 5678 o tu@correo.cl" autocomplete="off">
-    </div>
+    <!-- 1º las medidas: la persona ve su precio antes de dar datos personales -->
     <div id="f-dyn"></div>
     <div id="b2b-wrap" class="hidden"></div>
     <div class="live-price-wrap">
@@ -391,8 +392,21 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       <div class="lp-range" id="live-range"><span class="lp-empty">Ingresa las medidas</span></div>
       <div class="lp-note" id="live-note" style="display:none">Bajo — Alto según tipo de madera · Transferencia −5%</div>
     </div>
-    <div class="msg-err hidden" id="f-err">Por favor completa tu nombre y contacto para continuar.</div>
-    <button class="btn-primary" id="btn-calc">Calcular cotización →</button>
+    <!-- 2º recién ahora los datos de contacto -->
+    <div class="datos-sec">
+      <div class="datos-h">¿A dónde te enviamos la cotización?</div>
+      <div class="fsec">
+        <label class="flabel" for="f-cli">Tu nombre <span class="req">*</span></label>
+        <input class="finput" type="text" id="f-cli" placeholder="Ej. Juan Pérez" autocomplete="name">
+      </div>
+      <div class="fsec" style="margin-bottom:0">
+        <label class="flabel" for="f-con">Teléfono WhatsApp <span class="req">*</span></label>
+        <input class="finput" type="tel" inputmode="tel" id="f-con" placeholder="+56 9 1234 5678" autocomplete="tel">
+        <div class="finput-hint">Te la enviamos por WhatsApp a este número.</div>
+      </div>
+    </div>
+    <div class="msg-err hidden" id="f-err">Por favor completa tus datos para continuar.</div>
+    <button class="btn-primary" id="btn-calc">Ver mi cotización →</button>
   </div>
 </div>
 
@@ -549,8 +563,15 @@ var confirming = false;   /* evita que doble clic en "Ver cotización" genere du
 var savedQnum = null;     /* número de cotización ya guardado en esta sesión (anti-duplicado) */
 var b2bMode = false;      /* true solo en el link privado de Jepe (?src=jepe&pro=zr): muestra el selector de descuento */
 var b2bDcto = 0;          /* % extra Casa Zaru Profesionales (0-5); >0 aplica descuento aunque no se vea el selector (link compartido) */
+/* fuente de verdad = lo que el cliente ve en el selector; la variable se usa de respaldo
+   (antes se desincronizaba al reentrar al producto o al abrir la cotización desde un link) */
+function getPeldanoEspesor() {
+  var el = document.getElementById('f-espesor-peldano');
+  if (el && el.value) peldanoEspesor = el.value;
+  return peldanoEspesor;
+}
 function currentPR() {
-  if (prod === 'peldano') return peldanoEspesor === '2' ? PR.repisa : PR.cubierta;
+  if (prod === 'peldano') return getPeldanoEspesor() === '2' ? PR.repisa : PR.cubierta;
   return PR[prod];
 }
 function setPeldanoEspesor(val) {
@@ -847,9 +868,9 @@ function renderDoorSub(tipo) {
 function dimRow(n) {
   return '<div class="dim-row" id="r'+n+'">' +
     '<span class="rnum">'+n+'</span>' +
-    '<input type="number" placeholder="220" min="1" id="lg'+n+'">' +
-    '<input type="number" placeholder="60"  min="1" id="an'+n+'">' +
-    '<input type="number" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
+    '<input type="number" inputmode="decimal" placeholder="220" min="1" id="lg'+n+'">' +
+    '<input type="number" inputmode="decimal" placeholder="60"  min="1" id="an'+n+'">' +
+    '<input type="number" inputmode="numeric" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
   '</div>';
 }
 function doorRow(n, opts) {
@@ -912,7 +933,9 @@ function generar() {
   var cli   = document.getElementById('f-cli').value.trim();
   conStr    = document.getElementById('f-con').value.trim();
   var errEl = document.getElementById('f-err');
-  if (!cli || !conStr) { errEl.textContent = 'Por favor completa tu nombre y contacto para continuar.'; errEl.classList.remove('hidden'); return; }
+  if (!cli) { errEl.textContent = 'Escribe tu nombre para continuar.'; errEl.classList.remove('hidden'); return; }
+  if (!conStr) { errEl.textContent = 'Escribe tu teléfono de WhatsApp para continuar.'; errEl.classList.remove('hidden'); return; }
+  if (!waPhone(conStr)) { errEl.textContent = 'Revisa tu teléfono: debe ser un celular chileno, por ejemplo +56 9 1234 5678.'; errEl.classList.remove('hidden'); return; }
   if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
   var usoEl = document.getElementById('f-uso');
@@ -960,7 +983,7 @@ function htmlCubierta(cli, fecha) {
     {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio},
     {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto}
   ];
-  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? (peldanoEspesor + ' cms') : '2 cms';
+  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? (getPeldanoEspesor() + ' cms') : '2 cms';
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:prod,
     total_bajo:  Math.round(tierRows[0].total),
@@ -1190,6 +1213,7 @@ function getShareData() {
   var cli = document.getElementById('f-cli') ? document.getElementById('f-cli').value.trim() : '';
   var data = { p: prod, cli: cli, con: conStr, uso: uso, qnum: qnum };
   if (b2bDcto > 0) data.b2b = b2bDcto;   /* el link compartido conserva el descuento profesionales */
+  if (prod === 'peldano') data.esp = getPeldanoEspesor();   /* sin esto el link volvía siempre a 4 cm */
   if (['cubierta','repisa','peldano'].includes(prod)) {
     data.rows = [];
     for (var i = 1; i <= nrows; i++) {
@@ -1254,11 +1278,17 @@ function restoreFromData(d) {
   fromHash = true;
   if (d.qnum) qnum = d.qnum;
   b2bDcto = parseInt(d.b2b) || 0;   /* aplica el descuento al mostrar, sin mostrar el selector */
+  var espGuardado = d.esp || null;   /* espesor de peldaño del link compartido */
   uso = d.uso || 'otro'; conStr = d.con || '';
   document.getElementById('f-cli').value = d.cli || '';
   document.getElementById('f-con').value = d.con || '';
   var isPuerta = ['granero','maciza','vidrios'].includes(d.p);
   initProd(isPuerta ? 'puertas' : d.p);
+  if (espGuardado) {   /* restaurar espesor de peldaño (initProd lo resetea a 4) */
+    peldanoEspesor = espGuardado;
+    var espEl = document.getElementById('f-espesor-peldano');
+    if (espEl) espEl.value = espGuardado;
+  }
   if (isPuerta) {
     prod = d.p;
     nrows = 1;
