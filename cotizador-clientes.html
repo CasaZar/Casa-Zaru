@@ -151,6 +151,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 /* campos de medida más cómodos para el dedo en celular */
 .dim-row input, .dim-row select { min-height:44px; }
 .finput { min-height:44px; }
+/* botón para quitar una pieza/puerta/marco */
+.btn-del-row { flex:0 0 auto;width:34px;min-height:44px;border:1px solid var(--bd);background:#fff;border-radius:8px;
+  color:#B91C1C;font-size:14px;line-height:1;cursor:pointer;font-family:'Jost',sans-serif;padding:0; }
+.btn-del-row:hover { background:#FEF2F2;border-color:#FCA5A5; }
 .warranty { background: var(--bg3); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
 .warranty strong { display: block; font-size: 10px; color: var(--acd); margin-bottom: 2px; }
 .wa-block { margin: 18px 0 6px; }
@@ -387,11 +391,6 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <!-- 1º las medidas: la persona ve su precio antes de dar datos personales -->
     <div id="f-dyn"></div>
     <div id="b2b-wrap" class="hidden"></div>
-    <div class="live-price-wrap">
-      <div class="lp-label">Precio estimado con IVA</div>
-      <div class="lp-range" id="live-range"><span class="lp-empty">Ingresa las medidas</span></div>
-      <div class="lp-note" id="live-note" style="display:none">Bajo — Alto según tipo de madera · Transferencia −5%</div>
-    </div>
     <!-- 2º recién ahora los datos de contacto -->
     <div class="datos-sec">
       <div class="datos-h">¿A dónde te enviamos la cotización?</div>
@@ -695,7 +694,7 @@ function recWood() {
   if (prod === 'revestimiento') return null;
   if (['granero','maciza','vidrios'].includes(prod)) return 'alto';
   /* baño y exterior → medio (Ciprés/Castaño, los que mejor aguantan humedad) */
-  var map = { cocina:'alto', quincho:'alto', peldanos:'alto', bano:'medio', exterior:'medio',
+  var map = { cocina:'alto', peldanos:'alto', quincho:'medio', bano:'medio', exterior:'medio',
               comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
   return map[uso] || 'medio';
 }
@@ -747,6 +746,7 @@ function initProd(p) {
   renderForm(p);
   if (['cubierta','repisa','peldano'].includes(p)) renderExtras();
   renderB2B();
+  renumRows('drows'); renumRows('mrows');   /* con una sola fila, oculta el botón de quitar */
   show('s2');
   calcLive();
 }
@@ -871,14 +871,36 @@ function dimRow(n) {
     '<input type="number" inputmode="decimal" placeholder="220" min="1" id="lg'+n+'">' +
     '<input type="number" inputmode="decimal" placeholder="60"  min="1" id="an'+n+'">' +
     '<input type="number" inputmode="numeric" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
+    '<button type="button" class="btn-del-row" onclick="removeRow(\'drows\','+n+')" title="Quitar">✕</button>' +
   '</div>';
+}
+/* quitar una fila (pieza, puerta o marco). Los cálculos saltan las filas borradas,
+   así que basta con sacarla del DOM y renumerar lo que ve el cliente. */
+function removeRow(contId, n) {
+  var cont = document.getElementById(contId);
+  var row = document.getElementById((contId==='mrows'?'mr':'r')+n);
+  if (!cont || !row) return;
+  if (cont.querySelectorAll('.dim-row').length <= 1) return;   /* siempre queda al menos una */
+  row.remove();
+  renumRows(contId);
+  calcLive();
+}
+function renumRows(contId) {
+  var cont = document.getElementById(contId);
+  if (!cont) return;
+  var rows = cont.querySelectorAll('.dim-row');
+  rows.forEach(function(r, i) {
+    var s = r.querySelector('.rnum'); if (s) s.textContent = i + 1;
+    var b = r.querySelector('.btn-del-row'); if (b) b.style.visibility = rows.length > 1 ? 'visible' : 'hidden';
+  });
 }
 function doorRow(n, opts) {
   return '<div class="dim-row" id="r'+n+'">' +
     '<select class="wid" id="mo'+n+'">'+opts+'</select>' +
-    '<input type="number" placeholder="200" min="1" id="lg'+n+'">' +
-    '<input type="number" placeholder="90"  min="1" id="an'+n+'">' +
-    '<input type="number" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
+    '<input type="number" inputmode="decimal" placeholder="200" min="1" id="lg'+n+'">' +
+    '<input type="number" inputmode="decimal" placeholder="90"  min="1" id="an'+n+'">' +
+    '<input type="number" inputmode="numeric" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
+    '<button type="button" class="btn-del-row" onclick="removeRow(\'drows\','+n+')" title="Quitar">✕</button>' +
   '</div>';
 }
 function addRow() {
@@ -888,12 +910,15 @@ function addRow() {
   var opts = (MODELOS[prod]||[]).map(function(m){ return '<option>'+m+'</option>'; }).join('');
   div.innerHTML = ['granero','maciza','vidrios'].includes(prod) ? doorRow(nrows,opts) : dimRow(nrows);
   cont.appendChild(div.firstElementChild);
+  renumRows('drows');
+  calcLive();
 }
 function marcoRow(n) {
   return '<div class="dim-row" id="mr'+n+'">' +
-    '<input type="number" placeholder="ej. 6" min="0" step="0.01" id="mcml'+n+'">' +
-    '<input type="number" placeholder="ej. 10" min="0" id="mcan'+n+'">' +
-    '<input type="number" placeholder="1" min="1" value="1" class="nar" id="mcca'+n+'">' +
+    '<input type="number" inputmode="decimal" placeholder="ej. 6" min="0" step="0.01" id="mcml'+n+'">' +
+    '<input type="number" inputmode="decimal" placeholder="ej. 10" min="0" id="mcan'+n+'">' +
+    '<input type="number" inputmode="numeric" placeholder="1" min="1" value="1" class="nar" id="mcca'+n+'">' +
+    '<button type="button" class="btn-del-row" onclick="removeRow(\'mrows\','+n+')" title="Quitar">✕</button>' +
   '</div>';
 }
 function addMarcoRow() {
@@ -902,6 +927,8 @@ function addMarcoRow() {
   var div = document.createElement('div');
   div.innerHTML = marcoRow(nMarco);
   cont.appendChild(div.firstElementChild);
+  renumRows('mrows');
+  calcLive();
 }
 function getMarcoTotals() {
   var ml = 0, m2 = 0;
@@ -1128,7 +1155,7 @@ function tierTable(rows, recTier) {
     '</div>' +
     prows +
     proNote +
-    '<div class="ptier-note">Precios incluyen IVA 19% · Tarjeta de crédito al precio indicado</div>' +
+    '<div class="ptier-note">Precios con IVA incluido · Con tarjeta pagas el valor indicado · Con transferencia ahorras 5%</div>' +
   '</div>';
 }
 
@@ -1155,8 +1182,7 @@ function boxes() {
     '</div>' +
   '</div>' +
   '<div class="bankrow">' +
-    '<strong>Tarjeta de crédito incluida en el precio.</strong><br>' +
-    'Transferencia bancaria: <span class="dcto-tag">5% de descuento</span> sobre el precio indicado<br>' +
+    'Pagando por <strong>transferencia</strong> ahorras un <span class="dcto-tag">5%</span><br>' +
     '<strong>Muvale Diseño SpA</strong> · RUT 77.157.082-8 · Banco BCI · Cta Cte 97457175 · hola@casazaru.cl' +
     '<button class="cp-all" onclick="copiarTransfer(this)" style="margin-top:7px">📋 Copiar datos bancarios</button>' +
   '</div>';
@@ -1195,7 +1221,7 @@ function muestrario() {
   var msg = 'Hola! Me interesa recibir el muestrario de maderas de Casa Zarú.';
   var url = 'https://wa.me/56956375558?text=' + encodeURIComponent(msg);
   return '<div class="muest-block">' +
-    '<p class="muest-txt">¿Quieres ver y tocar la madera antes de confirmar? Te enviamos un muestrario a <strong>$10.000 con envío incluido</strong> — ese valor se descuenta de tu compra. <a href="' + url + '" target="_blank" style="color:var(--ac);font-weight:600;text-decoration:none">Escríbenos →</a></p>' +
+    '<p class="muest-txt">¿Quieres ver y tocar la madera antes de confirmar? Te enviamos un muestrario a <strong>$20.000 con envío incluido</strong> — ese valor se descuenta de tu compra. <a href="' + url + '" target="_blank" style="color:var(--ac);font-weight:600;text-decoration:none">Escríbenos →</a></p>' +
   '</div>';
 }
 
@@ -1332,9 +1358,7 @@ async function copyShareLink() {
   var btn = document.querySelector('.btn-copy-link');
   if (btn) btn.textContent = 'Generando enlace…';
   var url = await buildShortUrl();
-  var msg = 'Te envío tu cotización, la puedes revisar en este link:\n' +
-    url + '\n\n' +
-    'Tenemos un catálogo con las distintas maderas y proyectos que hemos hecho, ¿quieres que te lo envíe?';
+  var msg = 'Te envío tu cotización, la puedes revisar en este link:\n' + url;
   function done() {
     if (btn) { btn.textContent = '✓ Mensaje copiado'; btn.classList.add('copied'); setTimeout(function(){ btn.textContent = '📋 Copiar mensaje para WhatsApp'; btn.classList.remove('copied'); }, 2500); }
   }
