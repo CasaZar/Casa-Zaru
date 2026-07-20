@@ -17,7 +17,7 @@ var SB_URL = 'https://cmxqorsyxoltrakxawro.supabase.co';
 var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
 var TZ = 'America/Santiago';
 
-var CAD = [1, 3, 7, 14, 30];
+var CAD = [1, 4, 9, 15, 30];
 var VENDEDORES = [
   { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] }
 ];

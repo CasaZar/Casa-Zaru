@@ -399,9 +399,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
         <input class="finput" type="text" id="f-cli" placeholder="Ej. Juan Pérez" autocomplete="name">
       </div>
       <div class="fsec" style="margin-bottom:0">
-        <label class="flabel" for="f-con">Teléfono WhatsApp <span class="req">*</span></label>
-        <input class="finput" type="tel" inputmode="tel" id="f-con" placeholder="+56 9 1234 5678" autocomplete="tel">
-        <div class="finput-hint">Te la enviamos por WhatsApp a este número.</div>
+        <label class="flabel" for="f-con">Teléfono WhatsApp o correo <span class="req">*</span></label>
+        <input class="finput" type="text" id="f-con" placeholder="+56 9 1234 5678 o tu@correo.cl" autocomplete="tel">
+        <div class="finput-hint">Con WhatsApp te respondemos más rápido.</div>
       </div>
     </div>
     <div class="msg-err hidden" id="f-err">Por favor completa tus datos para continuar.</div>
@@ -698,6 +698,8 @@ function recWood() {
               comedor:'medio', escritorio:'medio', repisa:'bajo', otro:'medio' };
   return map[uso] || 'medio';
 }
+/* correo válido (para aceptar contacto por correo además de WhatsApp) */
+function esCorreo(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v||'').trim()); }
 /* aviso para uso exterior: la madera debe ir bajo techo (la garantía no cubre sol/lluvia directos) */
 var AVISO_EXTERIOR = 'Para uso exterior recomendamos instalarla <strong>bajo techo</strong> (terraza cubierta, quincho techado o alero). La madera expuesta directamente al sol y la lluvia se deteriora, y la garantía no cubre ese daño.';
 function usoAviso(){
@@ -961,8 +963,8 @@ function generar() {
   conStr    = document.getElementById('f-con').value.trim();
   var errEl = document.getElementById('f-err');
   if (!cli) { errEl.textContent = 'Escribe tu nombre para continuar.'; errEl.classList.remove('hidden'); return; }
-  if (!conStr) { errEl.textContent = 'Escribe tu teléfono de WhatsApp para continuar.'; errEl.classList.remove('hidden'); return; }
-  if (!waPhone(conStr)) { errEl.textContent = 'Revisa tu teléfono: debe ser un celular chileno, por ejemplo +56 9 1234 5678.'; errEl.classList.remove('hidden'); return; }
+  if (!conStr) { errEl.textContent = 'Escribe tu WhatsApp o tu correo para continuar.'; errEl.classList.remove('hidden'); return; }
+  if (!waPhone(conStr) && !esCorreo(conStr)) { errEl.textContent = 'Revisa tu contacto: un celular (+56 9 1234 5678) o un correo válido.'; errEl.classList.remove('hidden'); return; }
   if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
   errEl.classList.add('hidden');
   var usoEl = document.getElementById('f-uso');
@@ -1430,7 +1432,7 @@ var VENDEDORES = [
   { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] },
   { code:'jepe',  nombre:'Jepe',  email:'jeperomanosorio@gmail.com', b2b:true }
 ];
-var CADENCIA = [1, 3, 7, 14, 30];   /* días desde la cotización para los 5 toques */
+var CADENCIA = [1, 4, 9, 15, 30];   /* días desde la cotización para los 5 toques */
 var PEZ_GORDO = 2000000;            /* monto sobre el cual un atrasado se marca como "pez gordo" */
 var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Número no funciona / sin WhatsApp', 'Otro'];
 var panelSeller = null;   /* null = admin (ve todo) */
@@ -1523,24 +1525,38 @@ function waPhone(contacto){
   if (d.length===11 && d.slice(0,2)==='56')  return d;
   return null;
 }
+/* cómo se nombra el producto dentro del mensaje, para que suene natural */
+function prodTexto(p){
+  switch(p){
+    case 'cubierta':      return { suyo:'tu cubierta',       fotos:'cubiertas',      dudas:'el espesor o el tipo de madera' };
+    case 'repisa':        return { suyo:'tu repisa',         fotos:'repisas',        dudas:'las medidas o el tipo de madera' };
+    case 'peldano':       return { suyo:'tus peldaños',      fotos:'escaleras',      dudas:'el espesor o la cantidad de peldaños' };
+    case 'granero':       return { suyo:'tu puerta granero', fotos:'puertas granero',dudas:'el modelo o las medidas' };
+    case 'maciza':        return { suyo:'tu puerta',         fotos:'puertas',        dudas:'el modelo o las medidas' };
+    case 'vidrios':       return { suyo:'tu puerta',         fotos:'puertas con vidrio', dudas:'el modelo, el vidrio o las medidas' };
+    case 'revestimiento': return { suyo:'tu revestimiento',  fotos:'revestimientos', dudas:'los metros o el tipo de madera' };
+    default:              return { suyo:'tu proyecto',       fotos:'proyectos',      dudas:'las medidas o el tipo de madera' };
+  }
+}
 function waMsg(x){
   var toque=Math.min((x.seg_etapa||0)+1, 5);
   var nom=(x.cliente||'').trim().split(' ')[0];
   var num=x.numero||'tu cotización';
   var link = (x.link||'').trim();
-  /* El link se reenvía recién del toque 3 (día 7) en adelante: para entonces el chat
+  var P = prodTexto(x.producto);
+  /* El link se reenvía recién del toque 3 (día 9) en adelante: para entonces el chat
      ya se enterró y el cliente no la encuentra. En los toques 1-2 no, porque la acaba
      de recibir y reenviarla se siente robótico. Si la cotización no tiene link, el
      mensaje sale igual sin él. */
   var msgs = {
-    1: 'Hola '+nom+'! Te escribo de Casa Zaru. ¿Alcanzaste a revisar la cotización '+num+'? Si tienes cualquier duda con las medidas o el tipo de madera, dime y lo vemos.',
-    2: 'Hola '+nom+', ¿cómo vas con tu proyecto? Cualquier cosa que quieras ajustar de la cotización '+num+' —medidas, madera o plazos— lo cambiamos sin problema. Quedo atento.',
-    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de proyectos que ya hemos hecho y el catálogo con las distintas maderas. ' +
+    1: 'Hola '+nom+'! Te escribo de Casa Zaru. ¿Alcanzaste a revisar la cotización '+num+' de '+P.suyo+'? Si tienes cualquier duda con '+P.dudas+', dime y lo vemos.',
+    2: 'Hola '+nom+', ¿cómo vas con '+P.suyo+'? Cualquier cosa que quieras ajustar de la cotización '+num+' —medidas, madera o plazos— lo cambiamos sin problema. Quedo atento.',
+    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas. ' +
        (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
              : 'Tu cotización '+num+' sigue vigente, ¿te los mando?'),
-    4: 'Hola '+nom+', ¿te gustaría avanzar con tu pedido? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).' +
+    4: 'Hola '+nom+', ¿te gustaría avanzar con '+P.suyo+'? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).' +
        (link ? '\n\nAcá la tienes a mano:\n'+link : ''),
-    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas tu proyecto ('+num+'), acá estoy para ayudarte y te puedo mantener el precio.' +
+    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas lo de '+P.suyo+' ('+num+'), acá estoy para ayudarte y te puedo mantener el precio.' +
        (link ? '\n\nTe dejo tu cotización por si la necesitas:\n'+link : ' Quedo atento cuando lo necesites.')
   };
   return msgs[toque] || msgs[1];
