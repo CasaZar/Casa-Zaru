@@ -2314,9 +2314,20 @@ document.addEventListener('DOMContentLoaded', function() {
     srcEmail = 'jeperomanosorio@gmail.com';               /* canal Jepe (invisible para el cliente) */
     b2bMode = (params.get('pro') === 'zr');               /* solo el link privado de Jepe muestra el descuento */
   }
-  /* link privado de vendedor: habilita productos de uso interno (mesas/muebles) */
-  vendorMode = (params.get('pro') === 'zr');
-  if (vendorMode) { var pm = document.getElementById('pcard-mesa'); if (pm) pm.classList.remove('hidden'); }
+  /* productos de uso interno (mesas/muebles): visibles con el link privado ?pro=zr
+     O si en este dispositivo hay sesión del equipo iniciada (César/Jepe con su link
+     de siempre). Un cliente nunca inicia sesión, así que jamás los ve. */
+  function habilitarInternos(){
+    vendorMode = true;
+    var pm = document.getElementById('pcard-mesa');
+    if (pm) pm.classList.remove('hidden');
+  }
+  if (params.get('pro') === 'zr') habilitarInternos();
+  else {
+    sbClient.auth.getSession().then(function(r){
+      if (r && r.data && r.data.session) habilitarInternos();
+    }).catch(function(){});
+  }
   var pmb = document.getElementById('pmodal-bg');
   if (pmb) pmb.addEventListener('click', function(e){ if(e.target===this) pClose(); });
   var pcode = params.get('panel'), pOK = false;
