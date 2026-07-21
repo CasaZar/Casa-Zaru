@@ -1586,10 +1586,21 @@ async function saveQuote(data) {
 var PANEL_ADMIN = 'zr25';
 var ADMIN_EMAIL = 'hola@casazaru.cl';   /* la cuenta admin puede entrar a cualquier panel */
 var panelPcode = null;                  /* código de panel pedido (?panel=...), para tras el login */
+/* 'src' = código opaco para el link público (no expone el nombre del vendedor al cliente).
+   'code' sigue sirviendo por compatibilidad con los links ya compartidos. */
 var VENDEDORES = [
-  { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] },
-  { code:'jepe',  nombre:'Jepe',  email:'jeperomanosorio@gmail.com', b2b:true }
+  { code:'cesar', src:'k7m2', nombre:'César', email:'crodriguez.casazaru@gmail.com', srcEmail:'hola@casazaru.cl', legacy:['hola@casazaru.cl'] },
+  { code:'jepe',  src:'p4x9', nombre:'Jepe',  email:'jeperomanosorio@gmail.com', srcEmail:'jeperomanosorio@gmail.com', b2b:true }
 ];
+/* resuelve el ?src= : primero el código opaco, luego el nombre antiguo */
+function vendedorPorSrc(code){
+  code = String(code||'').toLowerCase();
+  for (var i=0;i<VENDEDORES.length;i++){
+    var v = VENDEDORES[i];
+    if (code === v.src || code === v.code) return v;
+  }
+  return null;
+}
 var CADENCIA = [1, 4, 9, 15, 30];   /* días desde la cotización para los 5 toques */
 var PEZ_GORDO = 2000000;            /* monto sobre el cual un atrasado se marca como "pez gordo" */
 var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Número no funciona / sin WhatsApp', 'Otro'];
@@ -2308,11 +2319,10 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   var params = new URLSearchParams(window.location.search);
-  var srcParam = params.get('src');
-  if (srcParam === 'cesar') srcEmail = 'hola@casazaru.cl';
-  else if (srcParam === 'jepe') {
-    srcEmail = 'jeperomanosorio@gmail.com';               /* canal Jepe (invisible para el cliente) */
-    b2bMode = (params.get('pro') === 'zr');               /* solo el link privado de Jepe muestra el descuento */
+  var svSrc = vendedorPorSrc(params.get('src'));          /* canal del vendedor (invisible para el cliente) */
+  if (svSrc) {
+    srcEmail = svSrc.srcEmail || svSrc.email;
+    if (svSrc.b2b) b2bMode = (params.get('pro') === 'zr'); /* solo el link privado de Jepe muestra el descuento */
   }
   /* productos de uso interno (mesas/muebles): visibles con el link privado ?pro=zr
      O si en este dispositivo hay sesión del equipo iniciada (César/Jepe con su link
