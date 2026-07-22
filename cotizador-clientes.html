@@ -668,8 +668,6 @@ function calcLive() {
     if (sumM2 > 0) { bajo = sumM2 * currentPR().bajo; alto = sumM2 * currentPR().alto; }
 
   } else if (['granero','maciza','vidrios'].includes(prod)) {
-    var vtEl2 = document.getElementById('vt');
-    var extraLive = (vtEl2 && vtEl2.value) ? vtEl2.value : '';
     var sumBajo = 0, sumAlto = 0;
     for (var j=1; j<=nrows; j++) {
       var lge=document.getElementById('lg'+j), ane=document.getElementById('an'+j), cae=document.getElementById('ca'+j);
@@ -678,10 +676,11 @@ function calcLive() {
       var dsc=descModelo(moe?moe.value:'');
       var m2p=(parseFloat(lge.value)||0)/100*(parseFloat(ane.value)||0)/100;
       var ca2=parseInt((cae&&cae.value)||1)||1;
-      var extra = extraLive ? m2p * 40000 : 0;
-      sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo - dsc + extra) * ca2;
-      sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo - dsc + extra) * ca2;
+      sumBajo += (m2p * PR[prod].bajo.m2 + PR[prod].bajo.fijo - dsc) * ca2;
+      sumAlto += (m2p * PR[prod].alto.m2 + PR[prod].alto.fijo - dsc) * ca2;
     }
+    var vidrioExtraLive = vidrioExtraTotal();   /* por medida propia del vidrio, no de la puerta */
+    sumBajo += vidrioExtraLive; sumAlto += vidrioExtraLive;
     var mcM2live = getMarcoTotals().m2;
     if (mcM2live > 0) { sumBajo += mcM2live * PR.cubierta.bajo; sumAlto += mcM2live * PR.cubierta.alto; }
     if (sumBajo > 0) { bajo = sumBajo; alto = sumAlto; }
@@ -918,11 +917,24 @@ function renderDoorSub(tipo) {
     (hasExtra ?
       '<div class="fsec">' +
         '<label class="flabel">Vidrio especial (opcional)</label>' +
-        '<select class="fsel" id="vt">' +
+        '<select class="fsel" id="vt" onchange="toggleVidrioExtra()">' +
           '<option value="">Sin extra de vidrio</option>' +
           '<option value="Termopanel">Termopanel (+$40.000 neto/m²)</option>' +
           '<option value="Biselado">Biselado (+$40.000 neto/m²)</option>' +
         '</select>' +
+        '<div id="vt-extra-wrap" class="hidden">' +
+          '<div class="col-labels" style="margin-top:8px">' +
+            '<div class="col-lbl">Ancho vidrio cm</div>' +
+            '<div class="col-lbl">Alto vidrio cm</div>' +
+            '<div class="col-lbl nar">Cant.</div>' +
+          '</div>' +
+          '<div class="dim-row">' +
+            '<input type="number" inputmode="decimal" placeholder="60" min="1" id="vt-an">' +
+            '<input type="number" inputmode="decimal" placeholder="40" min="1" id="vt-al">' +
+            '<input type="number" inputmode="numeric" placeholder="1" min="1" value="1" class="nar" id="vt-ca">' +
+          '</div>' +
+          '<div class="finput-hint">Medida del vidrio, no de la puerta.</div>' +
+        '</div>' +
       '</div>'
     : '') +
     '<div class="fsec">' +
@@ -938,6 +950,32 @@ function renderDoorSub(tipo) {
   nMarco = 1;
   var vtSel = document.getElementById('vt');
   if (vtSel) vtSel.addEventListener('change', calcLive);
+}
+/* muestra/oculta los campos de medida del vidrio según el select */
+function toggleVidrioExtra() {
+  var vtEl = document.getElementById('vt'), wrap = document.getElementById('vt-extra-wrap');
+  if (!wrap) return;
+  wrap.classList.toggle('hidden', !(vtEl && vtEl.value));
+  calcLive();
+}
+/* costo del vidrio extra: por SU PROPIA medida (no la de la puerta) y su cantidad.
+   $40.000 neto/m² -> con IVA. Igual para las 3 maderas, se suma una sola vez. */
+function vidrioExtraTotal() {
+  var vtEl = document.getElementById('vt');
+  if (!vtEl || !vtEl.value) return 0;
+  var an = parseFloat((document.getElementById('vt-an')||{}).value) || 0;
+  var al = parseFloat((document.getElementById('vt-al')||{}).value) || 0;
+  var ca = parseInt((document.getElementById('vt-ca')||{}).value, 10) || 1;
+  if (an <= 0 || al <= 0) return 0;
+  return (an/100) * (al/100) * 40000 * 1.19 * ca;
+}
+function vidrioExtraDatos() {
+  return {
+    tipo: (document.getElementById('vt')||{}).value || '',
+    an:   parseFloat((document.getElementById('vt-an')||{}).value) || 0,
+    al:   parseFloat((document.getElementById('vt-al')||{}).value) || 0,
+    ca:   parseInt((document.getElementById('vt-ca')||{}).value, 10) || 1
+  };
 }
 
 function dimRow(n) {
@@ -1114,11 +1152,6 @@ function htmlCubierta(cli, fecha) {
 
 function htmlPuerta(cli, fecha) {
   var hasExtra = prod==='granero'||prod==='vidrios';
-  var extraTipo = '';
-  if (hasExtra) {
-    var vtEl = document.getElementById('vt');
-    if (vtEl && vtEl.value) { extraTipo = vtEl.value; }
-  }
   var filas=[];
   for (var i=1; i<=nrows; i++) {
     var moEl=document.getElementById('mo'+i), lgEl=document.getElementById('lg'+i), anEl=document.getElementById('an'+i), caEl=document.getElementById('ca'+i);
@@ -1128,14 +1161,16 @@ function htmlPuerta(cli, fecha) {
     filas.push({n:i,mo:mo,lg:lg,an:an,ca:ca,m2:m2});
   }
   var mcT = getMarcoTotals(), mcMl = mcT.ml, mcM2 = mcT.m2;
+  var vd = hasExtra ? vidrioExtraDatos() : null;         /* medida y cantidad propias del vidrio */
+  var vidrioExtra = hasExtra ? vidrioExtraTotal() : 0;    /* igual para las 3 maderas */
   var tiers = ['bajo','medio','alto'];
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
     filas.forEach(function(f) {
-      var extraIva = extraTipo ? f.m2 * 40000 * 1.19 : 0;
-      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo - descModelo(f.mo)) * f.ca + extraIva * f.ca;
+      sumNeto += (f.m2 * PR[prod][t].m2 + PR[prod][t].fijo - descModelo(f.mo)) * f.ca;
     });
     if (mcM2 > 0) sumNeto += mcM2 * PR.cubierta[t];
+    sumNeto += vidrioExtra;
     return {label: WOOD[t], tier: t, total: sumNeto};
   });
   var dimRows = filas.map(function(f){
@@ -1146,10 +1181,14 @@ function htmlPuerta(cli, fecha) {
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total),
-    vidrio_tipo: extraTipo||null
+    vidrio_tipo: (vd && vd.tipo) || null
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
+  var vidrioNote = (vd && vd.tipo)
+    ? '<div class="info-bar">Vidrio extra: <strong>'+vd.tipo+'</strong>'+
+      (vd.an>0 && vd.al>0 ? ' — '+vd.an+' × '+vd.al+' cm'+(vd.ca>1?' × '+vd.ca:'') : '')+'</div>'
+    : '';
   return shell(PNAME[prod], cli, fecha,
-    (extraTipo ? '<div class="info-bar">Vidrio extra: <strong>'+extraTipo+'</strong></div>' : '') +
+    vidrioNote +
     (mcM2>0 ? '<div class="info-bar">Marco: <strong>'+mcMl.toFixed(2)+' ml · '+mcM2.toFixed(2)+' m²</strong></div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
@@ -1412,7 +1451,7 @@ function getShareData() {
       }
     }
     var vtEl = document.getElementById('vt');
-    if (vtEl && vtEl.value) data.vt = vtEl.value;
+    if (vtEl && vtEl.value) { data.vt = vtEl.value; data.vtDatos = vidrioExtraDatos(); }
     data.marco = [];
     for (var mi = 1; mi <= nMarco; mi++) {
       var mlEl = document.getElementById('mcml'+mi), maEl = document.getElementById('mcan'+mi), mcaEl = document.getElementById('mcca'+mi);
@@ -1481,7 +1520,16 @@ function restoreFromData(d) {
     renderDoorSub(prod);
     document.getElementById('door-sub').classList.remove('hidden');
   }
-  if (d.vt) { var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt; }
+  if (d.vt) {
+    var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt;
+    if (d.vtDatos) {
+      var vtAnEl=document.getElementById('vt-an'), vtAlEl=document.getElementById('vt-al'), vtCaEl=document.getElementById('vt-ca');
+      if (vtAnEl && d.vtDatos.an) vtAnEl.value = d.vtDatos.an;
+      if (vtAlEl && d.vtDatos.al) vtAlEl.value = d.vtDatos.al;
+      if (vtCaEl && d.vtDatos.ca) vtCaEl.value = d.vtDatos.ca;
+    }
+    toggleVidrioExtra();
+  }
   if (d.marco && d.marco.length) {
     document.getElementById('mcml1').value = d.marco[0].ml;
     document.getElementById('mcan1').value = d.marco[0].an;
