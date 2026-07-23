@@ -383,6 +383,12 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
         <div class="pcard-body"><div class="pinfo"><div class="pname">Revestimiento</div><div class="psub">Coihue · Ciprés · precio por m²</div></div><span class="parrow">→</span></div>
       </div>
 
+      <!-- Solo visible con el link privado de vendedor (?pro=zr) -->
+      <div class="pcard hidden" id="pcard-revlibre" data-prod="revlibre">
+        <div class="pcard-img"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="4" width="4" height="16" rx=".5"/><rect x="10" y="4" width="4" height="16" rx=".5"/><rect x="17" y="4" width="4" height="16" rx=".5"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Revestimiento a medida</div><div class="psub">Uso interno · madera libre, precio por tabla</div></div><span class="parrow">→</span></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -524,9 +530,10 @@ var WOOD = {
 var PNAME = {
   cubierta:'Cubiertas', repisa:'Repisa / Cubierta 2cm', peldano:'Peldaños',
   granero:'Puerta Granero', maciza:'Puerta Madera', vidrios:'Puerta con Vidrios',
-  revestimiento:'Revestimiento', mesa:'Mesa / Mueble con base'
+  revestimiento:'Revestimiento', mesa:'Mesa / Mueble con base', revlibre:'Revestimiento a medida'
 };
 var FIERRO_KG_M = 3;   /* 18 kg los 6 metros de perfil */
+var nRvExtras = 0;      /* contador de filas de extras del revestimiento a medida */
 var MODELOS = {
   granero: ['Granero Clásico','Granero Cruz'],
   maciza:  ['Panguipulli','Lago Ranco','Frutillar','Puerto Varas'],
@@ -882,6 +889,63 @@ function renderForm(p) {
       '</div>';
     c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-row')) addRow(); });
     c.addEventListener('input', calcLive);
+
+  } else if (p === 'revlibre') {
+    nRvExtras = 0;
+    c.innerHTML =
+      '<div class="fsec">' +
+        '<label class="flabel">Tipo de madera <span class="req">*</span></label>' +
+        '<input class="finput" type="text" id="rv-madera" placeholder="Ej. Lenga, Alerce, Roble…">' +
+      '</div>' +
+      '<div class="fsec">' +
+        '<label class="flabel">Perfil</label>' +
+        '<select class="fsel" id="rv-perfil">' +
+          '<option value="">Sin especificar</option>' +
+          '<option value="Recto">Recto</option>' +
+          '<option value="Machihembrado">Machihembrado</option>' +
+          '<option value="Tinglado">Tinglado</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="fsec">' +
+        '<label class="flabel">Espesor</label>' +
+        '<input class="finput" type="text" id="rv-espesor" placeholder="Ej. 18 mm">' +
+      '</div>' +
+      '<div class="fsec">' +
+        '<label class="flabel">Medida de la tabla</label>' +
+        '<div class="col-labels">' +
+          '<div class="col-lbl">Largo cm</div>' +
+          '<div class="col-lbl">Ancho cm</div>' +
+        '</div>' +
+        '<div class="dim-row"><input type="number" inputmode="decimal" placeholder="ej. 300" min="0" id="rv-largo"><input type="number" inputmode="decimal" placeholder="ej. 14" min="0" id="rv-ancho"></div>' +
+      '</div>' +
+      '<div class="mesa-box">' +
+        '<div class="mesa-h">Precio</div>' +
+        '<div class="fsec">' +
+          '<label class="flabel">Valor por tabla <span class="req">*</span></label>' +
+          '<input class="finput" type="number" inputmode="numeric" id="rv-valor-tabla" placeholder="ej. 12000" min="0">' +
+          '<div class="finput-hint">Con IVA incluido — es lo que paga el cliente por cada tabla.</div>' +
+        '</div>' +
+        '<div class="fsec" style="margin-bottom:0">' +
+          '<label class="flabel">Cantidad de tablas</label>' +
+          '<input class="finput" type="number" inputmode="numeric" id="rv-cant-tablas" value="1" min="1">' +
+        '</div>' +
+      '</div>' +
+      '<div class="mesa-box">' +
+        '<div class="mesa-h">Instalación (opcional)</div>' +
+        '<div class="fsec" style="margin-bottom:0">' +
+          '<label class="flabel">Valor de instalación</label>' +
+          '<input class="finput" type="number" inputmode="numeric" id="rv-instalacion" placeholder="ej. 50000" min="0">' +
+          '<div class="finput-hint">Con IVA incluido. Déjalo vacío si no aplica.</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mesa-box">' +
+        '<div class="mesa-h">Extras (opcional)</div>' +
+        '<div class="col-labels"><div class="col-lbl">Nombre del extra</div><div class="col-lbl">Valor</div></div>' +
+        '<div id="rv-extras-rows"></div>' +
+        '<button class="btn-add" id="btn-add-rvextra" type="button">+ Agregar extra</button>' +
+      '</div>';
+    c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-rvextra')) addRvExtra(); });
+    c.addEventListener('input', calcLive);
   }
 }
 /* datos de la base de fierro que escribe el vendedor */
@@ -894,6 +958,53 @@ function mesaDatos() {
     perfil: v('ms-perfil'),
     color:  v('ms-color'),
     metros: parseFloat(v('ms-metros')) || 0
+  };
+}
+/* ── REVESTIMIENTO A MEDIDA (uso interno de vendedores) ── */
+function rvExtraRow(n) {
+  return '<div class="dim-row" id="rvxr'+n+'">' +
+    '<input type="text" placeholder="Ej. Instalación fin de semana" id="rvx-nom'+n+'" style="flex:2">' +
+    '<input type="number" inputmode="numeric" placeholder="0" min="0" id="rvx-val'+n+'">' +
+    '<button type="button" class="btn-del-row" onclick="removeRvExtra('+n+')" title="Quitar">✕</button>' +
+  '</div>';
+}
+function addRvExtra() {
+  nRvExtras++;
+  var cont = document.getElementById('rv-extras-rows');
+  if (!cont) return;
+  var div = document.createElement('div');
+  div.innerHTML = rvExtraRow(nRvExtras);
+  cont.appendChild(div.firstElementChild);
+}
+function removeRvExtra(n) {
+  var row = document.getElementById('rvxr'+n);
+  if (row) row.remove();
+  calcLive();
+}
+/* lee los extras por su posición en el DOM (tolera huecos si se borró alguno) */
+function rvExtrasDatos() {
+  var rows = document.querySelectorAll('#rv-extras-rows .dim-row');
+  var out = [];
+  rows.forEach(function(r){
+    var inputs = r.querySelectorAll('input');
+    var nombre = (inputs[0] && inputs[0].value || '').trim();
+    var valor = parseInt((inputs[1] && inputs[1].value) || 0, 10) || 0;
+    if (nombre || valor > 0) out.push({ nombre: nombre || 'Extra', valor: valor });
+  });
+  return out;
+}
+function rvDatos() {
+  function v(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
+  return {
+    madera: v('rv-madera') || 'Madera a definir',
+    perfil: v('rv-perfil'),
+    espesor: v('rv-espesor'),
+    largo: parseFloat(v('rv-largo')) || 0,
+    ancho: parseFloat(v('rv-ancho')) || 0,
+    valorTabla: parseInt(v('rv-valor-tabla'), 10) || 0,
+    cantTablas: parseInt(v('rv-cant-tablas'), 10) || 1,
+    instalacion: parseInt(v('rv-instalacion'), 10) || 0,
+    extras: rvExtrasDatos()
   };
 }
 
@@ -1060,6 +1171,7 @@ function hasValidDims() {
     var rmEl = document.getElementById('rm');
     return !!(rmEl && parseFloat(rmEl.value) > 0);
   }
+  if (prod === 'revlibre') return true;   /* se valida aparte: madera + valor por tabla */
   for (var i = 1; i <= nrows; i++) {
     var lgEl = document.getElementById('lg'+i), anEl = document.getElementById('an'+i);
     if (lgEl && anEl && parseFloat(lgEl.value) > 0 && parseFloat(anEl.value) > 0) return true;
@@ -1078,6 +1190,11 @@ function generar() {
   if (!waPhone(conStr) && !esCorreo(conStr)) { errEl.textContent = 'Revisa tu contacto: un celular (+56 9 1234 5678) o un correo válido.'; errEl.classList.remove('hidden'); return; }
   if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
   if (prod === 'mesa' && mesaDatos().valor <= 0) { errEl.textContent = 'Escribe el valor de la base de fierro.'; errEl.classList.remove('hidden'); return; }
+  if (prod === 'revlibre') {
+    var rvChk = rvDatos();
+    if (!document.getElementById('rv-madera').value.trim()) { errEl.textContent = 'Escribe el tipo de madera.'; errEl.classList.remove('hidden'); return; }
+    if (rvChk.valorTabla <= 0) { errEl.textContent = 'Escribe el valor por tabla.'; errEl.classList.remove('hidden'); return; }
+  }
   errEl.classList.add('hidden');
   var usoEl = document.getElementById('f-uso');
   uso = usoEl ? (usoEl.value || 'otro') : (prod === 'peldano' ? 'peldanos' : 'otro');
@@ -1099,6 +1216,7 @@ async function confirmar() {
     else if (['granero','maciza','vidrios'].includes(prod)) html = htmlPuerta(cli, fecha);
     else if (prod === 'revestimiento') html = htmlRev(cli, fecha);
     else if (prod === 'mesa') html = htmlMesa(cli, fecha);
+    else if (prod === 'revlibre') html = htmlRevLibre(cli, fecha);
     document.getElementById('q-out').innerHTML = html;
     show('s3');
     try { window.history.replaceState(null, '', buildShareUrl()); } catch(e) {}
@@ -1278,6 +1396,43 @@ function tierTableMesa(rows, recTier, M) {
     (esPro ? '<div class="ptier-note" style="background:#EEF6FF;color:#1E40AF;font-weight:600">★ Incluye Descuento Casa Zaru Profesionales: '+b2bDcto+'% extra</div>' : '') +
     '<div class="ptier-note">Valores incluyen cubierta de madera + base de fierro (' + fmt(M.valor) + ') · Precios con IVA</div>' +
   '</div>';
+}
+
+function htmlRevLibre(cli, fecha) {
+  var rv = rvDatos();
+  var totalTablas = rv.valorTabla * rv.cantTablas;
+  var totalExtras = rv.extras.reduce(function(a,e){ return a + e.valor; }, 0);
+  var total = totalTablas + rv.instalacion + totalExtras;
+  var tf = transferFactor();
+
+  saveQuote({
+    numero:qnum, cliente:cli, contacto:conStr||null, producto:'revlibre',
+    total_bajo: Math.round(total), total_medio: Math.round(total), total_alto: Math.round(total)
+  });
+
+  var itemRows = [];
+  itemRows.push('<tr><td style="text-align:left">'+escA(rv.madera)+' — '+rv.cantTablas+' tabla'+(rv.cantTablas===1?'':'s')+' × '+fmt(rv.valorTabla)+'</td><td>'+fmt(totalTablas)+'</td></tr>');
+  if (rv.instalacion > 0) itemRows.push('<tr><td style="text-align:left">Instalación</td><td>'+fmt(rv.instalacion)+'</td></tr>');
+  rv.extras.forEach(function(e){ itemRows.push('<tr><td style="text-align:left">'+escA(e.nombre)+'</td><td>'+fmt(e.valor)+'</td></tr>'); });
+
+  return shell(escA(rv.madera) + ' — Revestimiento', cli, fecha,
+    '<table class="ptable"><thead><tr><th style="text-align:left">Detalle</th><th>Valor</th></tr></thead>' +
+    '<tbody>'+itemRows.join('')+'</tbody></table>' +
+    '<div class="ptier-block">' +
+      '<div class="ptier-head"><span>Resumen</span><span>Con tarjeta</span><span>'+(b2bDcto>0?('Transferencia −'+(5+b2bDcto)+'%'):'Transferencia −5%')+'</span></div>' +
+      '<div class="ptier-row"><span class="ptier-wood">'+escA(rv.madera)+(rv.perfil?(' · '+escA(rv.perfil)):'')+'</span>' +
+        '<span class="ptier-total">'+fmt(total)+'</span>' +
+        '<span class="ptier-trans"><span class="transf-badge">'+fmt(total*tf)+'</span></span></div>' +
+      '<div class="ptier-note">Precio acordado con tu vendedor · Precios con IVA incluido</div>' +
+    '</div>' +
+    '<div class="specs">' +
+      (rv.espesor ? '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(rv.espesor)+'</div></div>' : '') +
+      (rv.perfil ? '<div class="spec"><div class="sl">Perfil</div><div class="sv">'+escA(rv.perfil)+'</div></div>' : '') +
+      ((rv.largo>0 && rv.ancho>0) ? '<div class="spec"><div class="sl">Medida tabla</div><div class="sv">'+rv.largo+' × '+rv.ancho+' cm</div></div>' : '') +
+      '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
+    '</div>' +
+    boxes() + warranty() + muestrario() + whatsappCTA(total, total, escA(rv.madera))
+  );
 }
 
 function htmlRev(cli, fecha) {
@@ -1460,6 +1615,8 @@ function getShareData() {
   } else if (prod === 'revestimiento') {
     var rmEl = document.getElementById('rm');
     data.m2 = parseFloat((rmEl&&rmEl.value)||0)||0;
+  } else if (prod === 'revlibre') {
+    data.rv = rvDatos();
   }
   return data;
 }
@@ -1513,6 +1670,17 @@ function restoreFromData(d) {
     var setv = function(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value = v; };
     setv('ms-nombre', d.mesa.nombre); setv('ms-valor', d.mesa.valor); setv('ms-altura', d.mesa.altura);
     setv('ms-perfil', d.mesa.perfil); setv('ms-color', d.mesa.color); setv('ms-metros', d.mesa.metros);
+  }
+  if (d.p === 'revlibre' && d.rv) {   /* restaurar madera, precio, instalación y extras */
+    var setr = function(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value = v; };
+    setr('rv-madera', d.rv.madera); setr('rv-perfil', d.rv.perfil); setr('rv-espesor', d.rv.espesor);
+    setr('rv-largo', d.rv.largo); setr('rv-ancho', d.rv.ancho); setr('rv-valor-tabla', d.rv.valorTabla);
+    setr('rv-cant-tablas', d.rv.cantTablas); setr('rv-instalacion', d.rv.instalacion);
+    (d.rv.extras||[]).forEach(function(ex){
+      addRvExtra();
+      var nom=document.getElementById('rvx-nom'+nRvExtras), val=document.getElementById('rvx-val'+nRvExtras);
+      if (nom) nom.value = ex.nombre; if (val) val.value = ex.valor;
+    });
   }
   if (isPuerta) {
     prod = d.p;
@@ -2379,6 +2547,8 @@ document.addEventListener('DOMContentLoaded', function() {
     vendorMode = true;
     var pm = document.getElementById('pcard-mesa');
     if (pm) pm.classList.remove('hidden');
+    var pr = document.getElementById('pcard-revlibre');
+    if (pr) pr.classList.remove('hidden');
   }
   if (params.get('pro') === 'zr') habilitarInternos();
   else {
