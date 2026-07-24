@@ -141,9 +141,6 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ibox-b li::before { content: "· "; color: var(--ac); font-weight: 700; }
 .bankrow { background: var(--bg3); border: 1px solid var(--bd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--tm); margin-bottom: 8px; text-align: center; line-height: 1.7; }
 .bankrow strong { color: var(--tx); }
-.cp-all { border:1px solid var(--bd);background:#fff;color:var(--acd);border-radius:6px;padding:5px 11px;font-size:10.5px;cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap;opacity:.9; }
-.cp-all:hover { border-color:var(--ac);opacity:1; }
-.cp-all.cp-ok { background:#059669;border-color:#059669;color:#fff;opacity:1; }
 .finput-hint { font-size:10.5px;color:var(--tm);margin-top:5px;font-family:'Jost',sans-serif;line-height:1.4; }
 /* bloque de datos de contacto, al final del formulario */
 .datos-sec { background:var(--bg2,#FBF7F0);border:1px solid var(--bd);border-radius:11px;padding:13px 13px 14px;margin-bottom:12px; }
@@ -1532,25 +1529,7 @@ function boxes() {
   '<div class="bankrow">' +
     'Pagando por <strong>transferencia</strong> ahorras un <span class="dcto-tag">5%</span><br>' +
     '<strong>Muvale Diseño SpA</strong> · RUT 77.157.082-8 · Banco BCI · Cta Cte 97457175 · hola@casazaru.cl' +
-    '<button class="cp-all" onclick="copiarTransfer(this)" style="margin-top:7px">📋 Copiar datos bancarios</button>' +
   '</div>';
-}
-
-function doCopy(text, btn, okLabel){
-  var done = function(){ var o=btn.textContent; btn.textContent=okLabel; btn.classList.add('cp-ok'); setTimeout(function(){ btn.textContent=o; btn.classList.remove('cp-ok'); }, 1400); };
-  if (navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(done).catch(function(){ fallbackCopy(text); done(); });
-  } else { fallbackCopy(text); done(); }
-}
-function fallbackCopy(text){
-  var ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
-  document.body.appendChild(ta); ta.focus(); ta.select();
-  try { document.execCommand('copy'); } catch(e){}
-  document.body.removeChild(ta);
-}
-function copiarTransfer(btn){
-  var texto = 'Muvale Diseño SpA\nRUT: 77.157.082-8\nBanco BCI\nCuenta Corriente 97457175\nhola@casazaru.cl';
-  doCopy(texto, btn, '✓ Copiado');
 }
 
 function whatsappCTA(bajo, alto, det) {
