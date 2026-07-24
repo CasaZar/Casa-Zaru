@@ -530,7 +530,6 @@ var PNAME = {
   revestimiento:'Revestimiento', mesa:'Mesa / Mueble con base', revlibre:'Revestimiento a medida'
 };
 var FIERRO_KG_M = 3;   /* 18 kg los 6 metros de perfil */
-var nRvExtras = 0;      /* contador de filas de extras del revestimiento a medida */
 var MODELOS = {
   granero: ['Granero Clásico','Granero Cruz'],
   maciza:  ['Panguipulli','Lago Ranco','Frutillar','Puerto Varas'],
@@ -809,8 +808,12 @@ function renderForm(p) {
         '</div>' +
         '<div id="drows">' + dimRow(1) + '</div>' +
         '<button class="btn-add" id="btn-add-row">+ Agregar pieza</button>' +
-      '</div>';
-    c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-row')) addRow(); });
+      '</div>' +
+      vEspesorFieldHtml() + vExtrasFieldHtml();
+    c.addEventListener('click', function(e) {
+      if (e.target.closest('#btn-add-row')) addRow();
+      if (e.target.closest('#btn-add-vextra')) addVExtra();
+    });
     c.addEventListener('input', calcLive);
 
   } else if (p === 'puertas') {
@@ -830,6 +833,7 @@ function renderForm(p) {
     c.addEventListener('click', function(e) {
       if (e.target.closest('#btn-add-row')) addRow();
       if (e.target.closest('#btn-add-marco')) addMarcoRow();
+      if (e.target.closest('#btn-add-vextra')) addVExtra();
     });
     c.addEventListener('input', calcLive);
 
@@ -883,12 +887,15 @@ function renderForm(p) {
           '<input class="finput" type="number" inputmode="decimal" id="ms-metros" placeholder="ej. 6" step="0.1" min="0">' +
           '<div class="finput-hint">Solo para estimar el peso del envío (3 kg por metro).</div>' +
         '</div>' +
-      '</div>';
-    c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-row')) addRow(); });
+      '</div>' +
+      vEspesorFieldHtml() + vExtrasFieldHtml();
+    c.addEventListener('click', function(e) {
+      if (e.target.closest('#btn-add-row')) addRow();
+      if (e.target.closest('#btn-add-vextra')) addVExtra();
+    });
     c.addEventListener('input', calcLive);
 
   } else if (p === 'revlibre') {
-    nRvExtras = 0;
     c.innerHTML =
       '<div class="fsec">' +
         '<label class="flabel">Tipo de madera <span class="req">*</span></label>' +
@@ -935,13 +942,8 @@ function renderForm(p) {
           '<div class="finput-hint">Con IVA incluido. Déjalo vacío si no aplica.</div>' +
         '</div>' +
       '</div>' +
-      '<div class="mesa-box">' +
-        '<div class="mesa-h">Extras (opcional)</div>' +
-        '<div class="col-labels"><div class="col-lbl">Nombre del extra</div><div class="col-lbl">Valor</div></div>' +
-        '<div id="rv-extras-rows"></div>' +
-        '<button class="btn-add" id="btn-add-rvextra" type="button">+ Agregar extra</button>' +
-      '</div>';
-    c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-rvextra')) addRvExtra(); });
+      vExtrasFieldHtml();
+    c.addEventListener('click', function(e) { if (e.target.closest('#btn-add-vextra')) addVExtra(); });
     c.addEventListener('input', calcLive);
   }
 }
@@ -957,30 +959,34 @@ function mesaDatos() {
     metros: parseFloat(v('ms-metros')) || 0
   };
 }
-/* ── REVESTIMIENTO A MEDIDA (uso interno de vendedores) ── */
-function rvExtraRow(n) {
-  return '<div class="dim-row" id="rvxr'+n+'">' +
-    '<input type="text" placeholder="Ej. Instalación fin de semana" id="rvx-nom'+n+'" style="flex:2">' +
-    '<input type="number" inputmode="numeric" placeholder="0" min="0" id="rvx-val'+n+'">' +
-    '<button type="button" class="btn-del-row" onclick="removeRvExtra('+n+')" title="Quitar">✕</button>' +
+/* ── EXTRAS LIBRES Y ESPESOR FINAL DEL VENDEDOR (nombre + valor), reutilizable en todos los productos ──
+   Los campos SIEMPRE existen en el DOM (para que un link compartido calcule el precio correcto
+   sin importar quién lo abra); solo se OCULTAN visualmente si no hay sesión de vendedor. */
+var nVExtras = 0;
+function vExtraRowHtml(n) {
+  return '<div class="dim-row" id="vxr'+n+'">' +
+    '<input type="text" placeholder="Ej. Madera adicional" id="vx-nom'+n+'" style="flex:2">' +
+    '<input type="number" inputmode="numeric" placeholder="0" min="0" id="vx-val'+n+'">' +
+    '<button type="button" class="btn-del-row" onclick="removeVExtra('+n+')" title="Quitar">✕</button>' +
   '</div>';
 }
-function addRvExtra() {
-  nRvExtras++;
-  var cont = document.getElementById('rv-extras-rows');
+function addVExtra() {
+  nVExtras++;
+  var cont = document.getElementById('vx-extras-rows');
   if (!cont) return;
   var div = document.createElement('div');
-  div.innerHTML = rvExtraRow(nRvExtras);
+  div.innerHTML = vExtraRowHtml(nVExtras);
   cont.appendChild(div.firstElementChild);
+  calcLive();
 }
-function removeRvExtra(n) {
-  var row = document.getElementById('rvxr'+n);
+function removeVExtra(n) {
+  var row = document.getElementById('vxr'+n);
   if (row) row.remove();
   calcLive();
 }
 /* lee los extras por su posición en el DOM (tolera huecos si se borró alguno) */
-function rvExtrasDatos() {
-  var rows = document.querySelectorAll('#rv-extras-rows .dim-row');
+function vExtrasDatos() {
+  var rows = document.querySelectorAll('#vx-extras-rows .dim-row');
   var out = [];
   rows.forEach(function(r){
     var inputs = r.querySelectorAll('input');
@@ -989,6 +995,36 @@ function rvExtrasDatos() {
     if (nombre || valor > 0) out.push({ nombre: nombre || 'Extra', valor: valor });
   });
   return out;
+}
+/* bloque "Extras (opcional)": existe siempre, oculto si no hay sesión de vendedor */
+function vExtrasFieldHtml() {
+  nVExtras = 0;
+  return '<div class="mesa-box'+(vendorMode?'':' hidden')+'">' +
+    '<div class="mesa-h">Extras (opcional)</div>' +
+    '<div class="col-labels"><div class="col-lbl">Nombre del extra</div><div class="col-lbl">Valor</div></div>' +
+    '<div id="vx-extras-rows"></div>' +
+    '<button class="btn-add" id="btn-add-vextra" type="button">+ Agregar extra</button>' +
+  '</div>';
+}
+/* campo "Espesor final": existe siempre, oculto si no hay sesión de vendedor.
+   Si se llena, reemplaza el texto de espesor por defecto en la cotización final. */
+function vEspesorFieldHtml() {
+  return '<div class="fsec'+(vendorMode?'':' hidden')+'">' +
+    '<label class="flabel">Espesor final (opcional)</label>' +
+    '<input class="finput" type="text" id="f-espesor-final" placeholder="Ej. 6 cms (si es distinto al estándar)">' +
+    '<div class="finput-hint">Reemplaza el espesor mostrado en la cotización. Ej: cliente pidió peldaños de 6 cms.</div>' +
+  '</div>';
+}
+function vEspesorFinal() {
+  var el = document.getElementById('f-espesor-final');
+  return el ? el.value.trim() : '';
+}
+/* nota de extras para la cotización final, mismo estilo que el aviso de vidrio */
+function vExtrasNoteHtml(list) {
+  if (!list || !list.length) return '';
+  return list.map(function(e){
+    return '<div class="info-bar">Extra: <strong>'+escA(e.nombre)+'</strong> — '+fmt(e.valor)+'</div>';
+  }).join('');
 }
 function rvDatos() {
   function v(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
@@ -1001,7 +1037,7 @@ function rvDatos() {
     valorTabla: parseInt(v('rv-valor-tabla'), 10) || 0,
     cantTablas: parseInt(v('rv-cant-tablas'), 10) || 1,
     instalacion: parseInt(v('rv-instalacion'), 10) || 0,
-    extras: rvExtrasDatos()
+    extras: vExtrasDatos()
   };
 }
 
@@ -1054,7 +1090,8 @@ function renderDoorSub(tipo) {
       '</div>' +
       '<div id="mrows">' + marcoRow(1) + '</div>' +
       '<button class="btn-add" id="btn-add-marco">+ Agregar marco</button>' +
-    '</div>';
+    '</div>' +
+    vEspesorFieldHtml() + vExtrasFieldHtml();
   nMarco = 1;
   var vtSel = document.getElementById('vt');
   if (vtSel) vtSel.addEventListener('change', calcLive);
@@ -1235,12 +1272,15 @@ function htmlCubierta(cli, fecha) {
   var dimRows = filas.map(function(f){
     return '<tr><td>'+f.n+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td><td>'+f.m2.toFixed(2)+'</td></tr>';
   }).join('');
+  var vExtrasList = vExtrasDatos();
+  var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
   var tierRows = [
-    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo},
-    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio},
-    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto}
+    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo  + vExtrasTot},
+    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio + vExtrasTot},
+    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto  + vExtrasTot}
   ];
-  var esp = prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? (getPeldanoEspesor() + ' cms') : '2 cms';
+  var vEsp = vEspesorFinal();
+  var esp = vEsp || (prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? (getPeldanoEspesor() + ' cms') : '2 cms');
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:prod,
     total_bajo:  Math.round(tierRows[0].total),
@@ -1253,10 +1293,11 @@ function htmlCubierta(cli, fecha) {
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
+    vExtrasNoteHtml(vExtrasList) +
     tierTable(tierRows, recWood()) +
     extrasBlock(sumM2) +
     '<div class="specs">' +
-      '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+esp+'</div></div>' +
+      '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(esp)+'</div></div>' +
       '<div class="spec"><div class="sl">Bordes</div><div class="sv">Recto, redondo o biselado. Tú eliges</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
@@ -1278,6 +1319,9 @@ function htmlPuerta(cli, fecha) {
   var mcT = getMarcoTotals(), mcMl = mcT.ml, mcM2 = mcT.m2;
   var vd = hasExtra ? vidrioExtraDatos() : null;         /* medida y cantidad propias del vidrio */
   var vidrioExtra = hasExtra ? vidrioExtraTotal() : 0;    /* igual para las 3 maderas */
+  var vExtrasList = vExtrasDatos();
+  var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
+  var vEsp = vEspesorFinal();
   var tiers = ['bajo','medio','alto'];
   var tierRows = tiers.map(function(t) {
     var sumNeto=0;
@@ -1286,6 +1330,7 @@ function htmlPuerta(cli, fecha) {
     });
     if (mcM2 > 0) sumNeto += mcM2 * PR.cubierta[t];
     sumNeto += vidrioExtra;
+    sumNeto += vExtrasTot;
     return {label: WOOD[t], tier: t, total: sumNeto};
   });
   var dimRows = filas.map(function(f){
@@ -1307,9 +1352,11 @@ function htmlPuerta(cli, fecha) {
     (mcM2>0 ? '<div class="info-bar">Marco: <strong>'+mcMl.toFixed(2)+' ml · '+mcM2.toFixed(2)+' m²</strong></div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
+    vExtrasNoteHtml(vExtrasList) +
     tierTable(tierRows, recWood()) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
+      (vEsp ? '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(vEsp)+'</div></div>' : '') +
       '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
@@ -1332,12 +1379,15 @@ function htmlMesa(cli, fecha) {
   var dimRows = filas.map(function(f){
     return '<tr><td>'+f.n+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td><td>'+f.m2.toFixed(2)+'</td></tr>';
   }).join('');
-  /* cada madera = su cubierta + la misma base de fierro */
+  var vExtrasList = vExtrasDatos();
+  var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
+  var vEsp = vEspesorFinal();
+  /* cada madera = su cubierta + la misma base de fierro + los mismos extras */
   var tierRows = [
     {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo},
     {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio},
     {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto}
-  ].map(function(r){ r.total = r.madera + M.valor; return r; });
+  ].map(function(r){ r.total = r.madera + M.valor + vExtrasTot; return r; });
 
   var pesoMadera = Math.round(sumM2*30);
   var pesoFierro = Math.round(M.metros * FIERRO_KG_M);
@@ -1352,6 +1402,7 @@ function htmlMesa(cli, fecha) {
 
   var detalleFierro =
     '<div class="specs">' +
+      (vEsp ? '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(vEsp)+'</div></div>' : '') +
       (M.altura ? '<div class="spec"><div class="sl">Altura final</div><div class="sv">'+M.altura+' cm</div></div>' : '') +
       (M.perfil ? '<div class="spec"><div class="sl">Perfil del fierro</div><div class="sv">'+escA(M.perfil)+'</div></div>' : '') +
       (M.color  ? '<div class="spec"><div class="sl">Color base</div><div class="sv">'+escA(M.color)+'</div></div>' : '') +
@@ -1364,6 +1415,7 @@ function htmlMesa(cli, fecha) {
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
+    vExtrasNoteHtml(vExtrasList) +
     tierTableMesa(tierRows, recWood(), M) +
     detalleFierro +
     boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
@@ -1568,6 +1620,10 @@ function getShareData() {
   if (b2bDcto > 0) data.b2b = b2bDcto;   /* el link compartido conserva el descuento profesionales */
   if (prod === 'peldano') data.esp = getPeldanoEspesor();   /* sin esto el link volvía siempre a 4 cm */
   if (prod === 'mesa') data.mesa = mesaDatos();             /* base de fierro: nombre, valor, altura, perfil, color */
+  if (prod !== 'revlibre') {   /* revlibre ya guarda sus extras dentro de data.rv */
+    var vExtrasNow = vExtrasDatos(); if (vExtrasNow.length) data.vExtras = vExtrasNow;
+    var vEspNow = vEspesorFinal(); if (vEspNow) data.espFinal = vEspNow;
+  }
   if (['cubierta','repisa','peldano','mesa'].includes(prod)) {
     data.rows = [];
     for (var i = 1; i <= nrows; i++) {
@@ -1656,8 +1712,8 @@ function restoreFromData(d) {
     setr('rv-largo', d.rv.largo); setr('rv-ancho', d.rv.ancho); setr('rv-valor-tabla', d.rv.valorTabla);
     setr('rv-cant-tablas', d.rv.cantTablas); setr('rv-instalacion', d.rv.instalacion);
     (d.rv.extras||[]).forEach(function(ex){
-      addRvExtra();
-      var nom=document.getElementById('rvx-nom'+nRvExtras), val=document.getElementById('rvx-val'+nRvExtras);
+      addVExtra();
+      var nom=document.getElementById('vx-nom'+nVExtras), val=document.getElementById('vx-val'+nVExtras);
       if (nom) nom.value = ex.nombre; if (val) val.value = ex.valor;
     });
   }
@@ -1666,6 +1722,14 @@ function restoreFromData(d) {
     nrows = 1;
     renderDoorSub(prod);
     document.getElementById('door-sub').classList.remove('hidden');
+  }
+  if (d.p !== 'revlibre') {   /* revlibre ya restauró sus extras arriba, dentro de d.rv */
+    if (d.espFinal) { var efEl=document.getElementById('f-espesor-final'); if (efEl) efEl.value = d.espFinal; }
+    (d.vExtras||[]).forEach(function(ex){
+      addVExtra();
+      var nom=document.getElementById('vx-nom'+nVExtras), val=document.getElementById('vx-val'+nVExtras);
+      if (nom) nom.value = ex.nombre; if (val) val.value = ex.valor;
+    });
   }
   if (d.vt) {
     var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt;
