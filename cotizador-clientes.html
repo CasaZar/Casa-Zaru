@@ -863,7 +863,14 @@ function renderForm(p) {
         '<div id="drows">' + dimRow(1) + '</div>' +
         '<button class="btn-add" id="btn-add-row">+ Agregar pieza</button>' +
       '</div>' +
-      '<div class="mesa-box">' +
+      '<div class="fsec">' +
+        '<label class="flabel">Tipo de base</label>' +
+        '<select class="fsel" id="ms-base-tipo" onchange="toggleBaseMesa(this.value)">' +
+          '<option value="fierro">Fierro</option>' +
+          '<option value="madera">Madera</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="mesa-box" id="ms-box-fierro">' +
         '<div class="mesa-h">Base de fierro</div>' +
         '<div class="fsec">' +
           '<label class="flabel">Valor de la base <span class="req">*</span></label>' +
@@ -886,6 +893,31 @@ function renderForm(p) {
           '<label class="flabel">Metros de fierro (opcional)</label>' +
           '<input class="finput" type="number" inputmode="decimal" id="ms-metros" placeholder="ej. 6" step="0.1" min="0">' +
           '<div class="finput-hint">Solo para estimar el peso del envío (3 kg por metro).</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="mesa-box hidden" id="ms-box-madera">' +
+        '<div class="mesa-h">Base de madera</div>' +
+        '<div class="fsec">' +
+          '<label class="flabel">Espesor de la base</label>' +
+          '<input class="finput" type="text" id="ms-esp-madera" placeholder="Ej. 4 cms">' +
+        '</div>' +
+        '<div class="fsec">' +
+          '<label class="flabel">Valor de base — Pino Oregón <span class="req">*</span></label>' +
+          '<input class="finput" type="number" inputmode="numeric" id="ms-valor-bajo" placeholder="ej. 90000" min="0">' +
+        '</div>' +
+        '<div class="fsec">' +
+          '<label class="flabel">Valor de base — Castaño / Ciprés / Mañío <span class="req">*</span></label>' +
+          '<input class="finput" type="number" inputmode="numeric" id="ms-valor-medio" placeholder="ej. 120000" min="0">' +
+        '</div>' +
+        '<div class="fsec">' +
+          '<label class="flabel">Valor de base — Coihue / Raulí / Lenga <span class="req">*</span></label>' +
+          '<input class="finput" type="number" inputmode="numeric" id="ms-valor-alto" placeholder="ej. 150000" min="0">' +
+          '<div class="finput-hint">Con IVA incluido — es lo que paga el cliente por la base, según la madera elegida.</div>' +
+        '</div>' +
+        '<div class="fsec" style="margin-bottom:0">' +
+          '<label class="flabel">Peso de la base (kg)</label>' +
+          '<input class="finput" type="number" inputmode="decimal" id="ms-peso-madera" placeholder="ej. 15" step="0.1" min="0">' +
+          '<div class="finput-hint">Solo para estimar el peso del envío.</div>' +
         '</div>' +
       '</div>' +
       vEspesorFieldHtml() + vExtrasFieldHtml();
@@ -947,17 +979,30 @@ function renderForm(p) {
     c.addEventListener('input', calcLive);
   }
 }
-/* datos de la base de fierro que escribe el vendedor */
+/* datos de la base (fierro o madera) que escribe el vendedor */
 function mesaDatos() {
   function v(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
   return {
     nombre: v('ms-nombre') || 'Mesa',
+    baseTipo: v('ms-base-tipo') || 'fierro',
     valor:  parseInt(v('ms-valor'), 10) || 0,
     altura: v('ms-altura'),
     perfil: v('ms-perfil'),
     color:  v('ms-color'),
-    metros: parseFloat(v('ms-metros')) || 0
+    metros: parseFloat(v('ms-metros')) || 0,
+    espesorBase: v('ms-esp-madera'),
+    valorBajo:  parseInt(v('ms-valor-bajo'), 10) || 0,
+    valorMedio: parseInt(v('ms-valor-medio'), 10) || 0,
+    valorAlto:  parseInt(v('ms-valor-alto'), 10) || 0,
+    pesoBase: parseFloat(v('ms-peso-madera')) || 0
   };
+}
+/* muestra el bloque de campos de la base fierro/madera que corresponda */
+function toggleBaseMesa(tipo) {
+  var f = document.getElementById('ms-box-fierro'), m = document.getElementById('ms-box-madera');
+  if (f) f.classList.toggle('hidden', tipo === 'madera');
+  if (m) m.classList.toggle('hidden', tipo !== 'madera');
+  calcLive();
 }
 /* ── EXTRAS LIBRES Y ESPESOR FINAL DEL VENDEDOR (nombre + valor), reutilizable en todos los productos ──
    Los campos SIEMPRE existen en el DOM (para que un link compartido calcule el precio correcto
@@ -1223,7 +1268,12 @@ function generar() {
   if (!conStr) { errEl.textContent = 'Escribe tu WhatsApp o tu correo para continuar.'; errEl.classList.remove('hidden'); return; }
   if (!waPhone(conStr) && !esCorreo(conStr)) { errEl.textContent = 'Revisa tu contacto: un celular (+56 9 1234 5678) o un correo válido.'; errEl.classList.remove('hidden'); return; }
   if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
-  if (prod === 'mesa' && mesaDatos().valor <= 0) { errEl.textContent = 'Escribe el valor de la base de fierro.'; errEl.classList.remove('hidden'); return; }
+  if (prod === 'mesa') {
+    var mChk = mesaDatos();
+    if (mChk.baseTipo === 'madera') {
+      if (mChk.valorBajo <= 0 || mChk.valorMedio <= 0 || mChk.valorAlto <= 0) { errEl.textContent = 'Escribe el valor de la base de madera para los 3 tipos de madera.'; errEl.classList.remove('hidden'); return; }
+    } else if (mChk.valor <= 0) { errEl.textContent = 'Escribe el valor de la base de fierro.'; errEl.classList.remove('hidden'); return; }
+  }
   if (prod === 'revlibre') {
     var rvChk = rvDatos();
     if (!document.getElementById('rv-madera').value.trim()) { errEl.textContent = 'Escribe el tipo de madera.'; errEl.classList.remove('hidden'); return; }
@@ -1382,16 +1432,17 @@ function htmlMesa(cli, fecha) {
   var vExtrasList = vExtrasDatos();
   var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
   var vEsp = vEspesorFinal();
-  /* cada madera = su cubierta + la misma base de fierro + los mismos extras */
+  var esMadera = M.baseTipo === 'madera';
+  /* cada madera = su cubierta + su propia base (fierro: mismo valor; madera: valor propio por tipo) + los mismos extras */
   var tierRows = [
-    {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo},
-    {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio},
-    {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto}
-  ].map(function(r){ r.total = r.madera + M.valor + vExtrasTot; return r; });
+    {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo,  base: esMadera ? M.valorBajo  : M.valor},
+    {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio, base: esMadera ? M.valorMedio : M.valor},
+    {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto,  base: esMadera ? M.valorAlto  : M.valor}
+  ].map(function(r){ r.total = r.madera + r.base + vExtrasTot; return r; });
 
   var pesoMadera = Math.round(sumM2*30);
-  var pesoFierro = Math.round(M.metros * FIERRO_KG_M);
-  var pesoTotal  = pesoMadera + pesoFierro;
+  var pesoBase   = esMadera ? Math.round(M.pesoBase) : Math.round(M.metros * FIERRO_KG_M);
+  var pesoTotal  = pesoMadera + pesoBase;
 
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:'mesa',
@@ -1403,9 +1454,10 @@ function htmlMesa(cli, fecha) {
   var detalleFierro =
     '<div class="specs">' +
       (vEsp ? '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(vEsp)+'</div></div>' : '') +
+      (esMadera && M.espesorBase ? '<div class="spec"><div class="sl">Espesor de la base</div><div class="sv">'+escA(M.espesorBase)+'</div></div>' : '') +
       (M.altura ? '<div class="spec"><div class="sl">Altura final</div><div class="sv">'+M.altura+' cm</div></div>' : '') +
-      (M.perfil ? '<div class="spec"><div class="sl">Perfil del fierro</div><div class="sv">'+escA(M.perfil)+'</div></div>' : '') +
-      (M.color  ? '<div class="spec"><div class="sl">Color base</div><div class="sv">'+escA(M.color)+'</div></div>' : '') +
+      (!esMadera && M.perfil ? '<div class="spec"><div class="sl">Perfil del fierro</div><div class="sv">'+escA(M.perfil)+'</div></div>' : '') +
+      (!esMadera && M.color  ? '<div class="spec"><div class="sl">Color base</div><div class="sv">'+escA(M.color)+'</div></div>' : '') +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+pesoTotal+' kg</div></div>' +
     '</div>';
@@ -1416,25 +1468,26 @@ function htmlMesa(cli, fecha) {
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
     vExtrasNoteHtml(vExtrasList) +
-    tierTableMesa(tierRows, recWood(), M) +
+    tierTableMesa(tierRows, recWood(), M, esMadera) +
     detalleFierro +
     boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
   );
 }
-/* tabla de precios con el desglose cubierta + base */
-function tierTableMesa(rows, recTier, M) {
+/* tabla de precios con el desglose cubierta + base (fierro o madera) */
+function tierTableMesa(rows, recTier, M, esMadera) {
   var tf = transferFactor();
   var prows = rows.map(function(r) {
     var isRec = recTier && r.tier === recTier;
     var badge = isRec ? '<span class="ptier-rec-badge">'+recBadgeText()+'</span>' : '';
     return '<div class="' + (isRec?'ptier-row rec':'ptier-row') + '">' +
       '<span class="ptier-wood">' + r.label + badge +
-        '<span class="mesa-desglose">Cubierta ' + fmt(r.madera) + ' + base ' + fmt(M.valor) + '</span></span>' +
+        '<span class="mesa-desglose">Cubierta ' + fmt(r.madera) + ' + base ' + fmt(r.base) + '</span></span>' +
       '<span class="ptier-total">' + fmt(r.total) + '</span>' +
       '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * tf) + '</span></span>' +
     '</div>';
   }).join('');
   var esPro = b2bDcto > 0;
+  var notaBase = esMadera ? 'cubierta de madera + base de madera (según el tipo elegido)' : 'cubierta de madera + base de fierro (' + fmt(M.valor) + ')';
   return '<div class="ptier-block">' +
     '<div class="ptier-head">' +
       '<span>Tipo de madera</span>' +
@@ -1443,7 +1496,7 @@ function tierTableMesa(rows, recTier, M) {
     '</div>' +
     prows +
     (esPro ? '<div class="ptier-note" style="background:#EEF6FF;color:#1E40AF;font-weight:600">★ Incluye Descuento Casa Zaru Profesionales: '+b2bDcto+'% extra</div>' : '') +
-    '<div class="ptier-note">Valores incluyen cubierta de madera + base de fierro (' + fmt(M.valor) + ') · Precios con IVA</div>' +
+    '<div class="ptier-note">Valores incluyen ' + notaBase + ' · Precios con IVA</div>' +
   '</div>';
 }
 
@@ -1701,10 +1754,16 @@ function restoreFromData(d) {
     var espEl = document.getElementById('f-espesor-peldano');
     if (espEl) espEl.value = espGuardado;
   }
-  if (d.p === 'mesa' && d.mesa) {   /* restaurar la base de fierro para que el link muestre lo mismo */
+  if (d.p === 'mesa' && d.mesa) {   /* restaurar la base (fierro o madera) para que el link muestre lo mismo */
     var setv = function(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value = v; };
     setv('ms-nombre', d.mesa.nombre); setv('ms-valor', d.mesa.valor); setv('ms-altura', d.mesa.altura);
     setv('ms-perfil', d.mesa.perfil); setv('ms-color', d.mesa.color); setv('ms-metros', d.mesa.metros);
+    var baseTipo = d.mesa.baseTipo || 'fierro';
+    setv('ms-base-tipo', baseTipo);
+    setv('ms-esp-madera', d.mesa.espesorBase); setv('ms-valor-bajo', d.mesa.valorBajo);
+    setv('ms-valor-medio', d.mesa.valorMedio); setv('ms-valor-alto', d.mesa.valorAlto);
+    setv('ms-peso-madera', d.mesa.pesoBase);
+    toggleBaseMesa(baseTipo);
   }
   if (d.p === 'revlibre' && d.rv) {   /* restaurar madera, precio, instalación y extras */
     var setr = function(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value = v; };
