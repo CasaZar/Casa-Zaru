@@ -2536,19 +2536,26 @@ function renderDash() {
   var ganadas = d.filter(function(x){ return x.estado==='ganado'; });
   var cotizado = d.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
   var vendido  = ganadas.reduce(function(a,x){ return a + (x.monto_cierre||x.total_medio||x.total_alto||0); }, 0);
-  /* conversión por CLIENTE (agrupado igual que el seguimiento: WhatsApp/correo/nombre) —
-     un cliente cuenta como ganado si ganó al menos una cotización; perdido solo si todas las suyas se perdieron */
+  /* conversión por CLIENTE — se agrupa con TODO su historial (cualquier canal), no solo las
+     filas de esta pestaña: misma regla del seguimiento (cliente con cotización de vendedor Y
+     web → es del vendedor). Así un cliente que perdió por web pero después ganó con el
+     vendedor no queda contado como "perdido" en Clientes Web y "ganado" en el vendedor a la vez. */
   var porCliente = {};
-  d.forEach(function(x){
+  dashRows.forEach(function(x){
     var k = clientKey(x);
-    var c = porCliente[k] || (porCliente[k] = { ganado:false, perdida:false });
-    if (x.estado==='ganado') c.ganado = true;
-    if (x.estado==='perdida') c.perdida = true;
+    (porCliente[k] = porCliente[k] || []).push(x);
   });
   var clientesGanados = 0, clientesPerdidos = 0;
   Object.keys(porCliente).forEach(function(k){
-    if (porCliente[k].ganado) clientesGanados++;
-    else if (porCliente[k].perdida) clientesPerdidos++;
+    var qs = porCliente[k];
+    var owner = 'web';
+    qs.slice().sort(function(a,b){ return new Date(b.fecha_creacion||0) - new Date(a.fecha_creacion||0); })
+      .some(function(q){ var oc = ownerCode(q); if (oc) { owner = oc; return true; } return false; });
+    if (owner !== dashView) return;   /* este cliente es de otra pestaña */
+    var ganado = qs.some(function(q){ return q.estado==='ganado'; });
+    var perdida = qs.some(function(q){ return q.estado==='perdida'; });
+    if (ganado) clientesGanados++;
+    else if (perdida) clientesPerdidos++;
   });
   var clientesCerrados = clientesGanados + clientesPerdidos;
   var conv = clientesCerrados > 0 ? Math.round(clientesGanados/clientesCerrados*100) : 0;
