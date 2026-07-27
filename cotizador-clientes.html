@@ -2534,16 +2534,29 @@ function renderDash() {
   var dAll = currentTableRows();
   var d = sortDashData(applyDashFilters(dAll));
   var ganadas = d.filter(function(x){ return x.estado==='ganado'; });
-  var perdidas = d.filter(function(x){ return x.estado==='perdida'; }).length;
-  var cerradas = ganadas.length + perdidas;
-  var conv = cerradas > 0 ? Math.round(ganadas.length/cerradas*100) : 0;
   var cotizado = d.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
   var vendido  = ganadas.reduce(function(a,x){ return a + (x.monto_cierre||x.total_medio||x.total_alto||0); }, 0);
+  /* conversión por CLIENTE (agrupado igual que el seguimiento: WhatsApp/correo/nombre) —
+     un cliente cuenta como ganado si ganó al menos una cotización; perdido solo si todas las suyas se perdieron */
+  var porCliente = {};
+  d.forEach(function(x){
+    var k = clientKey(x);
+    var c = porCliente[k] || (porCliente[k] = { ganado:false, perdida:false });
+    if (x.estado==='ganado') c.ganado = true;
+    if (x.estado==='perdida') c.perdida = true;
+  });
+  var clientesGanados = 0, clientesPerdidos = 0;
+  Object.keys(porCliente).forEach(function(k){
+    if (porCliente[k].ganado) clientesGanados++;
+    else if (porCliente[k].perdida) clientesPerdidos++;
+  });
+  var clientesCerrados = clientesGanados + clientesPerdidos;
+  var conv = clientesCerrados > 0 ? Math.round(clientesGanados/clientesCerrados*100) : 0;
   var stD=document.getElementById('dash-stats'); stD.style.display='grid';
   stD.innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
     '<div class="stat-card"><div class="stat-v" style="color:#059669">'+ganadas.length+'</div><div class="stat-l">Ganadas</div></div>'+
-    '<div class="stat-card" title="Ganadas sobre las decididas (ganadas + perdidas)"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>'+
+    '<div class="stat-card" title="Clientes que ganaron sobre los clientes decididos (ganados + perdidos), agrupando por WhatsApp/correo/nombre"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(cotizado)+'</div><div class="stat-l">Total cotizado</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(vendido)+'</div><div class="stat-l">Total vendido</div></div>';
   /* ¿por qué perdemos? — desglose de motivos de las perdidas */
