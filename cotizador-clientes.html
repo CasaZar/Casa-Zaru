@@ -2311,9 +2311,9 @@ function segClientCard(g, cls){
   var wa = phone ? '<a class="sbtn wa" target="_blank"'+waAction+' href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
   var pez = (cls==='late' && g.valor>=PEZ_GORDO);
   var pezBadge = pez ? '<span class="pez-badge">🐋 No dejar enfriar</span>' : '';
-  var meta = (x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
+  var meta = escA(x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
   return '<div class="seg-card '+cls+(pez?' pez':'')+'">'+
-    '<div class="seg-cli">'+(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+'</div>'+
+    '<div class="seg-cli">'+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
     '<div class="seg-toques">'+toques+'</div>'+
@@ -2370,7 +2370,7 @@ async function segNota(id, n, txt){
 }
 function segPosponerUI(id){
   var x=COTIS[id]; if(!x) return;
-  pModal('<h3>Posponer — '+(x.cliente||'')+'</h3>'+
+  pModal('<h3>Posponer — '+escA(x.cliente||'')+'</h3>'+
     '<button class="mbtn" onclick="segPosponer(\''+id+'\',7)">En 7 días</button>'+
     '<button class="mbtn" onclick="segPosponer(\''+id+'\',15)">En 15 días (cliente cotiza más adelante)</button>'+
     '<button class="mbtn" onclick="segPosponer(\''+id+'\',30)">En 30 días</button>'+
@@ -2396,7 +2396,7 @@ function pedirMonto(x){
 }
 function segPerderUI(id){
   var x=COTIS[id]; if(!x) return;
-  pModal('<h3>¿Por qué se perdió — '+(x.cliente||'')+'?</h3>'+
+  pModal('<h3>¿Por qué se perdió — '+escA(x.cliente||'')+'?</h3>'+
     MOTIVOS.map(function(m){ return '<button class="mbtn" onclick="segPerder(\''+id+'\',\''+m+'\')">'+m+'</button>'; }).join('')+
     '<button class="mbtn cancel" onclick="pClose()">Cancelar</button>');
 }
@@ -2521,9 +2521,9 @@ function renderEliminadas(){
   if (!elim.length){ document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">No hay cotizaciones eliminadas</div>'; return; }
   var rows = elim.map(function(x){
     var f = x.elim_fecha ? new Date(x.elim_fecha).toLocaleDateString('es-CL')+' '+new Date(x.elim_fecha).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
-    return '<tr><td>'+(x.numero||'—')+'</td><td>'+(x.cliente||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td>'+
+    return '<tr><td>'+(x.numero||'—')+'</td><td>'+escA(x.cliente||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td>'+
       '<td>$'+Math.round(x.total_alto||0).toLocaleString('es-CL')+'</td>'+
-      '<td><strong>'+(x.elim_por||'—')+'</strong></td><td>'+(x.elim_motivo||'—')+'</td><td style="font-size:9.5px">'+f+'</td>'+
+      '<td><strong>'+escA(x.elim_por||'—')+'</strong></td><td>'+escA(x.elim_motivo||'—')+'</td><td style="font-size:9.5px">'+f+'</td>'+
       '<td><button class="sbtn" onclick="restaurarQuote(\''+x.id+'\')">↩ Restaurar</button></td></tr>';
   }).join('');
   document.getElementById('dash-tbl').innerHTML='<div class="tbl-scroll"><table class="ptable"><thead><tr>'+
@@ -2585,7 +2585,7 @@ function renderDash() {
     var est = x.estado || 'enviada';
     var numHtml = x.link ? '<a href="'+x.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+(x.numero||'—')+' ↗</a>' : (x.numero||'—');
     var montoTxt = est==='ganado' && x.monto_cierre ? '$'+Math.round(x.monto_cierre).toLocaleString('es-CL') : '$'+Math.round(x.total_alto||0).toLocaleString('es-CL');
-    return '<tr><td>'+numHtml+'</td><td>'+(x.cliente||'—')+'</td><td style="font-size:9.5px">'+(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>'+montoTxt+'</td><td style="font-size:9.5px">'+f+'</td>' +
+    return '<tr><td>'+numHtml+'</td><td>'+escA(x.cliente||'—')+'</td><td style="font-size:9.5px">'+escA(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>'+montoTxt+'</td><td style="font-size:9.5px">'+f+'</td>' +
       '<td><select class="dash-estado '+est+'" onchange="updateEstado(\''+x.id+'\',this.value)">' +
         '<option value="enviada"'+(est==='enviada'?' selected':'')+'>Enviada</option>' +
         '<option value="ganado"'+(est==='ganado'?' selected':'')+'>Ganado</option>' +
