@@ -266,6 +266,11 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .perde-n{ min-width:22px;text-align:right;font-weight:700;color:var(--tx); }
 .seg-card.pez { border-color:#D97706;box-shadow:0 0 0 3px rgba(217,119,6,.16); }
 .pez-badge { display:inline-block;background:#FEF3C7;color:#92400E;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
+.seg-card.interesado { border-color:#DB2777;box-shadow:0 0 0 3px rgba(219,39,119,.14);background:#FFF7FB; }
+.interesado-badge { display:inline-block;background:#FCE7F3;color:#9D174D;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
+.seg-star { background:none;border:none;cursor:pointer;font-size:17px;line-height:1;vertical-align:-2px;margin-right:5px;padding:0;color:#D9C4A5; }
+.seg-star.on { color:#DB2777; }
+.seg-chip.star.on { background:#DB2777;border-color:#DB2777; }
 .seg-cli { font-size:15px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif; }
 .seg-touch { display:inline-block;background:var(--bg3);color:var(--acd);font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.5px; }
 .seg-meta { font-size:11px;color:var(--tm);margin-top:4px;line-height:1.6;font-family:'Jost',sans-serif; }
@@ -1930,6 +1935,7 @@ var dashSort = {col:'fecha_creacion', dir:'desc'};
 var segSearch = '';           /* buscar cliente en seguimiento */
 var segSort = 'valor';        /* valor | reciente | antiguo */
 var segBloque = '';           /* '' = todos los bloques | code de vendedor | 'web' */
+var segSoloInteresados = false;  /* filtro: mostrar solo los marcados con la estrella */
 var COTIS = {};
 var segPend = 0;
 
@@ -2099,9 +2105,11 @@ function segBloquesDef(){
   return b;
 }
 function setSegBloque(o){ segBloque=o; renderSegFilters(); renderSeguimiento(); }
+function toggleSegInteresados(){ segSoloInteresados=!segSoloInteresados; renderSegFilters(); renderSeguimiento(); }
 function renderSegFilters(){
   var chips = '<button class="seg-chip'+(segBloque===''?' on':'')+'" onclick="setSegBloque(\'\')">Todos</button>'+
-    segBloquesDef().map(function(b){ return '<button class="seg-chip'+(segBloque===b.o?' on':'')+'" onclick="setSegBloque(\''+b.o+'\')">'+b.t+'</button>'; }).join('');
+    segBloquesDef().map(function(b){ return '<button class="seg-chip'+(segBloque===b.o?' on':'')+'" onclick="setSegBloque(\''+b.o+'\')">'+b.t+'</button>'; }).join('')+
+    '<button class="seg-chip star'+(segSoloInteresados?' on':'')+'" onclick="toggleSegInteresados()">★ Interesados</button>';
   document.getElementById('dash-filters').innerHTML =
     '<div class="seg-chips">'+chips+'</div>'+
     '<input type="text" id="f-seg-q" placeholder="Buscar cliente…" value="'+escA(segSearch)+'" oninput="segSearch=this.value;renderSeguimiento()">'+
@@ -2197,6 +2205,7 @@ function renderSeguimiento(){
       return (g.lead.cliente||'').toLowerCase().indexOf(q)!==-1 || (g.lead.contacto||'').toLowerCase().indexOf(q)!==-1;
     });
   }
+  if (segSoloInteresados) groups = groups.filter(function(g){ return !!g.lead.interesado; });
   var cmp = segComparator();
   var bloques = segBloquesDef();
   if (segBloque) bloques = bloques.filter(function(b){ return b.o===segBloque; });
@@ -2311,9 +2320,12 @@ function segClientCard(g, cls){
   var wa = phone ? '<a class="sbtn wa" target="_blank"'+waAction+' href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
   var pez = (cls==='late' && g.valor>=PEZ_GORDO);
   var pezBadge = pez ? '<span class="pez-badge">🐋 No dejar enfriar</span>' : '';
+  var interesado = !!x.interesado;
+  var starBtn = '<button class="seg-star'+(interesado?' on':'')+'" onclick="segToggleInteresado(\''+x.id+'\','+interesado+')" title="'+(interesado?'Quitar marca de interesado':'Marcar como interesado')+'">'+(interesado?'★':'☆')+'</button>';
+  var interesadoBadge = interesado ? '<span class="interesado-badge">★ Interesado</span>' : '';
   var meta = escA(x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
-  return '<div class="seg-card '+cls+(pez?' pez':'')+'">'+
-    '<div class="seg-cli">'+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+'</div>'+
+  return '<div class="seg-card '+cls+(pez?' pez':'')+(interesado?' interesado':'')+'">'+
+    '<div class="seg-cli">'+starBtn+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+interesadoBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
     '<div class="seg-toques">'+toques+'</div>'+
@@ -2324,6 +2336,10 @@ function segClientCard(g, cls){
       '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
       '<button class="sbtn lost" onclick="segPerderUI(\''+x.id+'\')">✗ Perdida</button>'+
     '</div></div>';
+}
+/* marca/desmarca un cliente como interesado (estrella, para ubicarlo fácil en la cola) */
+async function segToggleInteresado(id, current){
+  segSave(id, {interesado: !current}, current?'Ya no marcado como interesado':'Marcado como interesado ★');
 }
 /* deshace el último toque (para el que apretó la casilla por error) */
 async function segDeshacer(id){
