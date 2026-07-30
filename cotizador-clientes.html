@@ -2575,11 +2575,14 @@ function renderDash() {
   });
   var clientesCerrados = clientesGanados + clientesPerdidos;
   var conv = clientesCerrados > 0 ? Math.round(clientesGanados/clientesCerrados*100) : 0;
+  /* % sobre el total de cotizaciones de esta pestaña (incluye las que aun siguen en seguimiento, sin decidir) */
+  var convTotal = d.length ? Math.round(ganadas.length/d.length*100) : 0;
   var stD=document.getElementById('dash-stats'); stD.style.display='grid';
   stD.innerHTML =
     '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
     '<div class="stat-card"><div class="stat-v" style="color:#059669">'+ganadas.length+'</div><div class="stat-l">Ganadas</div></div>'+
-    '<div class="stat-card" title="Clientes que ganaron sobre los clientes decididos (ganados + perdidos), agrupando por WhatsApp/correo/nombre"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión</div></div>'+
+    '<div class="stat-card" title="Clientes que ganaron sobre los clientes decididos (ganados + perdidos), agrupando por WhatsApp/correo/nombre"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión (decididos)</div></div>'+
+    '<div class="stat-card" title="Cotizaciones ganadas sobre el total de esta pestana, incluyendo las que aun estan en seguimiento sin resolver"><div class="stat-v">'+convTotal+'%</div><div class="stat-l">% del total cotizado</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(cotizado)+'</div><div class="stat-l">Total cotizado</div></div>'+
     '<div class="stat-card"><div class="stat-v money">'+fmt(vendido)+'</div><div class="stat-l">Total vendido</div></div>';
   /* ¿por qué perdemos? — desglose de motivos de las perdidas */
