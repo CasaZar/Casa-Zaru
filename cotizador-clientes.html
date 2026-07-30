@@ -114,7 +114,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ptable th.th-sort:hover { background: var(--ac); }
 .ptable td { padding: 5px 3px; text-align: center; border-bottom: 1px solid var(--bd); background: var(--crt); }
 .ptable .trow td { background: var(--bg3); font-weight: 600; font-size: 10.5px; border-top: 1.5px solid var(--acd); border-bottom: none; }
-.ptier-block { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+.ptier-block { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
 .ptier-head { background: var(--bg3); padding: 5px 9px; display: flex; }
 .ptier-head span { font-size: 8px; text-transform: uppercase; letter-spacing: .7px; color: var(--tm); flex: 1; text-align: right; font-weight: 600; }
 .ptier-head span:first-child { flex: 1.6; text-align: left; font-size: 9px; color: var(--acd); font-weight: 700; letter-spacing: .8px; }
@@ -125,21 +125,21 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ptier-trans { flex: 1; text-align: right; font-size: 11px; font-weight: 600; color: #2D6A4F; }
 .ptier-note { padding: 4px 9px; font-size: 8px; color: var(--tm); background: var(--crt); border-top: 1px solid var(--bg3); text-align: center; }
 .dcto-green { color: #2D6A4F; font-weight: 700; }
-.transf-badge { display: inline-block; background: #D1FAE5; color: #065F46; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid #A7F3D0; }
-.specs { display: flex; border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 9px; background: white; }
+.transf-badge { display: inline-block; background: #E7F0E1; color: #2D5A3D; font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 10px; border: 1px solid #C3DAB4; }
+.specs { display: flex; border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; margin-bottom: 18px; background: white; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
 .spec { flex: 1; padding: 6px 5px; text-align: center; border-right: 1px solid var(--bd); }
 .spec:last-child { border-right: none; }
 .spec .sl { font-size: 8.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--acd); }
 .spec .sv { font-size: 9px; color: var(--tm); margin-top: 1px; line-height: 1.3; }
-.iboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 9px; }
-.ibox { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; }
+.iboxes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.ibox { border: 1px solid var(--bd); border-radius: 7px; overflow: hidden; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
 .ibox-h { background: var(--ac); color: white; padding: 5px 7px; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
 .ibox-b { padding: 7px; background: white; font-size: 9.5px; line-height: 1.55; color: var(--tm); }
 .ibox-b ul { list-style: none; padding: 0; }
 .ibox-b li { padding: 3px 0 3px 10px; text-indent: -10px; border-bottom: 1px solid var(--bg3); line-height: 1.4; }
 .ibox-b li:last-child { border-bottom: none; }
 .ibox-b li::before { content: "· "; color: var(--ac); font-weight: 700; }
-.bankrow { background: var(--bg3); border: 1px solid var(--bd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--tm); margin-bottom: 8px; text-align: center; line-height: 1.7; }
+.bankrow { background: var(--bg3); border: 1px solid var(--bd); border-radius: 6px; padding: 7px 10px; font-size: 9.5px; color: var(--tm); margin-bottom: 18px; text-align: center; line-height: 1.7; }
 .bankrow strong { color: var(--tx); }
 .finput-hint { font-size:10.5px;color:var(--tm);margin-top:5px;font-family:'Jost',sans-serif;line-height:1.4; }
 /* bloque de datos de contacto, al final del formulario */
@@ -156,7 +156,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .btn-del-row { flex:0 0 auto;width:34px;min-height:44px;border:1px solid var(--bd);background:#fff;border-radius:8px;
   color:#B91C1C;font-size:14px;line-height:1;cursor:pointer;font-family:'Jost',sans-serif;padding:0; }
 .btn-del-row:hover { background:#FEF2F2;border-color:#FCA5A5; }
-.warranty { background: var(--bg3); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; }
+.warranty { background: var(--bg3); border: 1px solid var(--bd); border-radius: 7px; padding: 7px 10px; font-size: 9px; color: var(--tm); text-align: center; line-height: 1.45; margin-bottom: 18px; }
 .warranty strong { display: block; font-size: 10px; color: var(--acd); margin-bottom: 2px; }
 .wa-block { margin: 18px 0 6px; }
 .wa-pitch { font-size: 11.5px; color: var(--tm); line-height: 1.65; text-align: center; margin-bottom: 13px; padding: 0 4px; font-style: italic; }
@@ -178,8 +178,18 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .val-step-n { background: var(--ac); color: white; border-radius: 50%; width: 22px; height: 22px; min-width: 22px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
 .val-step-t { font-size: 12px; color: var(--tx); line-height: 1.6; }
 .val-step-t strong { color: var(--acd); }
+/* ── MUESTRARIO DE MADERA (s2b, solo cotizador cubiertas-landing) ── */
+.wood-muestrario { margin-bottom: 24px; }
+.wood-muestrario-h { font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--acd); margin-bottom: 12px; text-align: center; }
+.wood-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.wood-chip { border: 1px solid var(--bd); border-radius: 10px; overflow: hidden; background: white; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
+.wood-swatch { height: 56px; }
+.wood-name { font-size: 11px; font-weight: 700; color: var(--tx); padding: 7px 8px 0; }
+.wood-desc { font-size: 9.5px; color: var(--tm); line-height: 1.4; padding: 3px 8px 8px; }
+/* ── NOTA DE OPCIONES (formulario cubierta-landing) ── */
+.cubierta-nota { font-size: 10.5px; color: var(--tm); line-height: 1.5; background: var(--bg3); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
 /* ── MUESTRARIO ── */
-.muest-block { border: 1px solid var(--bd2); border-radius: 8px; padding: 10px 12px; margin-bottom: 9px; background: var(--crt); text-align: center; }
+.muest-block { border: 1px solid var(--bd2); border-radius: 8px; padding: 10px 12px; margin-bottom: 18px; background: var(--crt); text-align: center; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
 .muest-h { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--acd); margin-bottom: 4px; }
 .muest-txt { font-size: 10px; color: var(--tm); line-height: 1.5; margin-bottom: 7px; }
 .muest-link { display: inline-block; border: 1px solid var(--ac); border-radius: 6px; padding: 5px 14px; font-size: 10px; color: var(--ac); text-decoration: none; font-weight: 600; letter-spacing: .5px; }
@@ -187,7 +197,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .btn-copy-link { width: 100%; margin-top: 10px; background: none; border: 1.5px solid var(--bd); border-radius: 10px; padding: 11px; font-size: 12px; font-family: 'Jost', sans-serif; color: var(--tm); cursor: pointer; letter-spacing: .5px; transition: border-color .15s, color .15s; }
 .btn-copy-link:hover { border-color: var(--ac); color: var(--ac); }
 .btn-copy-link.copied { border-color: #2D6A4F; color: #2D6A4F; }
-.dcto-tag { display: inline-block; background: #D1FAE5; color: #065F46; font-weight: 700; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: 1px solid #A7F3D0; vertical-align: middle; }
+.dcto-tag { display: inline-block; background: #E7F0E1; color: #2D5A3D; font-weight: 700; font-size: 11px; padding: 2px 9px; border-radius: 10px; border: 1px solid #C3DAB4; vertical-align: middle; }
 .tag-link { display: inline-block; border: 1px solid var(--bd); border-radius: 6px; padding: 2px 9px; font-size: 9px; color: var(--tm); text-decoration: none; font-weight: 500; letter-spacing: .3px; vertical-align: middle; }
 .tag-link:hover { border-color: var(--ac); color: var(--ac); }
 /* ── TIER RECOMENDADA ── */
@@ -438,6 +448,19 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <h2 class="val-h">Tu pieza, hecha a mano</h2>
     <div class="dash-divider"></div>
     <p class="val-lead">Antes de ver el precio, esto es lo que incluye cada pedido de Casa Zaru.</p>
+    <div class="wood-muestrario hidden" id="s2b-muestrario">
+      <div class="wood-muestrario-h">Conoce las maderas</div>
+      <div class="wood-grid">
+        <div class="wood-chip"><div class="wood-swatch" style="background:#E8C79E" data-wood="pino-oregon"></div><div class="wood-name">Pino Oregón</div><div class="wood-desc">Tono claro y cálido, veta marcada. La opción más accesible.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background:#A0622E" data-wood="castano"></div><div class="wood-name">Castaño</div><div class="wood-desc">Tono medio con matices rojizo-ambarinos. Muy usada en mesones.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background:#E4D2A0" data-wood="cipres"></div><div class="wood-name">Ciprés</div><div class="wood-desc">Tono claro amarillento, buena resistencia a la humedad.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background:#DCC9A3" data-wood="manio"></div><div class="wood-name">Mañío</div><div class="wood-desc">Tono claro y uniforme, textura fina.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background:#C98B7A" data-wood="coihue"></div><div class="wood-name">Coihue</div><div class="wood-desc">Tono rosado-rojizo y veta suave. Muy valorada por su belleza natural.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background:#B5654A" data-wood="raulí"></div><div class="wood-name">Raulí</div><div class="wood-desc">Tono rojizo cálido, densa y noble. Nativa del sur de Chile.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background:#D9B79C" data-wood="lenga"></div><div class="wood-name">Lenga</div><div class="wood-desc">Tono claro rosado, veta fina y pareja.</div></div>
+      </div>
+      <div class="wood-note">Fotos reales de cada madera, muy pronto.</div>
+    </div>
     <ul class="val-list">
       <li><span class="val-icon">✦</span><span>Madera maciza <strong>100% sólida</strong> del sur de Chile — sin MDF, sin melamina, sin enchapado.</span></li>
       <li><span class="val-icon">✦</span><span>Fabricada <strong>a medida en taller propio</strong>, 7 a 15 días hábiles desde la confirmación.</span></li>
@@ -581,6 +604,7 @@ var confirming = false;   /* evita que doble clic en "Ver cotización" genere du
 var savedQnum = null;     /* número de cotización ya guardado en esta sesión (anti-duplicado) */
 var vendorMode = false;   /* true con el link privado de vendedor (?pro=zr): habilita productos de uso interno */
 var b2bMode = false;      /* true solo en el link privado de Jepe (?src=jepe&pro=zr): muestra el selector de descuento */
+var cubiertaSolo = false; /* true con ?prod=cubierta: cotizador de landing simplificado, solo cubiertas, sin selector de producto ni extras */
 var b2bDcto = 0;          /* % extra Casa Zaru Profesionales (0-5); >0 aplica descuento aunque no se vea el selector (link compartido) */
 /* fuente de verdad = lo que el cliente ve en el selector; la variable se usa de respaldo
    (antes se desincronizaba al reentrar al producto o al abrir la cotización desde un link) */
@@ -768,7 +792,7 @@ function initProd(p) {
   document.getElementById('f-title').textContent = isPuertas ? 'Puertas de madera' : PNAME[p];
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
-  if (['cubierta','repisa','peldano'].includes(p)) renderExtras();
+  if (['cubierta','repisa','peldano'].includes(p) && !cubiertaSolo) renderExtras();
   renderB2B();
   renumRows('drows'); renumRows('mrows');   /* con una sola fila, oculta el botón de quitar */
   show('s2');
@@ -802,6 +826,8 @@ function renderForm(p) {
         '</select>' +
         '<div id="uso-aviso" class="uso-aviso hidden"></div>' +
       '</div>';
+    var addRowLabel = cubiertaSolo ? '+ Agregar cubierta' : '+ Agregar pieza';
+    var maderaNota = cubiertaSolo ? '<div class="cubierta-nota">También hacemos teñido a color, perforaciones a medida (lavaplatos, llaves) y distintas formas de cubierta. Revisamos esos detalles contigo al final, con nuestro asesor.</div>' : '';
     c.innerHTML = usoField +
       '<div class="fsec">' +
         '<label class="flabel">Dimensiones</label>' +
@@ -812,7 +838,8 @@ function renderForm(p) {
           '<div class="col-lbl nar">Cant.</div>' +
         '</div>' +
         '<div id="drows">' + dimRow(1) + '</div>' +
-        '<button class="btn-add" id="btn-add-row">+ Agregar pieza</button>' +
+        '<button class="btn-add" id="btn-add-row">'+addRowLabel+'</button>' +
+        maderaNota +
       '</div>' +
       vEspesorFieldHtml() + vExtrasFieldHtml();
     c.addEventListener('click', function(e) {
@@ -1287,6 +1314,8 @@ function generar() {
   errEl.classList.add('hidden');
   var usoEl = document.getElementById('f-uso');
   uso = usoEl ? (usoEl.value || 'otro') : (prod === 'peldano' ? 'peldanos' : 'otro');
+  var muestrarioEl = document.getElementById('s2b-muestrario');
+  if (muestrarioEl) muestrarioEl.classList.toggle('hidden', !cubiertaSolo);
   show('s2b');
 }
 
@@ -2676,6 +2705,13 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   var params = new URLSearchParams(window.location.search);
+  /* cotizador de landing solo-cubiertas (?prod=cubierta): sin selector de producto, sin extras.
+     El cotizador publico general (con o sin ?src=) y el privado (?pro=zr) no cambian. */
+  cubiertaSolo = (params.get('prod') === 'cubierta');
+  if (cubiertaSolo) {
+    document.getElementById('btn-back').classList.add('hidden');
+    document.getElementById('btn-q-s1').classList.add('hidden');
+  }
   var svSrc = vendedorPorSrc(params.get('src'));          /* canal del vendedor (invisible para el cliente) */
   if (svSrc) {
     srcEmail = svSrc.srcEmail || svSrc.email;
@@ -2719,9 +2755,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }).catch(function(){ show('s-login'); });
   } else if (params.get('s')) {
-    loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) show('s1'); });
+    loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) { if (cubiertaSolo) initProd('cubierta'); else show('s1'); } });
   } else if (!loadFromHash()) {
-    show('s1');
+    if (cubiertaSolo) initProd('cubierta'); else show('s1');
   }
 });
 </script>
