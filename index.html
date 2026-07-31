@@ -26767,10 +26767,19 @@ async function toggleFinDoc(numStr,docNum){
     return;
   }
   var nombreCliente=(r.nombre||'')+' '+(r.apellido||'');
-  if(!confirm('Vas a EMITIR una '+tipo+' real por '+fmtCLP(r.total)+' para el pedido '+numStr+' ('+nombreCliente.trim()+').\n\nSe envía directo al SII y no se deshace con un click. ¿Confirmas?'))return;
+  var montoSugerido=docNum===1?(r.abono1||r.total||0):(r.abono2||Math.max(0,(Number(r.total)||0)-(Number(r.abono1)||0)));
+  var montoStr=prompt('Monto a facturar en este documento ('+(docNum===1?'Doc 1 / Abono':'Doc 2 / Saldo')+') para el pedido '+numStr+' ('+nombreCliente.trim()+'):',String(Math.round(montoSugerido||0)));
+  if(montoStr===null)return;
+  var monto=Number(String(montoStr).replace(/[^\d]/g,''));
+  if(!monto||monto<=0){showToast('Monto inválido — se canceló la emisión.');return;}
+  var detalle=prompt('Detalle para la boleta/factura (ej: "Abono 60%", "Saldo final", "Pago único"):',docNum===1?'Abono':'Saldo');
+  if(detalle===null)return;
+  if(docNum===1)r.abono1=monto;else r.abono2=monto;
+  finSave(numStr);renderFin();
+  if(!confirm('Vas a EMITIR una '+tipo+' real por '+fmtCLP(monto)+' ('+(detalle||'')+') para el pedido '+numStr+' ('+nombreCliente.trim()+').\n\nSe envía directo al SII y no se deshace con un click. ¿Confirmas?'))return;
   finEmitiendo[emKey]=true;renderFin();
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:r.total,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:r.direccion,comuna:r.comuna,ciudad:r.ciudad})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:r.direccion,comuna:r.comuna,ciudad:r.ciudad})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(function(){});
