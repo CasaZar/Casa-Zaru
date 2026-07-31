@@ -182,11 +182,11 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 /* ── MUESTRARIO DE MADERA (s2b, solo cotizador cubiertas-landing) ── */
 .wood-muestrario { margin-bottom: 24px; }
 .wood-muestrario-h { font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--acd); margin-bottom: 12px; text-align: center; }
-.wood-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+.wood-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 .wood-chip { border: 1px solid var(--bd); border-radius: 10px; overflow: hidden; background: white; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
-.wood-swatch { height: 56px; background-size: cover; background-position: center; }
-.wood-name { font-size: 11px; font-weight: 700; color: var(--tx); padding: 7px 8px 0; }
-.wood-desc { font-size: 9.5px; color: var(--tm); line-height: 1.4; padding: 3px 8px 8px; }
+.wood-swatch { height: 140px; background-size: cover; background-position: center; }
+.wood-name { font-size: 12px; font-weight: 700; color: var(--tx); padding: 8px 9px 1px; }
+.wood-desc { font-size: 9.5px; color: var(--tm); line-height: 1.35; padding: 0 9px 9px; }
 /* ── NOTA DE OPCIONES (formulario cubierta-landing) ── */
 .cubierta-nota { font-size: 10.5px; color: var(--tm); line-height: 1.5; background: var(--bg3); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
 /* ── MUESTRARIO ── */
@@ -452,13 +452,13 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <div class="wood-muestrario hidden" id="s2b-muestrario">
       <div class="wood-muestrario-h">Conoce las maderas</div>
       <div class="wood-grid">
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/oregon.jpg')" data-wood="pino-oregon"></div><div class="wood-name">Pino Oregón</div><div class="wood-desc">Tono claro y cálido, veta marcada. La opción más accesible.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/castano.jpg')" data-wood="castano"></div><div class="wood-name">Castaño</div><div class="wood-desc">Tono medio con matices rojizo-ambarinos. Muy usada en mesones.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/cipres.jpg')" data-wood="cipres"></div><div class="wood-name">Ciprés</div><div class="wood-desc">Tono claro amarillento, buena resistencia a la humedad.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background:#DCC9A3" data-wood="manio"></div><div class="wood-name">Mañío</div><div class="wood-desc">Tono claro y uniforme, textura fina.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/coihue.jpg')" data-wood="coihue"></div><div class="wood-name">Coihue</div><div class="wood-desc">Tono rosado-rojizo y veta suave. Muy valorada por su belleza natural.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/rauli.jpg')" data-wood="rauli"></div><div class="wood-name">Raulí</div><div class="wood-desc">Tono rojizo cálido, densa y noble. Nativa del sur de Chile.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/lenga.jpg')" data-wood="lenga"></div><div class="wood-name">Lenga</div><div class="wood-desc">Tono claro rosado, veta fina y pareja.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/oregon.jpg')" data-wood="pino-oregon"></div><div class="wood-name">Pino Oregón</div><div class="wood-desc">La opción más accesible.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/castano.jpg')" data-wood="castano"></div><div class="wood-name">Castaño</div><div class="wood-desc">Cálido, ideal para mesones.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/cipres.jpg')" data-wood="cipres"></div><div class="wood-name">Ciprés</div><div class="wood-desc">Resistente a la humedad.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/manio.jpg')" data-wood="manio"></div><div class="wood-name">Mañío</div><div class="wood-desc">Tono claro y uniforme.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/coihue.jpg')" data-wood="coihue"></div><div class="wood-name">Coihue</div><div class="wood-desc">Muy valorada por su belleza.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/rauli.jpg')" data-wood="rauli"></div><div class="wood-name">Raulí</div><div class="wood-desc">Densa y noble, nativa del sur.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/lenga.jpg')" data-wood="lenga"></div><div class="wood-name">Lenga</div><div class="wood-desc">Veta fina y pareja.</div></div>
       </div>
     </div>
     <ul class="val-list">
