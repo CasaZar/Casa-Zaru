@@ -1961,6 +1961,7 @@ var dashRows = [];        /* cotizaciones cargadas, ya filtradas al alcance del 
 var allRows = [];         /* todas las cargadas (incluye eliminadas), para la pestaña Eliminadas */
 var dashView = 'seg';     /* seg | web | <code de vendedor> */
 var dashSort = {col:'fecha_creacion', dir:'desc'};
+var dashMonth = '';       /* '' = todos los meses | 'YYYY-MM': filtra las pestañas de cotizaciones por mes de fecha_creacion */
 var segSearch = '';           /* buscar cliente en seguimiento */
 var segSort = 'valor';        /* valor | reciente | antiguo */
 var segBloque = '';           /* '' = todos los bloques | code de vendedor | 'web' */
@@ -2479,11 +2480,24 @@ async function ventaGuardar(){
   if (!res.data || !res.data.length){ showToast('No se pudo guardar — falta el permiso "anon insert" en Supabase', false); return; }
   pClose(); showToast('Venta registrada ✓', true); loadDash();
 }
+/* meses con al menos una cotización, más reciente primero (para el selector) */
+var MESES_ES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function fmtMesLabel(ym){
+  var p = ym.split('-'), mi = parseInt(p[1],10)-1;
+  return (MESES_ES[mi]||ym)+' '+p[0];
+}
+function dashMonthOptions(){
+  var set = {};
+  allRows.forEach(function(x){ if (x.fecha_creacion) set[String(x.fecha_creacion).slice(0,7)] = true; });
+  return Object.keys(set).sort().reverse();
+}
 function renderDashFilters() {
   var prodOpts = Object.keys(PNAME).map(function(k){ return '<option value="'+k+'">'+PNAME[k]+'</option>'; }).join('');
+  var mesOpts = dashMonthOptions().map(function(ym){ return '<option value="'+ym+'"'+(dashMonth===ym?' selected':'')+'>'+fmtMesLabel(ym)+'</option>'; }).join('');
   document.getElementById('dash-filters').innerHTML =
     '<input type="text" id="f-dash-cli" placeholder="Buscar cliente…" oninput="renderDash()">' +
     '<select id="f-dash-prod" onchange="renderDash()"><option value="">Todos los productos</option>'+prodOpts+'</select>' +
+    '<select id="f-dash-month" onchange="dashMonth=this.value;renderDash()"><option value="">Todos los meses</option>'+mesOpts+'</select>' +
     '<input type="number" id="f-dash-min" placeholder="Monto desde" oninput="renderDash()">' +
     '<input type="number" id="f-dash-max" placeholder="Monto hasta" oninput="renderDash()">' +
     '<select id="f-dash-dias" onchange="renderDash()">' +
@@ -2495,6 +2509,7 @@ function renderDashFilters() {
     '<button class="df-clear" onclick="clearDashFilters()">Limpiar</button>';
 }
 function clearDashFilters() {
+  dashMonth = '';
   renderDashFilters();
   renderDash();
 }
@@ -2508,6 +2523,7 @@ function applyDashFilters(data) {
   return data.filter(function(x){
     if (cliQ && (x.cliente||'').toLowerCase().indexOf(cliQ.toLowerCase()) === -1) return false;
     if (prodQ && x.producto !== prodQ) return false;
+    if (dashMonth && String(x.fecha_creacion||'').slice(0,7) !== dashMonth) return false;
     var total = x.total_alto || 0;
     if (!isNaN(minQ) && total < minQ) return false;
     if (!isNaN(maxQ) && total > maxQ) return false;
@@ -2597,6 +2613,7 @@ function renderDash() {
     qs.slice().sort(function(a,b){ return new Date(b.fecha_creacion||0) - new Date(a.fecha_creacion||0); })
       .some(function(q){ var oc = ownerCode(q); if (oc) { owner = oc; return true; } return false; });
     if (owner !== dashView) return;   /* este cliente es de otra pestaña */
+    if (dashMonth && !qs.some(function(q){ return String(q.fecha_creacion||'').slice(0,7)===dashMonth; })) return;   /* sin cotización en el mes elegido */
     var ganado = qs.some(function(q){ return q.estado==='ganado'; });
     var perdida = qs.some(function(q){ return q.estado==='perdida'; });
     if (ganado) clientesGanados++;
