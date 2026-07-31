@@ -26791,6 +26791,16 @@ async function toggleFinDoc(numStr,docNum){
   }
   delete finEmitiendo[emKey];renderFin();
 }
+async function marcarFinDocManual(numStr,docNum){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
+  var emitidaKey='doc'+docNum+'_emitida',numKey='doc'+docNum+'_num';
+  var folio=prompt('Marcar el Doc '+docNum+' del pedido '+numStr+' como YA EMITIDO, sin llamar a Wasabil (para cuando ya se emitió afuera, o un solo documento cubrió abono+saldo).\n\nN° de boleta/factura (dejalo vacío si no aplica):',r[numKey]||'');
+  if(folio===null)return;
+  if(!confirm('¿Confirmás marcar el Doc '+docNum+' como emitido? Esto NO crea ni modifica nada en Wasabil, solo corrige el estado acá para poder marcar el pedido como Listo.'))return;
+  r[emitidaKey]=true;r[numKey]=folio;
+  finSave(numStr);renderFin();
+  showToast('✓ Doc '+docNum+' marcado como emitido manualmente');
+}
 async function verificarFinDoc(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
   var tipoKey='doc'+docNum+'_tipo',uuidKey='doc'+docNum+'_uuid',emKey=numStr+'_'+docNum;
@@ -26833,7 +26843,7 @@ function renderFin(){
       if(emitiendo)btnHtml='<button class="doc-btn" disabled style="margin-bottom:4px;opacity:0.6">⏳ Emitiendo…</button>';
       else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button>';
       else if(r[procKey])btnHtml='<button class="doc-btn" onclick="verificarFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px;background:var(--amber,#c9902a)">🔄 Verificar estado</button>';
-      else btnHtml='<button class="doc-btn pendiente" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button>';
+      else btnHtml='<button class="doc-btn pendiente" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Marcar como ya emitido, sin llamar a Wasabil (para casos donde ya se emitió afuera o en un solo documento)">✏️</a>';
       var pdfLink=r[pdfKey]?(' <a href="'+r[pdfKey]+'" target="_blank" style="font-size:10px" title="Ver PDF">📄</a>'):'';
       var selectHtml='<select '+(emitiendo?'disabled':'')+' onchange="finRecords['+idx+'].'+tipoKey+'=this.value;'+saveStr+'" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)"><option value="BOLETA"'+((r[tipoKey]||'BOLETA')==='BOLETA'?' selected':'')+'>Boleta</option><option value="FACTURA"'+(r[tipoKey]==='FACTURA'?' selected':'')+'>Factura</option></select>';
       var numInput='<input type="text" '+(emitiendo?'disabled':'')+' value="'+(r[numKey]||'')+'" placeholder="N°" onchange="finRecords['+idx+'].'+numKey+'=this.value;'+saveStr+'" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px">';
