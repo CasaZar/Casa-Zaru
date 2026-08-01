@@ -1315,7 +1315,18 @@ function generar() {
   var usoEl = document.getElementById('f-uso');
   uso = usoEl ? (usoEl.value || 'otro') : (prod === 'peldano' ? 'peldanos' : 'otro');
   var muestrarioEl = document.getElementById('s2b-muestrario');
-  if (muestrarioEl) muestrarioEl.classList.toggle('hidden', !cubiertaSolo);
+  if (muestrarioEl) {
+    /* El muestrario se muestra en todos los productos. Excepcion: revestimiento
+       solo se fabrica en Cipres y Coihue (ver PR.revestimiento), asi que ahi se
+       ocultan las maderas que no aplican para no ofrecer algo que no hacemos. */
+    var maderasProd = (prod === 'revestimiento') ? ['cipres', 'coihue'] : null;
+    [].forEach.call(muestrarioEl.querySelectorAll('.wood-chip'), function (chip) {
+      var sw = chip.querySelector('[data-wood]');
+      var key = sw ? sw.getAttribute('data-wood') : '';
+      chip.style.display = (!maderasProd || maderasProd.indexOf(key) !== -1) ? '' : 'none';
+    });
+    muestrarioEl.classList.remove('hidden');
+  }
   show('s2b');
 }
 
