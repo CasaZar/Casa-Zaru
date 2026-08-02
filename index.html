@@ -26194,12 +26194,14 @@ async function apiSupabase(path,method,data){
       if(!filas||!filas.length)return null;
       var o={};filas.forEach(function(f){o[f.num]=f.data;});return o;
     }
-    if(method==='DELETE')return await sbJson(base+'?num=not.is.null',{method:'DELETE',headers:{'Prefer':'return=minimal'}});
-    if(method==='PUT'){ // reemplazo total de la colección (sync de Seguimiento)
-      await sbJson(base+'?num=not.is.null',{method:'DELETE',headers:{'Prefer':'return=minimal'}});
-      var lote=Object.keys(data||{}).map(function(k){return{num:String(k),data:data[k]};});
-      if(lote.length)await sbJson(base,{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(lote)});
-      return data;
+    // Borrar la colección entera ya no se hace desde acá: el único caso real es
+    // la sync de Seguimiento, que ahora reemplaza de forma atómica (ver PUT).
+    if(method==='DELETE')return null;
+    if(method==='PUT'){
+      // Reemplazo total en UNA sola transacción del servidor: si la escritura
+      // falla, el borrado se deshace solo. Además el servidor rechaza un
+      // reemplazo vacío, así que es imposible quedarse sin datos.
+      return await sbJson(SB_URL+'/rest/v1/rpc/reemplazar_coleccion',{method:'POST',body:JSON.stringify({p_tabla:tabla,p_datos:data||{}})});
     }
     return null;
   }
@@ -26445,8 +26447,9 @@ async function syncFromProd(){
     });
   }
 
-  // 2. Borrar TODO /pedidos de Firebase (limpieza total)
-  await api('pedidos','DELETE').catch(function(){});
+  // 2. (Antes acá se borraba TODO /pedidos antes de reescribir, lo que dejaba
+  //     una ventana donde un fallo te dejaba sin pedidos. Ahora el reemplazo va
+  //     en una sola transacción en el paso 4, así que no hay borrado previo.)
 
   // 3. Reescribir solo con los pedidos de producción
   var batch={};
