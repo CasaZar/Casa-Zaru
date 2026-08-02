@@ -429,6 +429,18 @@ table.seg tr:last-child td { border-bottom:none; }
 .btn-edit { background:none; border:1px solid var(--border); border-radius:6px; padding:4px 10px; font-size:11px; font-family:'Inter',sans-serif; cursor:pointer; color:var(--text-3); transition:all 0.12s; }
 .btn-edit:hover { background:var(--surface3); color:var(--text); border-color:var(--border-hi); }
 
+/* ── VENDEDOR: en Clientes se ocultan las columnas de dinero (Total y Ticket) y
+   las tarjetas de facturación. La protección real la hace el servidor; esto es
+   solo para que no queden columnas vacías sin sentido. ── */
+body.rol-vendedor #page-cli thead th:nth-child(5),
+body.rol-vendedor #page-cli thead th:nth-child(6),
+body.rol-vendedor #page-cli thead th:nth-child(9),
+body.rol-vendedor #page-cli tbody td:nth-child(5),
+body.rol-vendedor #page-cli tbody td:nth-child(6),
+body.rol-vendedor #page-cli tbody td:nth-child(9),
+body.rol-vendedor #cli-stats .stat-card:nth-child(3),
+body.rol-vendedor #cli-stats .stat-card:nth-child(4) { display:none !important; }
+
 /* ── PRODUCCIÓN ── */
 .api-banner { background:var(--amber-dim); border:1px solid rgba(251,146,60,0.25); border-radius:var(--radius-lg); padding:12px 16px; display:flex; align-items:center; gap:10px; font-size:13px; margin-bottom:16px; flex-wrap:wrap; }
 .api-banner.hidden { display:none; }
@@ -25400,6 +25412,37 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="loading-text" id="loading-text">Conectando...</div>
 </div>
 
+<!-- LOGIN — sin sesión no se carga ningún dato -->
+<div id="login-overlay" style="display:none;position:fixed;inset:0;z-index:9999;background:#5C3D20;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 26px;width:min(360px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="text-align:center;font-size:30px">🪵</div>
+    <div style="text-align:center;font-weight:700;font-size:17px;margin-top:6px">Casa Zaru</div>
+    <div style="text-align:center;font-size:12px;color:#8a7960;margin-bottom:18px">Sistema de Gestión</div>
+    <label style="font-size:11px;font-weight:600;color:#6B5840">Correo</label>
+    <input id="login-email" type="email" autocomplete="username" style="width:100%;padding:9px 10px;margin:4px 0 12px;border:1px solid #D9C4A5;border-radius:7px;font-size:14px">
+    <label style="font-size:11px;font-weight:600;color:#6B5840">Contraseña</label>
+    <input id="login-pass" type="password" autocomplete="current-password" style="width:100%;padding:9px 10px;margin:4px 0 6px;border:1px solid #D9C4A5;border-radius:7px;font-size:14px" onkeydown="if(event.key==='Enter')hacerLogin()">
+    <div id="login-err" style="display:none;color:#B4342A;font-size:12px;margin:6px 0"></div>
+    <button onclick="hacerLogin()" id="login-btn" style="width:100%;margin-top:10px;padding:10px;background:#5C3D20;color:#fff;border:0;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer">Entrar</button>
+    <div style="text-align:center;margin-top:12px"><a href="#" onclick="event.preventDefault();recuperarClave()" style="font-size:11px;color:#8a7960">Olvidé mi contraseña</a></div>
+  </div>
+</div>
+
+<!-- DEFINIR CONTRASEÑA — se muestra al llegar desde el correo de invitación -->
+<div id="clave-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:#5C3D20;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 26px;width:min(360px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="text-align:center;font-size:30px">🔑</div>
+    <div style="text-align:center;font-weight:700;font-size:16px;margin:6px 0 4px">Definí tu contraseña</div>
+    <div id="clave-quien" style="text-align:center;font-size:12px;color:#8a7960;margin-bottom:16px"></div>
+    <label style="font-size:11px;font-weight:600;color:#6B5840">Contraseña nueva (mínimo 8 caracteres)</label>
+    <input id="clave-1" type="password" autocomplete="new-password" style="width:100%;padding:9px 10px;margin:4px 0 12px;border:1px solid #D9C4A5;border-radius:7px;font-size:14px">
+    <label style="font-size:11px;font-weight:600;color:#6B5840">Repetila</label>
+    <input id="clave-2" type="password" autocomplete="new-password" style="width:100%;padding:9px 10px;margin:4px 0 6px;border:1px solid #D9C4A5;border-radius:7px;font-size:14px" onkeydown="if(event.key==='Enter')guardarClave()">
+    <div id="clave-err" style="display:none;color:#B4342A;font-size:12px;margin:6px 0"></div>
+    <button onclick="guardarClave()" id="clave-btn" style="width:100%;margin-top:10px;padding:10px;background:#5C3D20;color:#fff;border:0;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer">Guardar y entrar</button>
+  </div>
+</div>
+
 <div class="app-header">
   <div class="app-topbar">
     <div class="brand-logo">
@@ -26075,7 +26118,171 @@ var scm={},sci=0;
 function getSC(s){if(!scm[s]){scm[s]=SC[sci%SC.length];sci++;}return scm[s];}
 const SEED=[];
 let orders=[],editingKey=null,segFilter='todos',pollInterval=null,pendingOps=0;
-function api(path,method,data){var opts={method:method||'GET',headers:{'Content-Type':'application/json'}};if(data!==undefined)opts.body=JSON.stringify(data);return fetch(DB_URL+'/'+path+'.json',opts).then(r=>r.json());}
+// ── DATOS: Supabase (antes Firebase) ───────────────────────────────────────
+// api() mantiene EXACTAMENTE el mismo contrato que la versión Firebase, así que
+// las ~47 llamadas repartidas por el archivo no cambian. Lo único distinto es
+// que ahora cada pedido lleva la sesión del usuario y el servidor decide qué
+// puede ver: Finanzas/Costos/Pixel son solo para el admin (RLS en Supabase).
+const SB_URL='https://padnttpgzuotxeipjrry.supabase.co';
+const SB_ANON=WASABIL_ANON_KEY;
+const SESION_KEY='cazaru_sesion';
+var sesion=null; try{sesion=JSON.parse(localStorage.getItem(SESION_KEY)||'null');}catch(e){sesion=null;}
+var usuarioEmail='',usuarioRol='';
+const TABLA={pedidos:'gestion_pedidos',produccion:'gestion_produccion',finanzas:'gestion_finanzas',pixel:'gestion_pixel',costos:'gestion_costos',historial:'gestion_historial'};
+
+function guardarSesion(s){sesion=s;if(s)localStorage.setItem(SESION_KEY,JSON.stringify(s));else localStorage.removeItem(SESION_KEY);}
+
+async function sbAuth(ruta,body){
+  var r=await fetch(SB_URL+'/auth/v1/'+ruta,{method:'POST',headers:{'apikey':SB_ANON,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  var j=await r.json().catch(function(){return{};});
+  if(!r.ok)throw new Error(j.error_description||j.msg||j.message||('Error '+r.status));
+  return j;
+}
+async function refrescarSesion(){
+  if(!sesion||!sesion.refresh_token)throw new Error('sin sesión');
+  var j=await sbAuth('token?grant_type=refresh_token',{refresh_token:sesion.refresh_token});
+  guardarSesion(j);return j;
+}
+// Hace el pedido a la base con la sesión actual; si el token venció, lo renueva y reintenta una vez.
+async function sbFetch(url,opts,reintentado){
+  opts=opts||{};
+  var h=Object.assign({'apikey':SB_ANON,'Content-Type':'application/json'},opts.headers||{});
+  if(sesion&&sesion.access_token)h['Authorization']='Bearer '+sesion.access_token;
+  var r=await fetch(url,Object.assign({},opts,{headers:h}));
+  if((r.status===401||r.status===403)&&!reintentado&&sesion&&sesion.refresh_token){
+    try{await refrescarSesion();return await sbFetch(url,opts,true);}catch(e){cerrarSesion();throw new Error('Tu sesión expiró, volvé a entrar.');}
+  }
+  return r;
+}
+async function sbJson(url,opts){
+  var r=await sbFetch(url,opts);
+  if(!r.ok){var t=await r.text();throw new Error('Supabase '+r.status+': '+t.slice(0,200));}
+  if(r.status===204)return null;
+  var txt=await r.text();
+  return txt?JSON.parse(txt):null;
+}
+
+function api(path,method,data){
+  return apiSupabase(path,(method||'GET').toUpperCase(),data);
+}
+async function apiSupabase(path,method,data){
+  var partes=String(path).split('/').filter(function(x){return x!=='';});
+  var col=partes[0],id=partes[1],campo=partes[2],sub=partes[3];
+  var tabla=TABLA[col];
+  if(!tabla)throw new Error('Colección desconocida: '+col);
+  var base=SB_URL+'/rest/v1/'+tabla;
+
+  // ── historial: tabla aparte (num + ts), no jsonb por registro ──
+  if(col==='historial'){
+    if(method==='GET'&&id){
+      var hs=await sbJson(base+'?select=ts,entry&num=eq.'+encodeURIComponent(id));
+      if(!hs||!hs.length)return null;
+      var oh={};hs.forEach(function(x){oh[x.ts]=x.entry;});return oh;
+    }
+    if(method==='PUT'&&id&&campo){
+      await sbJson(base,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({num:String(id),ts:String(campo),entry:data})});
+      return data;
+    }
+    if(method==='DELETE'&&id)return await sbJson(base+'?num=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    return null;
+  }
+
+  // ── colección completa ──
+  if(!id){
+    if(method==='GET'){
+      var filas=await sbJson(base+'?select=num,data');
+      if(!filas||!filas.length)return null;
+      var o={};filas.forEach(function(f){o[f.num]=f.data;});return o;
+    }
+    if(method==='DELETE')return await sbJson(base+'?num=not.is.null',{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    if(method==='PUT'){ // reemplazo total de la colección (sync de Seguimiento)
+      await sbJson(base+'?num=not.is.null',{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+      var lote=Object.keys(data||{}).map(function(k){return{num:String(k),data:data[k]};});
+      if(lote.length)await sbJson(base,{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(lote)});
+      return data;
+    }
+    return null;
+  }
+
+  // ── un registro ──
+  if(!campo){
+    if(method==='GET'){
+      var f1=await sbJson(base+'?select=data&num=eq.'+encodeURIComponent(id));
+      return(f1&&f1.length)?f1[0].data:null;
+    }
+    if(method==='DELETE')return await sbJson(base+'?num=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    if(method==='PUT'||method==='PATCH'){
+      await sbJson(base,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({num:String(id),data:data})});
+      return data;
+    }
+    return null;
+  }
+
+  // ── campo anidado dentro del registro (checks, last_activity, contactos) ──
+  var actual=await sbJson(base+'?select=data&num=eq.'+encodeURIComponent(id));
+  var reg=(actual&&actual.length)?(actual[0].data||{}):{};
+  if(sub){ // ej: pedidos/{num}/contactos/{tipo}
+    reg[campo]=reg[campo]||{};
+    if(method==='DELETE')delete reg[campo][sub]; else reg[campo][sub]=data;
+  }else if(method==='PATCH'&&data&&typeof data==='object'&&!Array.isArray(data)){
+    reg[campo]=Object.assign({},reg[campo]||{},data);
+  }else if(method==='DELETE'){
+    delete reg[campo];
+  }else{
+    reg[campo]=data;
+  }
+  await sbJson(base,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({num:String(id),data:reg})});
+  return data;
+}
+
+// ── Sesión y permisos ──────────────────────────────────────────────────────
+function mostrarLogin(msg){
+  document.getElementById('loading').style.display='none';
+  document.getElementById('login-overlay').style.display='flex';
+  if(msg){var e=document.getElementById('login-err');e.textContent=msg;e.style.display='block';}
+}
+function cerrarSesion(){guardarSesion(null);DB_URL='';location.reload();}
+async function hacerLogin(){
+  var btn=document.getElementById('login-btn'),err=document.getElementById('login-err');
+  var em=document.getElementById('login-email').value.trim(),pw=document.getElementById('login-pass').value;
+  if(!em||!pw){err.textContent='Escribí tu correo y contraseña.';err.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Entrando…';err.style.display='none';
+  try{
+    var j=await sbAuth('token?grant_type=password',{email:em,password:pw});
+    guardarSesion(j);
+    document.getElementById('login-overlay').style.display='none';
+    document.getElementById('loading').style.display='flex';
+    await arrancarApp();
+  }catch(e){
+    err.textContent=(String(e.message).indexOf('Invalid')>=0)?'Correo o contraseña incorrectos.':e.message;
+    err.style.display='block';
+  }
+  btn.disabled=false;btn.textContent='Entrar';
+}
+async function recuperarClave(){
+  var em=document.getElementById('login-email').value.trim();
+  if(!em){alert('Escribí tu correo primero y volvé a apretar.');return;}
+  try{await sbAuth('recover',{email:em});alert('Te mandamos un correo para reiniciar la contraseña.');}
+  catch(e){alert('No se pudo: '+e.message);}
+}
+async function cargarPermisos(){
+  usuarioEmail=(sesion&&sesion.user&&sesion.user.email)||'';
+  var r=await sbJson(SB_URL+'/rest/v1/gestion_usuarios?select=rol,nombre&email=eq.'+encodeURIComponent(usuarioEmail));
+  usuarioRol=(r&&r.length)?r[0].rol:'';
+  if(!usuarioRol)throw new Error('Tu cuenta no tiene acceso asignado. Pedile al administrador que te habilite.');
+  aplicarPermisos();
+}
+// Oculta lo que el usuario no puede usar. Es solo cosmético: la protección real
+// está en el servidor (RLS), así que aunque alguien fuerce la pantalla no ve datos.
+var SECCIONES_ADMIN=['fin','cost','pixel'];
+function aplicarPermisos(){
+  if(usuarioRol==='admin')return;
+  SECCIONES_ADMIN.forEach(function(p){
+    document.querySelectorAll('[onclick*="showPage(\''+p+'\'"]').forEach(function(b){b.style.display='none';});
+    var pg=document.getElementById('page-'+p);if(pg)pg.classList.remove('active');
+  });
+  document.querySelectorAll('.dash-money').forEach(function(el){el.style.display='none';});
+}
 function setSyncState(s){document.getElementById('sync-dot').className='sync-dot '+s;document.getElementById('sync-label').textContent=s==='online'?'En vivo':s==='syncing'?'Guardando...':'Sin conexión';}
 function hideLoading(){document.getElementById('loading').style.display='none';}
 function parseOrders(raw){
@@ -26094,9 +26301,65 @@ async function poll(){
 }
 function startPolling(){poll();if(pollInterval)clearInterval(pollInterval);pollInterval=setInterval(poll,5000);}
 async function init(){
-  if(!DB_URL){document.getElementById('setup-banner').style.display='block';hideLoading();renderSegStats();return;}
   try{document.getElementById('loading-text').textContent='Cargando datos...';await api('pedidos');hideLoading();startPolling();}
-  catch(err){hideLoading();setSyncState('offline');document.getElementById('setup-banner').style.display='block';}
+  catch(err){hideLoading();setSyncState('offline');console.error('init',err);}
+}
+// Arranque: sin sesión válida no se carga ni un dato.
+async function arrancarApp(){
+  try{
+    document.getElementById('loading-text').textContent='Verificando acceso...';
+    await cargarPermisos();
+    DB_URL='supabase'; /* bandera de "conectado": mantiene funcionando los if(DB_URL) de toda la app */
+    await init();
+    await initAllModules();
+  }catch(e){
+    guardarSesion(null);
+    mostrarLogin(e.message||'No se pudo verificar tu acceso.');
+  }
+}
+// Al volver del correo de invitación / recuperación, Supabase manda el token en
+// el # de la URL. Si está, mostramos la pantalla para definir la contraseña.
+function tokenDelCorreo(){
+  var h=(location.hash||'').replace(/^#/,'');
+  if(!h)return null;
+  var p={};h.split('&').forEach(function(kv){var i=kv.indexOf('=');if(i>0)p[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));});
+  if(p.access_token&&(p.type==='invite'||p.type==='recovery'||p.type==='signup'))return p;
+  return null;
+}
+async function guardarClave(){
+  var b=document.getElementById('clave-btn'),err=document.getElementById('clave-err');
+  var c1=document.getElementById('clave-1').value,c2=document.getElementById('clave-2').value;
+  if(c1.length<8){err.textContent='Tiene que tener al menos 8 caracteres.';err.style.display='block';return;}
+  if(c1!==c2){err.textContent='Las dos contraseñas no coinciden.';err.style.display='block';return;}
+  b.disabled=true;b.textContent='Guardando…';err.style.display='none';
+  try{
+    var r=await fetch(SB_URL+'/auth/v1/user',{method:'PUT',headers:{'apikey':SB_ANON,'Authorization':'Bearer '+sesion.access_token,'Content-Type':'application/json'},body:JSON.stringify({password:c1})});
+    var j=await r.json();
+    if(!r.ok)throw new Error(j.msg||j.message||('Error '+r.status));
+    history.replaceState(null,'',location.pathname+location.search);
+    document.getElementById('clave-overlay').style.display='none';
+    document.getElementById('loading').style.display='flex';
+    await arrancarApp();
+  }catch(e){
+    err.textContent=e.message;err.style.display='block';b.disabled=false;b.textContent='Guardar y entrar';
+  }
+}
+async function arranqueInicial(){
+  var tk=tokenDelCorreo();
+  if(tk){
+    guardarSesion({access_token:tk.access_token,refresh_token:tk.refresh_token,user:{email:''}});
+    try{
+      var r=await fetch(SB_URL+'/auth/v1/user',{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+tk.access_token}});
+      var u=await r.json();
+      if(u&&u.email){sesion.user={email:u.email};guardarSesion(sesion);document.getElementById('clave-quien').textContent=u.email;}
+    }catch(e){}
+    document.getElementById('loading').style.display='none';
+    document.getElementById('clave-overlay').style.display='flex';
+    return;
+  }
+  if(!sesion||!sesion.access_token){mostrarLogin();return;}
+  try{await refrescarSesion();}catch(e){mostrarLogin();return;}
+  await arrancarApp();
 }
 function connectFirebase(){
   var url=document.getElementById('db-url-input').value.trim().replace(/\/$/,'');
@@ -27203,8 +27466,25 @@ function generarEtiquetasEnvioBatch(){
   }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
 }
 loadApiKey();renderProd();updateProdStats();renderFin();renderPixel();renderCost();
-async function initAllModules(){await loadProd();await loadFin();await loadPixel();await loadCost();renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();}
-init().then(()=>{if(DB_URL)initAllModules();});
+// Para el vendedor, Clientes se arma desde una vista que expone solo datos de
+// contacto (sin totales ni estado de pago). El admin lo sigue armando de Finanzas.
+async function loadClientesSeguro(){
+  try{
+    var f=await sbJson(SB_URL+'/rest/v1/gestion_clientes?select=num,cliente,email,celular,producto,semana_envio');
+    finRecords=(f||[]).map(function(c){
+      var p=String(c.cliente||'').trim().split(' ');
+      return{num:c.num,nombre:p.shift()||'',apellido:p.join(' '),email:c.email||'',celular:c.celular||'',
+             producto:c.producto||'',semana:c.semana_envio||'',total:0,abono1:0,abono2:0,abono3:0};
+    });
+  }catch(e){console.error('clientes',e);finRecords=[];}
+}
+async function initAllModules(){
+  await loadProd();
+  if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();}
+  else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
+  renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
+}
+arranqueInicial();
 
 // ── META CONFIGURABLE ────────────────────────────────────────────────────────
 function editarMeta(){
