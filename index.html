@@ -25428,6 +25428,21 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
 </div>
 
+<!-- DEFINIR CONTRASEÑA — se muestra al llegar desde el correo de invitación -->
+<div id="clave-overlay" style="display:none;position:fixed;inset:0;z-index:10000;background:#5C3D20;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:28px 26px;width:min(360px,92vw);box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="text-align:center;font-size:30px">🔑</div>
+    <div style="text-align:center;font-weight:700;font-size:16px;margin:6px 0 4px">Definí tu contraseña</div>
+    <div id="clave-quien" style="text-align:center;font-size:12px;color:#8a7960;margin-bottom:16px"></div>
+    <label style="font-size:11px;font-weight:600;color:#6B5840">Contraseña nueva (mínimo 8 caracteres)</label>
+    <input id="clave-1" type="password" autocomplete="new-password" style="width:100%;padding:9px 10px;margin:4px 0 12px;border:1px solid #D9C4A5;border-radius:7px;font-size:14px">
+    <label style="font-size:11px;font-weight:600;color:#6B5840">Repetila</label>
+    <input id="clave-2" type="password" autocomplete="new-password" style="width:100%;padding:9px 10px;margin:4px 0 6px;border:1px solid #D9C4A5;border-radius:7px;font-size:14px" onkeydown="if(event.key==='Enter')guardarClave()">
+    <div id="clave-err" style="display:none;color:#B4342A;font-size:12px;margin:6px 0"></div>
+    <button onclick="guardarClave()" id="clave-btn" style="width:100%;margin-top:10px;padding:10px;background:#5C3D20;color:#fff;border:0;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer">Guardar y entrar</button>
+  </div>
+</div>
+
 <div class="app-header">
   <div class="app-topbar">
     <div class="brand-logo">
@@ -26302,7 +26317,46 @@ async function arrancarApp(){
     mostrarLogin(e.message||'No se pudo verificar tu acceso.');
   }
 }
+// Al volver del correo de invitación / recuperación, Supabase manda el token en
+// el # de la URL. Si está, mostramos la pantalla para definir la contraseña.
+function tokenDelCorreo(){
+  var h=(location.hash||'').replace(/^#/,'');
+  if(!h)return null;
+  var p={};h.split('&').forEach(function(kv){var i=kv.indexOf('=');if(i>0)p[kv.slice(0,i)]=decodeURIComponent(kv.slice(i+1));});
+  if(p.access_token&&(p.type==='invite'||p.type==='recovery'||p.type==='signup'))return p;
+  return null;
+}
+async function guardarClave(){
+  var b=document.getElementById('clave-btn'),err=document.getElementById('clave-err');
+  var c1=document.getElementById('clave-1').value,c2=document.getElementById('clave-2').value;
+  if(c1.length<8){err.textContent='Tiene que tener al menos 8 caracteres.';err.style.display='block';return;}
+  if(c1!==c2){err.textContent='Las dos contraseñas no coinciden.';err.style.display='block';return;}
+  b.disabled=true;b.textContent='Guardando…';err.style.display='none';
+  try{
+    var r=await fetch(SB_URL+'/auth/v1/user',{method:'PUT',headers:{'apikey':SB_ANON,'Authorization':'Bearer '+sesion.access_token,'Content-Type':'application/json'},body:JSON.stringify({password:c1})});
+    var j=await r.json();
+    if(!r.ok)throw new Error(j.msg||j.message||('Error '+r.status));
+    history.replaceState(null,'',location.pathname+location.search);
+    document.getElementById('clave-overlay').style.display='none';
+    document.getElementById('loading').style.display='flex';
+    await arrancarApp();
+  }catch(e){
+    err.textContent=e.message;err.style.display='block';b.disabled=false;b.textContent='Guardar y entrar';
+  }
+}
 async function arranqueInicial(){
+  var tk=tokenDelCorreo();
+  if(tk){
+    guardarSesion({access_token:tk.access_token,refresh_token:tk.refresh_token,user:{email:''}});
+    try{
+      var r=await fetch(SB_URL+'/auth/v1/user',{headers:{'apikey':SB_ANON,'Authorization':'Bearer '+tk.access_token}});
+      var u=await r.json();
+      if(u&&u.email){sesion.user={email:u.email};guardarSesion(sesion);document.getElementById('clave-quien').textContent=u.email;}
+    }catch(e){}
+    document.getElementById('loading').style.display='none';
+    document.getElementById('clave-overlay').style.display='flex';
+    return;
+  }
   if(!sesion||!sesion.access_token){mostrarLogin();return;}
   try{await refrescarSesion();}catch(e){mostrarLogin();return;}
   await arrancarApp();
