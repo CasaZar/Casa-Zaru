@@ -25867,7 +25867,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
-        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th>
+        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th><th>Etiqueta</th>
       </tr></thead>
       <tbody id="cli-tbody"></tbody>
     </table>
@@ -25940,12 +25940,27 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <select id="fn-medio"><option value="BCI">BCI</option><option value="MERCADO PAGO">Mercado Pago</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="OTRO">Otro</option></select>
       </div>
     </div>
-    <div class="form-grid full"><div class="form-group"><label>Razón social (solo si es factura a empresa)</label><input id="fn-razon-social" type="text" placeholder="Ej: Servicios de Ingeniería Catherine Alfaro EIRL"></div></div>
-    <div class="form-grid"><div class="form-group"><label>Giro</label><input id="fn-giro" type="text" placeholder="Ej: Terminación y acabado de edificios"></div></div>
-    <div class="form-grid full"><div class="form-group"><label>Dirección de envío</label><input id="fn-direccion" type="text" placeholder="Calle, número, depto, ciudad"></div></div>
+    <div class="section-label">Envío — esto es lo que sale impreso en la etiqueta del paquete</div>
+    <div class="form-grid full"><div class="form-group"><label>Dirección de envío</label><input id="fn-direccion" type="text" placeholder="Calle, número, depto"></div></div>
     <div class="form-grid">
       <div class="form-group"><label>Comuna</label><input id="fn-comuna" type="text" placeholder="Ej: La Calera"></div>
       <div class="form-group"><label>Ciudad</label><input id="fn-ciudad" type="text" placeholder="Ej: La Calera"></div>
+    </div>
+
+    <div class="section-label">Documento tributario</div>
+    <div class="form-grid">
+      <div class="form-group"><label>¿Boleta o factura?</label>
+        <select id="fn-doc-tipo" onchange="toggleCamposFactura()"><option value="BOLETA">Boleta</option><option value="FACTURA">Factura</option></select>
+      </div>
+    </div>
+    <div id="fn-bloque-factura" style="display:none">
+      <div class="form-grid full"><div class="form-group"><label>Razón social</label><input id="fn-razon-social" type="text" placeholder="Ej: Servicios de Ingeniería Catherine Alfaro EIRL"></div></div>
+      <div class="form-grid"><div class="form-group"><label>Giro</label><input id="fn-giro" type="text" placeholder="Ej: Terminación y acabado de edificios"></div></div>
+      <div class="form-grid full"><div class="form-group"><label>Dirección de facturación <span style="font-weight:400;color:var(--text-3)">— si es la misma que el envío, dejala vacía</span></label><input id="fn-fact-direccion" type="text" placeholder="Calle, número, oficina"></div></div>
+      <div class="form-grid">
+        <div class="form-group"><label>Comuna facturación</label><input id="fn-fact-comuna" type="text" placeholder="Ej: Las Condes"></div>
+        <div class="form-group"><label>Ciudad facturación</label><input id="fn-fact-ciudad" type="text" placeholder="Ej: Santiago"></div>
+      </div>
     </div>
     <div class="form-grid">
       <div class="form-group"><label>Producto</label><input id="fn-producto" type="text"></div>
@@ -25965,11 +25980,6 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Sin com/env</div><div class="monto" id="fc-sincom">—</div></div>
         <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Neto sin IVA</div><div class="monto" id="fc-siniva">—</div></div>
       </div>
-    </div>
-    <div class="section-label">Documentos</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Tipo Doc. 1 (abono)</label><select id="fn-doc1-tipo"><option value="BOLETA">Boleta</option><option value="FACTURA">Factura</option></select></div>
-      <div class="form-group"><label>Tipo Doc. 2 (saldo)</label><select id="fn-doc2-tipo"><option value="BOLETA">Boleta</option><option value="FACTURA">Factura</option></select></div>
     </div>
     <div class="modal-footer">
       <button class="btn-del" id="fin-btn-del" style="display:none" onclick="deleteFinRecord()">Eliminar</button>
@@ -26411,7 +26421,28 @@ function renderSeg(){
     var canalBadge=o.canal==='web'?'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:1px 6px">🌐 Web</span>':'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:1px 6px">💬 WA</span>';
     var diaEnvio='';if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);var diffD=Math.round((de-hoy)/86400000);var diaStr=de.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});diaStr=diaStr.charAt(0).toUpperCase()+diaStr.slice(1);var diaColor=diffD<=0?'var(--red)':diffD<=3?'var(--amber)':'var(--text-3)';diaEnvio='<div style="font-size:10px;color:'+diaColor+';margin-top:3px;font-weight:'+(diffD<=3?'700':'400')+'">Envío: '+diaStr+'</div>';}
     var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+(o.semana||'')+'</span>'+diaEnvio;
-    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+'"><button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
+    // "Recibió pedido": aparece recién 10 días después de la fecha de envío, y se
+    // apaga una vez preguntado. Se guarda como contacto c4 igual que los otros avisos.
+    var btnRecibio='';
+    if(o.dia_envio){
+      var deR=new Date(o.dia_envio+'T12:00:00'),hoyR=new Date();hoyR.setHours(0,0,0,0);
+      var diasEnv=Math.round((hoyR-deR)/86400000);
+      if(diasEnv>=10){
+        if(o.contactos&&o.contactos.c4){
+          btnRecibio='<button class="btn-edit" disabled style="opacity:.5;margin-right:5px" title="Ya se preguntó">&#10003; Recibió</button>';
+        }else{
+          var finR=finRecords.find(function(x){return String(x.num||'')===numStr;});
+          var celR=finR?String(finR.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
+          var msgR='Hola! '+(o.nombre||'')+'. Quería confirmar si recibiste todo bien finalmente!';
+          if(celR){
+            btnRecibio='<a href="https://wa.me/56'+celR+'?text='+encodeURIComponent(msgR)+'" target="_blank" onclick="marcarContacto(\''+numStr+'\',\'c4\')" class="btn-edit" style="background:#25D366;color:#fff;border-color:#25D366;margin-right:5px;text-decoration:none;display:inline-block">Recibió pedido</a>';
+          }else{
+            btnRecibio='<button class="btn-edit" onclick="marcarContacto(\''+numStr+'\',\'c4\')" style="margin-right:5px" title="Este cliente no tiene celular guardado">Recibió pedido</button>';
+          }
+        }
+      }
+    }
+    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+';white-space:nowrap">'+btnRecibio+'<button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
   }).join('');
 }
 function openModal(numStr){
@@ -26997,12 +27028,13 @@ function _datosFaltantesParaEmitir(r,tipo){
   var faltan=[];
   if(r.rut&&!_rutValido(r.rut))faltan.push('RUT inválido');
   if(tipo==='FACTURA'){
+    // Para facturar se usa la dirección de facturación; si está vacía se cae a la de envío.
     if(!r.rut)faltan.push('RUT');
     if(!r.razon_social&&!(r.nombre&&r.apellido))faltan.push('Razón social (o Nombre y Apellido)');
     if(!r.giro)faltan.push('Giro');
-    if(!r.direccion)faltan.push('Dirección');
-    if(!r.comuna)faltan.push('Comuna');
-    if(!r.ciudad)faltan.push('Ciudad');
+    if(!(r.fact_direccion||r.direccion))faltan.push('Dirección');
+    if(!(r.fact_comuna||r.comuna))faltan.push('Comuna');
+    if(!(r.fact_ciudad||r.ciudad))faltan.push('Ciudad');
   }
   return faltan;
 }
@@ -27045,7 +27077,7 @@ async function toggleFinDoc(numStr,docNum){
   if(!confirm('Vas a EMITIR una '+tipo+' real por '+fmtCLP(monto)+' ('+(detalle||'')+') para el pedido '+numStr+' ('+nombreCliente.trim()+').\n\nSe envía directo al SII y no se deshace con un click. ¿Confirmas?'))return;
   finEmitiendo[emKey]=true;renderFin();
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:r.direccion,comuna:r.comuna,ciudad:r.ciudad})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(function(){});
@@ -27137,13 +27169,18 @@ async function syncFinFromProd(){
   }
   renderFin();showToast('✓ Finanzas: '+creados+' creados, '+actualizados+' actualizados');
 }
+// Los datos de facturación solo tienen sentido si el documento es factura.
+function toggleCamposFactura(){
+  var esFactura=document.getElementById('fn-doc-tipo').value==='FACTURA';
+  document.getElementById('fn-bloque-factura').style.display=esFactura?'block':'none';
+}
 function openFinModal(idx){
   editingFinIdx=(idx!==undefined)?idx:null;
   document.getElementById('fin-modal-title').textContent=editingFinIdx!==null?'Editar registro':'Nuevo registro financiero';
   document.getElementById('fin-btn-del').style.display=editingFinIdx!==null?'block':'none';
   document.getElementById('fin-calc-preview').style.display='none';
-  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-doc1-tipo').value=r.doc1_tipo||'BOLETA';document.getElementById('fn-doc2-tipo').value=r.doc2_tipo||'BOLETA';calcFinPreview();}
-  else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-comision'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc1-tipo').value='BOLETA';document.getElementById('fn-doc2-tipo').value='BOLETA';}
+  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
+  else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-comision'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';toggleCamposFactura();}
   document.getElementById('modal-fin-bg').classList.add('open');
 }
 function closeFinModal(){document.getElementById('modal-fin-bg').classList.remove('open');editingFinIdx=null;}
@@ -27153,7 +27190,7 @@ async function saveFinRecord(){
   const prev=editingFinIdx!==null?finRecords[editingFinIdx]:{};
   const numStr=document.getElementById('fn-num').value.trim();if(!numStr){alert('El número de pedido es requerido.');return;}
   var _fnFechaISO=document.getElementById('fn-fecha-creacion').value;var _fnFecha=_fnFechaISO?(function(){var p=_fnFechaISO.split('-');return parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];})():'';
-  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||abono,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc1-tipo').value,doc2_tipo:document.getElementById('fn-doc2-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
+  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||abono,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
   if(!record.nombre&&!record.num){alert('Ingresa al menos nombre o número.');return;}
   if(editingFinIdx!==null)finRecords[editingFinIdx]=record;else finRecords.push(record);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',record);
@@ -27473,11 +27510,22 @@ loadApiKey();renderProd();updateProdStats();renderFin();renderPixel();renderCost
 // contacto (sin totales ni estado de pago). El admin lo sigue armando de Finanzas.
 async function loadClientesSeguro(){
   try{
-    var f=await sbJson(SB_URL+'/rest/v1/gestion_clientes?select=num,cliente,email,celular,producto,semana_envio');
+    var f;
+    try{
+      // Con dirección: permite imprimir la etiqueta de envío desde Clientes.
+      f=await sbJson(SB_URL+'/rest/v1/gestion_clientes?select=num,cliente,email,celular,producto,semana_envio,direccion,comuna,ciudad,rut,fecha_creacion');
+    }catch(e){
+      // Si la vista todavía no tiene esas columnas, cargamos lo básico igual
+      // (mejor Clientes sin etiqueta que Clientes vacío).
+      console.error('clientes: vista sin dirección, usando columnas básicas',e);
+      f=await sbJson(SB_URL+'/rest/v1/gestion_clientes?select=num,cliente,email,celular,producto,semana_envio');
+    }
     finRecords=(f||[]).map(function(c){
       var p=String(c.cliente||'').trim().split(' ');
       return{num:c.num,nombre:p.shift()||'',apellido:p.join(' '),email:c.email||'',celular:c.celular||'',
-             producto:c.producto||'',semana:c.semana_envio||'',total:0,abono1:0,abono2:0,abono3:0};
+             producto:c.producto||'',semana:c.semana_envio||'',direccion:c.direccion||'',comuna:c.comuna||'',
+             ciudad:c.ciudad||'',rut:c.rut||'',fecha_creacion:c.fecha_creacion||'',
+             total:0,abono1:0,abono2:0,abono3:0};
     });
   }catch(e){console.error('clientes',e);finRecords=[];}
 }
@@ -27666,11 +27714,12 @@ function buildClienteMap(){
   finRecords.forEach(function(r){
     var key=((r.nombre||'')+(r.apellido||'')).toLowerCase().replace(/\s/g,'');
     if(!key)return;
-    if(!map[key]){map[key]={nombre:(r.nombre||''),apellido:(r.apellido||''),email:r.email||'',celular:r.celular||'',pedidos:[],total:0,ultimo:null,ultimaSemana:'',ultimoEstado:''};}
+    if(!map[key]){map[key]={nombre:(r.nombre||''),apellido:(r.apellido||''),email:r.email||'',celular:r.celular||'',pedidos:[],total:0,ultimo:null,ultimaSemana:'',ultimoEstado:'',ultimoNum:''};}
     map[key].pedidos.push(r.num||'');
     map[key].total+=(Number(r.total)||0);
     var fc=r.fecha_creacion||r.fecha||'';
-    if(!map[key].ultimo||fc>map[key].ultimo){map[key].ultimo=fc;map[key].ultimaSemana=r.semana||'';var pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0)));map[key].ultimoEstado=pend>0?'Pendiente':'✓ Pagado';}
+    // ultimoNum: el pedido más reciente, que es el que se despacha y para el que se imprime la etiqueta.
+    if(!map[key].ultimo||fc>map[key].ultimo){map[key].ultimo=fc;map[key].ultimaSemana=r.semana||'';map[key].ultimoNum=String(r.num||'');var pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0)));map[key].ultimoEstado=pend>0?'Pendiente':'✓ Pagado';}
     if(!map[key].email&&r.email)map[key].email=r.email;
     if(!map[key].celular&&r.celular)map[key].celular=r.celular;
   });
@@ -27699,7 +27748,8 @@ function renderClientes(){
       '<td>'+fmtCLP(ticket)+'</td>'+
       '<td style="font-size:12px;color:var(--text-3)">'+(c.ultimo||'—')+'</td>'+
       '<td style="font-size:12px">'+(c.ultimaSemana||'—')+'</td>'+
-      '<td><span style="font-size:11px;font-weight:600;color:'+(c.ultimoEstado.includes('Pendiente')?'var(--amber)':'var(--green)')+'">'+c.ultimoEstado+'</span></td></tr>';
+      '<td><span style="font-size:11px;font-weight:600;color:'+(c.ultimoEstado.includes('Pendiente')?'var(--amber)':'var(--green)')+'">'+c.ultimoEstado+'</span></td>'+
+      '<td style="text-align:center">'+(c.ultimoNum?'<button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0;white-space:nowrap" onclick="generarEtiqueta(\''+c.ultimoNum+'\')" title="Etiqueta de envío del pedido '+c.ultimoNum+'">📦</button>':'—')+'</td></tr>';
   }).join('');
 }
 
