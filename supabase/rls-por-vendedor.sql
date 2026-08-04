@@ -9,27 +9,29 @@
 -- (loadDash), que no protege nada si alguien salta el panel y
 -- pega directo a la REST API con sus credenciales.
 --
--- Esto reemplaza esas dos políticas por unas que reflejan la
--- misma regla de ownerCode/isWeb del código, pero a nivel de
--- base de datos.
---
 -- ── CORRECCIÓN 2026-07-31 ──
 -- La primera versión de este archivo comparaba user_email contra
 -- auth.email() directo, y con eso César veía "0 cotizaciones" en
--- su propio panel (el 31 de julio, pero el problema NO era la
--- fecha). La causa real: en el array VENDEDORES del código, César
--- tiene DOS correos distintos —
---   email:    'crodriguez.casazaru@gmail.com'  (con el que inicia sesión)
---   srcEmail: 'hola@casazaru.cl'                (el que queda guardado
---                                                 en user_email de CADA
---                                                 cotización que entra
---                                                 por su link ?src=k7m2)
--- El SELECT filtraba por auth.email() = user_email, así que ninguna
--- cotización de César (todas con user_email = 'hola@casazaru.cl')
--- calzaba con su sesión (auth.email() = 'crodriguez.casazaru@gmail.com').
--- Las cotizaciones "Registrar venta" desde el panel sí quedan con
--- user_email = su email de login, así que esas SÍ se veían — por
--- eso el error no era "cero total", sino "cero en su cola normal".
+-- su propio panel. La causa real: en VENDEDORES (código), César
+-- tiene DOS correos distintos — email (con el que inicia sesión) y
+-- srcEmail (el que queda guardado en user_email de cada cotización
+-- que entra por su link ?src=k7m2). Corregido: ahora compara contra
+-- ambos correos de cada vendedor.
+--
+-- ── CORRECCIÓN 2026-08-03 ──
+-- Clientes de César aparecían también en el panel de Jepe y viceversa.
+-- Causa: existen DOS archivos SQL históricos con nombres de policy
+-- LIGERAMENTE distintos — "equipo lee cotizaciones" (rls-seguridad.sql,
+-- el que se corrió) vs "equipo lee cotizacion" sin la "s" final
+-- (seguridad-rls.sql, un borrador anterior). Si alguna vez se corrió
+-- también ese borrador, quedó una policy vieja con "using (true)"
+-- (acceso total) bajo un nombre que este archivo nunca tocaba —
+-- Postgres combina todas las policies de una tabla con OR, así que
+-- esa policy vieja por sí sola bastaba para que cualquier cuenta
+-- logueada viera TODO, sin importar lo restrictiva que fuera esta.
+-- Esta versión borra explícitamente ambas variantes de nombre (con
+-- y sin "s") antes de crear las policies correctas, para que no
+-- pueda quedar ninguna policy vieja viva por accidente.
 --
 -- Esta versión compara contra TODOS los correos que el código usa
 -- para etiquetar a cada vendedor (ver VENDEDORES en cotizador-clientes.html).
@@ -37,7 +39,21 @@
 -- código, hay que reflejar el mismo cambio acá.
 -- ══════════════════════════════════════════════════════════════
 
+-- ── PASO 1: diagnóstico — ver TODAS las policies activas hoy ──
+-- (correr esto primero y mirar el resultado si quieres confirmar
+--  la causa antes de aplicar el fix; no es obligatorio, el paso 2
+--  limpia igual cualquier nombre viejo que encuentre)
+select policyname, cmd, roles, qual, with_check
+from pg_policies
+where tablename = 'cotizaciones';
+
+-- ── PASO 2: limpieza total de nombres viejos (con y sin "s") ──
 drop policy if exists "equipo lee cotizaciones" on cotizaciones;
+drop policy if exists "equipo lee cotizacion" on cotizaciones;
+drop policy if exists "equipo edita cotizaciones" on cotizaciones;
+drop policy if exists "equipo edita cotizacion" on cotizaciones;
+
+-- ── PASO 3: crear las policies correctas ──
 create policy "equipo lee cotizaciones" on cotizaciones
   for select to authenticated using (
     auth.email() = 'hola@casazaru.cl'                    -- admin: ve todo
@@ -56,7 +72,6 @@ create policy "equipo lee cotizaciones" on cotizaciones
     )
   );
 
-drop policy if exists "equipo edita cotizaciones" on cotizaciones;
 create policy "equipo edita cotizaciones" on cotizaciones
   for update to authenticated using (
     auth.email() = 'hola@casazaru.cl'
@@ -90,9 +105,16 @@ create policy "equipo edita cotizaciones" on cotizaciones
     )
   );
 
+-- ── PASO 4: verificación — correr de nuevo el select de arriba ──
+-- Ahora debería listar SOLO "equipo lee cotizaciones" y "equipo edita
+-- cotizaciones" (más "publico inserta cotizacion" y las de insert de
+-- equipo) — si aparece cualquier otro nombre parecido con qual = "true",
+-- avísame el nombre exacto para borrarlo también.
+select policyname, cmd, roles, qual, with_check
+from pg_policies
+where tablename = 'cotizaciones';
+
 -- ══════════════════════════════════════════════════════════════
--- Después de correr esto: entrar como César (panel?panel=cesar)
--- y confirmar que "Mis cotizaciones" ya NO da 0 — debería mostrar
--- lo mismo que mostraba antes de correr rls-por-vendedor.sql la
--- primera vez. Probar también como Jepe.
+-- Después de correr esto: entrar como César y como Jepe y confirmar
+-- que cada uno ve SOLO lo suyo (+ los web para César, que no es B2B).
 -- ══════════════════════════════════════════════════════════════
