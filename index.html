@@ -25676,6 +25676,86 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <label style="font-size:11px;color:var(--text-3)">Total</label>
         <div id="pf-total" style="font-size:18px;font-weight:700;color:var(--brand);min-width:110px;line-height:1;padding:7px 0">—</div>
       </div>
+      <div style="display:flex;flex-direction:column;gap:3px;margin-left:8px">
+        <label style="font-size:11px;color:var(--text-3)">Neto que recibís</label>
+        <div id="pf-neto" style="font-size:16px;font-weight:700;color:var(--green);min-width:110px;line-height:1;padding:8px 0">—</div>
+      </div>
+    </div>
+
+    <!-- Cómo pagó: define el descuento y lo que se queda la plataforma -->
+    <div id="prev-pago" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 16px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius-lg);border:1px solid var(--border-md)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:2px">💳 Cómo pagó</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Forma de pago</label>
+        <select id="pp-canal" onchange="aplicarCanalPrev()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+          <option value="TRANSFERENCIA">Transferencia / depósito</option>
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="LINK_MP">Link de pago (Mercado Pago)</option>
+          <option value="WEB_SHOPIFY">Web — Shopify + Mercado Pago</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Descuento %</label>
+        <input type="number" id="pp-desc" step="0.1" min="0" oninput="recalcPrevFin()" style="width:80px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px" id="pp-wrap-mp">
+        <label style="font-size:11px;color:var(--text-3)">Costo Mercado Pago</label>
+        <input type="number" id="pp-mp" min="0" oninput="recalcPrevFin()" style="width:120px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px" id="pp-wrap-shop">
+        <label style="font-size:11px;color:var(--text-3)">Costo Shopify (2%)</label>
+        <input type="number" id="pp-shop" min="0" oninput="recalcPrevFin()" style="width:120px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:14px;background:var(--surface)">
+      </div>
+    </div>
+
+    <!-- Documento tributario y direcciones -->
+    <div id="prev-doc" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:0 0 16px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius-lg);border:1px solid var(--border-md)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:2px">🧾 Documento y direcciones</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">¿Boleta o factura?</label>
+        <select id="pp-doc" onchange="toggleFacturaPrev()" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+          <option value="BOLETA">Boleta</option><option value="FACTURA">Factura</option>
+        </select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px">
+        <label style="font-size:11px;color:var(--text-3)">Dirección de envío (va en la etiqueta)</label>
+        <input type="text" id="pp-dir" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Comuna</label>
+        <input type="text" id="pp-comuna" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Ciudad</label>
+        <input type="text" id="pp-ciudad" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+      </div>
+      <div id="pp-bloque-factura" style="display:none;flex-wrap:wrap;gap:10px;align-items:flex-end;width:100%;margin-top:6px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px">
+          <label style="font-size:11px;color:var(--text-3)">Razón social</label>
+          <input type="text" id="pp-razon" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:11px;color:var(--text-3)">RUT</label>
+          <input type="text" id="pp-rut" placeholder="12.345.678-9" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:180px">
+          <label style="font-size:11px;color:var(--text-3)">Giro</label>
+          <input type="text" id="pp-giro" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px">
+          <label style="font-size:11px;color:var(--text-3)">Dirección facturación <span style="color:var(--text-3)">— vacía = usa la de envío</span></label>
+          <input type="text" id="pp-fact-dir" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:11px;color:var(--text-3)">Comuna fact.</label>
+          <input type="text" id="pp-fact-comuna" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          <label style="font-size:11px;color:var(--text-3)">Ciudad fact.</label>
+          <input type="text" id="pp-fact-ciudad" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        </div>
+      </div>
     </div>
     <div class="etable-wrap">
       <table class="etable">
@@ -26641,13 +26721,35 @@ async function addSecondImage(file){
   };
   r.readAsDataURL(file);
 }
+function _numPrev(id){var e=document.getElementById(id);return e?(Number(e.value)||0):0;}
 function recalcPrevFin(){
-  var vp=Number(document.getElementById('pf-vp').value)||0;
-  var ve=Number(document.getElementById('pf-ve').value)||0;
-  var vc=Number(document.getElementById('pf-vc').value)||0;
-  var total=vp+ve+vc;
-  document.getElementById('pf-total').textContent=total?'$'+total.toLocaleString('es-CL'):'—';
+  var vp=_numPrev('pf-vp'),ve=_numPrev('pf-ve'),vc=_numPrev('pf-vc');
+  // Mismo cálculo que el formulario de Finanzas: descuento y costos de plataforma.
+  var c=calcularVenta(vp,ve,vc,_numPrev('pp-desc'),_numPrev('pp-mp'),_numPrev('pp-shop'));
+  document.getElementById('pf-total').textContent=c.total?'$'+c.total.toLocaleString('es-CL'):'—';
+  var netoEl=document.getElementById('pf-neto');
+  if(netoEl)netoEl.textContent=c.total?'$'+c.neto.toLocaleString('es-CL'):'—';
   if(prodPending){prodPending._finanzas=prodPending._finanzas||{};prodPending._finanzas.valor_producto=vp;prodPending._finanzas.valor_envio=ve;prodPending._finanzas.valor_comision=vc;}
+}
+// Propone descuento y comisiones según la forma de pago (todo queda editable).
+function aplicarCanalPrev(){
+  var canal=document.getElementById('pp-canal').value;
+  var campoDesc=document.getElementById('pp-desc');
+  // OJO: acá NO se aplica el 5% solo. El valor viene del pantallazo, o sea del
+  // precio ya conversado con el cliente, que normalmente ya trae el descuento.
+  // Aplicarlo otra vez lo restaría dos veces. Si hace falta, se escribe a mano.
+  var vp=_numPrev('pf-vp'),ve=_numPrev('pf-ve'),vc=_numPrev('pf-vc');
+  var base=vp-Math.round(vp*(Number(campoDesc.value)||0)/100)+ve+vc;
+  var conCosto=(canal==='LINK_MP'||canal==='WEB_SHOPIFY');
+  document.getElementById('pp-mp').value=conCosto?Math.round(base*COSTO_MP_PCT_ESTIMADO/100):'';
+  document.getElementById('pp-shop').value=canal==='WEB_SHOPIFY'?Math.round(base*COSTO_SHOPIFY_PCT/100):'';
+  document.getElementById('pp-wrap-mp').style.display=conCosto?'':'none';
+  document.getElementById('pp-wrap-shop').style.display=canal==='WEB_SHOPIFY'?'':'none';
+  recalcPrevFin();
+}
+function toggleFacturaPrev(){
+  var esF=document.getElementById('pp-doc').value==='FACTURA';
+  document.getElementById('pp-bloque-factura').style.display=esF?'flex':'none';
 }
 function renderPrevProd(o){
   var hoy=new Date(),dd=String(hoy.getDate()).padStart(2,'0'),mm=String(hoy.getMonth()+1).padStart(2,'0'),yyyy=hoy.getFullYear();
@@ -26661,7 +26763,19 @@ function renderPrevProd(o){
   document.getElementById('pf-vc').value=vc||'';
   var a1=fin.abono1!=null?Number(fin.abono1):Math.round((vp+ve+vc)*0.7);
   document.getElementById('pf-a1').value=a1||'';
-  recalcPrevFin();
+  // Documento y direcciones: arrancan en boleta, con lo que se haya detectado
+  // del pantallazo. Se limpian en cada carga para no arrastrar la venta anterior.
+  var cli=o._cliente||{};
+  document.getElementById('pp-doc').value='BOLETA';
+  document.getElementById('pp-dir').value=cli.direccion||'';
+  document.getElementById('pp-comuna').value=cli.ct||'';
+  document.getElementById('pp-ciudad').value=cli.st||'';
+  document.getElementById('pp-rut').value=cli.rut||'';
+  ['pp-razon','pp-giro','pp-fact-dir','pp-fact-comuna','pp-fact-ciudad'].forEach(function(id){document.getElementById(id).value='';});
+  toggleFacturaPrev();
+  document.getElementById('pp-canal').value='TRANSFERENCIA';
+  document.getElementById('pp-desc').value='';
+  aplicarCanalPrev();
   renderPrevRows(o.lineas||[]);
 }
 function renderPrevRows(lineas){
@@ -26708,9 +26822,29 @@ async function confirmOrder(){
   const ve=Number(document.getElementById('pf-ve').value)||Number(fin.valor_envio)||0;
   const vc=Number(document.getElementById('pf-vc').value)||Number(fin.valor_comision)||0;
   const a1manual=Number(document.getElementById('pf-a1').value);
-  const total=vp+ve+vc,abono=a1manual||0,saldo=total?total-abono:0,sincom=vp+ve,siniva=sincom?Math.round(sincom/1.19):0;
+  // Cómo pagó: descuento y costos de plataforma cargados en el panel de arriba.
+  const canalPago=document.getElementById('pp-canal').value;
+  const descPct=_numPrev('pp-desc'),costoMp=_numPrev('pp-mp'),costoShop=_numPrev('pp-shop');
+  const _cv=calcularVenta(vp,ve,vc,descPct,costoMp,costoShop);
+  const total=_cv.total,abono=a1manual||0,saldo=total?total-abono:0,sincom=_cv.sincom,siniva=sincom?_cv.siniva:0;
+  // Documento tributario y direcciones (envío y facturación por separado).
+  const docTipo=document.getElementById('pp-doc').value;
+  const dirEnvio=document.getElementById('pp-dir').value.trim()||cli.direccion||'';
+  const datosDoc={
+    canal_pago:canalPago,descuento_pct:descPct,descuento_monto:_cv.descMonto,
+    costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_cv.costos,neto_recibido:_cv.neto,
+    direccion:dirEnvio,
+    comuna:document.getElementById('pp-comuna').value.trim(),
+    ciudad:document.getElementById('pp-ciudad').value.trim(),
+    razon_social:document.getElementById('pp-razon').value.trim(),
+    giro:document.getElementById('pp-giro').value.trim(),
+    fact_direccion:document.getElementById('pp-fact-dir').value.trim(),
+    fact_comuna:document.getElementById('pp-fact-comuna').value.trim(),
+    fact_ciudad:document.getElementById('pp-fact-ciudad').value.trim()
+  };
   const existFin=finRecords.find(r=>String(r.num||'')===numStr);
-  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:cli.rut||'',direccion:cli.direccion||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:'',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:existFin?(existFin.doc1_tipo||'BOLETA'):'BOLETA',doc2_tipo:existFin?(existFin.doc2_tipo||'BOLETA'):'BOLETA',doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:'',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  Object.assign(finData,datosDoc);
   const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
   if(existFinIdx>=0)finRecords[existFinIdx]=finData;else finRecords.push(finData);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',finData);
