@@ -25966,15 +25966,38 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div class="form-group"><label>Producto</label><input id="fn-producto" type="text"></div>
       <div class="form-group"><label>¿Cómo nos conoció?</label><input id="fn-como" type="text" placeholder="Instagram, referido..."></div>
     </div>
-    <div class="section-label">Valores</div>
+    <div class="section-label">Valores — el valor producto es el precio publicado (con tarjeta)</div>
     <div class="form-grid tri">
       <div class="form-group"><label>Valor producto ($)</label><input id="fn-val-prod" type="number" placeholder="435305" oninput="calcFinPreview()"></div>
       <div class="form-group"><label>Envío ($)</label><input id="fn-envio" type="number" placeholder="0" oninput="calcFinPreview()"></div>
-      <div class="form-group"><label>Comisión link pago ($)</label><input id="fn-comision" type="number" placeholder="0" oninput="calcFinPreview()"></div>
+      <div class="form-group"><label>Comisión link pago ($) <span style="font-weight:400;color:var(--text-3)">— sistema viejo</span></label><input id="fn-comision" type="number" placeholder="0" oninput="calcFinPreview()"></div>
+    </div>
+
+    <div class="section-label">¿Cómo pagó? — define el descuento y las comisiones</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Forma de pago</label>
+        <select id="fn-canal" onchange="aplicarCanalPago()">
+          <option value="TRANSFERENCIA">Transferencia / depósito</option>
+          <option value="EFECTIVO">Efectivo</option>
+          <option value="LINK_MP">Link de pago (Mercado Pago)</option>
+          <option value="WEB_SHOPIFY">Web — Shopify + Mercado Pago</option>
+          <option value="OTRO">Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Descuento (%) <span style="font-weight:400;color:var(--text-3)">— 5% por transferencia</span></label><input id="fn-desc-pct" type="number" step="0.1" placeholder="0" oninput="calcFinPreview()"></div>
+    </div>
+    <div class="form-grid" id="fn-bloque-costos">
+      <div class="form-group"><label>Costo Mercado Pago ($) <span style="font-weight:400;color:var(--text-3)">— estimado, corregilo con el comprobante</span></label><input id="fn-costo-mp" type="number" placeholder="0" oninput="calcFinPreview()"></div>
+      <div class="form-group"><label>Costo Shopify ($) <span style="font-weight:400;color:var(--text-3)">— 2%, se descuenta a fin de mes</span></label><input id="fn-costo-shopify" type="number" placeholder="0" oninput="calcFinPreview()"></div>
     </div>
     <div id="fin-calc-preview" class="calc-box">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+        <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Descuento</div><div class="monto naranja" id="fc-desc">—</div></div>
+        <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Costo plataformas</div><div class="monto rojo" id="fc-costos">—</div></div>
+        <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Neto que recibís</div><div class="monto verde" id="fc-neto">—</div></div>
+      </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center">
-        <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Total c/env+com</div><div class="monto verde" id="fc-total">—</div></div>
+        <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Total cobrado</div><div class="monto verde" id="fc-total">—</div></div>
         <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Abono 1 (70%)</div><div class="monto" id="fc-abono">—</div></div>
         <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Saldo (30%)</div><div class="monto naranja" id="fc-saldo">—</div></div>
         <div><div style="color:var(--text-muted);font-size:10px;text-transform:uppercase;margin-bottom:2px">Sin com/env</div><div class="monto" id="fc-sincom">—</div></div>
@@ -27003,7 +27026,56 @@ function finSet(numStr,field,val,inp){
     }
   }
 }
-function calcFinPreview(){const vp=Number(document.getElementById('fn-val-prod').value)||0,env=Number(document.getElementById('fn-envio').value)||0,com=Number(document.getElementById('fn-comision').value)||0;if(!vp){document.getElementById('fin-calc-preview').style.display='none';return;}const total=vp+env+com,abono=Math.round(total*0.7),saldo=total-abono,sincom=vp+env,siniva=Math.round(sincom/1.19);document.getElementById('fin-calc-preview').style.display='block';document.getElementById('fc-total').textContent=fmtCLP(total);document.getElementById('fc-abono').textContent=fmtCLP(abono);document.getElementById('fc-saldo').textContent=fmtCLP(saldo);document.getElementById('fc-sincom').textContent=fmtCLP(sincom);document.getElementById('fc-siniva').textContent=fmtCLP(siniva);}
+// ── Costos por canal de pago ───────────────────────────────────────────────
+// El precio publicado ya viene con el +10%, así que es el precio "con tarjeta".
+// Quien transfiere recibe 5% de descuento. Las plataformas descuentan su comisión
+// de lo que te depositan: eso NO se le cobra al cliente, te lo restás vos.
+const DESCUENTO_TRANSFERENCIA_PCT=5;
+const COSTO_SHOPIFY_PCT=2;      // fijo, Shopify lo cobra a fin de mes
+const COSTO_MP_PCT_ESTIMADO=5.8; // estimado: varía según cuotas, siempre corregir con el comprobante
+
+function _numFin(id){return Number(document.getElementById(id).value)||0;}
+// Devuelve todos los números de la venta a partir de lo cargado en el formulario.
+function calcularVenta(vp,env,com,descPct,costoMp,costoShop){
+  var descMonto=Math.round(vp*(descPct||0)/100);
+  var total=vp-descMonto+env+com;
+  var costos=(costoMp||0)+(costoShop||0);
+  return{descMonto:descMonto,total:total,costos:costos,neto:total-costos,
+         abono:Math.round(total*0.7),saldo:total-Math.round(total*0.7),
+         sincom:vp+env,siniva:Math.round((vp+env)/1.19)};
+}
+// Al elegir la forma de pago se proponen descuento y comisiones; todo queda editable.
+function aplicarCanalPago(){
+  var canal=document.getElementById('fn-canal').value;
+  var vp=_numFin('fn-val-prod'),env=_numFin('fn-envio'),com=_numFin('fn-comision');
+  // Si es transferencia se propone el 5%. En los demás canales NO se borra un
+  // descuento ya escrito: pasa de verdad que una venta web use el cupón 5OFF
+  // y además pague con tarjeta (así fue la orden #1038-F1).
+  var campoDesc=document.getElementById('fn-desc-pct');
+  if(canal==='TRANSFERENCIA')campoDesc.value=DESCUENTO_TRANSFERENCIA_PCT;
+  var descPct=Number(campoDesc.value)||0;
+  var baseCobrada=vp-Math.round(vp*descPct/100)+env+com;
+  var mp=(canal==='LINK_MP'||canal==='WEB_SHOPIFY')?Math.round(baseCobrada*COSTO_MP_PCT_ESTIMADO/100):0;
+  var shop=canal==='WEB_SHOPIFY'?Math.round(baseCobrada*COSTO_SHOPIFY_PCT/100):0;
+  document.getElementById('fn-costo-mp').value=mp||'';
+  document.getElementById('fn-costo-shopify').value=shop||'';
+  document.getElementById('fn-bloque-costos').style.display=(canal==='LINK_MP'||canal==='WEB_SHOPIFY')?'':'none';
+  calcFinPreview();
+}
+function calcFinPreview(){
+  var vp=_numFin('fn-val-prod');
+  if(!vp){document.getElementById('fin-calc-preview').style.display='none';return;}
+  var c=calcularVenta(vp,_numFin('fn-envio'),_numFin('fn-comision'),_numFin('fn-desc-pct'),_numFin('fn-costo-mp'),_numFin('fn-costo-shopify'));
+  document.getElementById('fin-calc-preview').style.display='block';
+  document.getElementById('fc-desc').textContent=c.descMonto?('-'+fmtCLP(c.descMonto)):'—';
+  document.getElementById('fc-costos').textContent=c.costos?('-'+fmtCLP(c.costos)):'—';
+  document.getElementById('fc-neto').textContent=fmtCLP(c.neto);
+  document.getElementById('fc-total').textContent=fmtCLP(c.total);
+  document.getElementById('fc-abono').textContent=fmtCLP(c.abono);
+  document.getElementById('fc-saldo').textContent=fmtCLP(c.saldo);
+  document.getElementById('fc-sincom').textContent=fmtCLP(c.sincom);
+  document.getElementById('fc-siniva').textContent=fmtCLP(c.siniva);
+}
 function renderFinStats(){
   renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
   var base=finMonthFilter==='todos'?finRecords:finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});
@@ -27151,7 +27223,12 @@ function renderFin(){
   }).join('');
 }
 function deleteFinRecord_inline(numStr){if(!confirm('¿Eliminar este registro?'))return;var idx=finRecords.findIndex(function(x){return String(x.num||'')===String(numStr);});if(idx>=0)finRecords.splice(idx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(function(){});renderFin();showToast('✓ Eliminado');}
-function recalcFin(idx){const r=finRecords[idx];if(!r)return;const total=(Number(r.val_prod)||0)+(Number(r.val_envio)||0)+(Number(r.val_comision)||0);r.abono_monto=Math.round(total*0.7);r.saldo_monto=total-r.abono_monto;r.sin_com=(Number(r.val_prod)||0)+(Number(r.val_envio)||0);r.sin_iva=Math.round(r.sin_com/1.19);if(total)r.total=total;const numStr=String(r.num||'');if(DB_URL&&numStr)api('finanzas/'+numStr,'PUT',r).catch(()=>{});renderFin();}
+function recalcFin(idx){const r=finRecords[idx];if(!r)return;
+  // Mismo cálculo que el formulario. Los registros viejos no tienen descuento ni
+  // costos de plataforma, así que dan 0 y el total les queda igual que antes.
+  var c=calcularVenta(Number(r.val_prod)||0,Number(r.val_envio)||0,Number(r.val_comision)||0,Number(r.descuento_pct)||0,Number(r.costo_mp)||0,Number(r.costo_shopify)||0);
+  r.descuento_monto=c.descMonto;r.costo_plataformas=c.costos;r.neto_recibido=c.neto;
+  r.abono_monto=c.abono;r.saldo_monto=c.saldo;r.sin_com=c.sincom;r.sin_iva=c.siniva;if(c.total)r.total=c.total;const numStr=String(r.num||'');if(DB_URL&&numStr)api('finanzas/'+numStr,'PUT',r).catch(()=>{});renderFin();}
 async function syncFinFromProd(){
   if(DB_URL){showToast('↻ Recargando producción...');await loadProd();}
   if(!prodOrders.length){showToast('No hay pedidos en Producción');return;}
@@ -27179,18 +27256,22 @@ function openFinModal(idx){
   document.getElementById('fin-modal-title').textContent=editingFinIdx!==null?'Editar registro':'Nuevo registro financiero';
   document.getElementById('fin-btn-del').style.display=editingFinIdx!==null?'block':'none';
   document.getElementById('fin-calc-preview').style.display='none';
-  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
-  else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-comision'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';toggleCamposFactura();}
+  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-canal').value=r.canal_pago||'TRANSFERENCIA';document.getElementById('fn-desc-pct').value=r.descuento_pct||'';document.getElementById('fn-costo-mp').value=r.costo_mp||'';document.getElementById('fn-costo-shopify').value=r.costo_shopify||'';document.getElementById('fn-bloque-costos').style.display=(r.canal_pago==='LINK_MP'||r.canal_pago==='WEB_SHOPIFY')?'':'none';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
+  else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-comision','fn-desc-pct','fn-costo-mp','fn-costo-shopify'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';document.getElementById('fn-canal').value='TRANSFERENCIA';aplicarCanalPago();toggleCamposFactura();}
   document.getElementById('modal-fin-bg').classList.add('open');
 }
 function closeFinModal(){document.getElementById('modal-fin-bg').classList.remove('open');editingFinIdx=null;}
 async function saveFinRecord(){
   const vp=Number(document.getElementById('fn-val-prod').value)||0,env=Number(document.getElementById('fn-envio').value)||0,com=Number(document.getElementById('fn-comision').value)||0;
-  const total=vp+env+com,abono=Math.round(total*0.7),saldo=total-abono,sincom=vp+env,siniva=Math.round(sincom/1.19);
+  const descPct=Number(document.getElementById('fn-desc-pct').value)||0;
+  const costoMp=Number(document.getElementById('fn-costo-mp').value)||0;
+  const costoShop=Number(document.getElementById('fn-costo-shopify').value)||0;
+  const _c=calcularVenta(vp,env,com,descPct,costoMp,costoShop);
+  const total=_c.total,abono=_c.abono,saldo=_c.saldo,sincom=_c.sincom,siniva=_c.siniva;
   const prev=editingFinIdx!==null?finRecords[editingFinIdx]:{};
   const numStr=document.getElementById('fn-num').value.trim();if(!numStr){alert('El número de pedido es requerido.');return;}
   var _fnFechaISO=document.getElementById('fn-fecha-creacion').value;var _fnFecha=_fnFechaISO?(function(){var p=_fnFechaISO.split('-');return parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];})():'';
-  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||abono,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
+  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||abono,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
   if(!record.nombre&&!record.num){alert('Ingresa al menos nombre o número.');return;}
   if(editingFinIdx!==null)finRecords[editingFinIdx]=record;else finRecords.push(record);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',record);
