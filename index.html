@@ -26154,6 +26154,22 @@ var costMonthFilter=currentMonthName();
 var dashMonthFilter=currentMonthName();
 function setSegMonth(m){segMonthFilter=m;renderSeg();}
 function setDashMonth(m){dashMonthFilter=m;renderDash();renderNotif();renderGrafico();renderRanking();}
+// Fecha de referencia para saber cuándo salió un pedido.
+// El "día de envío" se carga a mano y los pedidos viejos no lo tienen, así que
+// si falta se usa el mes de la semana de envío, y como último recurso la fecha
+// de venta. Es aproximado, pero permite que el aviso de recepción funcione
+// también con los pedidos de mayo en adelante.
+function fechaEnvioPedido(o){
+  if(o.dia_envio)return new Date(o.dia_envio+'T12:00:00');
+  var txt='';
+  if(o.semana){var d=fechaFromSemana(o.semana);if(d&&d!==todayStr)txt=d;}
+  if(!txt&&o.fecha_creacion)txt=o.fecha_creacion;
+  if(!txt)return null;
+  var p=String(txt).split('/');
+  if(p.length!==3)return null;
+  var f=new Date(p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0')+'T12:00:00');
+  return isNaN(f)?null:f;
+}
 function fechaFromSemana(semana){
   if(!semana)return todayStr;
   var s=semana.toUpperCase();
@@ -26527,8 +26543,9 @@ function renderSeg(){
     // "Recibió pedido": aparece recién 10 días después de la fecha de envío, y se
     // apaga una vez preguntado. Se guarda como contacto c4 igual que los otros avisos.
     var btnRecibio='';
-    if(o.dia_envio){
-      var deR=new Date(o.dia_envio+'T12:00:00'),hoyR=new Date();hoyR.setHours(0,0,0,0);
+    var deR=fechaEnvioPedido(o);
+    if(deR){
+      var hoyR=new Date();hoyR.setHours(0,0,0,0);
       var diasEnv=Math.round((hoyR-deR)/86400000);
       if(diasEnv>=10){
         if(o.contactos&&o.contactos.c4){
