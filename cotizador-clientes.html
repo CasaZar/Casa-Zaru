@@ -2161,9 +2161,16 @@ function renderSegFilters(){
     '</select>';
 }
 function segComparator(){
-  if (segSort==='reciente') return function(a,b){ return new Date(b.lead.fecha_creacion||0)-new Date(a.lead.fecha_creacion||0); };
-  if (segSort==='antiguo')  return function(a,b){ return new Date(a.lead.fecha_creacion||0)-new Date(b.lead.fecha_creacion||0); };
-  return function(a,b){ return b.valor-a.valor; };   /* valor */
+  var base;
+  if (segSort==='reciente') base = function(a,b){ return new Date(b.lead.fecha_creacion||0)-new Date(a.lead.fecha_creacion||0); };
+  else if (segSort==='antiguo') base = function(a,b){ return new Date(a.lead.fecha_creacion||0)-new Date(b.lead.fecha_creacion||0); };
+  else base = function(a,b){ return b.valor-a.valor; };   /* valor */
+  /* los marcados como interesados (★) van primero dentro de cada sección, sea cual sea el orden elegido */
+  return function(a,b){
+    var ai = a.lead.interesado?1:0, bi = b.lead.interesado?1:0;
+    if (ai !== bi) return bi-ai;
+    return base(a,b);
+  };
 }
 function currentTableRows(){
   if (dashView==='web') return dashRows.filter(isWeb);
