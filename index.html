@@ -378,6 +378,33 @@ body {
 .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-3); }
 .leg-dot { width:8px; height:8px; border-radius:2px; }
 
+/* ── Tablero "hoy hay que avisar" (arriba de Seguimiento) ── */
+.hoy-board { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:16px 18px;margin-bottom:18px; }
+.hoy-head { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap; }
+.hoy-title { font-size:14px;font-weight:700;color:var(--text); }
+.hoy-count { font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px; }
+.hoy-grupo { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 6px; }
+.hoy-grupo:first-child { margin-top:0; }
+.hoy-item { display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border); }
+.hoy-item:last-child { border-bottom:none; }
+.hoy-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.hoy-info { flex:1;min-width:0; }
+.hoy-cli { font-size:13px;font-weight:600;color:var(--text); }
+.hoy-tag { font-size:11px;font-weight:600; }
+.hoy-sub { font-size:11px;color:var(--text-3); }
+.hoy-nota { font-size:11px;color:var(--amber);background:var(--amber-dim);border-radius:4px;padding:2px 7px;margin-top:3px;display:inline-block; }
+.hoy-acciones { display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end; }
+.hoy-btn { font-size:11px;font-weight:600;padding:6px 11px;border-radius:6px;cursor:pointer;white-space:nowrap;border:1px solid var(--border-md);background:none;color:var(--text-3);font-family:'Inter',sans-serif;text-decoration:none;display:inline-block; }
+.hoy-btn.wa { background:#25D366;color:#fff;border-color:#25D366; }
+.hoy-btn.excusa { border-color:var(--amber);color:var(--amber); }
+@media (max-width: 768px) {
+  .hoy-board { padding:14px; }
+  .hoy-item { flex-wrap:wrap; }
+  .hoy-info { flex:1 1 100%; }
+  .hoy-acciones { flex:1 1 100%; justify-content:flex-start; }
+  .hoy-btn { flex:1; text-align:center; min-height:38px; line-height:26px; }
+}
+
 table.seg { width:100%; border-collapse:collapse; min-width:900px; }
 table.seg th {
   text-align:left; padding:10px 14px;
@@ -25615,6 +25642,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="btn-connect" onclick="connectFirebase()">Conectar →</button>
     </div>
   </div>
+  <div class="hoy-board" id="seg-hoy"></div>
   <div class="stats-grid" id="seg-stats"></div>
   <div class="toolbar">
     <div class="filter-group">
@@ -25645,7 +25673,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <th class="critical">Orden Word ★</th><th>En producción</th>
         <th class="critical">Aviso sem. previa ★</th><th>Aviso lunes</th>
         <th class="critical">Aviso día previo ★</th><th>Cambio fecha</th>
-        <th class="critical">Comprobante ★</th><th></th>
+        <th class="critical">Comprobante ★</th><th>Recibió</th><th></th>
       </tr></thead>
       <tbody id="seg-tbody"></tbody>
     </table>
@@ -26270,8 +26298,13 @@ const CHECKS=[
   {id:'aviso_dia',label:'Aviso día previo',critical:true},
   {id:'cambio',label:'Aviso cambio fecha',critical:false,nocount:true},
   {id:'comprobante',label:'Comprobante enviado',critical:true},
+  // Post-venta: va después del 100%, así que no entra en el porcentaje. Cuando
+  // se marca, el pedido pasa a verde intenso con estrella.
+  {id:'recibido',label:'Recibió pedido',critical:false,bonus:true},
 ];
 const CRITICAL=CHECKS.filter(c=>c.critical).map(c=>c.id);
+// El botón viejo guardaba la confirmación de recepción en contactos.c4.
+function yaRecibio(o){return!!((o.checks&&o.checks.recibido)||(o.contactos&&o.contactos.c4));}
 var SC=[{bg:'#EEF3FB',border:'#9BB8E8',text:'#2D4E8A'},{bg:'#F3EEF9',border:'#C09FE0',text:'#5B2D8A'},{bg:'#EEF8F3',border:'#8ECFAA',text:'#1D6B42'},{bg:'#FBF3EE',border:'#E8B89B',text:'#8A3D2D'},{bg:'#F8F3EE',border:'#D4B87A',text:'#7A5010'},{bg:'#F3F8FB',border:'#8BBDD4',text:'#1D5470'}];
 var scm={},sci=0;
 function getSC(s){if(!scm[s]){scm[s]=SC[sci%SC.length];sci++;}return scm[s];}
@@ -26531,6 +26564,97 @@ function connectFirebase(){
   init().then(()=>{if(DB_URL)initAllModules();});
 }
 function getProgress(checks){return{pct:Math.round(CRITICAL.filter(id=>checks&&checks[id]).length/CRITICAL.length*100)};}
+
+// ── Proceso de avisos al cliente ───────────────────────────────────────────
+// Cada aviso tiene una ventana relativa al día de envío (negativo = antes del
+// envío): "abre" es cuándo empieza a aparecer en el tablero y "vence" es el
+// último día para mandarlo. Pasado eso queda atrasado y hay que marcarlo o
+// explicar por qué no se avisó. Son los mismos ids de CHECKS a propósito: el
+// tablero y la tabla marcan lo mismo, no hay dos listas que se contradigan.
+const AVISOS=[
+  {id:'aviso_sem',tag:'Avisar la semana de entrega',abre:-9,vence:-5,color:'var(--brand)'},
+  {id:'aviso_lun',tag:'Confirmar el día de envío',abre:-4,vence:-2,color:'var(--amber)'},
+  {id:'aviso_dia',tag:'Avisar que sale mañana',abre:-2,vence:-1,color:'var(--red)'},
+  {id:'comprobante',tag:'Enviar el comprobante',abre:0,vence:1,color:'var(--red)'},
+  {id:'recibido',tag:'Preguntar si lo recibió',abre:10,vence:14,color:'var(--green)'},
+];
+// Más allá de esto el aviso ya no tiene sentido y deja de pedirse.
+const AVISO_CADUCA_DIAS=30;
+function msgAviso(id,o,dRel,fechaEnvStr){
+  var n=o.nombre||'',num=String(o.num||''),prod=o.producto||'';
+  if(id==='aviso_sem')return'Hola '+n+'! Te cuento que tu pedido #'+num+' ('+prod+') queda listo para despacho la próxima semana. Apenas tenga el día exacto te aviso.';
+  if(id==='aviso_lun')return'Hola '+n+'! Tu pedido #'+num+' sale el '+fechaEnvStr+'. Cualquier cosa me avisas.';
+  if(id==='aviso_dia')return'Hola '+n+'! '+(dRel>=0?'Hoy':'Mañana')+' sale tu pedido #'+num+'. ¿La dirección sigue siendo la misma?';
+  if(id==='comprobante')return'Hola '+n+'! Te envío el comprobante de tu pedido #'+num+'.';
+  return'Hola! '+n+'. Quería confirmar si recibiste todo bien finalmente!';
+}
+// Devuelve los avisos que hoy le corresponden a César, ya ordenados.
+function avisosPendientes(){
+  var hoy=new Date();hoy.setHours(0,0,0,0);
+  var out=[],caducados={};
+  orders.forEach(function(o){
+    var env=fechaEnvioPedido(o);if(!env)return;
+    var dRel=Math.round((hoy-env)/86400000);
+    var fechaEnvStr=env.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+    AVISOS.forEach(function(a){
+      if(o.checks&&o.checks[a.id])return;
+      if(a.id==='recibido'&&yaRecibio(o))return;
+      if(dRel<a.abre)return;
+      var atrasado=dRel>a.vence;
+      if(dRel>a.vence+AVISO_CADUCA_DIAS){caducados[String(o.num||'')]=true;return;}
+      var excusa=(o.excusas||{})[a.id];
+      if(excusa&&atrasado)return; // ya quedó explicado por qué no se avisó
+      var falta=a.vence-dRel;
+      out.push({numStr:String(o.num||''),nombre:((o.nombre||'')+' '+(o.apellido||'')).trim(),avisoId:a.id,
+        tag:a.tag,color:atrasado?'var(--red)':a.color,atrasado:atrasado,falta:falta,
+        sub:atrasado?('Atrasado '+(dRel-a.vence)+(dRel-a.vence===1?' día':' días')):(falta<=0?'Para hoy':'Vence en '+falta+(falta===1?' día':' días')),
+        msg:msgAviso(a.id,o,dRel,fechaEnvStr)});
+    });
+  });
+  // Atrasados primero; dentro de cada bloque, lo que vence antes va arriba.
+  out.sort(function(x,y){if(x.atrasado!==y.atrasado)return x.atrasado?-1:1;return x.falta-y.falta;});
+  return{lista:out,caducados:Object.keys(caducados).length};
+}
+function renderSegHoy(){
+  var el=document.getElementById('seg-hoy');if(!el)return;
+  var r=avisosPendientes(),lista=r.lista;
+  var atrasados=lista.filter(function(p){return p.atrasado;}),alDia=lista.filter(function(p){return!p.atrasado;});
+  var pieCaducados=r.caducados?'<div class="hoy-sub" style="margin-top:10px">'+r.caducados+(r.caducados===1?' pedido antiguo con avisos sin marcar':' pedidos antiguos con avisos sin marcar')+' (más de '+AVISO_CADUCA_DIAS+' días pasados) ya no se piden.</div>':'';
+  var badgeBg=atrasados.length?'background:#FDECEF;color:#993556':'background:#EAF5E1;color:#4E7A1B';
+  var head='<div class="hoy-head"><div class="hoy-title">📣 Hoy hay que avisar</div><div class="hoy-count" style="'+badgeBg+'">'+lista.length+(lista.length===1?' pendiente':' pendientes')+'</div></div>';
+  if(!lista.length){el.innerHTML=head+'<div class="hoy-sub" style="color:var(--green);font-weight:600">✓ Todo al día, no hay avisos pendientes.</div>'+pieCaducados;return;}
+  function bloque(titulo,color,items){
+    if(!items.length)return'';
+    return'<div class="hoy-grupo" style="color:'+color+'">'+titulo+' ('+items.length+')</div>'+items.map(function(p){
+      var fin=finRecords.find(function(x){return String(x.num||'')===p.numStr;});
+      var cel=fin?String(fin.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
+      var wa=cel?'<a class="hoy-btn wa" target="_blank" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(p.msg)+'" onclick="marcarAviso(\''+p.numStr+'\',\''+p.avisoId+'\')">Abrir WhatsApp</a>':'<span class="hoy-sub">Sin número</span>';
+      var hecho='<button class="hoy-btn" onclick="marcarAviso(\''+p.numStr+'\',\''+p.avisoId+'\')">✓ Ya avisé</button>';
+      var excusa=p.atrasado?'<button class="hoy-btn excusa" onclick="anotarExcusa(\''+p.numStr+'\',\''+p.avisoId+'\')">No avisé porque…</button>':'';
+      return'<div class="hoy-item"><div class="hoy-dot" style="background:'+p.color+'"></div><div class="hoy-info"><div class="hoy-cli">#'+p.numStr+' '+p.nombre+'</div><div class="hoy-tag" style="color:'+p.color+'">'+p.tag+'</div><div class="hoy-sub">'+p.sub+'</div></div><div class="hoy-acciones">'+wa+hecho+excusa+'</div></div>';
+    }).join('');
+  }
+  el.innerHTML=head+bloque('Atrasados','#993556',atrasados)+bloque('Para hoy','#4E7A1B',alDia)+pieCaducados;
+}
+// Marcar desde el tablero es exactamente lo mismo que marcar el check en la tabla.
+function marcarAviso(numStr,avisoId){
+  var o=orders.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!o||(o.checks&&o.checks[avisoId]))return;
+  toggleCheck(numStr,avisoId);
+}
+async function anotarExcusa(numStr,avisoId){
+  var o=orders.find(function(x){return String(x.num||'')===String(numStr);});if(!o)return;
+  var a=AVISOS.find(function(x){return x.id===avisoId;})||{tag:avisoId};
+  var texto=prompt('Pedido #'+numStr+' — "'+a.tag+'" quedó sin hacer.\n\n¿Por qué no se avisó? (queda registrado)','');
+  if(texto===null)return;
+  texto=texto.trim();
+  if(!texto){showToast('Hay que escribir el motivo');return;}
+  if(!o.excusas)o.excusas={};
+  o.excusas[avisoId]={texto:texto,fecha:todayStr};
+  try{await api('pedidos/'+numStr+'/excusas/'+avisoId,'PUT',o.excusas[avisoId]);}catch(e){}
+  logHistorial(numStr,'Sin aviso — '+a.tag+': '+texto);
+  renderSeg();showToast('✓ Motivo registrado');
+}
 function getFilteredOrders(){
   var q=(document.getElementById('seg-search').value||'').toLowerCase().trim();
   var list=orders.slice();
@@ -26543,6 +26667,7 @@ function getFilteredOrders(){
 function setSegFilter(f,btn){segFilter=f;document.querySelectorAll('#page-seg .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderSeg();}
 async function toggleCheck(numStr,cid){
   if(!DB_URL)return;var o=orders.find(x=>String(x.num||'')===String(numStr));if(!o)return;
+  if(!o.checks)o.checks={};
   var newVal=!o.checks[cid];o.checks[cid]=newVal;renderSeg();
   pendingOps++;setSyncState('syncing');
   try{var patch={};patch[cid]=newVal;patch.last_activity=Date.now();o.last_activity=patch.last_activity;await api('pedidos/'+numStr+'/checks','PATCH',{[cid]:newVal});if(DB_URL)api('pedidos/'+numStr+'/last_activity','PUT',patch.last_activity).catch(function(){});setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
@@ -26559,40 +26684,40 @@ function renderSegStats(){
 }
 function renderSeg(){
   var list=getFilteredOrders(),tbody=document.getElementById('seg-tbody'),empty=document.getElementById('seg-empty');
-  renderSegStats();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});renderSegCards();
+  renderSegStats();renderSegHoy();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});renderSegCards();
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';scm={};sci=0;orders.forEach(o=>getSC(o.semana));
   tbody.innerHTML=list.map(o=>{
-    var p=getProgress(o.checks),sc=getSC(o.semana),rowBg=p.pct===100?'#F2FAE8':p.pct>0?'#FDF6E8':'#FDF0F5';
+    var p=getProgress(o.checks),sc=getSC(o.semana),recib=yaRecibio(o);
+    var rowBg=recib?'#D8EFB6':p.pct===100?'#F2FAE8':p.pct>0?'#FDF6E8':'#FDF0F5';
     var numStr=String(o.num||'');
-    var cells=CHECKS.map(c=>{var done=o.checks&&o.checks[c.id];return'<td style="background:'+rowBg+'"><button class="chk '+(done?'done':'pending')+'" style="'+(c.nocount?'opacity:0.6;':'')+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')">'+(done?'&#10003; '+c.label:'&mdash;')+'</button></td>';}).join('');
+    var cells=CHECKS.map(c=>{var done=c.id==='recibido'?recib:(o.checks&&o.checks[c.id]);return'<td style="background:'+rowBg+'"><button class="chk '+(done?'done':'pending')+'" style="'+(c.nocount?'opacity:0.6;':'')+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')">'+(done?'&#10003; '+c.label:'&mdash;')+'</button></td>';}).join('');
     var nota=o.notas?'<div class="nota-tag" title="'+o.notas+'">'+o.notas+'</div>':'';
+    // Motivos anotados cuando un aviso se pasó de fecha y no se mandó.
+    var excusas='';Object.keys(o.excusas||{}).forEach(function(k){var ex=o.excusas[k],a=AVISOS.find(function(x){return x.id===k;})||{tag:k};var t=a.tag+': '+ex.texto;excusas+='<div class="nota-tag" title="'+t+'">⚠ '+t+'</div>';});
+    nota+=excusas;
     var canalBadge=o.canal==='web'?'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:1px 6px">🌐 Web</span>':'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:1px 6px">💬 WA</span>';
     var diaEnvio='';if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);var diffD=Math.round((de-hoy)/86400000);var diaStr=de.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});diaStr=diaStr.charAt(0).toUpperCase()+diaStr.slice(1);var diaColor=diffD<=0?'var(--red)':diffD<=3?'var(--amber)':'var(--text-3)';diaEnvio='<div style="font-size:10px;color:'+diaColor+';margin-top:3px;font-weight:'+(diffD<=3?'700':'400')+'">Envío: '+diaStr+'</div>';}
     var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+(o.semana||'')+'</span>'+diaEnvio;
-    // "Recibió pedido": aparece recién 10 días después de la fecha de envío, y se
-    // apaga una vez preguntado. Se guarda como contacto c4 igual que los otros avisos.
+    // "Recibió pedido": aparece recién 10 días después de la fecha de envío y
+    // marca el check 'recibido', el mismo que usa el tablero de arriba.
     var btnRecibio='';
     var deR=fechaEnvioPedido(o);
-    if(deR){
+    if(deR&&!recib){
       var hoyR=new Date();hoyR.setHours(0,0,0,0);
-      var diasEnv=Math.round((hoyR-deR)/86400000);
-      if(diasEnv>=10){
-        if(o.contactos&&o.contactos.c4){
-          btnRecibio='<button class="btn-edit" disabled style="opacity:.5;margin-right:5px" title="Ya se preguntó">&#10003; Recibió</button>';
+      if(Math.round((hoyR-deR)/86400000)>=10){
+        var finR=finRecords.find(function(x){return String(x.num||'')===numStr;});
+        var celR=finR?String(finR.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
+        var msgR='Hola! '+(o.nombre||'')+'. Quería confirmar si recibiste todo bien finalmente!';
+        if(celR){
+          btnRecibio='<a href="https://wa.me/56'+celR+'?text='+encodeURIComponent(msgR)+'" target="_blank" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" class="btn-edit" style="background:#25D366;color:#fff;border-color:#25D366;margin-right:5px;text-decoration:none;display:inline-block">Recibió pedido</a>';
         }else{
-          var finR=finRecords.find(function(x){return String(x.num||'')===numStr;});
-          var celR=finR?String(finR.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
-          var msgR='Hola! '+(o.nombre||'')+'. Quería confirmar si recibiste todo bien finalmente!';
-          if(celR){
-            btnRecibio='<a href="https://wa.me/56'+celR+'?text='+encodeURIComponent(msgR)+'" target="_blank" onclick="marcarContacto(\''+numStr+'\',\'c4\')" class="btn-edit" style="background:#25D366;color:#fff;border-color:#25D366;margin-right:5px;text-decoration:none;display:inline-block">Recibió pedido</a>';
-          }else{
-            btnRecibio='<button class="btn-edit" onclick="marcarContacto(\''+numStr+'\',\'c4\')" style="margin-right:5px" title="Este cliente no tiene celular guardado">Recibió pedido</button>';
-          }
+          btnRecibio='<button class="btn-edit" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" style="margin-right:5px" title="Este cliente no tiene celular guardado">Recibió pedido</button>';
         }
       }
     }
-    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+';white-space:nowrap">'+btnRecibio+'<button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
+    var estrella=recib?'<span title="Confirmó que lo recibió" style="color:#4E7A1B;font-size:13px"> ★</span>':'';
+    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+estrella+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="cliente-prod">'+(o.producto||'')+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+';white-space:nowrap">'+btnRecibio+'<button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
   }).join('');
 }
 function openModal(numStr){
@@ -28231,9 +28356,10 @@ function renderSegCards(){
   if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">📋</span>No hay pedidos.</div>';return;}
   var html2='';
   list.forEach(function(o){
-    var p=getProgress(o.checks),colorClass=p.pct===100?'verde':p.pct>0?'amarillo':'rosado',progColor=p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)',numStr=String(o.num||'');
-    var chksHtml='';CHECKS.forEach(function(c){var done=!!(o.checks&&o.checks[c.id]),label=c.label.length>16?c.label.slice(0,16)+'…':c.label;chksHtml+='<div class="seg-card-chk'+(done?' done':'')+'" data-numstr="'+numStr+'" data-cid="'+c.id+'" onclick="segCardToggle(this)"><span style="font-size:13px">'+(done?'✓':'○')+'</span><span>'+label+(c.critical?' ★':'')+'</span></div>';});
-    html2+='<div class="seg-card '+colorClass+'"><div class="seg-card-header"><div><div class="seg-card-num">#'+(o.num||'—')+'</div><div class="seg-card-client">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="seg-card-prod">'+(o.producto||'')+'</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:'+progColor+'">'+p.pct+'%</div><div style="font-size:10px;color:var(--text-3);margin-bottom:4px">'+(o.semana||'')+'</div><button class="btn-edit" style="font-size:11px" onclick="openModal(\''+numStr+'\')">Editar</button></div></div><div class="seg-card-checks">'+chksHtml+'</div></div>';
+    var p=getProgress(o.checks),recib=yaRecibio(o),colorClass=p.pct===100?'verde':p.pct>0?'amarillo':'rosado',progColor=p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)',numStr=String(o.num||'');
+    var chksHtml='';CHECKS.forEach(function(c){var done=c.id==='recibido'?recib:!!(o.checks&&o.checks[c.id]),label=c.label.length>16?c.label.slice(0,16)+'…':c.label;chksHtml+='<div class="seg-card-chk'+(done?' done':'')+'" data-numstr="'+numStr+'" data-cid="'+c.id+'" onclick="segCardToggle(this)"><span style="font-size:13px">'+(done?'✓':'○')+'</span><span>'+label+(c.critical?' ★':'')+'</span></div>';});
+    var estrellaC=recib?'<span title="Confirmó que lo recibió" style="color:#4E7A1B"> ★</span>':'';
+    html2+='<div class="seg-card '+colorClass+'"'+(recib?' style="border-color:#4E7A1B"':'')+'><div class="seg-card-header"><div><div class="seg-card-num">#'+(o.num||'—')+estrellaC+'</div><div class="seg-card-client">'+(o.nombre||'')+' '+(o.apellido||'')+'</div><div class="seg-card-prod">'+(o.producto||'')+'</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:'+progColor+'">'+p.pct+'%</div><div style="font-size:10px;color:var(--text-3);margin-bottom:4px">'+(o.semana||'')+'</div><button class="btn-edit" style="font-size:11px" onclick="openModal(\''+numStr+'\')">Editar</button></div></div><div class="seg-card-checks">'+chksHtml+'</div></div>';
   });
   el.innerHTML=html2;
 }
