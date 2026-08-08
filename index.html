@@ -379,6 +379,17 @@ body {
 .leg-dot { width:8px; height:8px; border-radius:2px; }
 
 /* ── Tablero "hoy hay que avisar" (arriba de Seguimiento) ── */
+/* La pantalla se parte en dos: el tablero queda fijo a la izquierda con su
+   propio scroll, así la lista de pedidos siempre está a la vista. En pantallas
+   angostas vuelve a apilarse, pero el tablero se limita a media pantalla para
+   no empujar la lista fuera del alcance. */
+.seg-split { display:block; }
+.seg-col-lista { min-width:0; }
+@media (min-width: 1100px) {
+  .seg-split { display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start; }
+  .seg-col-hoy { position:sticky;top:12px;max-height:calc(100vh - 32px);overflow-y:auto; }
+  .seg-col-hoy .hoy-board { margin-bottom:0; }
+}
 .hoy-board { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:16px 18px;margin-bottom:18px; }
 .hoy-head { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap; }
 .hoy-title { font-size:14px;font-weight:700;color:var(--text); }
@@ -398,7 +409,8 @@ body {
 .hoy-btn.wa { background:#25D366;color:#fff;border-color:#25D366; }
 .hoy-btn.excusa { border-color:var(--amber);color:var(--amber); }
 @media (max-width: 768px) {
-  .hoy-board { padding:14px; }
+  .hoy-board { padding:14px;max-height:48vh;overflow-y:auto;-webkit-overflow-scrolling:touch; }
+  .hoy-head { position:sticky;top:-14px;background:var(--surface);padding:4px 0 8px;margin:-4px 0 8px;z-index:1; }
   .hoy-item { flex-wrap:wrap; }
   .hoy-info { flex:1 1 100%; }
   .hoy-acciones { flex:1 1 100%; justify-content:flex-start; }
@@ -25642,7 +25654,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="btn-connect" onclick="connectFirebase()">Conectar →</button>
     </div>
   </div>
-  <div class="hoy-board" id="seg-hoy"></div>
+  <div class="seg-split">
+  <div class="seg-col-hoy"><div class="hoy-board" id="seg-hoy"></div></div>
+  <div class="seg-col-lista">
   <div class="stats-grid" id="seg-stats"></div>
   <div class="toolbar">
     <div class="filter-group">
@@ -25679,6 +25693,8 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </table>
     <div class="empty-state" id="seg-empty" style="display:none"><span class="empty-icon">📋</span>No se encontraron pedidos.</div>
   </div></div>
+  </div>
+  </div>
 </div></div>
 
 <!-- P2 PRODUCCIÓN -->
@@ -26580,6 +26596,15 @@ const AVISOS=[
 ];
 // Más allá de esto el aviso ya no tiene sentido y deja de pedirse.
 const AVISO_CADUCA_DIAS=30;
+// Estos avisos nombran una fecha concreta: si el envío se corre, hay que
+// volver a mandarlos porque el cliente quedó con el dato viejo.
+const AVISOS_POR_FECHA=['aviso_sem','aviso_lun','aviso_dia'];
+function fechaLarga(iso){
+  if(!iso)return'';
+  var d=new Date(iso+'T12:00:00');if(isNaN(d))return iso;
+  var s=d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
+  return s.charAt(0).toUpperCase()+s.slice(1);
+}
 function msgAviso(id,o,dRel,fechaEnvStr){
   var n=o.nombre||'',num=String(o.num||''),prod=o.producto||'';
   if(id==='aviso_sem')return'Hola '+n+'! Te cuento que tu pedido #'+num+' ('+prod+') queda listo para despacho la próxima semana. Apenas tenga el día exacto te aviso.';
@@ -26593,6 +26618,15 @@ function avisosPendientes(){
   var hoy=new Date();hoy.setHours(0,0,0,0);
   var out=[],caducados={};
   orders.forEach(function(o){
+    var numStr=String(o.num||''),nom=((o.nombre||'')+' '+(o.apellido||'')).trim();
+    // Se corrió el envío y el cliente todavía no lo sabe: va antes que todo lo
+    // demás, aunque los otros avisos estén atrasados.
+    if(o.cambio_fecha&&!(o.checks&&o.checks.cambio)){
+      out.push({numStr:numStr,nombre:nom,avisoId:'cambio',urgente:true,atrasado:false,falta:-999,
+        tag:'⚠ Avisar el cambio de fecha',color:'#993556',
+        sub:'Era '+fechaLarga(o.cambio_fecha.anterior)+' → ahora '+fechaLarga(o.cambio_fecha.nueva),
+        msg:'Hola '+(o.nombre||'')+'! Te aviso que tu pedido #'+numStr+' se corrió para el '+fechaLarga(o.cambio_fecha.nueva)+'. Disculpa el cambio, cualquier cosa me dices.'});
+    }
     var env=fechaEnvioPedido(o);if(!env)return;
     var dRel=Math.round((hoy-env)/86400000);
     var fechaEnvStr=env.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
@@ -26611,16 +26645,22 @@ function avisosPendientes(){
         msg:msgAviso(a.id,o,dRel,fechaEnvStr)});
     });
   });
-  // Atrasados primero; dentro de cada bloque, lo que vence antes va arriba.
-  out.sort(function(x,y){if(x.atrasado!==y.atrasado)return x.atrasado?-1:1;return x.falta-y.falta;});
+  // Cambios de fecha primero, después atrasados; dentro de cada bloque, lo que
+  // vence antes va arriba.
+  out.sort(function(x,y){
+    if(!!x.urgente!==!!y.urgente)return x.urgente?-1:1;
+    if(x.atrasado!==y.atrasado)return x.atrasado?-1:1;
+    return x.falta-y.falta;});
   return{lista:out,caducados:Object.keys(caducados).length};
 }
 function renderSegHoy(){
   var el=document.getElementById('seg-hoy');if(!el)return;
   var r=avisosPendientes(),lista=r.lista;
-  var atrasados=lista.filter(function(p){return p.atrasado;}),alDia=lista.filter(function(p){return!p.atrasado;});
+  var cambios=lista.filter(function(p){return p.urgente;});
+  var atrasados=lista.filter(function(p){return p.atrasado&&!p.urgente;});
+  var alDia=lista.filter(function(p){return!p.atrasado&&!p.urgente;});
   var pieCaducados=r.caducados?'<div class="hoy-sub" style="margin-top:10px">'+r.caducados+(r.caducados===1?' pedido antiguo con avisos sin marcar':' pedidos antiguos con avisos sin marcar')+' (más de '+AVISO_CADUCA_DIAS+' días pasados) ya no se piden.</div>':'';
-  var badgeBg=atrasados.length?'background:#FDECEF;color:#993556':'background:#EAF5E1;color:#4E7A1B';
+  var badgeBg=(atrasados.length||cambios.length)?'background:#FDECEF;color:#993556':'background:#EAF5E1;color:#4E7A1B';
   var head='<div class="hoy-head"><div class="hoy-title">📣 Hoy hay que avisar</div><div class="hoy-count" style="'+badgeBg+'">'+lista.length+(lista.length===1?' pendiente':' pendientes')+'</div></div>';
   if(!lista.length){el.innerHTML=head+'<div class="hoy-sub" style="color:var(--green);font-weight:600">✓ Todo al día, no hay avisos pendientes.</div>'+pieCaducados;return;}
   function bloque(titulo,color,items){
@@ -26634,7 +26674,7 @@ function renderSegHoy(){
       return'<div class="hoy-item"><div class="hoy-dot" style="background:'+p.color+'"></div><div class="hoy-info"><div class="hoy-cli">#'+p.numStr+' '+p.nombre+'</div><div class="hoy-tag" style="color:'+p.color+'">'+p.tag+'</div><div class="hoy-sub">'+p.sub+'</div></div><div class="hoy-acciones">'+wa+hecho+excusa+'</div></div>';
     }).join('');
   }
-  el.innerHTML=head+bloque('Atrasados','#993556',atrasados)+bloque('Para hoy','#4E7A1B',alDia)+pieCaducados;
+  el.innerHTML=head+bloque('Cambió la fecha de envío','#993556',cambios)+bloque('Atrasados','#993556',atrasados)+bloque('Para hoy','#4E7A1B',alDia)+pieCaducados;
 }
 // Marcar desde el tablero es exactamente lo mismo que marcar el check en la tabla.
 function marcarAviso(numStr,avisoId){
@@ -26793,8 +26833,21 @@ async function saveOrder(){
   pendingOps++;setSyncState('syncing');
   try{
     var prev=orders.find(x=>String(x.num||'')===num)||{};
-    await api('pedidos/'+num,'PUT',{num,semana,dia_envio,nombre,apellido,producto,piezas,notas,canal,checks:Object.assign({},prev.checks||{},checks)});
-    setSyncState('online');logHistorial(num,editingKey?'Pedido editado':'Pedido creado');await poll();
+    var checksFinal=Object.assign({},prev.checks||{},checks);
+    // Si se corre el día de envío, los avisos que ya se mandaron hablaban de la
+    // fecha vieja: se reabren y queda pendiente avisarle al cliente del cambio.
+    var aviso='';
+    if(prev.dia_envio&&dia_envio&&prev.dia_envio!==dia_envio){
+      AVISOS_POR_FECHA.forEach(function(id){checksFinal[id]=false;});
+      checksFinal.cambio=false;
+      aviso=' — envío movido del '+prev.dia_envio+' al '+dia_envio;
+    }
+    // PUT reemplaza el registro entero, así que hay que arrastrar lo que el
+    // formulario no toca (excusas, contactos, fecha de venta, cambio de fecha).
+    var reg=Object.assign({},prev,{num,semana,dia_envio,nombre,apellido,producto,piezas,notas,canal,checks:checksFinal});
+    if(aviso)reg.cambio_fecha={anterior:prev.dia_envio,nueva:dia_envio,fecha:todayStr};
+    await api('pedidos/'+num,'PUT',reg);
+    setSyncState('online');logHistorial(num,(editingKey?'Pedido editado':'Pedido creado')+aviso);await poll();
   }catch(e){setSyncState('offline');}finally{pendingOps--;}
   closeModal();
 }
