@@ -30,8 +30,12 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .btn-nav-sm:hover { border-color: var(--ac); color: var(--ac); }
 .btn-nav-sm.left { left: 12px; }
 .btn-nav-sm.right { right: 12px; }
-.logotype { font-family: 'Cormorant Garamond', serif; font-size: 27px; font-weight: 600; letter-spacing: 5px; line-height: 1; color: var(--acd); }
+/* Wordmark. El text-indent compensa el espacio que letter-spacing agrega DESPUES
+   de la ultima letra: sin el, el texto centrado queda corrido hacia la izquierda. */
+.logotype { font-family: 'Cormorant Garamond', serif; font-size: 28px; font-weight: 600; letter-spacing: 6px; text-indent: 6px; line-height: 1.05; color: var(--acd); }
 .logotype .sep { color: var(--ac); }
+/* Si existe el archivo del logo, un script lo sustituye aqui (ver LOGO_URL). */
+.logo-img { display: block; height: 30px; width: auto; margin: 0 auto; }
 .tagline { font-family: 'Jost', sans-serif; font-size: 8px; letter-spacing: 4px; text-transform: uppercase; color: var(--tm); margin-top: 4px; }
 .badge { display: inline-block; background: var(--ac); color: white; font-family: 'Jost', sans-serif; font-size: 8px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; padding: 3px 12px; border-radius: 20px; margin-top: 7px; }
 
@@ -82,6 +86,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 
 .btn-primary { width: 100%; background: var(--ac); color: white; border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-family: 'Cormorant Garamond', serif; font-weight: 600; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: background .15s; margin-top: 4px; }
 .btn-primary:hover { background: var(--acd); }
+/* Barra fija con el CTA: el boton queda siempre a la vista, sin tener que
+   scrollear hasta el final de toda la pagina de valor. */
+.cta-dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; background: rgba(250,248,242,.95); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-top: 1px solid var(--bd); box-shadow: 0 -2px 16px rgba(44,26,8,.08); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+.cta-dock .btn-primary { max-width: 480px; margin: 0 auto; display: block; padding: 15px; font-size: 15px; }
 .msg-err { color: #c0392b; font-size: 12px; text-align: center; margin-top: 8px; }
 
 .col-labels { display: flex; gap: 5px; margin-bottom: 4px; }
@@ -165,7 +173,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .wa-btn:hover { background: #1ebe5d; }
 
 /* ── VALUE SCREEN s2b ── */
-.val-body { padding: 28px 16px 40px; max-width: 480px; margin: 0 auto; }
+.val-body { padding: 28px 16px 96px; max-width: 480px; margin: 0 auto; }   /* el 96px de abajo despeja la .cta-dock fija */
 .val-h { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 400; color: var(--tx); text-align: center; margin-bottom: 8px; letter-spacing: .5px; }
 .val-lead { font-size: 12px; color: var(--tm); text-align: center; line-height: 1.7; margin-bottom: 22px; }
 .val-list { list-style: none; margin-bottom: 22px; }
@@ -181,18 +189,18 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .val-step-t strong { color: var(--acd); }
 /* ── MUESTRARIO DE MADERA (s2b, solo cotizador cubiertas-landing) ── */
 .wood-muestrario { margin-bottom: 24px; }
-.wood-muestrario-h { font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--acd); margin-bottom: 12px; text-align: center; }
+.wood-muestrario-h { font-size: 10.5px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--acd); margin-bottom: 14px; text-align: center; }
 .wood-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
 .wood-chip { border: 1px solid var(--bd); border-radius: 10px; overflow: hidden; background: white; box-shadow: 0 1px 3px rgba(44,26,8,.06); }
 .wood-swatch { height: 140px; background-size: cover; background-position: center; }
-.wood-name { font-size: 12px; font-weight: 700; color: var(--tx); padding: 8px 9px 1px; }
-.wood-desc { font-size: 9.5px; color: var(--tm); line-height: 1.35; padding: 0 9px 9px; }
+.wood-name { font-size: 14px; font-weight: 700; color: var(--tx); padding: 9px 11px 2px; }
+.wood-desc { font-size: 11.5px; color: var(--tm); line-height: 1.45; padding: 0 11px 10px; }
 @media (max-width: 600px) {
-  .wood-grid { grid-template-columns: 1fr; gap: 8px; }
-  .wood-chip { display: grid; grid-template-columns: 84px 1fr; grid-template-rows: auto 1fr; align-items: start; }
-  .wood-swatch { grid-row: 1 / 3; grid-column: 1; height: 100%; min-height: 76px; }
-  .wood-name { grid-row: 1; grid-column: 2; padding: 9px 9px 0; }
-  .wood-desc { grid-row: 2; grid-column: 2; padding: 2px 9px 9px; }
+  .wood-grid { grid-template-columns: 1fr; gap: 10px; }
+  .wood-chip { display: grid; grid-template-columns: 96px 1fr; grid-template-rows: auto 1fr; align-items: start; }
+  .wood-swatch { grid-row: 1 / 3; grid-column: 1; height: 100%; min-height: 94px; }
+  .wood-name { grid-row: 1; grid-column: 2; font-size: 15.5px; padding: 12px 13px 3px; }
+  .wood-desc { grid-row: 2; grid-column: 2; font-size: 12.5px; line-height: 1.5; padding: 0 13px 12px; }
 }
 /* ── NOTA DE OPCIONES (formulario cubierta-landing) ── */
 .cubierta-nota { font-size: 10.5px; color: var(--tm); line-height: 1.5; background: var(--bg3); border: 1px solid var(--bd); border-radius: 8px; padding: 8px 10px; margin-top: 10px; }
@@ -360,7 +368,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <!-- ══ s1: DASHBOARD ══ -->
 <div id="s1">
   <div class="logo-bar">
-    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div class="logotype">CASA ZARU</div>
     <div class="tagline">Madera del sur de Chile a medida</div>
     <div><span class="badge">Cotizador en Línea</span></div>
   </div>
@@ -416,7 +424,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <!-- ══ s2: FORM ══ -->
 <div id="s2" class="hidden">
   <div class="logo-bar">
-    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div class="logotype">CASA ZARU</div>
     <div><span class="badge">Cotizador en Línea</span></div>
   </div>
   <div class="form-body">
@@ -449,7 +457,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <div id="s2b" class="hidden">
   <div class="logo-bar">
     <button class="btn-nav-sm left" id="btn-s2b-back">← Editar</button>
-    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div class="logotype">CASA ZARU</div>
     <div><span class="badge">Cotizador en Línea</span></div>
   </div>
   <div class="val-body">
@@ -480,15 +488,15 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       <div class="val-step"><div class="val-step-n">2</div><div class="val-step-t">Fabricamos tu pieza. <strong>Te enviamos foto</strong> cuando esté terminada, antes de embalarla.</div></div>
       <div class="val-step"><div class="val-step-n">3</div><div class="val-step-t">Apruebas y pagas el saldo del <strong>30%</strong>. Hacemos el envío.</div></div>
     </div>
-    <button class="btn-primary" id="btn-ver-coti">Ver mi cotización →</button>
   </div>
+  <div class="cta-dock"><button class="btn-primary" id="btn-ver-coti">Ver mi cotización →</button></div>
 </div>
 
 <!-- ══ s3: QUOTE ══ -->
 <div id="s3" class="hidden">
   <div class="logo-bar">
     <button class="btn-nav-sm left" id="btn-q-s2">← Editar</button>
-    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div class="logotype">CASA ZARU</div>
     <div><span class="badge">Cotizador en Línea</span></div>
     <button class="btn-nav-sm right" id="btn-q-s1">Inicio</button>
   </div>
@@ -498,7 +506,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <!-- ══ s-login: ACCESO AL PANEL ══ -->
 <div id="s-login" class="hidden">
   <div class="logo-bar">
-    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div class="logotype">CASA ZARU</div>
     <div><span class="badge" style="background:var(--acd)">Panel Interno</span></div>
   </div>
   <div class="login-box">
@@ -514,7 +522,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <!-- ══ s-dash: PANEL INTERNO ══ -->
 <div id="s-dash" class="hidden">
   <div class="logo-bar">
-    <div class="logotype">CASA <span class="sep">·</span> ZARU</div>
+    <div class="logotype">CASA ZARU</div>
     <div><span class="badge" style="background:var(--acd)">Panel Interno</span> <button class="btn-logout" id="btn-logout" onclick="doPanelLogout()">Salir</button></div>
   </div>
   <div style="padding:20px 16px 40px;max-width:700px;margin:0 auto">
@@ -628,6 +636,21 @@ function currentPR() {
 function setPeldanoEspesor(val) {
   peldanoEspesor = val;
   calcLive();
+}
+
+/* ── LOGO ──
+   Si el archivo del logo existe, reemplaza el wordmark de texto por la imagen real
+   en todas las barras. Si no existe (404), no hace nada y queda el texto: nunca se
+   ve un icono de imagen rota. Para activarlo basta con subir el archivo a esa ruta. */
+var LOGO_URL = 'https://casazar.github.io/Cotizador/fotos/logo-casa-zaru.png';
+function applyLogo() {
+  var probe = new Image();
+  probe.onload = function() {
+    document.querySelectorAll('.logotype').forEach(function(el) {
+      el.innerHTML = '<img class="logo-img" src="' + LOGO_URL + '" alt="Casa Zaru">';
+    });
+  };
+  probe.src = LOGO_URL;
 }
 
 /* ── FOTOS ── */
@@ -2788,6 +2811,7 @@ function extrasBlock(m2) {
 
 /* ── EVENT LISTENERS ── */
 document.addEventListener('DOMContentLoaded', function() {
+  applyLogo();
   applyFotos();
   document.querySelectorAll('.pcard').forEach(function(card) {
     card.addEventListener('click', function() { initProd(card.dataset.prod); });
