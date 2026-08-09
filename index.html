@@ -386,10 +386,19 @@ body {
 .seg-split { display:block; }
 .seg-col-lista { min-width:0; }
 @media (min-width: 1100px) {
-  .seg-split { display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start; }
+  .seg-split { display:grid;grid-template-columns:400px 1fr;gap:18px;align-items:start; }
   .seg-col-hoy { position:sticky;top:12px;max-height:calc(100vh - 32px);overflow-y:auto; }
   .seg-col-hoy .hoy-board { margin-bottom:0; }
 }
+/* El tablero vive en una columna angosta, así que cada aviso se apila: los
+   datos ocupan el ancho completo y los botones van debajo. Lado a lado, el
+   texto quedaba en un hilo de cuatro líneas pisándose con los botones. */
+.seg-col-hoy .hoy-item { flex-wrap:wrap;align-items:flex-start; }
+.seg-col-hoy .hoy-dot { margin-top:5px; }
+.seg-col-hoy .hoy-info { flex:1 1 calc(100% - 18px); }
+.seg-col-hoy .hoy-cli { line-height:1.35; }
+.seg-col-hoy .hoy-acciones { flex:1 1 100%;justify-content:flex-start;margin-top:7px; }
+.seg-col-hoy .hoy-btn { flex:0 1 auto; }
 .hoy-board { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:16px 18px;margin-bottom:18px; }
 .hoy-head { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap; }
 .hoy-title { font-size:14px;font-weight:700;color:var(--text); }
@@ -479,6 +488,8 @@ body.rol-vendedor #page-cli tbody td:nth-child(6),
 body.rol-vendedor #page-cli tbody td:nth-child(9),
 body.rol-vendedor #cli-stats .stat-card:nth-child(3),
 body.rol-vendedor #cli-stats .stat-card:nth-child(4) { display:none !important; }
+/* La caja son datos de Finanzas, que el vendedor no ve. */
+body.rol-vendedor #dash-caja { display:none !important; }
 
 /* ── PRODUCCIÓN ── */
 .api-banner { background:var(--amber-dim); border:1px solid rgba(251,146,60,0.25); border-radius:var(--radius-lg); padding:12px 16px; display:flex; align-items:center; gap:10px; font-size:13px; margin-bottom:16px; flex-wrap:wrap; }
@@ -28484,6 +28495,10 @@ async function marcarContacto(numStr,tipo){
 // pregunta de todos los días: cuánta plata entra, y cuánta ya debió entrar.
 function renderCaja(){
   var el=document.getElementById('dash-caja');if(!el)return;
+  // Solo el admin: esto sale de Finanzas, que el vendedor no ve. El CSS ya la
+  // esconde, pero eso se salta con devtools; acá directamente no se dibuja.
+  if(usuarioRol!=='admin'){el.innerHTML='';el.style.display='none';return;}
+  el.style.display='';
   var hoy=new Date();hoy.setHours(0,0,0,0);
   var vencidos=[],estaSem=0,proxSem=0,despues=0,nEsta=0,nProx=0;
   finRecords.forEach(function(f){
