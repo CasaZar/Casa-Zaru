@@ -680,13 +680,18 @@ function setPeldanoEspesor(val) {
   peldanoEspesor = val;
   calcLive();
 }
-/* recargo por 8 cm macizo: multiplica SOLO la madera (m²), no los extras */
+/* recargo por 8 cm macizo: multiplica SOLO la madera (m²), no los extras.
+   cubiertaEspesor vive en una variable (como peldanoEspesor) para que un link
+   compartido en 8 cm calcule bien aunque el selector no exista (vista pública). */
+var cubiertaEspesor = '4';
+function getCubiertaEspesor() {
+  var el = document.getElementById('f-espesor-cubierta');
+  if (el && el.value) cubiertaEspesor = el.value;
+  return cubiertaEspesor;
+}
 function espesorFactor() {
   if (prod === 'peldano') return getPeldanoEspesor() === '8' ? 1 + ESP8_PCT : 1;
-  if (prod === 'cubierta') {
-    var el = document.getElementById('f-espesor-cubierta');
-    return (el && el.value === '8') ? 1 + ESP8_PCT : 1;
-  }
+  if (prod === 'cubierta') return getCubiertaEspesor() === '8' ? 1 + ESP8_PCT : 1;
   return 1;
 }
 
@@ -871,6 +876,7 @@ function initProd(p) {
   prod = isPuertas ? 'granero' : p;
   nrows = 1;
   peldanoEspesor = '4';
+  cubiertaEspesor = '4';
   document.getElementById('f-title').textContent = isPuertas ? 'Puertas de madera' : PNAME[p];
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
@@ -891,7 +897,7 @@ function renderForm(p) {
         '<select class="fsel" id="f-espesor-peldano" onchange="setPeldanoEspesor(this.value)">' +
           '<option value="4" selected>4 cm</option>' +
           '<option value="2">2 cm</option>' +
-          '<option value="8">8 cm macizo (+22%)</option>' +
+          (vendorMode ? '<option value="8">8 cm macizo (+22%)</option>' : '') +
         '</select>' +
       '</div>' :
       '<div class="fsec">' +
@@ -911,8 +917,9 @@ function renderForm(p) {
       '</div>';
     var addRowLabel = cubiertaSolo ? '+ Agregar cubierta' : '+ Agregar pieza';
     var maderaNota = cubiertaSolo ? '<div class="cubierta-nota">También hacemos teñido a color, perforaciones a medida (lavaplatos, llaves) y distintas formas de cubierta. Revisamos esos detalles contigo al final, con nuestro asesor.</div>' : '';
-    /* cubierta también se pide en 8 cm macizo (doble madera en la zona visible) */
-    var espCubField = (p === 'cubierta') ?
+    /* cubierta también se pide en 8 cm macizo (doble madera en la zona visible).
+       Solo en el cotizador de vendedores: el público se mantiene simple. */
+    var espCubField = (p === 'cubierta' && vendorMode) ?
       '<div class="fsec">' +
         '<label class="flabel">Espesor</label>' +
         '<select class="fsel" id="f-espesor-cubierta" onchange="calcLive()">' +
@@ -1937,10 +1944,7 @@ function getShareData() {
   var data = { p: prod, cli: cli, con: conStr, uso: uso, qnum: qnum };
   if (b2bDcto > 0) data.b2b = b2bDcto;   /* el link compartido conserva el descuento profesionales */
   if (prod === 'peldano') data.esp = getPeldanoEspesor();   /* sin esto el link volvía siempre a 4 cm */
-  if (prod === 'cubierta') {   /* espesor 8 cm macizo de cubierta (+22%) */
-    var e8El = document.getElementById('f-espesor-cubierta');
-    if (e8El && e8El.value === '8') data.esp8 = 1;
-  }
+  if (prod === 'cubierta' && getCubiertaEspesor() === '8') data.esp8 = 1;   /* espesor 8 cm macizo (+22%) */
   if (prod === 'mesa') data.mesa = mesaDatos();             /* base de fierro: nombre, valor, altura, perfil, color */
   if (prod !== 'revlibre') {   /* revlibre ya guarda sus extras dentro de data.rv */
     var vExtrasNow = vExtrasDatos(); if (vExtrasNow.length) data.vExtras = vExtrasNow;
@@ -2023,7 +2027,8 @@ function restoreFromData(d) {
     var espEl = document.getElementById('f-espesor-peldano');
     if (espEl) espEl.value = espGuardado;
   }
-  if (d.esp8) {   /* restaurar espesor 8 cm macizo de cubierta */
+  if (d.esp8) {   /* restaurar espesor 8 cm macizo de cubierta (el selector solo existe en modo vendedor) */
+    cubiertaEspesor = '8';
     var ecEl = document.getElementById('f-espesor-cubierta');
     if (ecEl) ecEl.value = '8';
   }
