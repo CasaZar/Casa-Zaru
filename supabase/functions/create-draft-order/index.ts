@@ -21,13 +21,24 @@ const corsHeaders = {
 };
 
 // ---- Misma tabla de precios que cotizador-clientes.html (PR) ----
+//
+// ⚠ FUENTE ÚNICA: si tocas PR en cotizador-clientes.html (~línea 570) TIENES
+// que copiar el cambio acá. Esta tabla ya se desincronizó una vez: nació como
+// copia del cotizador de julio y quedó con las puertas entre 16% y 35% más
+// baratas (granero alto 263.250 contra 362.145). Como esta función es la que
+// cobra de verdad en Shopify, esa diferencia se le cobraba al cliente.
+// Sincronizada el 9 ago 2026.
+//
+// ⚠ IVA: TODOS estos precios son con IVA incluido, igual que el cotizador.
+// Antes de encender el botón "Comprar ahora" hay que configurar Shopify con
+// "prices include tax", o el cliente pagará un 19% de más.
 const PR: Record<string, any> = {
   cubierta: { alto: 362145, medio: 333184, bajo: 241890 },
   repisa: { alto: 315066, medio: 289870, bajo: 210444 },
   peldano: { alto: 362145, medio: 333184, bajo: 241890 },
-  granero: { bajo: { m2: 208450, fijo: 50000 }, medio: { m2: 246450, fijo: 50000 }, alto: { m2: 263250, fijo: 50000 } },
-  maciza: { alto: { m2: 304323, fijo: 80000 }, medio: { m2: 279986, fijo: 80000 }, bajo: { m2: 203269, fijo: 80000 } },
-  vidrios: { alto: { m2: 304323, fijo: 80000 }, medio: { m2: 279986, fijo: 80000 }, bajo: { m2: 203269, fijo: 80000 } },
+  granero: { bajo: { m2: 241890, fijo: 50000 }, medio: { m2: 333184, fijo: 50000 }, alto: { m2: 362145, fijo: 50000 } },
+  maciza: { alto: { m2: 362145, fijo: 80000 }, medio: { m2: 333184, fijo: 80000 }, bajo: { m2: 241890, fijo: 80000 } },
+  vidrios: { alto: { m2: 362145, fijo: 80000 }, medio: { m2: 333184, fijo: 80000 }, bajo: { m2: 241890, fijo: 80000 } },
   revestimiento: { coihue: 89900, cipres: 82900 },
 };
 const WOOD: Record<string, string> = { alto: 'Coihue / Raulí / Lenga', medio: 'Castaño / Ciprés / Mañío', bajo: 'Pino Oregón' };

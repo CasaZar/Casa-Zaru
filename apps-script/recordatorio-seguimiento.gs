@@ -1,7 +1,11 @@
 /**
  * Casa Zaru — Recordatorio diario de seguimientos (15:00).
  * Lee las cotizaciones de Supabase, calcula a quién toca contactar HOY
- * (cadencia 1/3/7/14/30 días) y manda un correo a César y al admin.
+ * y manda un correo a César y al admin.
+ *
+ * OJO: la cadencia (CAD) tiene que ser IDÉNTICA a la del panel
+ * (CADENCIA en cotizador-clientes.html). Si no, el correo avisa
+ * seguimientos en días que contradicen lo que César ve en pantalla.
  *
  * INSTALACIÓN (una sola vez):
  *  1. script.google.com → Nuevo proyecto → pega este archivo completo.
@@ -17,7 +21,7 @@ var SB_URL = 'https://cmxqorsyxoltrakxawro.supabase.co';
 var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
 var TZ = 'America/Santiago';
 
-var CAD = [1, 4, 9, 15, 30];
+var CAD = [2, 8, 15, 21, 29, 40];  // === CADENCIA de cotizador-clientes.html
 var VENDEDORES = [
   { code:'cesar', nombre:'César', email:'crodriguez.casazaru@gmail.com', legacy:['hola@casazaru.cl'] }
 ];
@@ -26,7 +30,7 @@ var PANEL_BASE = 'https://cotizador.casazaru.cl/';
 var PNAME = {
   cubierta:'Cubiertas', repisa:'Repisa / Cubierta 2cm', peldano:'Peldaños',
   granero:'Puerta Granero', maciza:'Puerta Maciza', vidrios:'Puerta con Vidrios',
-  revestimiento:'Revestimiento'
+  revestimiento:'Revestimiento', mesa:'Mesa', revlibre:'Revestimiento a medida'
 };
 
 /* ── Helpers de fecha ── */

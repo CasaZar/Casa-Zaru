@@ -566,7 +566,12 @@ var FOTOS = {
   revestimiento: 'https://casazar.github.io/Cotizador/fotos/revestimiento.jpg'
 };
 
-/* ── PRECIOS ── */
+/* ── PRECIOS ──
+   ⚠ Si cambias esta tabla, copia el cambio TAMBIÉN en:
+     supabase/functions/create-draft-order/index.ts  (es la que cobra en Shopify)
+   Ya se desincronizaron una vez: la Edge Function quedó con los precios de
+   julio y habría cobrado las puertas hasta 35% más baratas de lo cotizado.
+   Los precios son con IVA incluido y ya traen el +10% (precio con tarjeta). */
 var PR = {
   cubierta:  { alto: 362145, medio: 333184, bajo: 241890 },
   repisa:    { alto: 315066, medio: 289870, bajo: 210444 },
@@ -2332,7 +2337,7 @@ function prodTexto(p){
   }
 }
 function waMsg(x){
-  var toque=Math.min((x.seg_etapa||0)+1, 5);
+  var toque=Math.min((x.seg_etapa||0)+1, 6);
   var nom=(x.cliente||'').trim().split(' ')[0];
   var num=x.numero||'tu cotización';
   var link = (x.link||'').trim();
@@ -2350,7 +2355,11 @@ function waMsg(x){
     4: 'Hola '+nom+', ¿te gustaría avanzar con '+P.suyo+'? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).' +
        (link ? '\n\nAcá la tienes a mano:\n'+link : ''),
     5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas lo de '+P.suyo+' ('+num+'), acá estoy para ayudarte y te puedo mantener el precio.' +
-       (link ? '\n\nTe dejo tu cotización por si la necesitas:\n'+link : ' Quedo atento cuando lo necesites.')
+       (link ? '\n\nTe dejo tu cotización por si la necesitas:\n'+link : ' Quedo atento cuando lo necesites.'),
+    /* Toque 6 (día 40): el último. Antes repetía el mensaje 5 porque msgs solo
+       llegaba a 5 y el Math.min lo truncaba. Cierra pidiendo una respuesta de
+       sí o no, que es justo el dato que falta para marcar ganado o perdido. */
+    6: 'Hola '+nom+', te escribo por última vez por '+P.suyo+' ('+num+'). ¿Lo dejamos para más adelante o prefieres que lo retomemos ahora? Con un sí o un no me basta, así no te sigo escribiendo.'
   };
   return msgs[toque] || msgs[1];
 }
