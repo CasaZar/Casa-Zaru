@@ -26008,9 +26008,11 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <div class="page" id="page-cost">
 <div class="main">
   <div class="cost-stats" id="cost-stats"></div>
+  <div class="table-card" style="padding:18px;margin-bottom:20px" id="cost-agrupado"></div>
   <div class="toolbar">
     <div style="font-size:13px;color:var(--text-muted)">Haz clic en un pedido para expandir y agregar costos</div>
     <div style="display:flex;gap:8px">
+      <button class="btn-ghost" style="font-size:12px" onclick="abrirCostoEstandar()">⚙ Costos estándar</button>
       <button class="btn-ghost" style="font-size:12px" onclick="exportCostCSV()">↓ Excel</button>
     </div>
   </div>
@@ -27115,7 +27117,7 @@ async function confirmOrder(){
   // especie o qué canal de venta deja mejor margen, que es la decisión de
   // precios más importante del negocio.
   const _maderas=[];(o.lineas||[]).forEach(function(l){if(l.madera&&_maderas.indexOf(l.madera)<0)_maderas.push(l.madera);});
-  const costData={num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',venta_total:total,costo_plataformas:_cv.costos,venta_neta:Math.round((total-_cv.costos)/1.19),madera:_maderas.join(' / '),canal:canalPago||'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||''),lineas:existCostIdx>=0?(costRecords[existCostIdx].lineas||[]):[]};
+  const costData={num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',venta_total:total,costo_plataformas:_cv.costos,venta_neta:Math.round((total-_cv.costos)/1.19),madera:_maderas.join(' / '),canal:canalPago||'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||''),lineas:existCostIdx>=0?(costRecords[existCostIdx].lineas||[]):_lineasEstandar(o.lineas||[])};
   if(existCostIdx>=0)costRecords[existCostIdx]=costData;else costRecords.push(costData);
   if(DB_URL)await api('costos/'+numStr,'PUT',costData);
   showToast('✓ Pedido #'+numStr+' guardado en todas las secciones');
@@ -27821,7 +27823,258 @@ function ventaNetaCosto(r){
 }
 function tieneCostos(r){return !!(r.lineas&&r.lineas.length);}
 function totalCostoDe(r){return (r.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0);}
-async function loadCost(){if(!DB_URL)return;try{const raw=await api('costos');if(raw)costRecords=Object.entries(raw).map(e=>Object.assign({},e[1])).sort((a,b)=>Number(a.num||0)-Number(b.num||0));else costRecords=[];renderCost();}catch(e){console.error('Error cargando costos',e);}}
+
+// ── Clasificación por tipo de producto ─────────────────────────────────────
+// En Producción el producto es texto libre ("Mesa Río Fuy", "Cubierta
+// Escritorio"), así que agrupar por ese texto daría una categoría por pedido.
+// Se deriva una categoría cerrada de lo que ya está escrito; si la regla se
+// equivoca, se corrige a mano en la tarjeta del pedido (queda en cat_manual).
+const CATEGORIAS_PRODUCTO=['Cubierta','Mesa','Puerta','Peldaño','Repisa','Revestimiento','Otro'];
+function categoriaProducto(txt){
+  var s=String(txt||'').toUpperCase()
+    .replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I')
+    .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N');
+  if(!s.trim())return'Otro';
+  // El orden importa: "Cubierta Escritorio" es Cubierta, no Mesa.
+  if(s.indexOf('CUBIERTA')>=0)return'Cubierta';
+  if(s.indexOf('PELDAN')>=0||s.indexOf('ESCALA')>=0)return'Peldaño';
+  if(s.indexOf('REVESTIM')>=0)return'Revestimiento';
+  if(s.indexOf('REPISA')>=0)return'Repisa';
+  if(s.indexOf('PUERTA')>=0||s.indexOf('GRANERO')>=0)return'Puerta';
+  if(s.indexOf('MESA')>=0||s.indexOf('VELADOR')>=0||s.indexOf('ESCRITORIO')>=0)return'Mesa';
+  return'Otro';
+}
+// Producción es la fuente de verdad de madera y medidas. Los registros de
+// costos viejos no traen madera, así que se busca ahí.
+function lineasProdDe(numStr){
+  var p=prodOrders.find(function(x){return String(x.pedido||'')===String(numStr);});
+  return p?(p.lineas||[]):[];
+}
+function m2DePedido(numStr){
+  return lineasProdDe(numStr).reduce(function(s,l){return s+calcM2(l.largo,l.ancho,l.cantidad);},0);
+}
+// Pedido mixto (mesa de Coihue + sillas de Raulí): cuenta entero en el de
+// mayor m². Es aproximado y se dice en pantalla.
+function _dominante(numStr,campo){
+  var por={},lineas=lineasProdDe(numStr);
+  lineas.forEach(function(l){
+    var k=(campo==='madera')?(l.madera||''):categoriaProducto(l.producto);
+    if(!k)return;
+    por[k]=(por[k]||0)+(calcM2(l.largo,l.ancho,l.cantidad)||0.0001);
+  });
+  var mejor='',max=-1;
+  Object.keys(por).forEach(function(k){if(por[k]>max){max=por[k];mejor=k;}});
+  return mejor;
+}
+function maderaDe(r){
+  if(r.cat_madera_manual)return r.cat_madera_manual;
+  var d=_dominante(r.num,'madera');
+  if(d)return d;
+  // Último recurso: lo que se guardó en el propio registro de costos.
+  return String(r.madera||'').split(' / ')[0]||'Sin madera';
+}
+function categoriaDe(r){
+  if(r.cat_manual)return r.cat_manual;
+  var d=_dominante(r.num,'producto');
+  return d||categoriaProducto(r.producto);
+}
+
+// ── Costos estándar por m² ─────────────────────────────────────────────────
+// Vienen de la planilla "INVENTARIO - COSTOS POR METRO 2026", hoja METRO
+// CUBIERTA. TODO SIN IVA, porque el IVA de compra es crédito fiscal y el
+// margen se mide contra la venta neta.
+//   madera  = pulgadas por m² × valor de la pulgada maderera
+//   proceso = insumos + mano de obra (5 HH) + 10% de desgaste de herramientas
+// Son el punto de partida: se editan desde la app (botón "Costos estándar")
+// y quedan guardados en la base, así la planilla y el sistema no divergen.
+const COSTO_ESTANDAR_DEFAULT={
+  proceso_m2:51255,
+  maderas:{
+    'OREGÓN':40000,'PINO OREGÓN':40000,'CIPRÉS':72000,'CASTAÑO':60000,
+    'MAÑÍO':75000,'COIHUE':84000,'RAULÍ':81000,'LENGA':90000,'LAUREL':0
+  }
+};
+var costoEstandar=JSON.parse(JSON.stringify(COSTO_ESTANDAR_DEFAULT));
+const COSTO_ESTANDAR_KEY='__estandar';
+function costoMaderaM2(madera){
+  var m=costoEstandar.maderas||{};
+  return Number(m[String(madera||'').toUpperCase()])||0;
+}
+async function guardarCostoEstandar(){
+  if(!DB_URL)return false;
+  try{await api('costos/'+COSTO_ESTANDAR_KEY,'PUT',Object.assign({num:COSTO_ESTANDAR_KEY},costoEstandar));return true;}
+  catch(e){return false;}
+}
+async function loadCost(){
+  if(!DB_URL)return;
+  try{
+    const raw=await api('costos');
+    var todos=raw?Object.entries(raw).map(e=>Object.assign({},e[1])):[];
+    // La fila de costos estándar vive en la misma colección: se separa acá
+    // para que no aparezca como un pedido más en la lista.
+    var cfg=todos.find(function(r){return String(r.num||'')===COSTO_ESTANDAR_KEY;});
+    if(cfg){
+      costoEstandar={proceso_m2:Number(cfg.proceso_m2)||COSTO_ESTANDAR_DEFAULT.proceso_m2,
+                     maderas:cfg.maderas||COSTO_ESTANDAR_DEFAULT.maderas};
+    }
+    costRecords=todos.filter(function(r){return String(r.num||'')!==COSTO_ESTANDAR_KEY;})
+                     .sort((a,b)=>Number(a.num||0)-Number(b.num||0));
+    renderCost();
+  }catch(e){console.error('Error cargando costos',e);}
+}
+// Arma las líneas de costo estándar a partir de las líneas de Producción.
+// Se usa al confirmar un pedido nuevo y desde el botón "Precargar estándar".
+function _lineasEstandar(lineasProd){
+  var porMadera={},m2Total=0;
+  (lineasProd||[]).forEach(function(l){
+    var m2=calcM2(l.largo,l.ancho,l.cantidad);if(!m2)return;
+    var mad=(l.madera||'Sin madera').toUpperCase();
+    porMadera[mad]=(porMadera[mad]||0)+m2;m2Total+=m2;
+  });
+  if(!m2Total)return[];
+  var out=[];
+  Object.keys(porMadera).forEach(function(mad){
+    var unit=costoMaderaM2(mad);
+    out.push({desc:'Madera '+mad+' (estándar)',categoria:'Madera',qty:Number(porMadera[mad].toFixed(2)),
+              unidad:'m2',unit_val:unit,total:Math.round(porMadera[mad]*unit)});
+  });
+  var proc=Number(costoEstandar.proceso_m2)||0;
+  out.push({desc:'Proceso: insumos + mano de obra + herramientas (estándar)',categoria:'Mano de obra',
+            qty:Number(m2Total.toFixed(2)),unidad:'m2',unit_val:proc,total:Math.round(m2Total*proc)});
+  return out;
+}
+// Editor de los costos estándar por m². Se guardan en la base (no en el
+// código) para que actualizar precios de madera no exija tocar el archivo.
+function abrirCostoEstandar(){
+  var mads=MADERAS.slice();
+  Object.keys(costoEstandar.maderas||{}).forEach(function(m){if(mads.indexOf(m)<0)mads.push(m);});
+  var filas=mads.map(function(m){
+    var v=costoMaderaM2(m);
+    return '<tr><td style="padding:5px 8px">'+esc(m)+'</td><td style="padding:5px 8px"><input type="number" min="0" step="1000" value="'+v+'" data-madera="'+esc(m)+'" class="ce-mad" style="width:120px;padding:5px 8px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text)"></td></tr>';
+  }).join('');
+  var html='<div class="modal" style="max-width:520px">'+
+    '<div class="modal-header"><div class="modal-title">Costos estándar por m² (sin IVA)</div><button class="btn-close" onclick="cerrarCostoEstandar()">×</button></div>'+
+    '<div style="padding:0 4px 4px">'+
+    '<div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:14px">Vienen de tu planilla <em>INVENTARIO · COSTOS POR METRO</em>. El costo de la madera es <strong>pulgadas por m² × valor de la pulgada</strong>. El proceso junta insumos, mano de obra y desgaste de herramientas. Todo <strong>sin IVA</strong>.</div>'+
+    '<div style="margin-bottom:14px"><label style="font-size:12px;font-weight:600;color:var(--text);display:block;margin-bottom:4px">Proceso por m² (insumos + mano de obra + herramientas)</label>'+
+    '<input type="number" min="0" step="500" id="ce-proceso" value="'+(Number(costoEstandar.proceso_m2)||0)+'" style="width:160px;padding:7px 10px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text)"></div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Madera por m²</div>'+
+    '<div style="max-height:38vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:12px">'+filas+'</table></div>'+
+    '</div>'+
+    '<div class="modal-footer"><button class="btn-sec" onclick="cerrarCostoEstandar()">Cancelar</button><button class="btn-pri" onclick="guardarCostoEstandarUI()">Guardar</button></div>'+
+    '</div>';
+  var bg=document.getElementById('modal-costo-estandar-bg');
+  if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-costo-estandar-bg';document.body.appendChild(bg);}
+  bg.innerHTML=html;bg.classList.add('open');
+}
+function cerrarCostoEstandar(){var b=document.getElementById('modal-costo-estandar-bg');if(b)b.classList.remove('open');}
+async function guardarCostoEstandarUI(){
+  var proc=Number(document.getElementById('ce-proceso').value)||0;
+  var mads={};
+  document.querySelectorAll('.ce-mad').forEach(function(i){
+    var m=i.getAttribute('data-madera'),v=Number(i.value)||0;
+    if(m)mads[m.toUpperCase()]=v;
+  });
+  costoEstandar={proceso_m2:proc,maderas:mads};
+  var ok=await guardarCostoEstandar();
+  cerrarCostoEstandar();
+  showToast(ok?'✓ Costos estándar guardados':'✗ No se pudieron guardar');
+}
+// Clasificación del pedido: se muestra la que se dedujo del texto libre y se
+// puede corregir. Al corregir queda en cat_manual y ya no se vuelve a deducir.
+function _costClasifHtml(r,idx){
+  var cat=categoriaDe(r),mad=maderaDe(r),m2=m2DePedido(r.num);
+  var auto=!r.cat_manual;
+  var opts=CATEGORIAS_PRODUCTO.map(function(c){return'<option'+(c===cat?' selected':'')+'>'+c+'</option>';}).join('');
+  var mOpts=['Sin madera'].concat(MADERAS).map(function(m){return'<option'+(m===mad?' selected':'')+'>'+m+'</option>';}).join('');
+  return '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);font-size:11px">'+
+    '<span style="color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-weight:600">Clasificación</span>'+
+    '<label style="display:flex;align-items:center;gap:4px">Producto <select style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface3)" onchange="setCostClasif('+idx+',\'cat_manual\',this.value)">'+opts+'</select></label>'+
+    '<label style="display:flex;align-items:center;gap:4px">Madera <select style="font-size:11px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;background:var(--surface3)" onchange="setCostClasif('+idx+',\'cat_madera_manual\',this.value)">'+mOpts+'</select></label>'+
+    '<span style="color:var(--text-3)">'+(m2?m2.toFixed(2)+' m²':'sin medidas en Producción')+'</span>'+
+    (auto?'<span style="color:var(--text-3);font-style:italic">deducido del nombre</span>':'')+
+    '</div>';
+}
+function setCostClasif(idx,campo,val){
+  var r=costRecords[idx];if(!r)return;
+  r[campo]=val;
+  if(DB_URL)api('costos/'+String(r.num||''),'PUT',r).catch(function(){showToast('✗ No se pudo guardar la clasificación');});
+  renderCostAgrupado();renderCost();
+}
+// Precarga las líneas de costo con los valores estándar por m². Costear pasa
+// a ser corregir en vez de escribir desde cero.
+function precargarCostos(idx){
+  var r=costRecords[idx];if(!r)return;
+  var lineas=lineasProdDe(r.num);
+  if(!lineas.length){showToast('Este pedido no tiene líneas en Producción, no hay m² para calcular');return;}
+  if((r.lineas||[]).length&&!confirm('Este pedido ya tiene '+r.lineas.length+' línea(s) de costo.\n\n¿Reemplazarlas por las estándar? Se pierde lo que hayas escrito.'))return;
+  var nuevas=_lineasEstandar(lineas);
+  if(!nuevas.length){showToast('Las líneas no tienen medidas cargadas (largo × ancho)');return;}
+  var faltantes=nuevas.filter(function(l){return l.categoria==='Madera'&&!l.unit_val;})
+                      .map(function(l){return l.desc.replace('Madera ','').replace(' (estándar)','');});
+  r.lineas=nuevas;
+  if(DB_URL)api('costos/'+String(r.num||''),'PUT',r).catch(function(){showToast('✗ No se pudo guardar');});
+  renderCost();
+  showToast(faltantes.length?('Precargado, pero falta el costo por m² de: '+faltantes.join(', ')):'✓ Costos estándar precargados — revisalos y ajustá');
+}
+// ── Resumen agrupado (por producto / madera / canal) ───────────────────────
+var costAgrupacion='producto';
+function setCostAgrupacion(k){costAgrupacion=k;renderCostAgrupado();}
+function renderCostAgrupado(){
+  var el=document.getElementById('cost-agrupado');if(!el)return;
+  var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  var conCostos=base.filter(tieneCostos);
+  var TABS=[['producto','Por producto'],['madera','Por madera'],['canal','Por canal']];
+  var tabsHtml=TABS.map(function(t){
+    var on=costAgrupacion===t[0];
+    return '<button class="filter-btn'+(on?' active':'')+'" style="font-size:12px" onclick="setCostAgrupacion(\''+t[0]+'\')">'+t[1]+'</button>';
+  }).join('');
+  var head='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px"><div style="font-size:14px;font-weight:700;color:var(--text)">📊 Costos y margen por tipo</div><div class="filter-group" style="display:flex;gap:6px">'+tabsHtml+'</div></div>';
+  if(!conCostos.length){
+    el.innerHTML=head+'<div style="font-size:12px;color:var(--text-3);padding:10px 0">Todavía no hay pedidos con costos cargados en este período. En cuanto cargues costos aparecen acá agrupados.</div>';
+    return;
+  }
+  var grupos={};
+  conCostos.forEach(function(r){
+    var k=costAgrupacion==='madera'?maderaDe(r):costAgrupacion==='canal'?(r.canal||'Sin canal'):categoriaDe(r);
+    if(!k)k='Otro';
+    if(!grupos[k])grupos[k]={n:0,m2:0,neta:0,costo:0};
+    var g=grupos[k];
+    g.n++;g.m2+=m2DePedido(r.num);g.neta+=ventaNetaCosto(r);g.costo+=totalCostoDe(r);
+  });
+  var filas=Object.keys(grupos).map(function(k){
+    var g=grupos[k],gan=g.neta-g.costo;
+    return{k:k,n:g.n,m2:g.m2,neta:g.neta,costo:g.costo,gan:gan,
+           margen:g.neta?Math.round(gan/g.neta*100):0,
+           costoM2:g.m2?Math.round(g.costo/g.m2):0};
+  }).sort(function(a,b){return b.neta-a.neta;});
+  var tot=filas.reduce(function(s,f){return{neta:s.neta+f.neta,costo:s.costo+f.costo,m2:s.m2+f.m2,n:s.n+f.n};},{neta:0,costo:0,m2:0,n:0});
+  var totGan=tot.neta-tot.costo,totMargen=tot.neta?Math.round(totGan/tot.neta*100):0;
+  function mColor(m){return m>=30?'var(--green)':m>=15?'var(--amber)':'#993556';}
+  var cuerpo=filas.map(function(f){
+    return '<tr><td style="padding:7px 8px;font-weight:600;color:var(--text)">'+esc(f.k)+'</td>'+
+      '<td style="padding:7px 8px;text-align:center;color:var(--text-3)">'+f.n+'</td>'+
+      '<td style="padding:7px 8px;text-align:right;color:var(--text-3)">'+(f.m2?f.m2.toFixed(2):'—')+'</td>'+
+      '<td style="padding:7px 8px;text-align:right;color:var(--green)">'+fmtCLP(f.neta)+'</td>'+
+      '<td style="padding:7px 8px;text-align:right;color:var(--amber)">'+fmtCLP(f.costo)+'</td>'+
+      '<td style="padding:7px 8px;text-align:right;font-weight:600">'+fmtCLP(f.costoM2)+'</td>'+
+      '<td style="padding:7px 8px;text-align:right;font-family:\'DM Serif Display\',serif;font-size:15px;color:'+mColor(f.margen)+'">'+f.margen+'%</td></tr>';
+  }).join('');
+  var totalRow='<tr style="border-top:2px solid var(--border-md)"><td style="padding:8px;font-weight:700">TOTAL</td>'+
+    '<td style="padding:8px;text-align:center;font-weight:600">'+tot.n+'</td>'+
+    '<td style="padding:8px;text-align:right;font-weight:600">'+(tot.m2?tot.m2.toFixed(2):'—')+'</td>'+
+    '<td style="padding:8px;text-align:right;font-weight:700;color:var(--green)">'+fmtCLP(tot.neta)+'</td>'+
+    '<td style="padding:8px;text-align:right;font-weight:700;color:var(--amber)">'+fmtCLP(tot.costo)+'</td>'+
+    '<td style="padding:8px;text-align:right;font-weight:700">'+(tot.m2?fmtCLP(Math.round(tot.costo/tot.m2)):'—')+'</td>'+
+    '<td style="padding:8px;text-align:right;font-family:\'DM Serif Display\',serif;font-size:16px;font-weight:700;color:'+mColor(totMargen)+'">'+totMargen+'%</td></tr>';
+  var th='<tr><th style="text-align:left;padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3)">'+
+    (costAgrupacion==='madera'?'Madera':costAgrupacion==='canal'?'Canal':'Producto')+'</th>'+
+    ['Pedidos','m²','Venta neta','Costo','Costo/m²','Margen'].map(function(h,i){
+      return '<th style="text-align:'+(i===0?'center':'right')+';padding:6px 8px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-3);white-space:nowrap">'+h+'</th>';
+    }).join('')+'</tr>';
+  var pie='<div style="font-size:11px;color:var(--text-3);margin-top:10px;line-height:1.6">Venta neta y costos <strong>sin IVA</strong> (el IVA de compra es crédito fiscal). Un pedido con varias maderas o productos cuenta entero en el de mayor m². Solo se incluyen pedidos con costos cargados.</div>';
+  el.innerHTML=head+'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px"><thead>'+th+'</thead><tbody>'+cuerpo+totalRow+'</tbody></table></div>'+pie;
+}
 function renderCostStats(){
   renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
   var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
@@ -27842,7 +28095,7 @@ function renderCostStats(){
     '<div class="stat-card"><div class="stat-label">Margen real</div><div class="stat-val '+(conCostos.length?mCls:'')+'">'+margenTxt+'</div></div>';
 }
 function renderCost(){
-  renderCostStats();renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
+  renderCostStats();renderCostAgrupado();renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
   const q=(document.getElementById('cost-search').value||'').toLowerCase().trim();
   var costBase=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
   const list=costBase.filter(r=>!q||(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
@@ -27858,7 +28111,7 @@ function renderCost(){
     const margenColor=!costeado?'#8a8a8a':margen>=30?'#639922':margen>=15?'#EF9F27':'#993556';
     const margenBg=!costeado?'#f0efed':margen>=30?'#eaf5e1':margen>=15?'#faeeda':'#fdf0f5';
     const margenLbl=costeado?'Margen':'Sin costear';
-    return`<div class="cost-card"><div class="cost-card-header" onclick="toggleCostCard(${idx})"><div class="cost-card-info"><span class="pedido-num">${r.num||'—'}</span><span class="semana-badge">${r.semana||'—'}</span><div class="cost-card-client"><div class="cost-card-name">${esc(r.nombre)} ${esc(r.apellido)}</div><div class="cost-card-prod">${esc(r.producto)}</div></div></div><div class="cost-card-stats"><div class="cost-stat-item"><div class="cost-stat-label" title="Sin IVA y sin comisión de plataforma">Venta neta</div><div class="cost-stat-val" style="color:var(--green)">${fmtCLP(neta)}</div></div><div class="cost-stat-item"><div class="cost-stat-label">Costos</div><div class="cost-stat-val" style="color:var(--amber)">${fmtCLP(totalCosto)}</div></div><div class="cost-margen-pill" style="background:${margenBg}"><div class="cost-stat-label" style="color:${margenColor}">${margenLbl}</div><div class="cost-margen-val" style="color:${margenColor}">${margenTxt}</div></div><span class="cost-arrow" id="cost-arrow-${idx}">▸</span><button class="btn-del cost-del-btn" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();deleteCostRecord(${idx})">🗑</button></div></div><div class="cost-card-body" id="cost-body-${idx}"><table class="cost-table"><thead><tr><th style="width:30%">Descripción</th><th style="width:18%">Categoría</th><th style="width:12%">Cantidad</th><th style="width:8%">Unidad</th><th style="width:14%">Valor unit.</th><th style="width:12%">Total línea</th><th style="width:6%"></th></tr></thead><tbody id="cost-rows-${idx}"></tbody></table><button class="btn-ghost" style="margin:8px 0" onclick="addCostRow(${idx})">+ Agregar ítem</button><div class="cost-summary" id="cost-sum-${idx}"></div></div></div>`;
+    return`<div class="cost-card"><div class="cost-card-header" onclick="toggleCostCard(${idx})"><div class="cost-card-info"><span class="pedido-num">${r.num||'—'}</span><span class="semana-badge">${r.semana||'—'}</span><div class="cost-card-client"><div class="cost-card-name">${esc(r.nombre)} ${esc(r.apellido)}</div><div class="cost-card-prod">${esc(r.producto)}</div></div></div><div class="cost-card-stats"><div class="cost-stat-item"><div class="cost-stat-label" title="Sin IVA y sin comisión de plataforma">Venta neta</div><div class="cost-stat-val" style="color:var(--green)">${fmtCLP(neta)}</div></div><div class="cost-stat-item"><div class="cost-stat-label">Costos</div><div class="cost-stat-val" style="color:var(--amber)">${fmtCLP(totalCosto)}</div></div><div class="cost-margen-pill" style="background:${margenBg}"><div class="cost-stat-label" style="color:${margenColor}">${margenLbl}</div><div class="cost-margen-val" style="color:${margenColor}">${margenTxt}</div></div><span class="cost-arrow" id="cost-arrow-${idx}">▸</span><button class="btn-del cost-del-btn" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();deleteCostRecord(${idx})">🗑</button></div></div><div class="cost-card-body" id="cost-body-${idx}"><table class="cost-table"><thead><tr><th style="width:30%">Descripción</th><th style="width:18%">Categoría</th><th style="width:12%">Cantidad</th><th style="width:8%">Unidad</th><th style="width:14%">Valor unit.</th><th style="width:12%">Total línea</th><th style="width:6%"></th></tr></thead><tbody id="cost-rows-${idx}"></tbody></table>${_costClasifHtml(r,idx)}<button class="btn-ghost" style="margin:8px 0" onclick="addCostRow(${idx})">+ Agregar ítem</button><button class="btn-ghost" style="margin:8px 0 8px 6px" onclick="precargarCostos(${idx})" title="Crea las líneas de madera y proceso con los costos estándar por m²">✨ Precargar estándar</button><div class="cost-summary" id="cost-sum-${idx}"></div></div></div>`;
   }).join('');
   list.forEach(r=>{const idx=costRecords.indexOf(r);renderCostRows(idx);renderCostSummary(idx);});
 }
