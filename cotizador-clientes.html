@@ -602,8 +602,11 @@ var DOOR_MODELS = [
   { id:'ensenada',    nombre:'Ensenada',          tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_56_43.png' }
 ];
 /* ── ESPESOR 8 CM MACIZO (cubiertas y peldaños) ──
-   Doble madera en la zona visible: recargo del 22% sobre el precio de la madera. */
-var ESP8_PCT = 0.22;
+   No es un % plano: doble madera + un proceso extra de encolado que suma ~$13.000
+   al costo variable del m² terminado. Respetando el margen, el multiplicador
+   sobre el $/m² queda distinto por madera (tabla del asesor financiero, 8 ago 2026):
+   Oregón ×1,56 → $377.348 · Castaño/Ciprés/Mañío ×1,68 → $559.749 · Coihue/Raulí/Lenga ×1,71 → $619.268 */
+var ESP8_MULT = { bajo: 1.56, medio: 1.68, alto: 1.71 };
 /* ── REBORDE (simula mayor espesor sin doble madera) ──
    Se cobra por metro lineal de canto, con 4 cms de ancho. PENDIENTE confirmar
    con la planilla de costos: valor derivado del ejemplo mesa 200×100 con reborde
@@ -689,10 +692,13 @@ function getCubiertaEspesor() {
   if (el && el.value) cubiertaEspesor = el.value;
   return cubiertaEspesor;
 }
-function espesorFactor() {
-  if (prod === 'peldano') return getPeldanoEspesor() === '8' ? 1 + ESP8_PCT : 1;
-  if (prod === 'cubierta') return getCubiertaEspesor() === '8' ? 1 + ESP8_PCT : 1;
-  return 1;
+function es8cm() {
+  if (prod === 'peldano') return getPeldanoEspesor() === '8';
+  if (prod === 'cubierta') return getCubiertaEspesor() === '8';
+  return false;
+}
+function espesorFactor(tier) {
+  return es8cm() ? (ESP8_MULT[tier] || 1) : 1;
 }
 
 /* ── LOGO ──
@@ -784,7 +790,7 @@ function calcLive() {
       var lg=parseFloat(lgEl.value)||0, an=parseFloat(anEl.value)||0, ca=parseInt((caEl&&caEl.value)||1)||1;
       sumM2 += (lg/100)*(an/100)*ca;
     }
-    if (sumM2 > 0) { var eF = espesorFactor(); bajo = sumM2 * currentPR().bajo * eF; alto = sumM2 * currentPR().alto * eF; }
+    if (sumM2 > 0) { bajo = sumM2 * currentPR().bajo * espesorFactor('bajo'); alto = sumM2 * currentPR().alto * espesorFactor('alto'); }
 
   } else if (['granero','maciza','vidrios'].includes(prod)) {
     var sumBajo = 0, sumAlto = 0;
@@ -897,7 +903,7 @@ function renderForm(p) {
         '<select class="fsel" id="f-espesor-peldano" onchange="setPeldanoEspesor(this.value)">' +
           '<option value="4" selected>4 cm</option>' +
           '<option value="2">2 cm</option>' +
-          (vendorMode ? '<option value="8">8 cm macizo (+22%)</option>' : '') +
+          (vendorMode ? '<option value="8">8 cm macizo</option>' : '') +
         '</select>' +
       '</div>' :
       '<div class="fsec">' +
@@ -924,7 +930,7 @@ function renderForm(p) {
         '<label class="flabel">Espesor</label>' +
         '<select class="fsel" id="f-espesor-cubierta" onchange="calcLive()">' +
           '<option value="4" selected>De 2,1 a 4,0 cm (estándar)</option>' +
-          '<option value="8">8 cm macizo (+22%)</option>' +
+          '<option value="8">8 cm macizo</option>' +
         '</select>' +
       '</div>' : '';
     c.innerHTML = usoField + espCubField +
@@ -1589,14 +1595,13 @@ function htmlCubierta(cli, fecha) {
   }).join('');
   var vExtrasList = vExtrasDatos();
   var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
-  var eF = espesorFactor();
   var tierRows = [
-    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo  * eF + vExtrasTot},
-    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio * eF + vExtrasTot},
-    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto  * eF + vExtrasTot}
+    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo  * espesorFactor('bajo')  + vExtrasTot},
+    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio * espesorFactor('medio') + vExtrasTot},
+    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto  * espesorFactor('alto')  + vExtrasTot}
   ];
   var vEsp = vEspesorFinal();
-  var esp = vEsp || (eF > 1 ? '8 cms macizo — incluye 4 cms extra de espesor' :
+  var esp = vEsp || (es8cm() ? '8 cms macizo — incluye 4 cms extra de espesor' :
     (prod==='cubierta' ? 'De 2,1 a 4,0 cms. Tú eliges' : prod==='peldano' ? (getPeldanoEspesor() + ' cms') : '2 cms'));
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:prod,
@@ -1944,7 +1949,7 @@ function getShareData() {
   var data = { p: prod, cli: cli, con: conStr, uso: uso, qnum: qnum };
   if (b2bDcto > 0) data.b2b = b2bDcto;   /* el link compartido conserva el descuento profesionales */
   if (prod === 'peldano') data.esp = getPeldanoEspesor();   /* sin esto el link volvía siempre a 4 cm */
-  if (prod === 'cubierta' && getCubiertaEspesor() === '8') data.esp8 = 1;   /* espesor 8 cm macizo (+22%) */
+  if (prod === 'cubierta' && getCubiertaEspesor() === '8') data.esp8 = 1;   /* espesor 8 cm macizo (mult. por tier) */
   if (prod === 'mesa') data.mesa = mesaDatos();             /* base de fierro: nombre, valor, altura, perfil, color */
   if (prod !== 'revlibre') {   /* revlibre ya guarda sus extras dentro de data.rv */
     var vExtrasNow = vExtrasDatos(); if (vExtrasNow.length) data.vExtras = vExtrasNow;
