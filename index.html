@@ -26986,8 +26986,13 @@ function renderPrevProd(o){
   document.getElementById('pf-vp').value=vp||'';
   document.getElementById('pf-ve').value=ve||'';
   document.getElementById('pf-vc').value=vc||'';
-  var a1=fin.abono1!=null?Number(fin.abono1):Math.round((vp+ve+vc)*0.7);
-  document.getElementById('pf-a1').value=a1||'';
+  // Abono = plata REALMENTE recibida. Si el pantallazo no lo trae se deja vacío:
+  // rellenarlo con el 70% sugerido hacía que el sistema diera por cobrado un
+  // anticipo que nadie transfirió, y nadie salía a perseguirlo.
+  var a1=fin.abono1!=null?Number(fin.abono1):0;
+  var inpA1=document.getElementById('pf-a1');
+  inpA1.value=a1||'';
+  inpA1.placeholder=(vp+ve+vc)?('sugerido 70%: '+Math.round((vp+ve+vc)*0.7)):'0';
   // Documento y direcciones: arrancan en boleta, con lo que se haya detectado
   // del pantallazo. Se limpian en cada carga para no arrastrar la venta anterior.
   var cli=o._cliente||{};
@@ -27487,6 +27492,19 @@ async function toggleFinDoc(numStr,docNum){
     r[emitidaKey]=false;if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(function(){});renderFin();showToast('Marcado como pendiente (el documento sigue existiendo en Wasabil)');return;
   }
   if(r[procKey])return; // ya está "Procesando" — hay que usar el botón "Verificar estado", nunca re-emitir
+  // CANDADO: lo que tenemos en pantalla puede estar viejo (otro dispositivo ya
+  // emitió, o la escritura de un intento anterior no alcanzó a guardarse). Antes
+  // de mandar plata al SII preguntamos al servidor cómo está de verdad.
+  var servidor=await _releerFinanzas(numStr);
+  if(servidor===null){
+    alert('No se pudo verificar el estado del documento con el servidor.\n\nNo se emite nada: sin conexión no hay forma de saber si este documento ya fue emitido desde otro dispositivo.');
+    return;
+  }
+  if(servidor[emitidaKey]||servidor[procKey]){
+    Object.assign(r,servidor);renderFin();
+    alert('Este documento ya figura '+(servidor[emitidaKey]?'EMITIDO (N° '+(servidor[numKey]||'—')+')':'en proceso de emisión')+' en el servidor.\n\nNo se emitió nada nuevo. La pantalla se acaba de actualizar.');
+    return;
+  }
   var tipo=r[tipoKey]||'BOLETA';
   var faltan=_datosFaltantesParaEmitir(r,tipo);
   if(faltan.length){
@@ -27503,22 +27521,49 @@ async function toggleFinDoc(numStr,docNum){
   if(!monto||monto<=0){showToast('Monto inválido — se canceló la emisión.');return;}
   var detalle=prompt('Detalle para la boleta/factura (ej: "Abono 60%", "Saldo final", "Pago único"):',docNum===1?'Abono':'Saldo');
   if(detalle===null)return;
-  if(docNum===1)r.abono1=monto;else r.abono2=monto;
+  // El monto FACTURADO se guarda aparte del monto COBRADO: son cosas distintas
+  // y antes emitir pisaba el abono, borrando el registro de lo que entró.
+  r['doc'+docNum+'_monto']=monto;
   finSave(numStr);renderFin();
   if(!confirm('Vas a EMITIR una '+tipo+' real por '+fmtCLP(monto)+' ('+(detalle||'')+') para el pedido '+numStr+' ('+nombreCliente.trim()+').\n\nSe envía directo al SII y no se deshace con un click. ¿Confirmas?'))return;
   finEmitiendo[emKey]=true;renderFin();
+  // Marca de intento: si el navegador muere entre el fetch y el guardado, esto
+  // ya quedó escrito y el próximo intento encuentra el candado puesto.
+  r[procKey]=true;await _guardarFinanzasFirme(numStr,r);
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
-    if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(function(){});
-    if(data&&data.success)showToast('✓ '+tipo+' emitida — folio '+(data.folio||'?'));
+    var guardado=await _guardarFinanzasFirme(numStr,r);
+    if(data&&data.success){
+      showToast('✓ '+tipo+' emitida — folio '+(data.folio||'?'));
+      // Si el documento existe en el SII pero no logramos guardar el estado, hay
+      // que decirlo fuerte: es la situación que provoca la doble emisión.
+      if(!guardado)alert('⚠ OJO: la '+tipo+' SÍ se emitió (folio '+(data.folio||'?')+') pero NO se pudo guardar el estado.\n\nNO vuelvas a apretar Emitir para este documento. Revisá la conexión, recargá la página y usá "Marcar emitido manual" con ese folio.');
+    }
     else if(data&&data.status_id===2)showToast('⏳ Wasabil sigue procesando (el SII está tardando). Usá "Verificar estado" en un rato — no vuelvas a apretar Pendiente.');
     else showToast('✗ No se pudo emitir: '+((data&&(data.error||data.display_error))||'error desconocido'));
   }catch(e){
-    showToast('✗ Error de conexión con Wasabil: '+e.message);
+    // Se cortó la red durante el envío: el documento PUDO haberse emitido igual.
+    // Dejamos el candado puesto para que nadie re-emita a ciegas.
+    await _guardarFinanzasFirme(numStr,r);
+    alert('✗ Se cortó la conexión con Wasabil: '+e.message+'\n\nOJO: el documento pudo haberse emitido igual. NO aprietes Emitir de nuevo — usá "Verificar estado" o revisá en Wasabil antes de reintentar.');
   }
   delete finEmitiendo[emKey];renderFin();
+}
+// Relee un registro de finanzas desde el servidor. null = no se pudo saber
+// (nunca confundir "no sé" con "está libre" cuando hay plata de por medio).
+async function _releerFinanzas(numStr){
+  if(!DB_URL)return null;
+  try{var f=await api('finanzas/'+numStr);return f||{};}catch(e){return null;}
+}
+// Guarda y AVISA si falló, en vez de tragarse el error como hacía el .catch vacío.
+async function _guardarFinanzasFirme(numStr,r){
+  if(!DB_URL)return true;
+  for(var i=0;i<3;i++){
+    try{await api('finanzas/'+numStr,'PUT',r);return true;}catch(e){}
+  }
+  return false;
 }
 async function marcarFinDocManual(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
@@ -27532,8 +27577,17 @@ async function marcarFinDocManual(numStr,docNum){
 }
 async function verificarFinDoc(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
-  var tipoKey='doc'+docNum+'_tipo',uuidKey='doc'+docNum+'_uuid',emKey=numStr+'_'+docNum;
-  var uuid=r[uuidKey];if(!uuid){showToast('✗ Falta el uuid del documento, no se puede verificar');return;}
+  var tipoKey='doc'+docNum+'_tipo',uuidKey='doc'+docNum+'_uuid',procKey='doc'+docNum+'_procesando',emKey=numStr+'_'+docNum;
+  var uuid=r[uuidKey];
+  if(!uuid){
+    // Pasa cuando se cortó la red antes de que Wasabil respondiera: quedó el
+    // candado puesto pero no hay con qué consultar. Se libera sólo a mano.
+    if(!confirm('No hay uuid para consultar (se cortó la conexión antes de que Wasabil respondiera).\n\nRevisá en Wasabil si el documento del pedido '+numStr+' existe:\n\n• Si SÍ existe → cancelá acá y usá el lápiz ✏️ para marcarlo con su folio.\n• Si NO existe → aceptá para liberarlo y poder emitir de nuevo.'))return;
+    r[procKey]=false;
+    var ok=await _guardarFinanzasFirme(numStr,r);
+    renderFin();showToast(ok?'Liberado — ya podés emitir':'✗ No se pudo guardar, revisá la conexión');
+    return;
+  }
   finEmitiendo[emKey]=true;renderFin();
   try{
     var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
@@ -27571,12 +27625,15 @@ function renderFin(){
       var procKey='doc'+docNum+'_procesando';
       if(emitiendo)btnHtml='<button class="doc-btn" disabled style="margin-bottom:4px;opacity:0.6">⏳ Emitiendo…</button>';
       else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button>';
-      else if(r[procKey])btnHtml='<button class="doc-btn" onclick="verificarFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px;background:var(--amber,#c9902a)">🔄 Verificar estado</button>';
+      else if(r[procKey])btnHtml='<button class="doc-btn" onclick="verificarFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px;background:var(--amber,#c9902a)">🔄 Verificar estado</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Ya lo verifiqué en Wasabil: marcarlo como emitido con su folio">✏️</a>';
       else btnHtml='<button class="doc-btn pendiente" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Marcar como ya emitido, sin llamar a Wasabil (para casos donde ya se emitió afuera o en un solo documento)">✏️</a>';
       var pdfLink=r[pdfKey]?(' <a href="'+r[pdfKey]+'" target="_blank" style="font-size:10px" title="Ver PDF">📄</a>'):'';
+      // Lo FACTURADO va aparte de lo cobrado: si no calzan, hay que verlo.
+      var mDoc=Number(r['doc'+docNum+'_monto'])||0;
+      var mLbl=mDoc?'<div style="font-size:10px;color:var(--text-3)" title="Monto facturado en este documento">Facturado: '+fmtCLP(mDoc)+'</div>':'';
       var selectHtml='<select '+(emitiendo?'disabled':'')+' onchange="finRecords['+idx+'].'+tipoKey+'=this.value;'+saveStr+'" style="font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg)"><option value="BOLETA"'+((r[tipoKey]||'BOLETA')==='BOLETA'?' selected':'')+'>Boleta</option><option value="FACTURA"'+(r[tipoKey]==='FACTURA'?' selected':'')+'>Factura</option></select>';
       var numInput='<input type="text" '+(emitiendo?'disabled':'')+' value="'+(r[numKey]||'')+'" placeholder="N°" onchange="finRecords['+idx+'].'+numKey+'=this.value;'+saveStr+'" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px">';
-      return '<td style="background:'+bg+';min-width:130px">'+btnHtml+pdfLink+'<div style="display:flex;gap:4px;align-items:center">'+selectHtml+numInput+'</div></td>';
+      return '<td style="background:'+bg+';min-width:130px">'+btnHtml+pdfLink+mLbl+'<div style="display:flex;gap:4px;align-items:center">'+selectHtml+numInput+'</div></td>';
     }
     return`<tr class="${listo?'fin-listo':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}</td><td style="background:${bg};font-size:11px;min-width:110px"><input type="date" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:2px 4px;width:108px" value="${(function(){var f=r.fecha_creacion||r.fecha||'';if(!f)return'';var p=f.split('/');return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):f;})()}" onchange="(function(v){var p=v.split('-');var fd=parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];finSet('${numStr}','fecha_creacion',fd,null);finSet('${numStr}','fecha',fd,null);finSave('${numStr}');})(this.value)"></td><td style="background:${bg}"><input style="${ni}min-width:110px" value="${r.semana||''}" placeholder="SEMANA 29 JUNIO" ${iF} onchange="finSet('${numStr}','semana',this.value,null);${saveStr}"></td><td style="background:${bg}"><div style="font-weight:600">${r.nombre||''} ${r.apellido||''}</div><div style="font-size:11px;color:var(--text-3)">${r.email||''}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${r.celular||''}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${r.producto||''}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:100px"><input style="${ni}" value="${r.como||''}" placeholder="Instagram..." ${iF} onchange="finSet('${numStr}','como',this.value,null);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td>${_abonoCell('abono1',r.abono1,r.fecha_abono1)}${_abonoCell('abono2',r.abono2,r.fecha_abono2)}${_abonoCell('abono3',r.abono3,r.fecha_abono3)}<td style="background:${bg};min-width:100px"><span class="monto ${pendiente>0?'rojo':''}" style="font-size:14px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td>${_docCell(1)}${_docCell(2)}<td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span>${prodEstado?`<div style="font-size:10px;font-weight:600;color:${_peColor};margin-top:4px">🪵 ${prodEstado}</div>`:''}</td><td style="background:${bg}"><input type="checkbox" class="envio-check" style="margin-right:5px;cursor:pointer;vertical-align:middle" onchange="toggleEnvioSel('${numStr}',this.checked)"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta envío">📦</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
   }).join('');
@@ -27630,7 +27687,7 @@ async function saveFinRecord(){
   const prev=editingFinIdx!==null?finRecords[editingFinIdx]:{};
   const numStr=document.getElementById('fn-num').value.trim();if(!numStr){alert('El número de pedido es requerido.');return;}
   var _fnFechaISO=document.getElementById('fn-fecha-creacion').value;var _fnFecha=_fnFechaISO?(function(){var p=_fnFechaISO.split('-');return parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];})():'';
-  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||abono,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
+  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||0,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
   if(!record.nombre&&!record.num){alert('Ingresa al menos nombre o número.');return;}
   if(editingFinIdx!==null)finRecords[editingFinIdx]=record;else finRecords.push(record);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',record);
