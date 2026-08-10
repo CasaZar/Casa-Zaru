@@ -27992,19 +27992,32 @@ function totalCostoDe(r){return (r.lineas||[]).reduce(function(s,l){return s+(Nu
 // Escritorio"), así que agrupar por ese texto daría una categoría por pedido.
 // Se deriva una categoría cerrada de lo que ya está escrito; si la regla se
 // equivoca, se corrige a mano en la tarjeta del pedido (queda en cat_manual).
-const CATEGORIAS_PRODUCTO=['Cubierta','Mesa','Puerta','Peldaño','Repisa','Revestimiento','Otro'];
+// Las cubiertas se separan por su uso, porque no cuestan ni se venden igual
+// una de quincho que una de vanitorio. "Mesa" (con base) va aparte de
+// "Cubierta mesa" (solo la tabla, sin base).
+const CATEGORIAS_PRODUCTO=['Cubierta mesa','Cubierta vanitorio','Cubierta quincho','Cubierta cocina','Cubierta escritorio','Cubierta','Mesa','Puerta','Peldaño','Repisa','Revestimiento','Otro'];
 function categoriaProducto(txt){
   var s=String(txt||'').toUpperCase()
     .replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I')
     .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N');
   if(!s.trim())return'Otro';
-  // El orden importa: "Cubierta Escritorio" es Cubierta, no Mesa.
-  if(s.indexOf('CUBIERTA')>=0)return'Cubierta';
+  var uso=s.indexOf('VANITORIO')>=0||s.indexOf('LAVAMANOS')>=0?'vanitorio'
+         :s.indexOf('QUINCHO')>=0||s.indexOf('ASADOR')>=0?'quincho'
+         :s.indexOf('COCINA')>=0?'cocina'
+         :s.indexOf('ESCRITORIO')>=0?'escritorio'
+         :s.indexOf('MESA')>=0?'mesa':'';
+  // El orden importa: "Cubierta Escritorio" es una cubierta, no una mesa.
+  if(s.indexOf('CUBIERTA')>=0)return uso?('Cubierta '+uso):'Cubierta';
   if(s.indexOf('PELDAN')>=0||s.indexOf('ESCALA')>=0)return'Peldaño';
   if(s.indexOf('REVESTIM')>=0)return'Revestimiento';
   if(s.indexOf('REPISA')>=0)return'Repisa';
   if(s.indexOf('PUERTA')>=0||s.indexOf('GRANERO')>=0)return'Puerta';
-  if(s.indexOf('MESA')>=0||s.indexOf('VELADOR')>=0||s.indexOf('ESCRITORIO')>=0)return'Mesa';
+  // Sin la palabra "cubierta": un vanitorio o un quincho igual lo son.
+  if(uso==='vanitorio')return'Cubierta vanitorio';
+  if(uso==='quincho')return'Cubierta quincho';
+  if(uso==='cocina')return'Cubierta cocina';
+  if(s.indexOf('MESA')>=0||s.indexOf('VELADOR')>=0)return'Mesa';
+  if(uso==='escritorio')return'Cubierta escritorio';
   return'Otro';
 }
 // Producción es la fuente de verdad de madera y medidas. Los registros de
@@ -28029,12 +28042,23 @@ function _dominante(numStr,campo){
   Object.keys(por).forEach(function(k){if(por[k]>max){max=por[k];mejor=k;}});
   return mejor;
 }
+// Devuelve siempre el nombre oficial de la especie. Sin esto, "COIHUE" y
+// "Coihue" salían como dos filas distintas en el resumen por madera.
+function maderaCanonica(txt){
+  var n=_normMad(txt);
+  if(!n)return'Sin madera';
+  var candidatas=MADERAS.concat(Object.keys(costoEstandar.maderas||{}));
+  for(var i=0;i<candidatas.length;i++){
+    if(_normMad(candidatas[i])===n)return candidatas[i];
+  }
+  return String(txt).trim();
+}
 function maderaDe(r){
-  if(r.cat_madera_manual)return r.cat_madera_manual;
+  if(r.cat_madera_manual)return maderaCanonica(r.cat_madera_manual);
   var d=_dominante(r.num,'madera');
-  if(d)return d;
+  if(d)return maderaCanonica(d);
   // Último recurso: lo que se guardó en el propio registro de costos.
-  return String(r.madera||'').split(' / ')[0]||'Sin madera';
+  return maderaCanonica(String(r.madera||'').split(' / ')[0]);
 }
 function categoriaDe(r){
   if(r.cat_manual)return r.cat_manual;
@@ -28068,8 +28092,11 @@ const PROCESO_ITEMS=[
 // grande o chica, así que no puede prorratearse por metro cuadrado.
 const COSTO_ESTANDAR_DEFAULT={
   proceso:{insumos:4901,acabado:8266,embalaje:12420,mano_obra:21008,herramientas:4660},
+  // pulgadas por m² × valor de la pulgada, según la planilla:
+  // Oregón 4×12.000 · Ciprés 4×18.000 · Castaño 3×20.000 · Mañío 3×25.000
+  // Coihue 3×28.000 · Raulí 3×27.000 · Lenga 3×30.000
   maderas:{
-    'OREGÓN':40000,'PINO OREGÓN':40000,'CIPRÉS':72000,'CASTAÑO':60000,
+    'OREGÓN':48000,'PINO OREGÓN':48000,'CIPRÉS':72000,'CASTAÑO':60000,
     'MAÑÍO':75000,'COIHUE':84000,'RAULÍ':81000,'LENGA':90000,'LAUREL':0
   },
   extras:[{prod:'Mesa',desc:'Base de fierro',cat:'Base/Estructura',valor:180000}]
@@ -28080,9 +28107,24 @@ function procesoTotalM2(){
 }
 var costoEstandar=JSON.parse(JSON.stringify(COSTO_ESTANDAR_DEFAULT));
 const COSTO_ESTANDAR_KEY='__estandar';
+// La madera puede venir escrita de varias formas: el pantallazo la interpreta
+// con IA y los pedidos viejos son anteriores al desplegable, así que aparecen
+// "Mañio" y "Cipres" sin tilde. Comparar con la clave exacta dejaba esas
+// maderas en $0. Se compara sin tildes ni mayúsculas.
+function _normMad(s){
+  return String(s||'').toUpperCase()
+    .replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I')
+    .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N')
+    .replace(/\s+/g,' ').trim();
+}
 function costoMaderaM2(madera){
-  var m=costoEstandar.maderas||{};
-  return Number(m[String(madera||'').toUpperCase()])||0;
+  var m=costoEstandar.maderas||{},buscada=_normMad(madera);
+  if(!buscada)return 0;
+  var claves=Object.keys(m);
+  for(var i=0;i<claves.length;i++){
+    if(_normMad(claves[i])===buscada)return Number(m[claves[i]])||0;
+  }
+  return 0;
 }
 async function guardarCostoEstandar(){
   if(!DB_URL)return false;
