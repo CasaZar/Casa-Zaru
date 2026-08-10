@@ -27969,7 +27969,7 @@ function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return 
 
 // ── COSTOS ──────────────────────────────────────────────────────────────────
 let costRecords=[];
-const CATEGORIAS_COSTO=['Madera','Insumos','Mano de obra','Acabado','Envío/Flete','Herramientas','Embalaje','Comisión plataforma','Garantía/Rehacer','Otro'];
+const CATEGORIAS_COSTO=['Madera','Base/Estructura','Insumos','Mano de obra','Acabado','Envío/Flete','Herramientas','Embalaje','Comisión plataforma','Garantía/Rehacer','Otro'];
 // ── Margen honesto ─────────────────────────────────────────────────────────
 // La venta bruta incluye el 19% de IVA (que va al SII, no es tuyo) y no
 // descuenta la comisión que MercadoPago/Shopify te restan del depósito.
@@ -28063,12 +28063,16 @@ const PROCESO_ITEMS=[
   {k:'mano_obra',    cat:'Mano de obra',desc:'Mano de obra (5 HH)'},
   {k:'herramientas', cat:'Herramientas',desc:'Desgaste de herramientas (10%)'}
 ];
+// Los extras NO son por m²: son costos fijos POR PIEZA que dependen del tipo
+// de producto. La base de fierro de una mesa cuesta lo mismo sea la mesa
+// grande o chica, así que no puede prorratearse por metro cuadrado.
 const COSTO_ESTANDAR_DEFAULT={
   proceso:{insumos:4901,acabado:8266,embalaje:12420,mano_obra:21008,herramientas:4660},
   maderas:{
     'OREGÓN':40000,'PINO OREGÓN':40000,'CIPRÉS':72000,'CASTAÑO':60000,
     'MAÑÍO':75000,'COIHUE':84000,'RAULÍ':81000,'LENGA':90000,'LAUREL':0
-  }
+  },
+  extras:[{prod:'Mesa',desc:'Base de fierro',cat:'Base/Estructura',valor:180000}]
 };
 function procesoTotalM2(){
   var p=costoEstandar.proceso||{};
@@ -28095,7 +28099,8 @@ async function loadCost(){
     var cfg=todos.find(function(r){return String(r.num||'')===COSTO_ESTANDAR_KEY;});
     if(cfg){
       costoEstandar={proceso:cfg.proceso||COSTO_ESTANDAR_DEFAULT.proceso,
-                     maderas:cfg.maderas||COSTO_ESTANDAR_DEFAULT.maderas};
+                     maderas:cfg.maderas||COSTO_ESTANDAR_DEFAULT.maderas,
+                     extras:cfg.extras||COSTO_ESTANDAR_DEFAULT.extras};
     }
     costRecords=todos.filter(function(r){return String(r.num||'')!==COSTO_ESTANDAR_KEY;})
                      .sort((a,b)=>Number(a.num||0)-Number(b.num||0));
@@ -28105,8 +28110,12 @@ async function loadCost(){
 // Arma las líneas de costo estándar a partir de las líneas de Producción.
 // Se usa al confirmar un pedido nuevo y desde el botón "Precargar estándar".
 function _lineasEstandar(lineasProd){
-  var porMadera={},m2Total=0;
+  var porMadera={},m2Total=0,piezasPorCat={};
   (lineasProd||[]).forEach(function(l){
+    // Las piezas se cuentan aunque la línea no traiga medidas: una base de
+    // fierro se paga igual sin importar los m² de la cubierta.
+    var cat=categoriaProducto(l.producto),cant=Number(l.cantidad)||1;
+    piezasPorCat[cat]=(piezasPorCat[cat]||0)+cant;
     var m2=calcM2(l.largo,l.ancho,l.cantidad);if(!m2)return;
     var mad=(l.madera||'Sin madera').toUpperCase();
     porMadera[mad]=(porMadera[mad]||0)+m2;m2Total+=m2;
@@ -28125,6 +28134,12 @@ function _lineasEstandar(lineasProd){
     var unit=Number(p[it.k])||0;
     if(!unit)return;
     out.push({desc:it.desc,categoria:it.cat,qty:m2r,unidad:'m2',unit_val:unit,total:Math.round(m2Total*unit)});
+  });
+  // Extras por pieza según el tipo de producto (ej: base de fierro en mesas).
+  (costoEstandar.extras||[]).forEach(function(ex){
+    var n=piezasPorCat[ex.prod]||0,val=Number(ex.valor)||0;
+    if(!n||!val)return;
+    out.push({desc:ex.desc||('Extra '+ex.prod),categoria:ex.cat||'Otro',qty:n,unidad:'un',unit_val:val,total:Math.round(n*val)});
   });
   return out;
 }
@@ -28148,13 +28163,53 @@ function abrirCostoEstandar(){
       return '<tr><td style="padding:5px 8px">'+esc(it.desc)+'</td><td style="padding:5px 8px;text-align:right"><input type="number" min="0" step="100" value="'+v+'" data-proc="'+it.k+'" class="ce-proc" oninput="_ceTotal()" style="width:110px;padding:5px 8px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text)"></td></tr>';
     }).join('')+'</table></div>'+
     '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Madera por m²</div>'+
-    '<div style="max-height:38vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px"><table style="width:100%;border-collapse:collapse;font-size:12px">'+filas+'</table></div>'+
+    '<div style="max-height:30vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">'+filas+'</table></div>'+
+    '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">Extras por pieza</div>'+
+    '<div style="font-size:11px;color:var(--text-3);margin-bottom:6px">Costos fijos que no dependen del tamaño: se cobran por unidad, según el tipo de producto. Ej: la base de fierro de una mesa vale lo mismo sea grande o chica.</div>'+
+    '<div id="ce-extras"></div>'+
+    '<button class="btn-ghost" style="font-size:11px;margin-top:6px" onclick="_ceAddExtra()">+ Agregar extra</button>'+
     '</div>'+
     '<div class="modal-footer"><button class="btn-sec" onclick="cerrarCostoEstandar()">Cancelar</button><button class="btn-pri" onclick="guardarCostoEstandarUI()">Guardar</button></div>'+
     '</div>';
   var bg=document.getElementById('modal-costo-estandar-bg');
   if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-costo-estandar-bg';document.body.appendChild(bg);}
-  bg.innerHTML=html;bg.classList.add('open');_ceTotal();
+  bg.innerHTML=html;bg.classList.add('open');_ceTotal();_ceRenderExtras(costoEstandar.extras||[]);
+}
+function _ceRenderExtras(lista){
+  var el=document.getElementById('ce-extras');if(!el)return;
+  if(!lista.length){el.innerHTML='<div style="font-size:11px;color:var(--text-3);padding:4px 0">Sin extras cargados.</div>';return;}
+  var pOpts=function(sel){return CATEGORIAS_PRODUCTO.map(function(c){return'<option'+(c===sel?' selected':'')+'>'+c+'</option>';}).join('');};
+  var cOpts=function(sel){return CATEGORIAS_COSTO.map(function(c){return'<option'+(c===sel?' selected':'')+'>'+c+'</option>';}).join('');};
+  var st='padding:5px 7px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text);font-size:11px';
+  el.innerHTML='<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden"><table style="width:100%;border-collapse:collapse;font-size:11px">'+
+    lista.map(function(ex,i){
+      return '<tr class="ce-extra-row">'+
+        '<td style="padding:5px"><select class="ce-ex-prod" style="'+st+'">'+pOpts(ex.prod)+'</select></td>'+
+        '<td style="padding:5px"><input class="ce-ex-desc" value="'+esc(ex.desc||'')+'" placeholder="Base de fierro" style="'+st+';width:100%"></td>'+
+        '<td style="padding:5px"><select class="ce-ex-cat" style="'+st+'">'+cOpts(ex.cat)+'</select></td>'+
+        '<td style="padding:5px"><input type="number" min="0" step="1000" class="ce-ex-val" value="'+(Number(ex.valor)||0)+'" style="'+st+';width:95px"></td>'+
+        '<td style="padding:5px"><button class="btn-del-row" onclick="_ceDelExtra('+i+')">🗑</button></td></tr>';
+    }).join('')+'</table></div>';
+}
+function _ceLeerExtras(){
+  return Array.prototype.map.call(document.querySelectorAll('.ce-extra-row'),function(tr){
+    return{prod:tr.querySelector('.ce-ex-prod').value,
+           desc:tr.querySelector('.ce-ex-desc').value.trim(),
+           cat:tr.querySelector('.ce-ex-cat').value,
+           valor:Number(tr.querySelector('.ce-ex-val').value)||0};
+  }).filter(function(e){return e.valor>0;});
+}
+function _ceAddExtra(){
+  var l=_ceLeerExtras();
+  l.push({prod:'Mesa',desc:'',cat:'Base/Estructura',valor:0});
+  _ceRenderExtras(l);
+}
+function _ceDelExtra(i){
+  var l=Array.prototype.map.call(document.querySelectorAll('.ce-extra-row'),function(tr){
+    return{prod:tr.querySelector('.ce-ex-prod').value,desc:tr.querySelector('.ce-ex-desc').value.trim(),
+           cat:tr.querySelector('.ce-ex-cat').value,valor:Number(tr.querySelector('.ce-ex-val').value)||0};
+  });
+  l.splice(i,1);_ceRenderExtras(l);
 }
 function _ceTotal(){
   var t=0;document.querySelectorAll('.ce-proc').forEach(function(i){t+=Number(i.value)||0;});
@@ -28169,7 +28224,7 @@ async function guardarCostoEstandarUI(){
     var m=i.getAttribute('data-madera'),v=Number(i.value)||0;
     if(m)mads[m.toUpperCase()]=v;
   });
-  costoEstandar={proceso:proc,maderas:mads};
+  costoEstandar={proceso:proc,maderas:mads,extras:_ceLeerExtras()};
   var ok=await guardarCostoEstandar();
   cerrarCostoEstandar();
   showToast(ok?'✓ Costos estándar guardados':'✗ No se pudieron guardar');
