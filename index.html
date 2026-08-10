@@ -25756,6 +25756,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="leg"><div class="leg-dot" style="background:#F4C0D1"></div>Sin iniciar</div>
     <span style="color:var(--text-muted);font-size:11px;margin-left:6px">★ = checkpoint crítico</span>
   </div>
+  <div id="seg-alerta-semana"></div>
   <div id="seg-lista" class="ped-grid"></div>
   <div class="empty-state" id="seg-empty" style="display:none"><span class="empty-icon">📋</span>No se encontraron pedidos.</div>
   </div>
@@ -26312,6 +26313,18 @@ function fechaEnvioPedido(o){
   var f=new Date(p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0')+'T12:00:00');
   return isNaN(f)?null:f;
 }
+// Las semanas de producción se nombran SIEMPRE con el lunes que las abre, así
+// que se pueden deducir del día de envío en vez de escribirlas a mano. Eso
+// evita el error que deja un pedido sin semana (invisible en el tablero) o en
+// una semana que no existe por un tipeo.
+function semanaDeFecha(iso){
+  if(!iso)return'';
+  var d=new Date(String(iso)+'T12:00:00');
+  if(isNaN(d))return'';
+  var dow=d.getDay();                    // 0 = domingo
+  d.setDate(d.getDate()+(dow===0?-6:1-dow));   // retrocede al lunes
+  return'SEMANA '+String(d.getDate()).padStart(2,'0')+' '+MESES_ES[d.getMonth()];
+}
 function fechaFromSemana(semana){
   if(!semana)return todayStr;
   var s=semana.toUpperCase();
@@ -26833,6 +26846,9 @@ function renderSegStats(){
 // Orden cronológico de "SEMANA 03 AGOSTO": lo más antiguo arriba, que es
 // donde se acumula lo atrasado.
 function ordenSemana(sem){
+  // Los que no tienen semana van PRIMEROS: es un pedido que nadie va a ver si
+  // queda enterrado al final, justo el problema que hay que evitar.
+  if(sem==='Sin semana')return-1;
   var m=String(normalizeSemana(sem)||'').match(/SEMANA\s+(\d{1,2})\s+([A-ZÑ]+)/);
   if(!m)return 99999;
   var mi=MESES_ES.indexOf(m[2]);
@@ -26850,9 +26866,67 @@ function toggleGrupoSemana(sem){
   segGrupos[k]=!_grupoAbierto(k,peds);
   renderSeg();
 }
+// Red de seguridad: pedidos sin semana (que se pierden del tablero) o cuya
+// semana no coincide con el lunes de su día de envío.
+function pedidosConSemanaRara(){
+  var sin=[],mal=[];
+  orders.forEach(function(o){
+    var sem=normalizeSemana(o.semana||'');
+    var calc=o.dia_envio?semanaDeFecha(o.dia_envio):'';
+    if(!sem){sin.push({o:o,calc:calc});return;}
+    if(calc&&calc!==sem)mal.push({o:o,calc:calc,actual:sem});
+  });
+  return{sin:sin,mal:mal};
+}
+async function arreglarSemanas(){
+  var r=pedidosConSemanaRara();
+  var arreglables=r.sin.filter(function(x){return x.calc;}).concat(r.mal);
+  if(!arreglables.length){showToast('No hay semanas que corregir automáticamente');return;}
+  var det=arreglables.slice(0,8).map(function(x){
+    return '#'+(x.o.num||'—')+': '+(x.actual||'sin semana')+' → '+x.calc;
+  }).join('\n');
+  if(!confirm('Se van a corregir '+arreglables.length+' pedido(s), poniendo la semana del lunes de su día de envío:\n\n'+det+
+    (arreglables.length>8?'\n…y '+(arreglables.length-8)+' más':'')+'\n\n¿Seguimos?'))return;
+  var ok=0,fallo=0;
+  for(var i=0;i<arreglables.length;i++){
+    var o=arreglables[i].o,numStr=String(o.num||'');
+    o.semana=arreglables[i].calc;
+    // Producción es la fuente de verdad: se corrige ahí también.
+    var p=prodOrders.find(function(x){return String(x.pedido||'')===numStr;});
+    if(p)p.envio=arreglables[i].calc;
+    try{
+      if(DB_URL){
+        await api('pedidos/'+numStr,'PATCH',{num:numStr,semana:o.semana});
+        if(p)await saveProdOrder(p);
+      }
+      ok++;
+    }catch(e){fallo++;}
+  }
+  renderSeg();renderProd();
+  showToast(fallo?('Corregidos '+ok+', fallaron '+fallo):('✓ '+ok+' pedido(s) con su semana corregida'));
+}
+function renderAlertaSemana(){
+  var el=document.getElementById('seg-alerta-semana');if(!el)return;
+  var r=pedidosConSemanaRara();
+  var sinArreglo=r.sin.filter(function(x){return !x.calc;});
+  var total=r.sin.length+r.mal.length;
+  if(!total){el.innerHTML='';return;}
+  var partes=[];
+  if(r.sin.length)partes.push('<strong>'+r.sin.length+'</strong> sin semana de producción');
+  if(r.mal.length)partes.push('<strong>'+r.mal.length+'</strong> con una semana que no calza con su día de envío');
+  var nums=r.sin.concat(r.mal).slice(0,10).map(function(x){return '#'+esc(x.o.num||'—');}).join(' · ');
+  var puedeArreglar=r.sin.filter(function(x){return x.calc;}).length+r.mal.length;
+  var btn=puedeArreglar
+    ?'<button class="btn-ghost" style="font-size:11.5px;white-space:nowrap" onclick="arreglarSemanas()">Corregir '+puedeArreglar+' automáticamente</button>':'';
+  var aviso=sinArreglo.length
+    ?'<div style="font-size:11px;color:var(--text-3);margin-top:4px">'+sinArreglo.length+' no se puede'+(sinArreglo.length===1?'':'n')+' corregir solo'+(sinArreglo.length===1?'':'s')+': les falta el día de envío. Cargalo en Producción y la semana se pone sola.</div>':'';
+  el.innerHTML='<div style="background:#FDF6E8;border:1px solid #E8D5A8;border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:12px 15px;margin-bottom:14px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">'+
+    '<div style="flex:1;min-width:220px"><div style="font-size:12.5px;color:var(--text)">⚠ '+partes.join(' y ')+'.</div>'+
+    '<div style="font-size:11px;color:var(--text-3);margin-top:3px">'+nums+(total>10?' …':'')+'</div>'+aviso+'</div>'+btn+'</div>';
+}
 function renderSeg(){
   var list=getFilteredOrders(),cont=document.getElementById('seg-lista'),empty=document.getElementById('seg-empty');
-  renderSegStats();renderSegHoy();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
+  renderSegStats();renderSegHoy();renderAlertaSemana();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
   if(!cont)return;
   if(!list.length){cont.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';scm={};sci=0;orders.forEach(o=>getSC(o.semana));
@@ -26929,8 +27003,9 @@ function renderSeg(){
     var pend=peds.filter(function(o){return getProgress(o.checks).pct<100;}).length;
     // Por defecto se pliegan los grupos sin nada pendiente; nunca esconde
     // trabajo por hacer. Si se abre o cierra a mano, manda esa decisión.
-    var abierto=_grupoAbierto(sem,peds);
-    var sc=getSC(peds[0].semana);
+    // El grupo sin semana siempre abierto: es lo que no se puede pasar por alto.
+    var abierto=(sem==='Sin semana')?true:_grupoAbierto(sem,peds);
+    var sc=(sem==='Sin semana')?{border:'var(--red)'}:getSC(peds[0].semana);
     var badge=pend
       ?'<span class="sem-pend">'+pend+' con pendientes</span>'
       :'<span class="sem-listo">✓ todo listo</span>';
@@ -27293,6 +27368,20 @@ function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return 
 async function updateProdField(oi,field,val,li){
   if(field==='envio')val=normalizeSemana(val);
   if(li===undefined)prodOrders[oi][field]=val;else prodOrders[oi].lineas[li][field]=val;
+  // Al cargar el día de envío, la semana se deduce sola: es el lunes de esa
+  // semana. Si ya había una distinta se pregunta, porque puede ser a propósito.
+  if(field==='dia_envio'&&val){
+    var semCalc=semanaDeFecha(val),semActual=normalizeSemana(prodOrders[oi].envio||'');
+    if(semCalc&&semCalc!==semActual){
+      if(!semActual||confirm('El envío del '+fechaLarga(val)+' cae en la '+semCalc+'.\n\n'+
+         'Hoy este pedido figura en "'+semActual+'". ¿Lo paso a la '+semCalc+'?')){
+        // Se asigna acá y el guardado del final de esta misma función lo
+        // propaga a Seguimiento, Finanzas, Pixel y Costos.
+        prodOrders[oi].envio=semCalc;
+        var inpSem=document.getElementById('psem-'+oi);if(inpSem)inpSem.value=semCalc;
+      }
+    }
+  }
   if(['largo','ancho','cantidad'].includes(field)&&li!==undefined){const l=prodOrders[oi].lineas[li];const m2=calcM2(l.largo,l.ancho,l.cantidad);const el=document.getElementById(`pm2-${oi}-${li}`);if(el)el.textContent=m2>0?m2.toFixed(2):'';}
   const numStr=String(prodOrders[oi].pedido||'');
   if(DB_URL&&numStr){try{await saveProdOrder(prodOrders[oi]);}catch(e){}}
@@ -27356,7 +27445,7 @@ function renderProd(){
       const diasBadge=isFirst&&dias!==null?'<div style="font-size:10px;margin-top:2px;font-weight:600;color:'+(dias>14?'var(--red)':dias>7?'var(--amber)':'var(--green-text)')+'">'+dias+'d en taller</div>':'';
       const _fo='onfocus="this.style.borderBottomColor=\'var(--wood-light)\';this.style.background=\'#fff\'" onblur="this.style.borderBottomColor=\'transparent\';this.style.background=\''+rowBg+'\'"';
       const pedidoContent=isFirst?'<input style="'+inS+'font-family:\'DM Serif Display\',serif;font-size:15px;color:var(--wood);width:70px" value="'+(o.pedido||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'pedido\',this.value)">'+estadoSel:'';
-      const envioContent=isFirst?'<input style="'+inS+'font-size:11px;width:110px" value="'+esc(normalizeSemana(o.envio)||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'envio\',this.value)">'+diasBadge:'';
+      const envioContent=isFirst?'<input id="psem-'+oi+'" style="'+inS+'font-size:11px;width:110px" value="'+esc(normalizeSemana(o.envio)||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'envio\',this.value)">'+diasBadge:'';
       return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${pedidoContent}</td><td style="background:${rowBg}">${envioContent}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:115px" value="${esc(o.comprador)}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)"><input style="${inS}width:115px;font-size:11px;margin-top:2px" value="${esc(o.apellido)}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${esc(l.producto)}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg}"><select style="${inS}" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${esc(l.observaciones)}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle;white-space:nowrap"><input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel(${oi},${li},this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd(${oi},${li})" title="Generar etiqueta individual">📄</button></td>${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
     }).join('');
   }).join('');
