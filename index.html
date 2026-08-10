@@ -378,6 +378,41 @@ body {
 .leg { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--text-3); }
 .leg-dot { width:8px; height:8px; border-radius:2px; }
 
+/* ── Pedidos de Seguimiento en tarjetas ──
+   Antes era una tabla de 14 columnas: en la columna que queda al lado del
+   tablero no cabía, y había que scrollear a la derecha perdiendo de vista
+   el N° y el cliente, con Comprobante y Recibió siempre fuera de pantalla.
+   En tarjeta caben TODOS los checkpoints a la vista, sin scroll lateral. */
+.ped-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px; }
+.ped-card { background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--border-md);border-radius:var(--radius-xl);padding:13px 15px;transition:border-color .15s,box-shadow .15s; }
+.ped-card:hover { box-shadow:0 2px 10px rgba(139,94,60,.10); }
+.ped-card.verde   { border-left-color:var(--green); }
+.ped-card.amarillo{ border-left-color:var(--amber); }
+.ped-card.rosado  { border-left-color:var(--red); }
+.ped-card.recibido{ border-left-color:#4E7A1B;background:#F6FBEF; }
+.ped-top { display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:7px; }
+.ped-cli { font-size:14px;font-weight:600;color:var(--text);line-height:1.3; }
+.ped-prod { font-size:11.5px;color:var(--text-3);margin-top:1px; }
+.ped-pct { font-family:'DM Serif Display',serif;font-size:19px;line-height:1;flex-shrink:0; }
+.ped-bar { height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;margin:8px 0 9px; }
+.ped-fill { height:100%;border-radius:2px;transition:width .3s; }
+.ped-meta { display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px; }
+/* Dos columnas de checkpoints: entran los 8 sin scroll ni recorte. */
+.ped-checks { display:grid;grid-template-columns:1fr 1fr;gap:5px; }
+.pchk { display:flex;align-items:center;gap:5px;text-align:left;font-size:11px;font-weight:600;line-height:1.25;
+        padding:7px 8px;border-radius:7px;cursor:pointer;border:1px solid var(--border);
+        background:var(--surface2);color:var(--text-3);font-family:'Inter',sans-serif;transition:all .12s;min-height:34px; }
+.pchk:hover { border-color:var(--brand);color:var(--brand); }
+.pchk.done { background:var(--green-dim);border-color:transparent;color:var(--green-text); }
+.pchk.crit:not(.done) { border-color:#E4C3CE;color:#99506B; }
+.pchk.nocount { opacity:.55; }
+.pchk-ico { flex-shrink:0;font-size:11px; }
+.ped-acciones { display:flex;gap:6px;margin-top:10px;flex-wrap:wrap; }
+.ped-acciones .btn-edit,.ped-acciones .btn-wa { flex:1;text-align:center;white-space:nowrap; }
+.btn-wa { background:#25D366;color:#fff;border:1px solid #25D366;border-radius:6px;padding:6px 10px;
+          font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;font-family:'Inter',sans-serif; }
+@media (max-width:768px){ .ped-grid { grid-template-columns:1fr; } }
+
 /* ── Tablero "hoy hay que avisar" (arriba de Seguimiento) ── */
 /* La pantalla se parte en dos: el tablero queda fijo a la izquierda con su
    propio scroll, así la lista de pedidos siempre está a la vista. En pantallas
@@ -389,6 +424,14 @@ body {
   .seg-split { display:grid;grid-template-columns:400px 1fr;gap:18px;align-items:start; }
   .seg-col-hoy { position:sticky;top:12px;max-height:calc(100vh - 32px);overflow-y:auto; }
   .seg-col-hoy .hoy-board { margin-bottom:0; }
+  /* Plegado: el tablero se va arriba y los pedidos toman todo el ancho. */
+  .seg-split.sin-tablero { grid-template-columns:1fr; }
+  .seg-split.sin-tablero .seg-col-hoy { position:static;max-height:none;overflow:visible; }
+  .seg-split.sin-tablero .seg-col-hoy .hoy-grupo,
+  .seg-split.sin-tablero .seg-col-hoy .hoy-item,
+  .seg-split.sin-tablero .seg-col-hoy .hoy-sub { display:none; }
+  .seg-split.sin-tablero .seg-col-hoy .hoy-board { margin-bottom:14px;padding:10px 16px; }
+  .seg-split.sin-tablero .seg-col-hoy .hoy-head { margin-bottom:0; }
 }
 /* El tablero vive en una columna angosta, así que cada aviso se apila: los
    datos ocupan el ancho completo y los botones van debajo. Lado a lado, el
@@ -25668,7 +25711,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="btn-connect" onclick="connectFirebase()">Conectar →</button>
     </div>
   </div>
-  <div class="seg-split">
+  <div class="seg-split" id="seg-split">
   <div class="seg-col-hoy"><div class="hoy-board" id="seg-hoy"></div></div>
   <div class="seg-col-lista">
   <div class="stats-grid" id="seg-stats"></div>
@@ -25693,20 +25736,8 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="leg"><div class="leg-dot" style="background:#F4C0D1"></div>Sin iniciar</div>
     <span style="color:var(--text-muted);font-size:11px;margin-left:6px">★ = checkpoint crítico</span>
   </div>
-  <div id="seg-mobile-cards" class="mobile-cards"></div>
-  <div class="table-card"><div class="table-wrap">
-    <table class="seg">
-      <thead><tr>
-        <th>N°</th><th>Semana</th><th>Cliente</th><th>Piezas</th><th>Progreso</th>
-        <th class="critical">Orden Word ★</th><th>En producción</th>
-        <th class="critical">Aviso sem. previa ★</th><th>Aviso lunes</th>
-        <th class="critical">Aviso día previo ★</th><th>Cambio fecha</th>
-        <th class="critical">Comprobante ★</th><th>Recibió</th><th></th>
-      </tr></thead>
-      <tbody id="seg-tbody"></tbody>
-    </table>
-    <div class="empty-state" id="seg-empty" style="display:none"><span class="empty-icon">📋</span>No se encontraron pedidos.</div>
-  </div></div>
+  <div id="seg-lista" class="ped-grid"></div>
+  <div class="empty-state" id="seg-empty" style="display:none"><span class="empty-icon">📋</span>No se encontraron pedidos.</div>
   </div>
   </div>
 </div></div>
@@ -26679,6 +26710,21 @@ function avisosPendientes(){
     return x.falta-y.falta;});
   return{lista:out,caducados:Object.keys(caducados).length};
 }
+// Plegar el tablero deja la lista de pedidos a ancho completo. La preferencia
+// se recuerda por dispositivo.
+function toggleTablero(){
+  var s=document.getElementById('seg-split');if(!s)return;
+  var off=!s.classList.contains('sin-tablero');
+  s.classList.toggle('sin-tablero',off);
+  try{localStorage.setItem('cazaru_tablero_off',off?'1':'');}catch(e){}
+  renderSegHoy();
+}
+function restaurarTablero(){
+  try{
+    var s=document.getElementById('seg-split');
+    if(s&&localStorage.getItem('cazaru_tablero_off'))s.classList.add('sin-tablero');
+  }catch(e){}
+}
 function renderSegHoy(){
   var el=document.getElementById('seg-hoy');if(!el)return;
   var r=avisosPendientes(),lista=r.lista;
@@ -26687,7 +26733,9 @@ function renderSegHoy(){
   var alDia=lista.filter(function(p){return!p.atrasado&&!p.urgente;});
   var pieCaducados=r.caducados?'<div class="hoy-sub" style="margin-top:10px">'+r.caducados+(r.caducados===1?' pedido antiguo con avisos sin marcar':' pedidos antiguos con avisos sin marcar')+' (más de '+AVISO_CADUCA_DIAS+' días pasados) ya no se piden.</div>':'';
   var badgeBg=(atrasados.length||cambios.length)?'background:#FDECEF;color:#993556':'background:#EAF5E1;color:#4E7A1B';
-  var head='<div class="hoy-head"><div class="hoy-title">📣 Hoy hay que avisar</div><div class="hoy-count" style="'+badgeBg+'">'+lista.length+(lista.length===1?' pendiente':' pendientes')+'</div></div>';
+  var plegado=document.getElementById('seg-split')&&document.getElementById('seg-split').classList.contains('sin-tablero');
+  var btnPlegar='<button class="btn-ghost" style="font-size:11px;padding:3px 9px;margin:0" onclick="toggleTablero()" title="'+(plegado?'Mostrar el tablero':'Ocultar el tablero y dar todo el ancho a los pedidos')+'">'+(plegado?'▸':'◂')+'</button>';
+  var head='<div class="hoy-head"><div class="hoy-title">📣 Hoy hay que avisar</div><div style="display:flex;align-items:center;gap:8px"><div class="hoy-count" style="'+badgeBg+'">'+lista.length+(lista.length===1?' pendiente':' pendientes')+'</div>'+btnPlegar+'</div></div>';
   if(!lista.length){el.innerHTML=head+'<div class="hoy-sub" style="color:var(--green);font-weight:600">✓ Todo al día, no hay avisos pendientes.</div>'+pieCaducados;return;}
   function bloque(titulo,color,items){
     if(!items.length)return'';
@@ -26749,41 +26797,70 @@ function renderSegStats(){
   document.getElementById('seg-stats').innerHTML='<div class="stat-card"><div class="stat-label">'+label+'</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Completados</div><div class="stat-val green">'+comp+'</div></div><div class="stat-card"><div class="stat-label">En curso</div><div class="stat-val amber">'+cur+'</div></div><div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-val pink">'+sin+'</div></div>';
 }
 function renderSeg(){
-  var list=getFilteredOrders(),tbody=document.getElementById('seg-tbody'),empty=document.getElementById('seg-empty');
-  renderSegStats();renderSegHoy();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});renderSegCards();
-  if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}
+  var list=getFilteredOrders(),cont=document.getElementById('seg-lista'),empty=document.getElementById('seg-empty');
+  renderSegStats();renderSegHoy();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
+  if(!cont)return;
+  if(!list.length){cont.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';scm={};sci=0;orders.forEach(o=>getSC(o.semana));
-  tbody.innerHTML=list.map(o=>{
-    var p=getProgress(o.checks),sc=getSC(o.semana),recib=yaRecibio(o);
-    var rowBg=recib?'#D8EFB6':p.pct===100?'#F2FAE8':p.pct>0?'#FDF6E8':'#FDF0F5';
-    var numStr=String(o.num||'');
-    var cells=CHECKS.map(c=>{var done=c.id==='recibido'?recib:(o.checks&&o.checks[c.id]);return'<td style="background:'+rowBg+'"><button class="chk '+(done?'done':'pending')+'" style="'+(c.nocount?'opacity:0.6;':'')+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')">'+(done?'&#10003; '+c.label:'&mdash;')+'</button></td>';}).join('');
+  cont.innerHTML=list.map(o=>{
+    var p=getProgress(o.checks),sc=getSC(o.semana),recib=yaRecibio(o),numStr=String(o.num||'');
+    var cls=recib?'recibido':p.pct===100?'verde':p.pct>0?'amarillo':'rosado';
+    var pctColor=recib?'#4E7A1B':p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';
+    // Los 8 checkpoints, todos visibles. El crítico va marcado con ★.
+    var checks=CHECKS.map(function(c){
+      var done=c.id==='recibido'?recib:!!(o.checks&&o.checks[c.id]);
+      var kls='pchk'+(done?' done':'')+(c.critical?' crit':'')+(c.nocount?' nocount':'');
+      var ico=done?'&#10003;':'&#9675;';
+      return '<button class="'+kls+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')" title="'+esc(c.label)+'"><span class="pchk-ico">'+ico+'</span><span>'+esc(c.label)+(c.critical?' ★':'')+'</span></button>';
+    }).join('');
     var nota=o.notas?'<div class="nota-tag" title="'+esc(o.notas)+'">'+esc(o.notas)+'</div>':'';
     // Motivos anotados cuando un aviso se pasó de fecha y no se mandó.
-    var excusas='';Object.keys(o.excusas||{}).forEach(function(k){var ex=o.excusas[k],a=AVISOS.find(function(x){return x.id===k;})||{tag:k};var t=a.tag+': '+ex.texto;excusas+='<div class="nota-tag" title="'+t+'">⚠ '+t+'</div>';});
-    nota+=excusas;
-    var canalBadge=o.canal==='web'?'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:1px 6px">🌐 Web</span>':'<span style="display:inline-block;margin-top:3px;font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:1px 6px">💬 WA</span>';
-    var diaEnvio='';if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);var diffD=Math.round((de-hoy)/86400000);var diaStr=de.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});diaStr=diaStr.charAt(0).toUpperCase()+diaStr.slice(1);var diaColor=diffD<=0?'var(--red)':diffD<=3?'var(--amber)':'var(--text-3)';diaEnvio='<div style="font-size:10px;color:'+diaColor+';margin-top:3px;font-weight:'+(diffD<=3?'700':'400')+'">Envío: '+diaStr+'</div>';}
-    var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+(o.semana||'')+'</span>'+diaEnvio;
+    Object.keys(o.excusas||{}).forEach(function(k){
+      var ex=o.excusas[k],a=AVISOS.find(function(x){return x.id===k;})||{tag:k};
+      var t=a.tag+': '+ex.texto;
+      nota+='<div class="nota-tag" title="'+esc(t)+'">⚠ '+esc(t)+'</div>';
+    });
+    var canalBadge=o.canal==='web'
+      ?'<span style="font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:2px 6px">🌐 Web</span>'
+      :'<span style="font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:2px 6px">💬 WA</span>';
+    var diaEnvio='';
+    if(o.dia_envio){
+      var de=new Date(o.dia_envio+'T12:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);
+      var diffD=Math.round((de-hoy)/86400000);
+      var diaStr=de.toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});
+      var diaColor=diffD<=0?'var(--red)':diffD<=3?'var(--amber)':'var(--text-3)';
+      var sufijo=diffD===0?' · HOY':diffD===1?' · mañana':diffD<0?' · ya salió':'';
+      diaEnvio='<span style="font-size:10px;font-weight:'+(diffD<=3?'700':'500')+';color:'+diaColor+'">📅 '+esc(diaStr)+sufijo+'</span>';
+    }
+    var sb='<span class="semana-badge" style="background:'+sc.bg+';color:'+sc.text+';border:0.5px solid '+sc.border+';font-weight:600">'+esc(o.semana)+'</span>';
+    var piezas=o.piezas?'<span style="font-size:10px;color:var(--text-3)">'+esc(o.piezas)+' pz</span>':'';
     // "Recibió pedido": aparece recién 10 días después de la fecha de envío y
     // marca el check 'recibido', el mismo que usa el tablero de arriba.
-    var btnRecibio='';
-    var deR=fechaEnvioPedido(o);
+    var btnRecibio='',deR=fechaEnvioPedido(o);
     if(deR&&!recib){
       var hoyR=new Date();hoyR.setHours(0,0,0,0);
       if(Math.round((hoyR-deR)/86400000)>=10){
         var finR=finRecords.find(function(x){return String(x.num||'')===numStr;});
         var celR=finR?String(finR.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
         var msgR='Hola! '+(o.nombre||'')+'. Quería confirmar si recibiste todo bien finalmente!';
-        if(celR){
-          btnRecibio='<a href="https://wa.me/56'+celR+'?text='+encodeURIComponent(msgR)+'" target="_blank" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" class="btn-edit" style="background:#25D366;color:#fff;border-color:#25D366;margin-right:5px;text-decoration:none;display:inline-block">Recibió pedido</a>';
-        }else{
-          btnRecibio='<button class="btn-edit" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" style="margin-right:5px" title="Este cliente no tiene celular guardado">Recibió pedido</button>';
-        }
+        btnRecibio=celR
+          ?'<a href="https://wa.me/56'+celR+'?text='+encodeURIComponent(msgR)+'" target="_blank" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" class="btn-wa">¿Lo recibió?</a>'
+          :'<button class="btn-edit" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" title="Este cliente no tiene celular guardado">¿Lo recibió?</button>';
       }
     }
-    var estrella=recib?'<span title="Confirmó que lo recibió" style="color:#4E7A1B;font-size:13px"> ★</span>':'';
-    return'<tr><td class="pedido-num" style="background:'+rowBg+'">'+(o.num||'—')+estrella+'</td><td style="background:'+rowBg+'">'+sb+'</td><td style="background:'+rowBg+'"><div class="cliente-name">'+esc(o.nombre)+' '+esc(o.apellido)+'</div><div class="cliente-prod">'+esc(o.producto)+'</div>'+nota+canalBadge+'</td><td style="background:'+rowBg+';text-align:center;font-family:\'DM Serif Display\',serif;font-size:14px;color:var(--wood)">'+(o.piezas||'—')+'</td><td style="background:'+rowBg+'"><div class="prog-wrap"><div class="prog-bar"><div class="prog-fill" style="width:'+p.pct+'%"></div></div><span class="prog-pct">'+p.pct+'%</span></div></td>'+cells+'<td style="background:'+rowBg+';white-space:nowrap">'+btnRecibio+'<button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></td></tr>';
+    var estrella=recib?'<span title="Confirmó que lo recibió" style="color:#4E7A1B"> ★</span>':'';
+    return '<div class="ped-card '+cls+'">'+
+      '<div class="ped-top"><div style="min-width:0">'+
+        '<div><span class="pedido-num">'+esc(o.num||'—')+'</span>'+estrella+'</div>'+
+        '<div class="ped-cli">'+esc(o.nombre)+' '+esc(o.apellido)+'</div>'+
+        '<div class="ped-prod">'+esc(o.producto)+'</div>'+
+      '</div><div class="ped-pct" style="color:'+pctColor+'">'+p.pct+'%</div></div>'+
+      '<div class="ped-bar"><div class="ped-fill" style="width:'+p.pct+'%;background:'+pctColor+'"></div></div>'+
+      '<div class="ped-meta">'+sb+diaEnvio+canalBadge+piezas+'</div>'+
+      nota+
+      '<div class="ped-checks">'+checks+'</div>'+
+      '<div class="ped-acciones">'+btnRecibio+'<button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></div>'+
+    '</div>';
   }).join('');
 }
 function openModal(numStr){
@@ -28430,6 +28507,7 @@ async function initAllModules(){
   await loadProd();
   if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();}
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
+  restaurarTablero();
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
 }
 arranqueInicial();
@@ -28909,20 +28987,8 @@ function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();r
 function downloadXLSX(wb,filename){try{var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}),blob=new Blob([wbout],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);showToast('✓ Excel descargado');}catch(e){console.error('Excel error:',e);showToast('Error al generar Excel: '+e.message,true);}}
 
 // ── TARJETAS MÓVIL ────────────────────────────────────────────────────────
-function segCardToggle(el){toggleCheck(el.getAttribute('data-numstr'),el.getAttribute('data-cid'));}
-function renderSegCards(){
-  var el=document.getElementById('seg-mobile-cards');if(!el)return;
-  var list=getFilteredOrders();
-  if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">📋</span>No hay pedidos.</div>';return;}
-  var html2='';
-  list.forEach(function(o){
-    var p=getProgress(o.checks),recib=yaRecibio(o),colorClass=p.pct===100?'verde':p.pct>0?'amarillo':'rosado',progColor=p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)',numStr=String(o.num||'');
-    var chksHtml='';CHECKS.forEach(function(c){var done=c.id==='recibido'?recib:!!(o.checks&&o.checks[c.id]),label=c.label.length>16?c.label.slice(0,16)+'…':c.label;chksHtml+='<div class="seg-card-chk'+(done?' done':'')+'" data-numstr="'+numStr+'" data-cid="'+c.id+'" onclick="segCardToggle(this)"><span style="font-size:13px">'+(done?'✓':'○')+'</span><span>'+label+(c.critical?' ★':'')+'</span></div>';});
-    var estrellaC=recib?'<span title="Confirmó que lo recibió" style="color:#4E7A1B"> ★</span>':'';
-    html2+='<div class="seg-card '+colorClass+'"'+(recib?' style="border-color:#4E7A1B"':'')+'><div class="seg-card-header"><div><div class="seg-card-num">#'+(o.num||'—')+estrellaC+'</div><div class="seg-card-client">'+esc(o.nombre)+' '+esc(o.apellido)+'</div><div class="seg-card-prod">'+esc(o.producto)+'</div></div><div style="text-align:right"><div style="font-size:14px;font-weight:700;color:'+progColor+'">'+p.pct+'%</div><div style="font-size:10px;color:var(--text-3);margin-bottom:4px">'+(o.semana||'')+'</div><button class="btn-edit" style="font-size:11px" onclick="openModal(\''+numStr+'\')">Editar</button></div></div><div class="seg-card-checks">'+chksHtml+'</div></div>';
-  });
-  el.innerHTML=html2;
-}
+// Seguimiento ya no tiene vista aparte para móvil: las tarjetas de renderSeg
+// sirven en los dos tamaños, así no hay dos listas que puedan divergir.
 function renderFinCards(){
   var el=document.getElementById('fin-mobile-cards');if(!el)return;
   var list=getFilteredFin();if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">💰</span>No hay registros.</div>';return;}
@@ -28938,7 +29004,7 @@ function renderProdCards(){
   var html2='';list.forEach(function(o){var lineasHtml='';(o.lineas||[]).forEach(function(l){lineasHtml+='<div class="prod-linea"><div class="prod-linea-prod">'+esc(l.producto||'—')+'</div><div class="prod-linea-specs">'+[esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',esc(l.canto),esc(l.acabado)].filter(Boolean).join(' · ')+'</div></div>';});html2+='<div class="prod-card"><div class="prod-card-header"><div><div class="prod-card-num">#'+(o.pedido||'—')+'</div><div class="prod-card-client">'+esc(o.comprador)+' '+esc(o.apellido)+'</div><div class="prod-card-semana">'+(o.envio||'')+'</div></div></div>'+lineasHtml+'</div>';});
   el.innerHTML=html2;
 }
-function renderMobileCards(){renderSegCards();renderFinCards();renderProdCards();}
+function renderMobileCards(){renderFinCards();renderProdCards();}
 
 </script>
 </body>
