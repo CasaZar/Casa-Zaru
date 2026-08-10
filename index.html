@@ -28518,6 +28518,11 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   var acabado=String(l.acabado||''),tenido=String(l.tenido||'NO'),obs=String(l.observaciones||'');
   var dimStr=largo+' X '+ancho+' CMS';
   var espStr=String(espesor).replace('.',',')+' CMS';
+  // Cuántas piezas hay que fabricar. Va del mismo tamaño que la medida y la
+  // madera: en el taller se lee de lejos y es el dato que más se presta a
+  // equivocarse si no está a la vista.
+  var cant=Number(l.cantidad)||1;
+  var cantStr=cant+(cant===1?' unidad':' unidades');
   var D=docx,mg=docx.convertInchesToTwip(0.8),cw=docx.convertInchesToTwip(8.27)-2*mg;
   var NB={style:'none',size:0,color:'FFFFFF'};
   var noBorder={top:NB,bottom:NB,left:NB,right:NB};
@@ -28533,6 +28538,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   else{var ch=[headerTbl];}
   ch.push(new D.Paragraph({children:[new D.TextRun({text:producto,size:18,font:'Arial'})],spacing:{before:40,after:100}}));
   ch.push(divider);
+  ch.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:cantStr,size:80,font:'Arial',bold:true})],spacing:{after:60}}));
   ch.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:dimStr,size:80,font:'Arial',bold:true})],spacing:{after:60}}));
   ch.push(new D.Paragraph({alignment:'center',children:[new D.TextRun({text:madera,size:80,font:'Arial',bold:true})],spacing:{after:180}}));
   ch.push(divider);
