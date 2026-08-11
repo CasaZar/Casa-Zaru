@@ -26298,32 +26298,54 @@ var dashMonthFilter=currentMonthName();
 function setSegMonth(m){segMonthFilter=m;renderSeg();}
 function setDashMonth(m){dashMonthFilter=m;renderDash();renderNotif();renderGrafico();renderRanking();}
 // Fecha de referencia para saber cuándo salió un pedido.
-// El "día de envío" se carga a mano y los pedidos viejos no lo tienen, así que
-// si falta se usa el mes de la semana de envío, y como último recurso la fecha
-// de venta. Es aproximado, pero permite que el aviso de recepción funcione
-// también con los pedidos de mayo en adelante.
+// Si no está cargado el día de envío (los pedidos viejos no lo tienen), se
+// deduce de la semana: lo de la semana del 10 se despacha el lunes 17. Antes
+// se usaba el día 1 del mes de la semana, que podía errar por semanas enteras
+// y hacía que los avisos salieran con fechas que no eran.
 function fechaEnvioPedido(o){
   if(o.dia_envio)return new Date(o.dia_envio+'T12:00:00');
-  var txt='';
-  if(o.semana){var d=fechaFromSemana(o.semana);if(d&&d!==todayStr)txt=d;}
-  if(!txt&&o.fecha_creacion)txt=o.fecha_creacion;
-  if(!txt)return null;
-  var p=String(txt).split('/');
-  if(p.length!==3)return null;
-  var f=new Date(p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0')+'T12:00:00');
-  return isNaN(f)?null:f;
+  if(o.semana){var d=fechaEnvioDeSemana(o.semana);if(d)return d;}
+  if(o.fecha_creacion){
+    var p=String(o.fecha_creacion).split('/');
+    if(p.length===3){
+      var f=new Date(p[2]+'-'+String(p[1]).padStart(2,'0')+'-'+String(p[0]).padStart(2,'0')+'T12:00:00');
+      if(!isNaN(f))return f;
+    }
+  }
+  return null;
 }
-// Las semanas de producción se nombran SIEMPRE con el lunes que las abre, así
-// que se pueden deducir del día de envío en vez de escribirlas a mano. Eso
-// evita el error que deja un pedido sin semana (invisible en el tablero) o en
-// una semana que no existe por un tipeo.
+// La semana se nombra con el lunes que la abre, y es la semana en que se
+// FABRICA: lo que se produce en la semana del 10 se despacha la semana
+// siguiente (el 17). Por eso, para deducir la semana desde el día de envío
+// hay que retroceder una semana además de retroceder al lunes.
+//   envío lunes 17 ago      → SEMANA 10 AGOSTO
+//   envío miércoles 19 ago  → SEMANA 10 AGOSTO
+function _lunesDe(d){
+  var dow=d.getDay();                        // 0 = domingo
+  d.setDate(d.getDate()+(dow===0?-6:1-dow));
+  return d;
+}
+function _nombreSemana(d){
+  return'SEMANA '+String(d.getDate()).padStart(2,'0')+' '+MESES_ES[d.getMonth()];
+}
 function semanaDeFecha(iso){
   if(!iso)return'';
   var d=new Date(String(iso)+'T12:00:00');
   if(isNaN(d))return'';
-  var dow=d.getDay();                    // 0 = domingo
-  d.setDate(d.getDate()+(dow===0?-6:1-dow));   // retrocede al lunes
-  return'SEMANA '+String(d.getDate()).padStart(2,'0')+' '+MESES_ES[d.getMonth()];
+  _lunesDe(d);
+  d.setDate(d.getDate()-7);   // la producción va una semana antes del envío
+  return _nombreSemana(d);
+}
+// El camino inverso: de "SEMANA 10 AGOSTO" al lunes de despacho (17 de agosto).
+// Sirve para fechar los avisos de los pedidos que no tienen día de envío.
+function fechaEnvioDeSemana(semana){
+  var m=String(normalizeSemana(semana)||'').match(/SEMANA\s+(\d{1,2})\s+([A-ZÑ]+)/);
+  if(!m)return null;
+  var mi=MESES_ES.indexOf(m[2]);if(mi<0)return null;
+  var d=new Date(new Date().getFullYear(),mi,parseInt(m[1],10),12,0,0);
+  if(isNaN(d))return null;
+  d.setDate(d.getDate()+7);
+  return d;
 }
 function fechaFromSemana(semana){
   if(!semana)return todayStr;
