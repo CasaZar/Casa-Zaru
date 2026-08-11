@@ -26281,7 +26281,40 @@ const todayStr=new Date().toLocaleDateString('es-CL');
 
 var MESES_ES=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 function extractMonth(s){if(!s)return null;var u=s.toUpperCase();for(var i=0;i<MESES_ES.length;i++){if(u.indexOf(MESES_ES[i])!==-1)return MESES_ES[i];}return null;}
-function normalizeSemana(s){if(!s)return s;var u=String(s).trim().toUpperCase().replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I').replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N');var m=u.match(/SEMANA\s+(\d{1,2})\s+([A-Z]+)/);if(!m)return u;return'SEMANA '+m[1].padStart(2,'0')+' '+m[2];}
+// Normaliza cualquier forma de escribir una semana a "SEMANA DD MES".
+// Antes solo entendía el formato exacto en mayúsculas: "semana 10 de agosto"
+// terminaba como "SEMANA 10 DE" (tomaba el "de" como si fuera el mes) y creaba
+// una semana fantasma aparte de la real. Ahora tolera minúsculas, tildes, la
+// palabra "de", espacios de más, abreviaturas y fechas numéricas, y además
+// corrige el día al lunes que abre esa semana.
+function normalizeSemana(s){
+  if(!s)return'';
+  var u=String(s).toUpperCase()
+    .replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I')
+    .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N')
+    .replace(/[^A-Z0-9]+/g,' ')          // guiones, barras, comas → espacio
+    .replace(/\bSEMANAS?\b|\bSEM\b|\bDEL?\b/g,' ')  // "semana", "sem", "de", "del"
+    .replace(/\s+/g,' ').trim();
+  if(!u)return'';
+  // Mes por nombre o abreviatura de 3 letras (MAR y MAY no chocan).
+  var mes=-1;
+  for(var i=0;i<MESES_ES.length;i++){
+    var ab=MESES_ES[i].replace(/[ÁÉÍÓÚ]/g,'').slice(0,3);
+    if(new RegExp('\\b'+ab).test(u)){mes=i;break;}
+  }
+  var nums=u.match(/\d{1,4}/g)||[];
+  var dia=nums.length?parseInt(nums[0],10):NaN;
+  // Formato numérico "10 08": el segundo número es el mes.
+  if(mes<0&&nums.length>=2){
+    var m2=parseInt(nums[1],10);
+    if(m2>=1&&m2<=12)mes=m2-1;
+  }
+  if(mes<0||!(dia>=1&&dia<=31))return u;   // no se pudo interpretar: al menos queda limpio
+  var d=new Date(new Date().getFullYear(),mes,dia,12,0,0);
+  if(isNaN(d))return u;
+  _lunesDe(d);                              // si escribieron un martes, al lunes
+  return _nombreSemana(d);
+}
 function extractMonthFromDate(d){
   if(!d)return null;var s=String(d).trim();var p,m;
   p=s.split('/');if(p.length>=2){m=parseInt(p[1],10);if(m>=1&&m<=12)return MESES_ES[m-1];}
@@ -26328,6 +26361,25 @@ function _lunesDe(d){
 function _nombreSemana(d){
   return'SEMANA '+String(d.getDate()).padStart(2,'0')+' '+MESES_ES[d.getMonth()];
 }
+// Candado: ningún pedido puede quedar sin semana. Si falta, la deduce del día
+// de envío; si tampoco hay día de envío, la pide y no deja seguir.
+// Devuelve false cuando el usuario cancela.
+function exigirSemana(obj,campoSemana,campoDia,inputId){
+  var sem=normalizeSemana(obj[campoSemana]||'');
+  if(!esSemanaValida(sem)&&obj[campoDia])sem=semanaDeFecha(obj[campoDia]);
+  while(!esSemanaValida(sem)){
+    var r=prompt('Este pedido no tiene semana de producción y sin ella no aparece en ningún lado.\n\n'+
+      'Escribí la semana (el lunes que la abre). Ejemplos: "10 agosto", "semana 10 de agosto", "10/08".\n\n'+
+      'Si preferís, cargá el día de envío y la semana se calcula sola.','');
+    if(r===null)return false;
+    sem=normalizeSemana(r);
+    if(!esSemanaValida(sem))alert('No pude entender "'+r+'" como una semana. Probá con el día y el mes, por ejemplo "10 agosto".');
+  }
+  obj[campoSemana]=sem;
+  if(inputId){var el=document.getElementById(inputId);if(el)el.value=sem;}
+  return true;
+}
+function esSemanaValida(s){return /^SEMANA \d{2} [A-Z]+$/.test(String(s||''))&&MESES_ES.indexOf(String(s).split(' ')[2])>=0;}
 function semanaDeFecha(iso){
   if(!iso)return'';
   var d=new Date(String(iso)+'T12:00:00');
@@ -27113,6 +27165,10 @@ async function saveOrder(){
   var canal=document.getElementById('f-canal').value||'whatsapp';
   var checks={};CHECKS.forEach(c=>checks[c.id]=document.getElementById('cb-'+c.id).checked);
   if(!nombre&&!num){alert('Ingresa al menos nombre o número de pedido.');return;}
+  // Mismo candado que al confirmar un pantallazo: sin semana no se guarda.
+  var _tmp={semana:semana,dia_envio:dia_envio};
+  if(!exigirSemana(_tmp,'semana','dia_envio','f-semana'))return;
+  semana=_tmp.semana;
   pendingOps++;setSyncState('syncing');
   try{
     var prev=orders.find(x=>String(x.num||'')===num)||{};
@@ -27312,6 +27368,9 @@ async function confirmOrder(){
   var canalEl=document.querySelector('input[name="canal-venta"]:checked');
   o.canal=canalEl?canalEl.value:'whatsapp';
   if(!numStr){showToast('❌ El pedido necesita un número',true);return;}
+  // Sin semana el pedido no aparece en ninguna semana de producción y se
+  // pierde de vista, así que no se deja pasar.
+  if(!exigirSemana(o,'envio','dia_envio','pp-semana'))return;
   const yaExiste=prodOrders.some(p=>String(p.pedido||'')===numStr)||finRecords.some(r=>String(r.num||'')===numStr);
   if(yaExiste){if(!confirm('⚠️ Ya existe un pedido con el N° '+numStr+' en el sistema.\n\n¿Seguro que quieres sobreescribirlo? Si es un pedido nuevo, cambia el número arriba antes de continuar.'))return;}
   if(o.fecha_venta&&o.fecha_venta.indexOf('-')!==-1){var _fv=o.fecha_venta.split('-');o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];}
@@ -27388,7 +27447,19 @@ const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
 const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO','TEÑIDO CHOCOLATE 3 MANOS'];
 function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return isNaN(m)?0:m;}
 async function updateProdField(oi,field,val,li){
-  if(field==='envio')val=normalizeSemana(val);
+  if(field==='envio'){
+    var limpia=normalizeSemana(val);
+    // Si lo que escribieron no se entiende como semana, no se guarda basura:
+    // se avisa y se deja lo que había (o lo que da el día de envío).
+    if(val&&!esSemanaValida(limpia)){
+      var alt=prodOrders[oi].dia_envio?semanaDeFecha(prodOrders[oi].dia_envio):'';
+      alert('No pude entender "'+val+'" como una semana.\n\n'+
+        (alt?'La dejo en '+alt+', que es la que corresponde a su día de envío.':'Escribila como "10 agosto" o cargá el día de envío y se calcula sola.'));
+      limpia=alt||normalizeSemana(prodOrders[oi].envio||'');
+    }
+    val=limpia;
+    var inpS=document.getElementById('psem-'+oi);if(inpS)inpS.value=val;
+  }
   if(li===undefined)prodOrders[oi][field]=val;else prodOrders[oi].lineas[li][field]=val;
   // Al cargar el día de envío, la semana se deduce sola: es el lunes de esa
   // semana. Si ya había una distinta se pregunta, porque puede ser a propósito.
