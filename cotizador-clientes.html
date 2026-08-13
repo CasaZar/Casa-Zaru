@@ -2258,6 +2258,17 @@ function isWeb(x){ return !x.user_email && ownerCode(x)===null; }
 function isoDate(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function hoyISO(){ return isoDate(new Date()); }
 function addDias(iso,n){ var p=iso.split('-'); var dt=new Date(+p[0],+p[1]-1,+p[2]); dt.setDate(dt.getDate()+n); return isoDate(dt); }
+/* Fecha de la cotización como AAAA-MM-DD en hora LOCAL.
+   Ojo: new Date('2026-08-11') se parsea como medianoche UTC, y como isoDate() lee
+   los componentes locales, en Chile (UTC-4) devolvía el día ANTERIOR. Y al revés,
+   cortar un timestamp con slice(0,10) da la fecha UTC, que para una cotización
+   creada de noche tampoco es la fecha local. Esto resuelve los dos casos. */
+function fechaBaseISO(v){
+  var s = String(v==null?'':v);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;      /* ya viene como fecha pura */
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? s.slice(0,10) : isoDate(d);
+}
 function dueDate(x){
   if ((x.estado||'enviada')!=='enviada') return null;
   var due;
@@ -2265,7 +2276,7 @@ function dueDate(x){
   else {
     var etapa = x.seg_etapa||0;
     if (etapa>=CADENCIA.length || !x.fecha_creacion) return null;
-    var b=new Date(x.fecha_creacion); b.setDate(b.getDate()+CADENCIA[etapa]); due = isoDate(b);
+    due = addDias(fechaBaseISO(x.fecha_creacion), CADENCIA[etapa]);
   }
   /* cadencia vencida: más de 30 días sin gestión → fuera de la cola diaria (sigue en las tablas) */
   if (due < addDias(hoyISO(),-30)) return null;
@@ -2379,6 +2390,7 @@ function renderTabs(){
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
     if (!panelSeller.b2b) tabs.push({id:'web',label:'Clientes Web'});
     tabs.push({id:'dormidos',label:'😴 Dormidos'});
+    tabs.push({id:'actividad',label:'📊 Mi actividad'});
   }
   document.getElementById('dash-tabs').innerHTML = tabs.map(function(t){
     var badge = (t.id==='seg' && segPend>0) ? '<span class="badge-red">'+segPend+'</span>' : '';
@@ -2688,8 +2700,7 @@ async function segMarcar(id, n, checked){
   if (checked && !hist.some(function(h){ return h.etapa===n; })) hist.push({etapa:n, fecha:hoyISO()});
   var next=null;
   if (checked && etapa<CADENCIA.length && x.fecha_creacion){
-    var b=new Date(x.fecha_creacion); b.setDate(b.getDate()+CADENCIA[etapa]);
-    var porCad=isoDate(b), minimo=addDias(hoyISO(),2);
+    var porCad=addDias(fechaBaseISO(x.fecha_creacion), CADENCIA[etapa]), minimo=addDias(hoyISO(),2);
     next = porCad>minimo ? porCad : minimo;
   }
   segSave(id, {seg_etapa:etapa, seg_proxima:next, seg_historial:hist}, checked?'Toque '+n+' registrado':'Toque '+n+' desmarcado');
@@ -2881,19 +2892,28 @@ function renderEliminadas(){
 }
 /* Actividad: por día y por vendedor, cuántos toques correspondían (según fecha_creación + CADENCIA)
    y cuántos se hicieron (existe entrada en seg_historial para esa etapa) vs no hechos. */
+/* Actividad: por día, cuántos toques correspondían (fecha_creación + CADENCIA) y
+   cuántos se hicieron (hay entrada en seg_historial para esa etapa).
+   El admin ve a todos los vendedores; cada vendedor ve SOLO lo suyo — ojo: allRows
+   trae toda la tabla, así que el filtro por code es lo único que separa los datos. */
+var ACTIVIDAD_DIAS = 30;   /* ventana de la tabla; el resumen de hoy no depende de esto */
 function renderActividad(){
   document.getElementById('dash-filters').innerHTML='';
-  var hoy = hoyISO();
+  var esAdmin  = isPanelAdmin();
+  var soloCode = esAdmin ? null : panelSeller.code;
+  var hoy   = hoyISO();
+  var desde = addDias(hoy, -ACTIVIDAD_DIAS);
   var porDia = {};
   allRows.forEach(function(x){
     if (x.eliminada) return;
     var code = ownerCode(x);
     if (!code || !x.fecha_creacion) return;
+    if (soloCode && code !== soloCode) return;   /* cada vendedor ve solo su propia actividad */
     var hist = Array.isArray(x.seg_historial) ? x.seg_historial : [];
+    var base = fechaBaseISO(x.fecha_creacion);
     for (var n=1; n<=CADENCIA.length; n++){
-      var b=new Date(x.fecha_creacion); b.setDate(b.getDate()+CADENCIA[n-1]);
-      var due = isoDate(b);
-      if (due > hoy) continue;
+      var due = addDias(base, CADENCIA[n-1]);
+      if (due > hoy || due < desde) continue;
       var key = due+'|'+code;
       if (!porDia[key]) porDia[key] = {fecha:due, code:code, correspondian:0, hechos:0};
       porDia[key].correspondian++;
@@ -2907,27 +2927,39 @@ function renderActividad(){
     return kb.fecha.localeCompare(ka.fecha) || ka.code.localeCompare(kb.code);
   });
   var hoyTot = {correspondian:0, hechos:0};
-  VENDEDORES.forEach(function(v){
-    var k = hoy+'|'+v.code;
-    if (porDia[k]){ hoyTot.correspondian += porDia[k].correspondian; hoyTot.hechos += porDia[k].hechos; }
+  Object.keys(porDia).forEach(function(k){
+    var r = porDia[k];
+    if (r.fecha === hoy){ hoyTot.correspondian += r.correspondian; hoyTot.hechos += r.hechos; }
   });
+  var noHoy = hoyTot.correspondian - hoyTot.hechos;
   var st = document.getElementById('dash-stats'); st.style.display='grid';
   st.innerHTML =
-    '<div class="stat-card"><div class="stat-v">'+hoyTot.correspondian+'</div><div class="stat-l">Correspondían hoy</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+hoyTot.hechos+'</div><div class="stat-l">Hechos hoy</div></div>'+
-    '<div class="stat-card"><div class="stat-v">'+(hoyTot.correspondian-hoyTot.hechos)+'</div><div class="stat-l">No hechos hoy</div></div>';
-  if (!keys.length){ document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">Sin datos de seguimiento todavía</div>'; return; }
+    '<div class="stat-card"><div class="stat-v">'+hoyTot.correspondian+'</div><div class="stat-l">Tocaban hoy</div></div>'+
+    '<div class="stat-card seg-donehoyf"><div class="stat-v">'+hoyTot.hechos+'</div><div class="stat-l">Hechos hoy</div></div>'+
+    '<div class="stat-card'+(noHoy>0?' seg-latef':'')+'"><div class="stat-v">'+noHoy+'</div><div class="stat-l">Sin hacer hoy</div></div>';
+  if (!keys.length){
+    document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">Sin seguimientos registrados en los últimos '+ACTIVIDAD_DIAS+' días</div>';
+    return;
+  }
   var rows = keys.map(function(k){
     var r = porDia[k];
     var nombre = r.code;
     for (var i=0;i<VENDEDORES.length;i++){ if (VENDEDORES[i].code===r.code){ nombre=VENDEDORES[i].nombre; break; } }
     var noHechos = r.correspondian - r.hechos;
     var pct = r.correspondian ? Math.round(r.hechos/r.correspondian*100) : 0;
-    return '<tr><td>'+r.fecha+'</td><td>'+escA(nombre)+'</td><td>'+r.correspondian+'</td><td>'+r.hechos+'</td><td>'+noHechos+'</td><td>'+pct+'%</td></tr>';
+    var pctCol = pct>=80 ? '#2D6A4F' : (pct>=50 ? '#B45309' : '#B91C1C');
+    var celdaVend = esAdmin ? '<td>'+escA(nombre)+'</td>' : '';
+    var esHoy = r.fecha === hoy;
+    return '<tr'+(esHoy?' style="background:var(--bg3)"':'')+'>'+
+      '<td>'+fmtFechaCorta(r.fecha)+(esHoy?' <strong>· hoy</strong>':'')+'</td>'+celdaVend+
+      '<td>'+r.correspondian+'</td><td>'+r.hechos+'</td><td>'+noHechos+'</td>'+
+      '<td style="color:'+pctCol+';font-weight:700">'+pct+'%</td></tr>';
   }).join('');
+  var thVend = esAdmin ? '<th>Vendedor</th>' : '';
   document.getElementById('dash-tbl').innerHTML = '<div class="tbl-scroll"><table class="ptable"><thead><tr>'+
-    '<th>Fecha</th><th>Vendedor</th><th>Correspondían</th><th>Hechos</th><th>No hechos</th><th>% hechos</th></tr></thead>'+
-    '<tbody>'+rows+'</tbody></table></div>';
+    '<th>Fecha</th>'+thVend+'<th>Tocaban</th><th>Hechos</th><th>Sin hacer</th><th>% cumplido</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table></div>'+
+    '<div class="ptier-note" style="border-radius:0 0 7px 7px">Últimos '+ACTIVIDAD_DIAS+' días · un seguimiento "tocaba" según la cadencia '+CADENCIA.join('-')+' desde la fecha de la cotización</div>';
 }
 function renderDash() {
   var dAll = currentTableRows();
