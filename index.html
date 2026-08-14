@@ -27199,7 +27199,11 @@ async function deleteOrder(){
 document.getElementById('modal-seg-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-seg-bg'))closeModal();});
 
 // ── PRODUCCIÓN ──────────────────────────────────────────────────────────────
-const MADERAS=['COIHUE','RAULÍ','CIPRÉS','LAUREL','OREGÓN','LENGA','CASTAÑO','MAÑÍO','PINO OREGÓN'];
+// Las dos últimas no son especies: COMBINADAS marca una pieza de varias maderas
+// (al costear hay que desglosar cuántos m² de cada una) y SIN MADERA cubre las
+// piezas de fierro u otro material, que no llevan costo de madera.
+const MADERAS=['COIHUE','RAULÍ','CIPRÉS','LAUREL','OREGÓN','LENGA','CASTAÑO','MAÑÍO','PINO OREGÓN','COMBINADAS','SIN MADERA'];
+const MADERAS_ESPECIE=MADERAS.filter(function(m){return m!=='COMBINADAS'&&m!=='SIN MADERA';});
 let prodPending=null,prodOrders=[];
 async function loadProd(){
   if(!DB_URL)return;
@@ -28405,6 +28409,28 @@ function _normMad(s){
     .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N')
     .replace(/\s+/g,' ').trim();
 }
+// Qué especies nombra un texto de madera. Sirve para "MAÑIO COIHUE CASTAÑO"
+// (pedido viejo, antes de que existiera COMBINADAS) y para "COIHUE TEÑIDO",
+// donde el teñido es acabado y la madera sigue siendo Coihue.
+function _especiesEn(txt){
+  var s=_normMad(txt),out=[];
+  if(!s)return out;
+  MADERAS_ESPECIE.forEach(function(m){if(s.indexOf(_normMad(m))>=0)out.push(m);});
+  // "PINO OREGÓN" contiene "OREGÓN": sin esto contaría como dos especies.
+  return out.filter(function(a){
+    return !out.some(function(b){return b!==a&&_normMad(b).indexOf(_normMad(a))>=0;});
+  });
+}
+function esSinMadera(madera){
+  var s=_normMad(madera);
+  return !s||s==='SIN MADERA'||s==='SIN'||s.indexOf('FIERRO')>=0||s.indexOf('METAL')>=0||s.indexOf('ACERO')>=0;
+}
+function esCombinada(madera){
+  var s=_normMad(madera);
+  if(esSinMadera(madera))return false;
+  if(s.indexOf('COMBINAD')>=0)return true;
+  return _especiesEn(madera).length>1;
+}
 function costoMaderaM2(madera){
   var m=costoEstandar.maderas||{},buscada=_normMad(madera);
   if(!buscada)return 0;
@@ -28412,6 +28438,10 @@ function costoMaderaM2(madera){
   for(var i=0;i<claves.length;i++){
     if(_normMad(claves[i])===buscada)return Number(m[claves[i]])||0;
   }
+  // Sin match exacto: si el texto nombra UNA sola especie, vale esa. Así
+  // "COIHUE TEÑIDO" deja de costar $0 por una palabra de más.
+  var esp=_especiesEn(madera);
+  if(esp.length===1)return costoMaderaM2(esp[0]);
   return 0;
 }
 async function guardarCostoEstandar(){
@@ -28457,8 +28487,21 @@ function _lineasEstandar(lineasProd){
   if(!m2Total)return[];
   var out=[];
   Object.keys(porMadera).forEach(function(mad){
+    // Fierro u otro material: no lleva costo de madera. Antes entraba como
+    // línea en $0 y figuraba como "falta el precio" de algo que no existe.
+    if(esSinMadera(mad))return;
+    var m2r=Number(porMadera[mad].toFixed(2));
+    if(esCombinada(mad)){
+      // No se puede repartir solo: hay que decir cuántos m² son de cada
+      // especie. Queda en $0 a propósito para que salte en los faltantes.
+      var esp=_especiesEn(mad);
+      var det=esp.length?' ('+esp.join(' + ')+')':'';
+      out.push({desc:'Madera combinada'+det+' — desglosar m² por especie',categoria:'Madera',
+                qty:m2r,unidad:'m2',unit_val:0,total:0});
+      return;
+    }
     var unit=costoMaderaM2(mad);
-    out.push({desc:'Madera '+mad,categoria:'Madera',qty:Number(porMadera[mad].toFixed(2)),
+    out.push({desc:'Madera '+mad,categoria:'Madera',qty:m2r,
               unidad:'m2',unit_val:unit,total:Math.round(porMadera[mad]*unit)});
   });
   // El proceso va desglosado por categoría: así el resumen del pedido muestra
@@ -28615,12 +28658,20 @@ function precargarCostos(idx){
   if((r.lineas||[]).length&&!confirm('Este pedido ya tiene '+r.lineas.length+' línea(s) de costo.\n\n¿Reemplazarlas por las estándar? Se pierde lo que hayas escrito.'))return;
   var nuevas=_lineasEstandar(lineas);
   if(!nuevas.length){showToast('Las líneas no tienen medidas cargadas (largo × ancho)');return;}
-  var faltantes=nuevas.filter(function(l){return l.categoria==='Madera'&&!l.unit_val;})
+  // Dos motivos distintos para quedar en $0: una madera combinada (hay que
+  // desglosarla a mano) o una especie sin precio cargado. El aviso lo dice,
+  // porque lo que hay que hacer en cada caso no es lo mismo.
+  var enCero=nuevas.filter(function(l){return l.categoria==='Madera'&&!l.unit_val;});
+  var combi=enCero.filter(function(l){return l.desc.indexOf('combinada')>=0;}).length;
+  var faltantes=enCero.filter(function(l){return l.desc.indexOf('combinada')<0;})
                       .map(function(l){return l.desc.replace('Madera ','').replace(' (estándar)','');});
   r.lineas=nuevas;
   if(DB_URL)api('costos/'+String(r.num||''),'PUT',r).catch(function(){showToast('✗ No se pudo guardar');});
   renderCost();
-  showToast(faltantes.length?('Precargado, pero falta el costo por m² de: '+faltantes.join(', ')):'✓ Costos estándar precargados — revisalos y ajustá');
+  var avisos=[];
+  if(combi)avisos.push(combi+' línea'+(combi===1?'':'s')+' de madera combinada: agregá una línea por especie con sus m²');
+  if(faltantes.length)avisos.push('falta el costo por m² de: '+faltantes.join(', '));
+  showToast(avisos.length?('Precargado, pero '+avisos.join(' · ')):'✓ Costos estándar precargados — revisalos y ajustá');
 }
 // Rellena de una vez todos los pedidos sin costear del mes que se está
 // mirando. Sirve para ponerse al día con los meses viejos (julio, junio…),
