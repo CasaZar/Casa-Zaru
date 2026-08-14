@@ -167,6 +167,13 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .rb-chks { display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-bottom:8px; }
 .rb-chk { font-size:11.5px;color:var(--tx);display:flex;align-items:center;gap:6px;cursor:pointer; }
 .rb-chk input { accent-color:var(--ac); }
+/* cada pieza con sus propios cantos: en una cotización puede haber cubiertas
+   con reborde y otras sin */
+.rb-pieza { border-bottom:1px solid var(--bg3);padding:8px 0 4px; }
+.rb-pieza:first-child { padding-top:0; }
+.rb-pieza:last-child { border-bottom:none;margin-bottom:6px; }
+.rb-pieza-h { font-size:11px;font-weight:600;color:var(--acd);margin-bottom:6px; }
+.rb-pieza-med { font-weight:400;color:var(--tm);margin-left:4px; }
 .mesa-desglose { display:block;font-size:9px;color:var(--tm);margin-top:2px;font-family:'Jost',sans-serif; }
 /* botón para quitar una pieza/puerta/marco */
 .btn-del-row { flex:0 0 auto;width:34px;min-height:44px;border:1px solid var(--bd);background:#fff;border-radius:8px;
@@ -1242,18 +1249,20 @@ function removeVExtra(n) {
   if (row) row.remove();
   calcLive();
 }
-/* ── REBORDE POR CANTO ──
-   Se elige qué cantos llevan reborde (2 largos + 2 cortos) y se aplican a TODAS
-   las piezas: los metros lineales suman cada fila POR SU CANTIDAD. Si son 2
-   cubiertas de 186×45 con un canto largo, son 1,86 × 2 = 3,72 ml, no 1,86.
-   El campo sigue siendo editable a mano (pieza redonda, casos mezclados); si el
+/* ── REBORDE POR CANTO, PIEZA POR PIEZA ──
+   Cada pieza tiene sus propios 4 cantos, porque en una misma cotización puede
+   haber cubiertas con reborde y otras sin. Los metros lineales suman cada pieza
+   por SU cantidad: 2 cubiertas de 186×45 con un canto largo son 3,72 ml.
+   El total sigue siendo editable a mano (pieza redonda, casos raros); si el
    vendedor lo escribe, se respeta y deja de recalcularse solo.
    El precio NO es plano: sale de los m² equivalentes × el precio de la madera. */
 var rbManual = false;   /* true cuando el vendedor escribió los ml a mano */
-function rbCantos() {
-  function on(id){ var el=document.getElementById(id); return el && el.checked; }
-  return { l1:on('rb-l1'), l2:on('rb-l2'), c1:on('rb-c1'), c2:on('rb-c2') };
+/* cantos marcados de una pieza (por su índice interno, que no cambia al borrar) */
+function rbCantosPieza(i) {
+  function on(id){ var el=document.getElementById(id); return !!(el && el.checked); }
+  return { l1:on('rb-p'+i+'-l1'), l2:on('rb-p'+i+'-l2'), c1:on('rb-p'+i+'-c1'), c2:on('rb-p'+i+'-c2') };
 }
+function rbTieneCanto(c) { return c.l1 || c.l2 || c.c1 || c.c2; }
 function rbDetalleCantos(c) {
   if (c.l1 && c.l2 && c.c1 && c.c2) return 'los 4 cantos';
   var parts = [];
@@ -1262,18 +1271,32 @@ function rbDetalleCantos(c) {
   if (nc) parts.push(nc + (nc===1?' canto corto':' cantos cortos'));
   return parts.join(' + ');
 }
-/* metros lineales de reborde de TODAS las piezas, cada una por su cantidad */
-function rbCalcMl() {
-  var c = rbCantos();
-  var nL = (c.l1?1:0)+(c.l2?1:0), nC = (c.c1?1:0)+(c.c2?1:0);
-  if (!nL && !nC) return 0;
-  var total = 0;
+/* recorre las piezas que existen en el DOM, con su número visible para el cliente */
+function rbPiezasActivas() {
+  var out = [], visible = 0;
   for (var i=1; i<=nrows; i++) {
     var lgEl=document.getElementById('lg'+i), anEl=document.getElementById('an'+i), caEl=document.getElementById('ca'+i);
-    if (!lgEl || !lgEl.value || !anEl || !anEl.value) continue;
-    var lg=parseFloat(lgEl.value)||0, an=parseFloat(anEl.value)||0, ca=parseInt((caEl&&caEl.value)||1)||1;
-    total += (nL*lg + nC*an) * ca;
+    if (!lgEl || !anEl) continue;                  /* fila borrada */
+    visible++;
+    out.push({
+      idx: i, num: visible,
+      lg: parseFloat(lgEl.value)||0,
+      an: parseFloat(anEl.value)||0,
+      ca: parseInt((caEl&&caEl.value)||1)||1,
+      cantos: rbCantosPieza(i)
+    });
   }
+  return out;
+}
+/* metros lineales: cada pieza con sus propios cantos, por su cantidad */
+function rbCalcMl() {
+  var total = 0;
+  rbPiezasActivas().forEach(function(p){
+    if (!p.lg || !p.an) return;
+    var nL = (p.cantos.l1?1:0)+(p.cantos.l2?1:0), nC = (p.cantos.c1?1:0)+(p.cantos.c2?1:0);
+    if (!nL && !nC) return;
+    total += (nL*p.lg + nC*p.an) * p.ca;
+  });
   return total / 100;
 }
 function rbAplicarMl() {
@@ -1281,6 +1304,38 @@ function rbAplicarMl() {
   if (!mlEl) return;
   var ml = rbCalcMl();
   mlEl.value = ml > 0 ? ml.toFixed(2) : '';
+}
+/* Dibuja los 4 cantos de cada pieza. Solo reconstruye el DOM si cambió el
+   conjunto de piezas (agregar/quitar); si solo cambiaron las medidas, actualiza
+   el texto — así marcar un canto no pierde el foco ni se re-dibuja al tipear. */
+var rbFirmaPiezas = '';
+function rbTextoMedida(p) {
+  if (!p.lg || !p.an) return 'sin medidas';
+  return p.lg + ' × ' + p.an + ' cm' + (p.ca > 1 ? ' · ' + p.ca + ' u.' : '');
+}
+function rbRenderPiezas() {
+  var cont = document.getElementById('rb-piezas');
+  if (!cont) return;
+  var piezas = rbPiezasActivas();
+  var firma = piezas.map(function(p){ return p.idx; }).join(',');
+  if (firma === rbFirmaPiezas) {          /* mismas piezas: solo refrescar medidas */
+    piezas.forEach(function(p){
+      var m = document.getElementById('rb-p'+p.idx+'-med');
+      if (m) m.textContent = rbTextoMedida(p);
+    });
+    return;
+  }
+  cont.innerHTML = piezas.map(function(p){
+    var chk = function(suf, lbl){
+      var id = 'rb-p'+p.idx+'-'+suf;
+      return '<label class="rb-chk"><input type="checkbox" id="'+id+'"'+(p.cantos[suf]?' checked':'')+' onchange="rbSync()"> '+lbl+'</label>';
+    };
+    return '<div class="rb-pieza">' +
+      '<div class="rb-pieza-h">Pieza '+p.num+' <span class="rb-pieza-med" id="rb-p'+p.idx+'-med">'+rbTextoMedida(p)+'</span></div>' +
+      '<div class="rb-chks">' + chk('l1','Canto largo 1') + chk('l2','Canto largo 2') + chk('c1','Canto corto 1') + chk('c2','Canto corto 2') + '</div>' +
+    '</div>';
+  }).join('');
+  rbFirmaPiezas = firma;
 }
 /* checkboxes de canto: vuelve a mandar el cálculo automático */
 function rbSync() { rbManual = false; rbAplicarMl(); rbRefrescarHint(); calcLive(); }
@@ -1293,7 +1348,7 @@ function rbSyncFromMl() {
 }
 /* al cambiar medidas o cantidades: recalcula, salvo que haya override manual.
    No llama a calcLive (es calcLive quien lo llama) para no entrar en bucle. */
-function rbAutoSync() { if (!rbManual) rbAplicarMl(); rbRefrescarHint(); }
+function rbAutoSync() { rbRenderPiezas(); if (!rbManual) rbAplicarMl(); rbRefrescarHint(); }
 /* metros lineales de reborde que escribió/calculó el vendedor */
 function rbMl() {
   var mlEl = document.getElementById('rb-ml');
@@ -1308,27 +1363,35 @@ function rebordePrecioM2(tier) {
   return currentPR()[tier];
 }
 function rebordeValor(tier) { return rbM2() * rebordePrecioM2(tier); }
+/* detalle por pieza para la cotización: solo las que llevan reborde */
+function rbDetallePiezas() {
+  var parts = [];
+  rbPiezasActivas().forEach(function(p){
+    if (!rbTieneCanto(p.cantos) || !p.lg || !p.an) return;
+    parts.push('Pieza ' + p.num + ' (' + p.lg + '×' + p.an + '): ' + rbDetalleCantos(p.cantos));
+  });
+  return parts;
+}
 /* texto del reborde para la cotización (el monto va por madera, no es plano) */
 function rbDatos() {
   var ml = rbMl();
   if (ml <= 0) return null;
-  var det = rbDetalleCantos(rbCantos());
-  return {
-    ml: ml,
-    m2: rbM2(),
-    nombre: 'Reborde 4 cm' + (det ? ' — ' + det : '') +
-            ' (' + ml.toFixed(2).replace('.',',') + ' ml · ' + rbM2().toFixed(2).replace('.',',') + ' m²)'
-  };
+  var det = rbDetallePiezas();
+  var totales = ' (' + ml.toFixed(2).replace('.',',') + ' ml · ' + rbM2().toFixed(2).replace('.',',') + ' m²)';
+  /* si el vendedor escribió los ml a mano no hay detalle por pieza que mostrar */
+  var cuerpo = det.length ? (' — ' + det.join(' · ')) : '';
+  return { ml: ml, m2: rbM2(), nombre: 'Reborde 4 cm' + cuerpo + totales };
 }
 /* muestra bajo el campo cuánto costaría el reborde en la madera más barata y la más cara */
 function rbRefrescarHint() {
   var el = document.getElementById('rb-hint');
   if (!el) return;
   var ml = rbMl();
-  if (ml <= 0) { el.textContent = 'Se calcula solo con las medidas de la pieza 1. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.'; return; }
-  var tierBajo = (prod === 'revestimiento') ? 'bajo' : 'bajo';
-  var vB = rebordeValor(tierBajo), vA = rebordeValor('alto');
-  el.innerHTML = rbM2().toFixed(2).replace('.',',') + ' m² de reborde · <strong>' + fmt(vB) + ' a ' + fmt(vA) + '</strong> según la madera';
+  if (ml <= 0) { el.textContent = 'Marca los cantos de cada pieza. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.'; return; }
+  var vB = rebordeValor('bajo'), vA = rebordeValor('alto');
+  var nP = rbDetallePiezas().length;
+  var quien = rbManual ? 'total escrito a mano' : (nP === 1 ? '1 pieza con reborde' : nP + ' piezas con reborde');
+  el.innerHTML = quien + ' · ' + rbM2().toFixed(2).replace('.',',') + ' m² · <strong>' + fmt(vB) + ' a ' + fmt(vA) + '</strong> según la madera';
 }
 /* teñido y perforación: valor manual + detalle, mientras no haya tarifa definida */
 function vxFijoDatos(prefix, nombreBase) {
@@ -1358,19 +1421,18 @@ function vExtrasDatos() {
 /* bloque "Extras (opcional)": existe siempre, oculto si no hay sesión de vendedor */
 function vExtrasFieldHtml() {
   nVExtras = 0;
-  var chk = function(id, lbl){
-    return '<label class="rb-chk"><input type="checkbox" id="'+id+'" onchange="rbSync()"> '+lbl+'</label>';
-  };
+  rbFirmaPiezas = '';   /* el bloque se vuelve a crear vacío: forzar el redibujo de las piezas */
+  rbManual = false;
   return '<div class="mesa-box'+(vendorMode?'':' hidden')+'">' +
     '<div class="mesa-h">Extras (opcional)</div>' +
     '<div class="vx-sub">' +
-      '<div class="vx-sub-h">Reborde 4 cms — simula mayor espesor, por metro lineal</div>' +
-      '<div class="rb-chks">' + chk('rb-l1','Canto largo 1') + chk('rb-l2','Canto largo 2') + chk('rb-c1','Canto corto 1') + chk('rb-c2','Canto corto 2') + '</div>' +
-      '<div class="col-labels"><div class="col-lbl">Metros lineales</div></div>' +
+      '<div class="vx-sub-h">Reborde 4 cm — simula mayor espesor, por metro lineal</div>' +
+      '<div id="rb-piezas"></div>' +
+      '<div class="col-labels"><div class="col-lbl">Total metros lineales</div></div>' +
       '<div class="dim-row">' +
         '<input type="number" inputmode="decimal" step="0.01" min="0" id="rb-ml" placeholder="0" oninput="rbSyncFromMl()">' +
       '</div>' +
-      '<div class="finput-hint" id="rb-hint">Se calcula solo con las medidas de la pieza 1. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.</div>' +
+      '<div class="finput-hint" id="rb-hint">Marca los cantos de cada pieza. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.</div>' +
     '</div>' +
     '<div class="vx-sub">' +
       '<div class="vx-sub-h">Teñido</div>' +
@@ -2055,8 +2117,17 @@ function getShareData() {
   if (prod === 'mesa') data.mesa = mesaDatos();             /* base de fierro: nombre, valor, altura, perfil, color */
   if (prod !== 'revlibre') {   /* revlibre ya guarda sus extras dentro de data.rv */
     var vExtrasNow = vExtrasDatos(); if (vExtrasNow.length) data.vExtras = vExtrasNow;
-    var rbNow = rbCantos(); var rbMlNow = rbMl();   /* reborde: se guardan los ml y los cantos, el precio se recalcula por madera */
-    if (rbMlNow > 0) data.rb = { ml: rbMlNow, l1:rbNow.l1, l2:rbNow.l2, c1:rbNow.c1, c2:rbNow.c2 };
+    /* reborde: se guardan los ml totales y los cantos DE CADA PIEZA (por su
+       índice interno, que es el mismo que usa data.rows). El precio se recalcula
+       según la madera al abrir el link. */
+    var rbMlNow = rbMl();
+    if (rbMlNow > 0) {
+      var rbPz = {};
+      rbPiezasActivas().forEach(function(p){
+        if (rbTieneCanto(p.cantos)) rbPz[p.idx] = p.cantos;
+      });
+      data.rb = { ml: rbMlNow, manual: rbManual, piezas: rbPz };
+    }
     var vEspNow = vEspesorFinal(); if (vEspNow) data.espFinal = vEspNow;
   }
   if (['cubierta','repisa','peldano','mesa'].includes(prod)) {
@@ -2177,13 +2248,6 @@ function restoreFromData(d) {
       var nom=document.getElementById('vx-nom'+nVExtras), val=document.getElementById('vx-val'+nVExtras);
       if (nom) nom.value = ex.nombre; if (val) val.value = ex.valor;
     });
-    if (d.rb && d.rb.ml > 0) {   /* reborde del link compartido: los ml mandan, el precio se recalcula */
-      var setChk = function(id,v){ var el=document.getElementById(id); if (el) el.checked = !!v; };
-      setChk('rb-l1', d.rb.l1); setChk('rb-l2', d.rb.l2); setChk('rb-c1', d.rb.c1); setChk('rb-c2', d.rb.c2);
-      var rbMlEl = document.getElementById('rb-ml');
-      if (rbMlEl) rbMlEl.value = d.rb.ml;
-      rbRefrescarHint();
-    }
   }
   if (d.vt) {
     var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt;
@@ -2224,7 +2288,30 @@ function restoreFromData(d) {
       if (isPuerta && mods[i]) { var moN = document.getElementById('mo'+nrows); if (moN) moN.value = mods[i]; }
     }
   }
+  rbRestaurar(d);   /* va DESPUÉS de las piezas: sus cantos cuelgan de cada fila */
   confirmar();
+}
+/* Restaura el reborde de un link compartido. Requiere que las piezas ya existan. */
+function rbRestaurar(d) {
+  if (!d.rb || !(d.rb.ml > 0)) return;
+  rbRenderPiezas();
+  var setChk = function(id,v){ var el=document.getElementById(id); if (el) el.checked = !!v; };
+  if (d.rb.piezas) {                      /* formato por pieza */
+    Object.keys(d.rb.piezas).forEach(function(idx){
+      var c = d.rb.piezas[idx] || {};
+      setChk('rb-p'+idx+'-l1', c.l1); setChk('rb-p'+idx+'-l2', c.l2);
+      setChk('rb-p'+idx+'-c1', c.c1); setChk('rb-p'+idx+'-c2', c.c2);
+    });
+  } else {                                /* links antiguos: los cantos iban para todas las piezas */
+    rbPiezasActivas().forEach(function(p){
+      setChk('rb-p'+p.idx+'-l1', d.rb.l1); setChk('rb-p'+p.idx+'-l2', d.rb.l2);
+      setChk('rb-p'+p.idx+'-c1', d.rb.c1); setChk('rb-p'+p.idx+'-c2', d.rb.c2);
+    });
+  }
+  rbManual = !!d.rb.manual;
+  var rbMlEl = document.getElementById('rb-ml');
+  if (rbMlEl) rbMlEl.value = d.rb.ml;
+  rbRefrescarHint();
 }
 
 async function copyShareLink() {
