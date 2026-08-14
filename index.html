@@ -27530,7 +27530,16 @@ function renderProd(){
     const oi=prodOrders.indexOf(o),rowBg=PROD_COLORS[oi%2];
     return(o.lineas||[]).map((l,li)=>{
       const isFirst=li===0,m2=calcM2(l.largo,l.ancho,l.cantidad);
-      const mOptsS=MADERAS.map(m=>`<option${m===l.madera?' selected':''}>${m}</option>`).join('');
+      // Comparar el texto exacto dejaba sin seleccionar cualquier madera
+      // escrita distinto ("OREGON" vs "OREGÓN"), y el navegador mostraba la
+      // primera opción de la lista: la tabla decía COIHUE en un pedido de
+      // Oregón. Se compara sin tildes ni mayúsculas, y si la madera guardada
+      // no está en la lista se agrega como opción para no ocultarla.
+      const _madN=_normMad(l.madera||'');
+      const _madOk=MADERAS.some(function(m){return _normMad(m)===_madN;});
+      const _madExtra=!_madN?'<option selected></option>':(!_madOk?'<option selected>'+esc(l.madera)+'</option>':'');
+      const mOptsS=_madExtra+
+        MADERAS.map(m=>'<option'+(_normMad(m)===_madN?' selected':'')+'>'+m+'</option>').join('');
       const cOptsS=CANTOS_PROD.map(c=>`<option${c===l.canto?' selected':''}>${c}</option>`).join('');
       const aOptsS=ACABADOS_PROD.map(a=>`<option${a===l.acabado?' selected':''}>${a}</option>`).join('');
       const inS=`background:${rowBg};border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:12px;font-family:'DM Sans',sans-serif;color:var(--text);width:100%;outline:none;`;
@@ -27609,7 +27618,9 @@ function renderMaderaDash(){
     if(!bySemana[sem])bySemana[sem]={};
     (o.lineas||[]).forEach(function(l){
       if(fMadera&&(l.madera||'').toLowerCase().indexOf(fMadera)===-1)return;
-      var mad=l.madera||'Sin madera';
+      // Canónica: "OREGON" y "OREGÓN" son la misma madera y tienen que sumar
+      // en el mismo grupo, o se compra dos veces lo mismo por separado.
+      var mad=maderaCanonica(l.madera);
       if(!bySemana[sem][mad])bySemana[sem][mad]=[];
       bySemana[sem][mad].push({pedido:o.pedido,cliente:(o.comprador||'')+(o.apellido?' '+o.apellido:''),producto:l.producto||'',largo:l.largo||0,ancho:l.ancho||0,cantidad:l.cantidad||1});
     });
@@ -27677,7 +27688,9 @@ async function generarEtiquetaCompra(sem){
   fp.forEach(function(o){
     (o.lineas||[]).forEach(function(l){
       if(fMadera&&(l.madera||'').toLowerCase().indexOf(fMadera)===-1)return;
-      var mad=l.madera||'Sin madera';
+      // Canónica: "OREGON" y "OREGÓN" son la misma madera y tienen que sumar
+      // en el mismo grupo, o se compra dos veces lo mismo por separado.
+      var mad=maderaCanonica(l.madera);
       if(!byMad[mad])byMad[mad]=[];
       byMad[mad].push({pedido:String(o.pedido||''),cliente:(o.comprador||'')+(o.apellido?' '+o.apellido:''),producto:l.producto||'',largo:String(l.largo||''),ancho:String(l.ancho||''),cantidad:String(l.cantidad||1),m2:calcM2(l.largo,l.ancho,l.cantidad)});
     });
