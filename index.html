@@ -28472,7 +28472,11 @@ async function loadCost(){
 // Arma las líneas de costo estándar a partir de las líneas de Producción.
 // Se usa al confirmar un pedido nuevo y desde el botón "Precargar estándar".
 function _lineasEstandar(lineasProd){
-  var porMadera={},m2Total=0,piezasPorCat={},piezasFierroPorCat={};
+  // m2Total incluye todo; m2Madera deja fuera las piezas de fierro u otro
+  // material. La base de fierro llega lista y solo se pinta, así que no le
+  // corresponden las 5 HH/m², ni lijas, acabado, herramientas ni árbol —
+  // pero sí el embalaje, porque igual se embala y se despacha.
+  var porMadera={},m2Total=0,m2Madera=0,piezasPorCat={},piezasFierroPorCat={};
   (lineasProd||[]).forEach(function(l){
     // Las piezas se cuentan aunque la línea no traiga medidas: una base de
     // fierro se paga igual sin importar los m² de la cubierta.
@@ -28484,6 +28488,7 @@ function _lineasEstandar(lineasProd){
     var m2=calcM2(l.largo,l.ancho,l.cantidad);if(!m2)return;
     var mad=(l.madera||'Sin madera').toUpperCase();
     porMadera[mad]=(porMadera[mad]||0)+m2;m2Total+=m2;
+    if(!esSinMadera(mad))m2Madera+=m2;
   });
   if(!m2Total)return[];
   var out=[];
@@ -28507,11 +28512,16 @@ function _lineasEstandar(lineasProd){
   });
   // El proceso va desglosado por categoría: así el resumen del pedido muestra
   // en qué se va la plata, en vez de un bloque único de "proceso".
-  var p=costoEstandar.proceso||{},m2r=Number(m2Total.toFixed(2));
+  // El embalaje se cobra sobre TODO lo que se despacha; el resto del proceso
+  // solo sobre los m² de madera (ver el comentario de m2Madera más arriba).
+  var p=costoEstandar.proceso||{};
   PROCESO_ITEMS.forEach(function(it){
     var unit=Number(p[it.k])||0;
     if(!unit)return;
-    out.push({desc:it.desc,categoria:it.cat,qty:m2r,unidad:'m2',unit_val:unit,total:Math.round(m2Total*unit)});
+    var base=(it.k==='embalaje')?m2Total:m2Madera;
+    if(!base)return;
+    out.push({desc:it.desc,categoria:it.cat,qty:Number(base.toFixed(2)),
+              unidad:'m2',unit_val:unit,total:Math.round(base*unit)});
   });
   // Ítems fijos por venta: se cobran una sola vez por pedido, no por m².
   var pv=costoEstandar.por_venta||{};
