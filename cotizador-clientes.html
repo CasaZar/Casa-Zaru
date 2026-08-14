@@ -816,6 +816,7 @@ function calcLive() {
      no con la tabla de m²: mostrar "Ingresa las medidas" ahí seria mentir. */
   var wrapEl = rangeEl.closest('.live-price-wrap');
   if (wrapEl) wrapEl.style.display = (prod === 'mesa' || prod === 'revlibre') ? 'none' : '';
+  rbAutoSync();   /* los ml del reborde dependen de las medidas Y de las cantidades */
   var bajo = 0, alto = 0;
 
   if (['cubierta','repisa','peldano'].includes(prod)) {
@@ -1242,9 +1243,13 @@ function removeVExtra(n) {
   calcLive();
 }
 /* ── REBORDE POR CANTO ──
-   Se elige qué cantos llevan reborde (2 largos + 2 cortos); los metros lineales
-   salen de la primera pieza y son editables (pieza redonda, casos mezclados).
+   Se elige qué cantos llevan reborde (2 largos + 2 cortos) y se aplican a TODAS
+   las piezas: los metros lineales suman cada fila POR SU CANTIDAD. Si son 2
+   cubiertas de 186×45 con un canto largo, son 1,86 × 2 = 3,72 ml, no 1,86.
+   El campo sigue siendo editable a mano (pieza redonda, casos mezclados); si el
+   vendedor lo escribe, se respeta y deja de recalcularse solo.
    El precio NO es plano: sale de los m² equivalentes × el precio de la madera. */
+var rbManual = false;   /* true cuando el vendedor escribió los ml a mano */
 function rbCantos() {
   function on(id){ var el=document.getElementById(id); return el && el.checked; }
   return { l1:on('rb-l1'), l2:on('rb-l2'), c1:on('rb-c1'), c2:on('rb-c2') };
@@ -1257,18 +1262,38 @@ function rbDetalleCantos(c) {
   if (nc) parts.push(nc + (nc===1?' canto corto':' cantos cortos'));
   return parts.join(' + ');
 }
-/* recalcula los ml desde los checkboxes y las medidas de la pieza 1 */
-function rbSync() {
+/* metros lineales de reborde de TODAS las piezas, cada una por su cantidad */
+function rbCalcMl() {
   var c = rbCantos();
-  var lgEl = document.getElementById('lg1'), anEl = document.getElementById('an1');
-  var lg = parseFloat((lgEl&&lgEl.value)||0)||0, an = parseFloat((anEl&&anEl.value)||0)||0;
-  var ml = (((c.l1?1:0)+(c.l2?1:0))*lg + ((c.c1?1:0)+(c.c2?1:0))*an) / 100;
-  var mlEl = document.getElementById('rb-ml');
-  if (mlEl) mlEl.value = ml > 0 ? ml.toFixed(2) : '';
-  rbRefrescarHint();
-  calcLive();
+  var nL = (c.l1?1:0)+(c.l2?1:0), nC = (c.c1?1:0)+(c.c2?1:0);
+  if (!nL && !nC) return 0;
+  var total = 0;
+  for (var i=1; i<=nrows; i++) {
+    var lgEl=document.getElementById('lg'+i), anEl=document.getElementById('an'+i), caEl=document.getElementById('ca'+i);
+    if (!lgEl || !lgEl.value || !anEl || !anEl.value) continue;
+    var lg=parseFloat(lgEl.value)||0, an=parseFloat(anEl.value)||0, ca=parseInt((caEl&&caEl.value)||1)||1;
+    total += (nL*lg + nC*an) * ca;
+  }
+  return total / 100;
 }
-function rbSyncFromMl() { rbRefrescarHint(); calcLive(); }
+function rbAplicarMl() {
+  var mlEl = document.getElementById('rb-ml');
+  if (!mlEl) return;
+  var ml = rbCalcMl();
+  mlEl.value = ml > 0 ? ml.toFixed(2) : '';
+}
+/* checkboxes de canto: vuelve a mandar el cálculo automático */
+function rbSync() { rbManual = false; rbAplicarMl(); rbRefrescarHint(); calcLive(); }
+/* el vendedor escribió los ml: se respeta y no se vuelve a pisar.
+   Si borra el campo, vuelve a mandar el cálculo automático. */
+function rbSyncFromMl() {
+  var mlEl = document.getElementById('rb-ml');
+  rbManual = !!(mlEl && mlEl.value.trim() !== '');
+  rbRefrescarHint(); calcLive();
+}
+/* al cambiar medidas o cantidades: recalcula, salvo que haya override manual.
+   No llama a calcLive (es calcLive quien lo llama) para no entrar en bucle. */
+function rbAutoSync() { if (!rbManual) rbAplicarMl(); rbRefrescarHint(); }
 /* metros lineales de reborde que escribió/calculó el vendedor */
 function rbMl() {
   var mlEl = document.getElementById('rb-ml');
