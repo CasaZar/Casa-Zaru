@@ -27552,6 +27552,31 @@ const PROD_ESTADOS=['En taller','Listo','Entregado'];
 function updateProdEstado(oi,val){var o=prodOrders[oi];if(!o)return;o.estado=val;if(DB_URL)api('produccion/'+String(o.pedido||''),'PUT',o).catch(function(){});}
 function diasEnTaller(o){var fc=o.fecha_creacion||o.fecha||'';if(!fc)return null;var d;var p=fc.split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else d=new Date(fc);if(isNaN(d.getTime()))return null;return Math.floor((Date.now()-d.getTime())/(1000*60*60*24));}
 function clearProdFilters(){['prod-filter-semana','prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
+// Capacidad del taller: cuántos m² se pueden producir en una semana. Sirve
+// para ver de un vistazo si una semana quedó floja o sobrecargada — la carga
+// venía oscilando entre 4,6 y 24,9 m² sin que se notara hasta que ya era tarde.
+const CAPACIDAD_M2_SEMANA=15;
+// Barra de ocupación de la semana. Verde hasta 80%, ámbar hasta el tope y
+// roja cuando se pasa: ahí la semana no cabe y hay que mover algo.
+function _barraCapacidad(m2){
+  var cap=CAPACIDAD_M2_SEMANA||1;
+  var pct=Math.round(m2/cap*100);
+  var ancho=Math.min(pct,100);
+  var color=pct>100?'var(--red)':pct>=80?'var(--amber)':'var(--green)';
+  var nota=pct>100?('+'+(m2-cap).toFixed(2)+' m² sobre el tope')
+                  :((cap-m2).toFixed(2)+' m² libres');
+  var h='<div style="margin-top:9px">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:10px;color:var(--text-3);margin-bottom:3px">';
+  h+='<span>Capacidad · '+cap+' m²</span>';
+  h+='<span style="font-weight:700;color:'+color+'">'+pct+'%</span>';
+  h+='</div>';
+  h+='<div style="height:7px;background:var(--surface3);border-radius:99px;overflow:hidden">';
+  h+='<div style="height:100%;width:'+ancho+'%;background:'+color+';border-radius:99px;transition:width .3s"></div>';
+  h+='</div>';
+  h+='<div style="font-size:10px;color:var(--text-3);margin-top:3px">'+nota+'</div>';
+  h+='</div>';
+  return h;
+}
 function renderMaderaDash(){
   var el=document.getElementById('prod-madera-dash');if(!el)return;
   var fp=prodMonthFilter==='todos'?prodOrders.slice():prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
@@ -27615,7 +27640,9 @@ function renderMaderaDash(){
     inner+='<div style="border-top:2px solid var(--border-md);margin-top:10px;padding-top:7px;display:flex;justify-content:space-between">';
     inner+='<span style="font-size:12px;font-weight:700;color:var(--text-2)">Total semana</span>';
     inner+='<span style="font-size:13px;font-weight:800;color:var(--wood)">'+totalSemana.toFixed(2)+' m²</span>';
-    inner+='</div></div>';
+    inner+='</div>';
+    inner+=_barraCapacidad(totalSemana);
+    inner+='</div>';
     html+=inner;
   });
   html+='</div>';
