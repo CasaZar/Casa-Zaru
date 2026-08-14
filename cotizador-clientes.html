@@ -624,7 +624,10 @@ var ESP8_MULT = { bajo: 1.56, medio: 1.68, alto: 1.71 };
    Se cobra por metro lineal de canto, con 4 cms de ancho. PENDIENTE confirmar
    con la planilla de costos: valor derivado del ejemplo mesa 200×100 con reborde
    completo (6 ml): $1.375.643 - $1.211.582 = $164.061 → ~$27.000/ml. */
-var REBORDE_ML = 27000;
+/* Reborde: se cobra como si fuera cubierta. 1 metro lineal = una pieza de
+   100 × 4 cm = 0,04 m², al precio por m² de la madera elegida. Por eso el
+   reborde cuesta distinto en cada madera, igual que el resto del producto. */
+var REBORDE_ANCHO_M = 0.04;
 /* ── MODELOS DE MESA (catálogo 2026) ──
    forma/base vienen de la hoja MODELOS_MESA de la planilla de costos.
    pulgFijas/pulgXm/hh/insumos son las estimaciones de esa hoja, PENDIENTES de
@@ -836,6 +839,7 @@ function calcLive() {
   if (bajo > 0) {
     var liveM2 = (typeof sumM2 !== 'undefined' && sumM2) || (typeof m2r !== 'undefined' && m2r) || 0;
     var exT = getExtrasTotal(liveM2);
+    bajo += rebordeValor('bajo'); alto += rebordeValor('alto');   /* el reborde cuesta según la madera */
     rangeEl.innerHTML = fmt(bajo + exT) + '<span class="sep-dash"> — </span>' + fmt(alto + exT);
     noteEl.style.display = 'block';
   } else {
@@ -1223,8 +1227,8 @@ function removeVExtra(n) {
 }
 /* ── REBORDE POR CANTO ──
    Se elige qué cantos llevan reborde (2 largos + 2 cortos); los metros lineales
-   salen de la primera pieza y el valor = ml × REBORDE_ML. Ambos son editables
-   por si la pieza es redonda o el caso no calza con el cálculo automático. */
+   salen de la primera pieza y son editables (pieza redonda, casos mezclados).
+   El precio NO es plano: sale de los m² equivalentes × el precio de la madera. */
 function rbCantos() {
   function on(id){ var el=document.getElementById(id); return el && el.checked; }
   return { l1:on('rb-l1'), l2:on('rb-l2'), c1:on('rb-c1'), c2:on('rb-c2') };
@@ -1237,33 +1241,53 @@ function rbDetalleCantos(c) {
   if (nc) parts.push(nc + (nc===1?' canto corto':' cantos cortos'));
   return parts.join(' + ');
 }
-/* recalcula ml y valor desde los checkboxes y las medidas de la pieza 1 */
+/* recalcula los ml desde los checkboxes y las medidas de la pieza 1 */
 function rbSync() {
   var c = rbCantos();
   var lgEl = document.getElementById('lg1'), anEl = document.getElementById('an1');
   var lg = parseFloat((lgEl&&lgEl.value)||0)||0, an = parseFloat((anEl&&anEl.value)||0)||0;
   var ml = (((c.l1?1:0)+(c.l2?1:0))*lg + ((c.c1?1:0)+(c.c2?1:0))*an) / 100;
-  var mlEl = document.getElementById('rb-ml'), valEl = document.getElementById('rb-val');
-  if (mlEl) mlEl.value = ml > 0 ? ml.toFixed(2) : '';
-  if (valEl) valEl.value = ml > 0 ? Math.round(ml * REBORDE_ML) : '';
-  calcLive();
-}
-/* si el vendedor escribe los ml a mano, solo se recalcula el valor */
-function rbSyncFromMl() {
-  var mlEl = document.getElementById('rb-ml'), valEl = document.getElementById('rb-val');
-  var ml = parseFloat((mlEl&&mlEl.value)||0)||0;
-  if (valEl) valEl.value = ml > 0 ? Math.round(ml * REBORDE_ML) : '';
-  calcLive();
-}
-function rbDatos() {
-  var valEl = document.getElementById('rb-val');
-  var valor = parseInt((valEl&&valEl.value)||0, 10) || 0;
-  if (valor <= 0) return null;
   var mlEl = document.getElementById('rb-ml');
-  var ml = parseFloat((mlEl&&mlEl.value)||0)||0;
+  if (mlEl) mlEl.value = ml > 0 ? ml.toFixed(2) : '';
+  rbRefrescarHint();
+  calcLive();
+}
+function rbSyncFromMl() { rbRefrescarHint(); calcLive(); }
+/* metros lineales de reborde que escribió/calculó el vendedor */
+function rbMl() {
+  var mlEl = document.getElementById('rb-ml');
+  return parseFloat((mlEl&&mlEl.value)||0)||0;
+}
+/* m² equivalentes: cada metro lineal es una tira de 100 × 4 cm */
+function rbM2() { return rbMl() * REBORDE_ANCHO_M; }
+/* precio por m² que le corresponde al reborde según el producto y la madera */
+function rebordePrecioM2(tier) {
+  if (prod === 'revestimiento') return tier === 'bajo' ? PR.revestimiento.cipres : PR.revestimiento.coihue;
+  if (['granero','maciza','vidrios','mesa'].includes(prod)) return PR.cubierta[tier];   /* puertas y mesas: se cobra como cubierta */
+  return currentPR()[tier];
+}
+function rebordeValor(tier) { return rbM2() * rebordePrecioM2(tier); }
+/* texto del reborde para la cotización (el monto va por madera, no es plano) */
+function rbDatos() {
+  var ml = rbMl();
+  if (ml <= 0) return null;
   var det = rbDetalleCantos(rbCantos());
-  var nombre = 'Reborde 4 cms' + (det ? ' — ' + det : '') + (ml > 0 ? ' (' + ml.toFixed(2).replace('.',',') + ' ml)' : '');
-  return { nombre: nombre, valor: valor };
+  return {
+    ml: ml,
+    m2: rbM2(),
+    nombre: 'Reborde 4 cm' + (det ? ' — ' + det : '') +
+            ' (' + ml.toFixed(2).replace('.',',') + ' ml · ' + rbM2().toFixed(2).replace('.',',') + ' m²)'
+  };
+}
+/* muestra bajo el campo cuánto costaría el reborde en la madera más barata y la más cara */
+function rbRefrescarHint() {
+  var el = document.getElementById('rb-hint');
+  if (!el) return;
+  var ml = rbMl();
+  if (ml <= 0) { el.textContent = 'Se calcula solo con las medidas de la pieza 1. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.'; return; }
+  var tierBajo = (prod === 'revestimiento') ? 'bajo' : 'bajo';
+  var vB = rebordeValor(tierBajo), vA = rebordeValor('alto');
+  el.innerHTML = rbM2().toFixed(2).replace('.',',') + ' m² de reborde · <strong>' + fmt(vB) + ' a ' + fmt(vA) + '</strong> según la madera';
 }
 /* teñido y perforación: valor manual + detalle, mientras no haya tarifa definida */
 function vxFijoDatos(prefix, nombreBase) {
@@ -1274,10 +1298,11 @@ function vxFijoDatos(prefix, nombreBase) {
   var det = (detEl && detEl.value || '').trim();
   return { nombre: nombreBase + (det ? ' — ' + det : ''), valor: valor };
 }
-/* lee TODOS los extras: reborde + teñido + perforación + filas libres */
+/* Extras de monto PLANO (igual en las 3 maderas): teñido, perforación y libres.
+   El reborde NO va aquí: su precio depende de la madera, así que se suma por
+   tier en cada render (ver rebordeValor). */
 function vExtrasDatos() {
   var out = [];
-  var rb = rbDatos(); if (rb) out.push(rb);
   var tn = vxFijoDatos('tn', 'Teñido'); if (tn) out.push(tn);
   var pf = vxFijoDatos('pf', 'Perforación'); if (pf) out.push(pf);
   var rows = document.querySelectorAll('#vx-extras-rows .dim-row');
@@ -1300,12 +1325,11 @@ function vExtrasFieldHtml() {
     '<div class="vx-sub">' +
       '<div class="vx-sub-h">Reborde 4 cms — simula mayor espesor, por metro lineal</div>' +
       '<div class="rb-chks">' + chk('rb-l1','Canto largo 1') + chk('rb-l2','Canto largo 2') + chk('rb-c1','Canto corto 1') + chk('rb-c2','Canto corto 2') + '</div>' +
-      '<div class="col-labels"><div class="col-lbl">Metros lineales</div><div class="col-lbl">Valor</div></div>' +
+      '<div class="col-labels"><div class="col-lbl">Metros lineales</div></div>' +
       '<div class="dim-row">' +
         '<input type="number" inputmode="decimal" step="0.01" min="0" id="rb-ml" placeholder="0" oninput="rbSyncFromMl()">' +
-        '<input type="number" inputmode="numeric" min="0" id="rb-val" placeholder="0">' +
       '</div>' +
-      '<div class="finput-hint">Se calcula solo con las medidas de la pieza 1 ('+fmt(REBORDE_ML)+'/ml — valor por confirmar). Puedes corregir ml o valor a mano.</div>' +
+      '<div class="finput-hint" id="rb-hint">Se calcula solo con las medidas de la pieza 1. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.</div>' +
     '</div>' +
     '<div class="vx-sub">' +
       '<div class="vx-sub-h">Teñido</div>' +
@@ -1345,6 +1369,15 @@ function vExtrasNoteHtml(list) {
   return list.map(function(e){
     return '<div class="info-bar">Extra: <strong>'+escA(e.nombre)+'</strong> — '+fmt(e.valor)+'</div>';
   }).join('');
+}
+/* nota del reborde: su monto ya está incluido en cada precio de la tabla,
+   por eso se muestra el rango y no un valor único. */
+function rbNoteHtml() {
+  var rb = rbDatos();
+  if (!rb) return '';
+  var vB = rebordeValor('bajo'), vA = rebordeValor('alto');
+  var monto = (Math.round(vB) === Math.round(vA)) ? fmt(vA) : (fmt(vB) + ' a ' + fmt(vA) + ' según la madera');
+  return '<div class="info-bar">Extra: <strong>'+escA(rb.nombre)+'</strong> — '+monto+'</div>';
 }
 function rvDatos() {
   function v(id){ var el=document.getElementById(id); return el ? el.value.trim() : ''; }
@@ -1613,9 +1646,9 @@ function htmlCubierta(cli, fecha) {
   var vExtrasList = vExtrasDatos();
   var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
   var tierRows = [
-    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo  * espesorFactor('bajo')  + vExtrasTot},
-    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio * espesorFactor('medio') + vExtrasTot},
-    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto  * espesorFactor('alto')  + vExtrasTot}
+    {label: 'Pino Oregón',              tier: 'bajo',  total: sumM2 * currentPR().bajo  * espesorFactor('bajo')  + rebordeValor('bajo')  + vExtrasTot},
+    {label: 'Castaño / Ciprés / Mañío', tier: 'medio', total: sumM2 * currentPR().medio * espesorFactor('medio') + rebordeValor('medio') + vExtrasTot},
+    {label: 'Coihue / Raulí / Lenga',   tier: 'alto',  total: sumM2 * currentPR().alto  * espesorFactor('alto')  + rebordeValor('alto')  + vExtrasTot}
   ];
   var vEsp = vEspesorFinal();
   var esp = vEsp || (es8cm() ? '8 cms macizo — incluye 4 cms extra de espesor' :
@@ -1632,6 +1665,7 @@ function htmlCubierta(cli, fecha) {
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
+    rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
     tierTable(tierRows, recWood()) +
     extrasBlock(sumM2) +
@@ -1669,6 +1703,7 @@ function htmlPuerta(cli, fecha) {
     });
     if (mcM2 > 0) sumNeto += mcM2 * PR.cubierta[t];
     sumNeto += vidrioExtra;
+    sumNeto += rebordeValor(t);
     sumNeto += vExtrasTot;
     return {label: WOOD[t], tier: t, total: sumNeto};
   });
@@ -1691,6 +1726,7 @@ function htmlPuerta(cli, fecha) {
     (mcM2>0 ? '<div class="info-bar">Marco: <strong>'+mcMl.toFixed(2)+' ml · '+mcM2.toFixed(2)+' m²</strong></div>' : '') +
     '<table class="ptable"><thead><tr><th>N°</th><th>Modelo</th><th>Alto cm</th><th>Ancho cm</th><th>Cant.</th></tr></thead>' +
     '<tbody>'+dimRows+'</tbody></table>' +
+    rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
     tierTable(tierRows, recWood()) +
     '<div class="specs">' +
@@ -1722,15 +1758,17 @@ function htmlMesa(cli, fecha) {
   var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
   var vEsp = vEspesorFinal();
   var esMadera = M.baseTipo === 'madera';
-  /* cada madera = su cubierta + su propia base (fierro: mismo valor; madera: valor propio por tipo) + los mismos extras */
+  /* el valor de la base es POR MESA: si se cotizan 2 cubiertas, van 2 bases */
+  var nBases = filas.reduce(function(a,f){ return a + (f.ca||1); }, 0) || 1;
+  /* cada madera = su cubierta + sus bases (fierro: mismo valor; madera: valor propio por tipo) + reborde + extras */
   var tierRows = [
-    {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo,  base: esMadera ? M.valorBajo  : M.valor},
-    {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio, base: esMadera ? M.valorMedio : M.valor},
-    {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto,  base: esMadera ? M.valorAlto  : M.valor}
-  ].map(function(r){ r.total = r.madera + r.base + vExtrasTot; return r; });
+    {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo,  base: (esMadera ? M.valorBajo  : M.valor) * nBases},
+    {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio, base: (esMadera ? M.valorMedio : M.valor) * nBases},
+    {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto,  base: (esMadera ? M.valorAlto  : M.valor) * nBases}
+  ].map(function(r){ r.total = r.madera + r.base + rebordeValor(r.tier) + vExtrasTot; return r; });
 
   var pesoMadera = Math.round(sumM2*30);
-  var pesoBase   = esMadera ? Math.round(M.pesoBase) : Math.round(M.metros * FIERRO_KG_M);
+  var pesoBase   = Math.round((esMadera ? M.pesoBase : M.metros * FIERRO_KG_M) * nBases);
   var pesoTotal  = pesoMadera + pesoBase;
 
   saveQuote({
@@ -1758,27 +1796,32 @@ function htmlMesa(cli, fecha) {
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
+    rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
-    tierTableMesa(tierRows, recWood(), M, esMadera) +
+    tierTableMesa(tierRows, recWood(), M, esMadera, nBases) +
     detalleFierro +
     boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
   );
 }
 /* tabla de precios con el desglose cubierta + base (fierro o madera) */
-function tierTableMesa(rows, recTier, M, esMadera) {
+function tierTableMesa(rows, recTier, M, esMadera, nBases) {
   var tf = transferFactor();
+  var lblBase = (nBases > 1) ? (nBases + ' bases ') : 'base ';
   var prows = rows.map(function(r) {
     var isRec = recTier && r.tier === recTier;
     var badge = isRec ? '<span class="ptier-rec-badge">'+recBadgeText()+'</span>' : '';
     return '<div class="' + (isRec?'ptier-row rec':'ptier-row') + '">' +
       '<span class="ptier-wood">' + r.label + badge +
-        '<span class="mesa-desglose">Cubierta ' + fmt(r.madera) + ' + base ' + fmt(r.base) + '</span></span>' +
+        '<span class="mesa-desglose">Cubierta ' + fmt(r.madera) + ' + ' + lblBase + fmt(r.base) + '</span></span>' +
       '<span class="ptier-total">' + fmt(r.total) + '</span>' +
       '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * tf) + '</span></span>' +
     '</div>';
   }).join('');
   var esPro = b2bDcto > 0;
-  var notaBase = esMadera ? 'cubierta de madera + base de madera (según el tipo elegido)' : 'cubierta de madera + base de fierro (' + fmt(M.valor) + ')';
+  var sufBase = (nBases > 1) ? (' × ' + nBases) : '';
+  var notaBase = esMadera
+    ? ('cubierta de madera + base de madera (según el tipo elegido)' + sufBase)
+    : ('cubierta de madera + base de fierro (' + fmt(M.valor) + sufBase + ')');
   return '<div class="ptier-block">' +
     '<div class="ptier-head">' +
       '<span>Tipo de madera</span>' +
@@ -1833,8 +1876,8 @@ function htmlRev(cli, fecha) {
   var vExtrasList = vExtrasDatos();
   var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
   var tierRows = [
-    {label: 'Ciprés',  tier: 'bajo', total: m2 * PR.revestimiento.cipres + vExtrasTot},
-    {label: 'Coihue',  tier: 'alto', total: m2 * PR.revestimiento.coihue + vExtrasTot}
+    {label: 'Ciprés',  tier: 'bajo', total: m2 * PR.revestimiento.cipres + rebordeValor('bajo') + vExtrasTot},
+    {label: 'Coihue',  tier: 'alto', total: m2 * PR.revestimiento.coihue + rebordeValor('alto') + vExtrasTot}
   ];
   saveQuote({
     numero:qnum, cliente:cli, contacto:conStr||null, producto:'revestimiento',
@@ -1844,6 +1887,7 @@ function htmlRev(cli, fecha) {
   return shell('Revestimiento', cli, fecha,
     '<table class="ptable"><thead><tr><th>Superficie (m²)</th></tr></thead>' +
     '<tbody><tr><td style="font-size:16px;font-weight:700;padding:10px">'+m2.toFixed(2)+'</td></tr></tbody></table>' +
+    rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
     tierTable(tierRows) +
     '<div class="specs">' +
@@ -1970,6 +2014,8 @@ function getShareData() {
   if (prod === 'mesa') data.mesa = mesaDatos();             /* base de fierro: nombre, valor, altura, perfil, color */
   if (prod !== 'revlibre') {   /* revlibre ya guarda sus extras dentro de data.rv */
     var vExtrasNow = vExtrasDatos(); if (vExtrasNow.length) data.vExtras = vExtrasNow;
+    var rbNow = rbCantos(); var rbMlNow = rbMl();   /* reborde: se guardan los ml y los cantos, el precio se recalcula por madera */
+    if (rbMlNow > 0) data.rb = { ml: rbMlNow, l1:rbNow.l1, l2:rbNow.l2, c1:rbNow.c1, c2:rbNow.c2 };
     var vEspNow = vEspesorFinal(); if (vEspNow) data.espFinal = vEspNow;
   }
   if (['cubierta','repisa','peldano','mesa'].includes(prod)) {
@@ -2090,6 +2136,13 @@ function restoreFromData(d) {
       var nom=document.getElementById('vx-nom'+nVExtras), val=document.getElementById('vx-val'+nVExtras);
       if (nom) nom.value = ex.nombre; if (val) val.value = ex.valor;
     });
+    if (d.rb && d.rb.ml > 0) {   /* reborde del link compartido: los ml mandan, el precio se recalcula */
+      var setChk = function(id,v){ var el=document.getElementById(id); if (el) el.checked = !!v; };
+      setChk('rb-l1', d.rb.l1); setChk('rb-l2', d.rb.l2); setChk('rb-c1', d.rb.c1); setChk('rb-c2', d.rb.c2);
+      var rbMlEl = document.getElementById('rb-ml');
+      if (rbMlEl) rbMlEl.value = d.rb.ml;
+      rbRefrescarHint();
+    }
   }
   if (d.vt) {
     var vtEl = document.getElementById('vt'); if (vtEl) vtEl.value = d.vt;
