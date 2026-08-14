@@ -481,13 +481,13 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <div class="wood-muestrario hidden" id="s2b-muestrario">
       <div class="wood-muestrario-h">Conoce las maderas</div>
       <div class="wood-grid">
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/oregon.jpg')" data-wood="pino-oregon"></div><div class="wood-name">Pino Oregón</div><div class="wood-desc">La más accesible. Muy estable, ideal para ambientes rústicos.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/castano.jpg')" data-wood="castano"></div><div class="wood-name">Castaño</div><div class="wood-desc">Veta grande y marcada, de tono dorado miel. Una de las más duras.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/cipres.jpg')" data-wood="cipres"></div><div class="wood-name">Ciprés</div><div class="wood-desc">Con nudos a la vista. Recomendada para ambientes húmedos y exterior.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/manio.jpg')" data-wood="manio"></div><div class="wood-name">Mañío</div><div class="wood-desc">Textura fina y pareja, de tono cálido y particular.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/coihue.jpg')" data-wood="coihue"></div><div class="wood-name">Coihue</div><div class="wood-desc">Veta fina con suaves tonos café rojizos. La más dura que trabajamos: ideal para alto tráfico.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/rauli.jpg')" data-wood="rauli"></div><div class="wood-name">Raulí</div><div class="wood-desc">Un clásico del sur. Veta rojiza profunda.</div></div>
-        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://casazar.github.io/Cotizador/fotos/maderas/lenga.jpg')" data-wood="lenga"></div><div class="wood-name">Lenga</div><div class="wood-desc">Del extremo sur patagónico. Muy dura, de veta fina con tonos rojizos suaves y vetas claras.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/oregon.jpg')" data-wood="pino-oregon"></div><div class="wood-name">Pino Oregón</div><div class="wood-desc">La más accesible. Muy estable, ideal para ambientes rústicos.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/castano.jpg')" data-wood="castano"></div><div class="wood-name">Castaño</div><div class="wood-desc">Veta grande y marcada, de tono dorado miel. Una de las más duras.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/cipres.jpg')" data-wood="cipres"></div><div class="wood-name">Ciprés</div><div class="wood-desc">Con nudos a la vista. Recomendada para ambientes húmedos y exterior.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/manio.jpg')" data-wood="manio"></div><div class="wood-name">Mañío</div><div class="wood-desc">Textura fina y pareja, de tono cálido y particular.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/coihue.jpg')" data-wood="coihue"></div><div class="wood-name">Coihue</div><div class="wood-desc">Veta fina con suaves tonos café rojizos. La más dura que trabajamos: ideal para alto tráfico.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/rauli.jpg')" data-wood="rauli"></div><div class="wood-name">Raulí</div><div class="wood-desc">Un clásico del sur. Veta rojiza profunda.</div></div>
+        <div class="wood-chip"><div class="wood-swatch" style="background-image:url('https://cotizador.casazaru.cl/fotos/maderas/lenga.jpg')" data-wood="lenga"></div><div class="wood-name">Lenga</div><div class="wood-desc">Del extremo sur patagónico. Muy dura, de veta fina con tonos rojizos suaves y vetas claras.</div></div>
       </div>
     </div>
     <ul class="val-list">
@@ -559,11 +559,24 @@ var sbClient = supabase.createClient(SB_URL, SB_KEY);
 
 /* ── FOTOS — pegar URL para activar foto en la card ── */
 var FOTOS = {
-  cubierta:      'https://casazar.github.io/Cotizador/fotos/cubierta.jpg',
-  repisa:        'https://casazar.github.io/Cotizador/fotos/repisa.jpg',
-  peldano:       'https://casazar.github.io/Cotizador/fotos/peldano.jpg',
-  puertas:       'https://casazar.github.io/Cotizador/fotos/puertas.jpg',
-  revestimiento: 'https://casazar.github.io/Cotizador/fotos/revestimiento.jpg'
+  /* cubierta-wide: recorte horizontal 16:7 hecho desde la foto original, que es
+     vertical (1086×1448) y en la tarjeta ancha perdía el 67% de la imagen. */
+  cubierta:      'https://cotizador.casazaru.cl/fotos/cubierta-wide.jpg',
+  repisa:        'https://cotizador.casazaru.cl/fotos/repisa.jpg',
+  peldano:       'https://cotizador.casazaru.cl/fotos/peldano.jpg',
+  puertas:       'https://cotizador.casazaru.cl/fotos/puertas.jpg',
+  revestimiento: 'https://cotizador.casazaru.cl/fotos/revestimiento.jpg'
+};
+/* Dónde recortar cada foto cuando su proporción no calza con la tarjeta.
+   revestimiento.jpg es muy vertical (343×679): centrado mostraba la cama en vez
+   del revestimiento, que es el producto. Subirlo deja la pared y la ventana. */
+var FOTO_POS = { revestimiento: 'center 25%' };
+var FOTO_ALT = {
+  cubierta:      'Cubierta de madera maciza sobre caballetes en el taller',
+  repisa:        'Repisa de madera montada en la pared con plantas',
+  peldano:       'Peldaños de madera flotantes en una escalera',
+  puertas:       'Puerta de madera maciza con vidrios en la parte superior',
+  revestimiento: 'Dormitorio con revestimiento de madera en muro y cielo'
 };
 
 /* ── PRECIOS ──
@@ -723,7 +736,7 @@ function espesorFactor(tier) {
    Si el archivo del logo existe, reemplaza el wordmark de texto por la imagen real
    en todas las barras. Si no existe (404), no hace nada y queda el texto: nunca se
    ve un icono de imagen rota. Para activarlo basta con subir el archivo a esa ruta. */
-var LOGO_URL = 'https://casazar.github.io/Cotizador/fotos/logo-casa-zaru.png';
+var LOGO_URL = 'https://cotizador.casazaru.cl/fotos/logo-casa-zaru.png';
 function applyLogo() {
   var probe = new Image();
   probe.onload = function() {
@@ -741,7 +754,8 @@ function applyFotos() {
     if (!url) return;
     var wrap = document.getElementById('img-' + key);
     if (!wrap) return;
-    wrap.innerHTML = '<img src="' + url + '" alt="' + key + '" loading="lazy">';
+    var pos = FOTO_POS[key] ? ' style="object-position:' + FOTO_POS[key] + '"' : '';
+    wrap.innerHTML = '<img src="' + url + '" alt="' + escA(FOTO_ALT[key] || key) + '"' + pos + ' loading="lazy">';
   });
 }
 
