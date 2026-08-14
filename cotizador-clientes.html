@@ -624,9 +624,11 @@ var ESP8_MULT = { bajo: 1.56, medio: 1.68, alto: 1.71 };
    Se cobra por metro lineal de canto, con 4 cms de ancho. PENDIENTE confirmar
    con la planilla de costos: valor derivado del ejemplo mesa 200×100 con reborde
    completo (6 ml): $1.375.643 - $1.211.582 = $164.061 → ~$27.000/ml. */
-/* Reborde: se cobra como si fuera cubierta. 1 metro lineal = una pieza de
-   100 × 4 cm = 0,04 m², al precio por m² de la madera elegida. Por eso el
-   reborde cuesta distinto en cada madera, igual que el resto del producto. */
+/* Reborde: la pieza se fabrica de 4 cm de ancho × 4 cm de alto (confirmado por
+   el usuario, 13-08-2026). Se cobra como si fuera cubierta: 1 metro lineal =
+   una pieza de 100 × 4 cm = 0,04 m², al precio por m² de la madera elegida
+   — mismo volumen de madera que una tira de cubierta de 4 cm de espesor.
+   Por eso el reborde cuesta distinto en cada madera, igual que el producto. */
 var REBORDE_ANCHO_M = 0.04;
 /* ── MODELOS DE MESA (catálogo 2026) ──
    forma/base vienen de la hoja MODELOS_MESA de la planilla de costos.
