@@ -3087,10 +3087,22 @@ function renderEliminadas(){
    El admin ve a todos los vendedores; cada vendedor ve SOLO lo suyo — ojo: allRows
    trae toda la tabla, así que el filtro por code es lo único que separa los datos. */
 var ACTIVIDAD_DIAS = 30;   /* ventana de la tabla; el resumen de hoy no depende de esto */
+var actVendedor = '';      /* '' = todos; si no, el code del vendedor filtrado */
+function setActVendedor(code){ actVendedor = code; renderActividad(); }
 function renderActividad(){
-  document.getElementById('dash-filters').innerHTML='';
   var esAdmin  = isPanelAdmin();
-  var soloCode = esAdmin ? null : panelSeller.code;
+  /* el admin puede filtrar por vendedor; un vendedor ya ve solo lo suyo */
+  if (esAdmin) {
+    var chips = '<button class="seg-chip'+(actVendedor===''?' on':'')+'" onclick="setActVendedor(\'\')">Todos</button>' +
+      VENDEDORES.map(function(v){
+        return '<button class="seg-chip'+(actVendedor===v.code?' on':'')+'" onclick="setActVendedor(\''+v.code+'\')">'+escA(v.nombre)+'</button>';
+      }).join('');
+    document.getElementById('dash-filters').innerHTML = '<div class="seg-chips">'+chips+'</div>';
+  } else {
+    document.getElementById('dash-filters').innerHTML='';
+  }
+  var soloCode = esAdmin ? (actVendedor || null) : panelSeller.code;
+  var muestraVend = !soloCode;   /* la columna Vendedor solo aporta si hay más de uno */
   var hoy   = hoyISO();
   var desde = addDias(hoy, -ACTIVIDAD_DIAS);
   var porDia = {};
@@ -3138,14 +3150,14 @@ function renderActividad(){
     var noHechos = r.correspondian - r.hechos;
     var pct = r.correspondian ? Math.round(r.hechos/r.correspondian*100) : 0;
     var pctCol = pct>=80 ? '#2D6A4F' : (pct>=50 ? '#B45309' : '#B91C1C');
-    var celdaVend = esAdmin ? '<td>'+escA(nombre)+'</td>' : '';
+    var celdaVend = muestraVend ? '<td>'+escA(nombre)+'</td>' : '';
     var esHoy = r.fecha === hoy;
     return '<tr'+(esHoy?' style="background:var(--bg3)"':'')+'>'+
       '<td>'+fmtFechaCorta(r.fecha)+(esHoy?' <strong>· hoy</strong>':'')+'</td>'+celdaVend+
       '<td>'+r.correspondian+'</td><td>'+r.hechos+'</td><td>'+noHechos+'</td>'+
       '<td style="color:'+pctCol+';font-weight:700">'+pct+'%</td></tr>';
   }).join('');
-  var thVend = esAdmin ? '<th>Vendedor</th>' : '';
+  var thVend = muestraVend ? '<th>Vendedor</th>' : '';
   document.getElementById('dash-tbl').innerHTML = '<div class="tbl-scroll"><table class="ptable"><thead><tr>'+
     '<th>Fecha</th>'+thVend+'<th>Tocaban</th><th>Hechos</th><th>Sin hacer</th><th>% cumplido</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table></div>'+
