@@ -174,6 +174,22 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .rb-pieza:last-child { border-bottom:none;margin-bottom:6px; }
 .rb-pieza-h { font-size:11px;font-weight:600;color:var(--acd);margin-bottom:6px; }
 .rb-pieza-med { font-weight:400;color:var(--tm);margin-left:4px; }
+/* sugerencia de valor de base (mesa): informa y ofrece "Usar", nunca pisa sola */
+.ms-sug { font-size:11px;color:var(--tm);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap; }
+.ms-sug:empty { display:none; }
+.ms-sug strong { color:var(--acd); }
+/* 📖 Manual de valores (panel admin) */
+.mv-intro { font-size:12px;color:var(--tm);line-height:1.6;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;margin-bottom:14px; }
+.mv-sec .mesa-h { margin-bottom:8px; }
+.mv-sub { font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--acd);margin:12px 0 6px; }
+.mv-grid3 { display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px 12px;margin-bottom:4px; }
+.mv-grid3 label { font-size:10.5px;color:var(--tm);display:flex;flex-direction:column;gap:4px;font-weight:600; }
+.mv-in { min-height:38px !important;font-size:14px !important;padding:7px 10px !important; }
+.mv-foot { display:flex;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap; }
+.mv-meta { font-size:10px;color:var(--tm);font-style:italic; }
+.mv-tramo { border-bottom:1px solid var(--bg3);padding:8px 0; }
+.mv-tramo:last-child { border-bottom:none; }
+.mv-tramo-n { font-size:12px;font-weight:600;color:var(--tx);margin-bottom:6px; }
 .mesa-desglose { display:block;font-size:9px;color:var(--tm);margin-top:2px;font-family:'Jost',sans-serif; }
 /* botón para quitar una pieza/puerta/marco */
 .btn-del-row { flex:0 0 auto;width:34px;min-height:44px;border:1px solid var(--bd);background:#fff;border-radius:8px;
@@ -673,11 +689,98 @@ var MESA_MODELOS = [
   { nombre:'Mesa Río Toltén',              forma:'redonda',     base:'fierro' },
   { nombre:'Mesa Río Imperial',            forma:'redonda',     base:'fierro' }
 ];
-/* PENDIENTE (planilla de costos, hoja CALCULADORA_MESA): con los valores definitivos
-   de $/pulgada por especie, valor HH y cadena de margen, esta función debe devolver
-   {bajo, medio, alto} = valor de la base según las medidas de la cubierta y el modelo.
-   Mientras devuelva null, el vendedor escribe el valor de la base a mano. */
-function mesaBaseSugerida(modelo, largoCm, anchoCm) { return null; }
+/* ── VALORES CENTRALES (el "manual") ──
+   Todo parámetro de precio vive aquí como RESPALDO, y en la tabla
+   cotizador_valores de Supabase como fuente principal: lo que diga la tabla
+   pisa estos defaults al cargar (cargarValores). La pestaña "Manual" del
+   panel admin los muestra y los edita — un cambio ahí rige al instante,
+   sin deploy. Fuente de los defaults: planilla CasaZaru_Costos (ago 2026). */
+var VALORES = {
+  /* parámetros generales del costeo (hoja PARAMETROS) */
+  generales: {
+    hh: 5000,            /* $ hora hombre (sin IVA: MO interna no paga IVA) */
+    iva: 0.19,
+    margen: 0.47,        /* sobre precio de venta sin IVA, después de comisión */
+    comision: 0.02,      /* comisión base del vendedor */
+    transferencia: 0.05  /* descuento por pago con transferencia */
+  },
+  /* $ por pulgada maderera (sin IVA) de la especie MÁS CARA de cada tier:
+     el peor caso, igual que la planilla ("margen web usa la especie más cara") */
+  tierPulgada: { bajo: 10000, medio: 25000, alto: 30000 },
+  /* Base de fierro del proveedor, por tramo de largo (hoja PARAMETROS §3).
+     costo = sin IVA, lo que cobra el proveedor. cliente = lo que se cobra al
+     cliente CON IVA; 0 = sin definir aún → se sugiere costo+IVA redondeado. */
+  basesFierro: [
+    { nombre:'Base rectangular hasta 280 cm', forma:'rectangular', largoMax:280, costo:175000, cliente:0 },
+    { nombre:'Base rectangular 281–320 cm',   forma:'rectangular', largoMax:320, costo:210000, cliente:0 },
+    { nombre:'Base rectangular 321–360 cm',   forma:'rectangular', largoMax:360, costo:245000, cliente:0 },
+    { nombre:'Base redonda (cruz / trípode)', forma:'redonda',     largoMax:150, costo:150000, cliente:0 },
+    { nombre:'Par de bancas (fierro)',        forma:'bancas',      largoMax:280, costo:140000, cliente:0 }
+  ]
+};
+/* precio al cliente de un tramo de fierro: el valor definido en el manual, o
+   si aún no se define, el costo del proveedor + IVA redondeado al millar */
+function baseFierroCliente(t) {
+  if (t.cliente > 0) return t.cliente;
+  return Math.round(t.costo * (1 + VALORES.generales.iva) / 1000) * 1000;
+}
+function baseFierroTramo(forma, largoCm) {
+  var cand = VALORES.basesFierro.filter(function(t){ return t.forma === forma; });
+  for (var i = 0; i < cand.length; i++) if (largoCm <= cand[i].largoMax) return cand[i];
+  return cand.length ? cand[cand.length - 1] : null;   /* más largo que el último tramo: usa el mayor */
+}
+/* ── SUGERENCIA DE VALOR DE BASE (fórmula de la hoja CALCULADORA_MESA) ──
+   BASE DE MADERA, por tier:
+     pulgadas = pulgFijas + pulgXm × (largo/100)
+     costo    = pulgadas × $pulgada(tier) + hh × $HH + insumos
+     venta    = costo / (1 − margen − comisión)      ← margen sobre venta sin IVA
+     cliente  = venta × (1 + IVA), redondeado al millar
+   BASE DE FIERRO: valor del tramo según el largo (mismo para los 3 tiers).
+   Es una SUGERENCIA: solo rellena campos vacíos del vendedor, nunca cobra sola. */
+function mesaBaseSugerida(modelo, largoCm, anchoCm) {
+  if (!modelo) return null;
+  if (modelo.base === 'fierro') {
+    if (!(largoCm > 0)) return null;
+    var t = baseFierroTramo(modelo.forma === 'redonda' ? 'redonda' : 'rectangular', largoCm);
+    if (!t) return null;
+    var v = baseFierroCliente(t);
+    return { bajo: v, medio: v, alto: v, detalle: t.nombre };
+  }
+  if (!(modelo.pulgFijas > 0) || !(largoCm > 0)) return null;
+  var g = VALORES.generales;
+  var divisor = 1 - g.margen - g.comision;
+  if (divisor <= 0) return null;
+  var pulg = modelo.pulgFijas + (modelo.pulgXm || 0) * (largoCm / 100);
+  function porTier(tier) {
+    var costo = pulg * VALORES.tierPulgada[tier] + (modelo.hh || 0) * g.hh + (modelo.insumos || 0);
+    return Math.round((costo / divisor) * (1 + g.iva) / 1000) * 1000;
+  }
+  return { bajo: porTier('bajo'), medio: porTier('medio'), alto: porTier('alto'),
+           detalle: pulg.toFixed(1).replace('.', ',') + ' pulgadas de madera' };
+}
+/* ── CARGA DE VALORES DESDE SUPABASE ──
+   Pisa los defaults con lo guardado en cotizador_valores. Si la tabla no
+   existe o falla la red, no pasa nada: rigen los valores del código. */
+var VALORES_META = {};   /* clave → updated_at, para mostrar en el Manual */
+function aplicarValor(clave, v) {
+  if (v == null) return;
+  if (clave === 'pr')          { Object.keys(v).forEach(function(k){ if (PR[k]) Object.assign(PR[k], v[k]); }); }
+  else if (clave === 'esp8')   { Object.assign(ESP8_MULT, v); }
+  else if (clave === 'reborde'){ if (v.anchoM > 0) REBORDE_ANCHO_M = v.anchoM; }
+  else if (clave === 'generales')   { Object.assign(VALORES.generales, v); }
+  else if (clave === 'tierPulgada') { Object.assign(VALORES.tierPulgada, v); }
+  else if (clave === 'basesFierro') { if (Array.isArray(v) && v.length) VALORES.basesFierro = v; }
+}
+var valoresTablaOK = null;   /* null = sin probar · true/false tras cargar (para el aviso del Manual) */
+async function cargarValores() {
+  try {
+    var res = await sbClient.from('cotizador_valores').select('clave,valor,updated_at');
+    if (res.error) { valoresTablaOK = false; return; }
+    valoresTablaOK = true;
+    (res.data || []).forEach(function(r){ aplicarValor(r.clave, r.valor); VALORES_META[r.clave] = r.updated_at; });
+    calcLive();   /* si había medidas escritas, refresca el precio con los valores reales */
+  } catch (e) { valoresTablaOK = false; }
+}
 
 var selectedDoorModel = '';
 function selectDoorModel(id) {
@@ -824,6 +927,7 @@ function calcLive() {
   var wrapEl = rangeEl.closest('.live-price-wrap');
   if (wrapEl) wrapEl.style.display = (prod === 'mesa' || prod === 'revlibre') ? 'none' : '';
   rbAutoSync();   /* los ml del reborde dependen de las medidas Y de las cantidades */
+  mesaSugerenciaRefrescar();   /* la sugerencia de base sigue al modelo y al largo */
   var bajo = 0, alto = 0;
 
   if (['cubierta','repisa','peldano'].includes(prod)) {
@@ -904,7 +1008,13 @@ function recBadgeText() {
   return '★ La más pedida en el taller';
 }
 /* factor de transferencia: 5% normal, o 5%+descuento profesionales si aplica */
-function transferFactor(){ return b2bDcto>0 ? (1 - (5 + b2bDcto)/100) : 0.95; }
+function transferFactor(){
+  var t = VALORES.generales.transferencia * 100;   /* % de dcto por transferencia, editable en el Manual */
+  return b2bDcto > 0 ? (1 - (t + b2bDcto) / 100) : (1 - t / 100);
+}
+/* % de transferencia para textos ("Transferencia −5%"): sigue al Manual */
+function transfPct(){ return Math.round(VALORES.generales.transferencia * 100); }
+function transfLabel(){ return b2bDcto > 0 ? ('Transferencia −' + (transfPct() + b2bDcto) + '%') : ('Transferencia −' + transfPct() + '%'); }
 /* selector de descuento B2B — solo en el link privado de Jepe */
 function renderB2B(){
   var w = document.getElementById('b2b-wrap');
@@ -1076,6 +1186,7 @@ function renderForm(p) {
           '<label class="flabel">Valor de la base <span class="req">*</span></label>' +
           '<input class="finput" type="number" inputmode="numeric" id="ms-valor" placeholder="ej. 180000" min="0">' +
           '<div class="finput-hint">Con IVA incluido — es lo que paga el cliente por la base.</div>' +
+          '<div class="ms-sug" id="ms-sug-fierro"></div>' +
         '</div>' +
         '<div class="fsec">' +
           '<label class="flabel">Altura final (cm)</label>' +
@@ -1113,6 +1224,7 @@ function renderForm(p) {
           '<label class="flabel">Valor de base — Coihue / Raulí / Lenga <span class="req">*</span></label>' +
           '<input class="finput" type="number" inputmode="numeric" id="ms-valor-alto" placeholder="ej. 150000" min="0">' +
           '<div class="finput-hint">Con IVA incluido — es lo que paga el cliente por la base, según la madera elegida.</div>' +
+          '<div class="ms-sug" id="ms-sug-madera"></div>' +
         '</div>' +
         '<div class="fsec" style="margin-bottom:0">' +
           '<label class="flabel">Peso de la base (kg)</label>' +
@@ -1209,12 +1321,38 @@ function mesaModeloSel(nombre) {
   var btEl = document.getElementById('ms-base-tipo');
   if (btEl) btEl.value = m.base;
   toggleBaseMesa(m.base);
-  var lgEl = document.getElementById('lg1'), anEl = document.getElementById('an1');
-  var sug = mesaBaseSugerida(m, parseFloat((lgEl&&lgEl.value)||0)||0, parseFloat((anEl&&anEl.value)||0)||0);
-  if (sug) {
-    var setv = function(id,v){ var el=document.getElementById(id); if (el && !el.value) el.value = v; };
-    setv('ms-valor-bajo', sug.bajo); setv('ms-valor-medio', sug.medio); setv('ms-valor-alto', sug.alto);
-  }
+  calcLive();   /* calcLive refresca también la sugerencia de base */
+}
+/* modelo elegido en el selector (null si es libre) */
+function mesaModeloActual() {
+  var sel = document.getElementById('ms-modelo');
+  if (!sel || !sel.value) return null;
+  return MESA_MODELOS.find(function(x){ return x.nombre === sel.value; }) || null;
+}
+/* sugerencia de base viva: se recalcula al cambiar modelo o medidas.
+   No pisa nada: muestra el valor y un botón "Usar" que rellena los campos. */
+function mesaSugerenciaRefrescar() {
+  if (prod !== 'mesa') return;
+  var m = mesaModeloActual();
+  var lgEl = document.getElementById('lg1');
+  var sug = m ? mesaBaseSugerida(m, parseFloat((lgEl&&lgEl.value)||0)||0, 0) : null;
+  window._mesaSug = sug;
+  ['fierro','madera'].forEach(function(tipo){
+    var el = document.getElementById('ms-sug-' + tipo);
+    if (!el) return;
+    if (!sug || (m && m.base !== tipo)) { el.innerHTML = ''; return; }
+    var txt = (tipo === 'fierro')
+      ? 'Sugerido: <strong>' + fmt(sug.alto) + '</strong> — ' + escA(sug.detalle)
+      : 'Sugerido: <strong>' + fmt(sug.bajo) + ' / ' + fmt(sug.medio) + ' / ' + fmt(sug.alto) + '</strong> — ' + escA(sug.detalle);
+    el.innerHTML = '<span>' + txt + '</span> <button type="button" class="sbtn" onclick="mesaSugerenciaUsar()">Usar</button>';
+  });
+}
+function mesaSugerenciaUsar() {
+  var sug = window._mesaSug; if (!sug) return;
+  var m = mesaModeloActual(); if (!m) return;
+  var setv = function(id,v){ var el=document.getElementById(id); if (el) el.value = v; };
+  if (m.base === 'fierro') setv('ms-valor', sug.alto);
+  else { setv('ms-valor-bajo', sug.bajo); setv('ms-valor-medio', sug.medio); setv('ms-valor-alto', sug.alto); }
   calcLive();
 }
 /* muestra el bloque de campos de la base fierro/madera que corresponda */
@@ -1938,7 +2076,7 @@ function tierTableMesa(rows, recTier, M, esMadera, nBases) {
     '<div class="ptier-head">' +
       '<span>Tipo de madera</span>' +
       '<span>Con tarjeta</span>' +
-      '<span>' + (esPro ? ('Transferencia −'+(5+b2bDcto)+'%') : 'Transferencia −5%') + '</span>' +
+      '<span>' + transfLabel() + '</span>' +
     '</div>' +
     prows +
     (esPro ? '<div class="ptier-note" style="background:#EEF6FF;color:#1E40AF;font-weight:600">★ Incluye Descuento Casa Zaru Profesionales: '+b2bDcto+'% extra</div>' : '') +
@@ -1967,7 +2105,7 @@ function htmlRevLibre(cli, fecha) {
     '<table class="ptable"><thead><tr><th style="text-align:left">Detalle</th><th>Valor</th></tr></thead>' +
     '<tbody>'+itemRows.join('')+'</tbody></table>' +
     '<div class="ptier-block">' +
-      '<div class="ptier-head"><span>Resumen</span><span>Con tarjeta</span><span>'+(b2bDcto>0?('Transferencia −'+(5+b2bDcto)+'%'):'Transferencia −5%')+'</span></div>' +
+      '<div class="ptier-head"><span>Resumen</span><span>Con tarjeta</span><span>'+transfLabel()+'</span></div>' +
       '<div class="ptier-row"><span class="ptier-wood">'+escA(rv.madera)+(rv.perfil?(' · '+escA(rv.perfil)):'')+'</span>' +
         '<span class="ptier-total">'+fmt(total)+'</span>' +
         '<span class="ptier-trans"><span class="transf-badge">'+fmt(total*tf)+'</span></span></div>' +
@@ -2043,7 +2181,7 @@ function tierTable(rows, recTier) {
       '<span class="ptier-trans"><span class="transf-badge">' + fmt(r.total * tf) + '</span></span>' +
     '</div>';
   }).join('');
-  var transLbl = esPro ? ('Transferencia −' + (5 + b2bDcto) + '%') : 'Transferencia −5%';
+  var transLbl = transfLabel();
   var proNote = esPro
     ? '<div class="ptier-note" style="background:#EEF6FF;color:#1E40AF;font-weight:600">★ Incluye Descuento Casa Zaru Profesionales: ' + b2bDcto + '% extra</div>'
     : '';
@@ -2055,7 +2193,7 @@ function tierTable(rows, recTier) {
     '</div>' +
     prows +
     proNote +
-    '<div class="ptier-note">Precios con IVA incluido · Con tarjeta pagas el valor indicado · Con transferencia ahorras 5%</div>' +
+    '<div class="ptier-note">Precios con IVA incluido · Con tarjeta pagas el valor indicado · Con transferencia ahorras ' + transfPct() + '%</div>' +
   '</div>';
 }
 
@@ -2082,7 +2220,7 @@ function boxes() {
     '</div>' +
   '</div>' +
   '<div class="bankrow">' +
-    'Pagando por <strong>transferencia</strong> ahorras un <span class="dcto-tag">5%</span><br>' +
+    'Pagando por <strong>transferencia</strong> ahorras un <span class="dcto-tag">' + transfPct() + '%</span><br>' +
     '<strong>Muvale Diseño SpA</strong> · RUT 77.157.082-8 · Banco BCI · Cta Cte 97457175 · hola@casazaru.cl' +
   '</div>';
 }
@@ -2582,6 +2720,7 @@ function renderTabs(){
     VENDEDORES.forEach(function(v){ tabs.push({id:v.code,label:v.nombre}); });
     tabs.push({id:'dormidos',label:'😴 Dormidos'});
     tabs.push({id:'actividad',label:'📊 Actividad'});
+    tabs.push({id:'manual',label:'📖 Manual'});
     tabs.push({id:'elim',label:'🗑 Eliminadas'});
   } else {
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
@@ -2600,6 +2739,7 @@ function setDashView(v){
   else if (v==='elim'){ renderEliminadas(); }
   else if (v==='dormidos'){ renderDormidos(); }
   else if (v==='actividad'){ renderActividad(); }
+  else if (v==='manual'){ renderManual(); }
   else { renderDashFilters(); renderDash(); }
 }
 /* Dormidos: enviadas que se cayeron de la cola (cadencia agotada o +30 días sin gestión) */
@@ -3172,6 +3312,149 @@ function renderActividad(){
     '<tbody>'+rows+'</tbody></table></div>'+
     '<div class="ptier-note" style="border-radius:0 0 7px 7px">Últimos '+ACTIVIDAD_DIAS+' días · un seguimiento "tocaba" según la cadencia '+CADENCIA.join('-')+' desde la fecha de la cotización</div>';
 }
+/* ── 📖 MANUAL DE VALORES (solo admin) ──
+   El panel central de precios: muestra y edita los valores que usa el
+   cotizador. Guardar escribe en cotizador_valores (Supabase) y rige al
+   instante para todos, sin deploy. Si la tabla no existe aún, se ven los
+   valores del código y un aviso con el SQL que falta correr. */
+function mvNum(id, val, step) {
+  return '<input class="finput mv-in" type="number" id="' + id + '" value="' + val + '" step="' + (step || 1) + '">';
+}
+function mvLee(id) { var el = document.getElementById(id); return el ? (parseFloat(el.value) || 0) : 0; }
+function mvMeta(clave) {
+  if (!VALORES_META[clave]) return '<span class="mv-meta">valores del código — aún no guardado</span>';
+  var f = new Date(VALORES_META[clave]);
+  return '<span class="mv-meta">guardado el ' + f.toLocaleDateString('es-CL') + ' ' + f.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit'}) + '</span>';
+}
+function mvSec(titulo, clave, cuerpo, nota) {
+  return '<div class="mesa-box mv-sec">' +
+    '<div class="mesa-h">' + titulo + '</div>' +
+    (nota ? '<div class="finput-hint" style="margin:-6px 0 10px">' + nota + '</div>' : '') +
+    cuerpo +
+    '<div class="mv-foot"><button class="sbtn" onclick="guardarValores(\'' + clave + '\')">Guardar cambios</button>' + mvMeta(clave) + '</div>' +
+  '</div>';
+}
+function mvFila3(pref, obj) {
+  return '<div class="mv-grid3">' +
+    '<label>Pino Oregón' + mvNum(pref + '-bajo', obj.bajo, 1000) + '</label>' +
+    '<label>Castaño / Ciprés / Mañío' + mvNum(pref + '-medio', obj.medio, 1000) + '</label>' +
+    '<label>Coihue / Raulí / Lenga' + mvNum(pref + '-alto', obj.alto, 1000) + '</label>' +
+  '</div>';
+}
+function renderManual() {
+  document.getElementById('dash-filters').innerHTML = '';
+  var st = document.getElementById('dash-stats'); st.style.display = 'none'; st.innerHTML = '';
+  var aviso = '';
+  if (valoresTablaOK === false) {
+    aviso = '<div class="speed-alert" style="cursor:default">⚠ Falta crear la tabla en Supabase: corre <strong>supabase/valores.sql</strong> en el proyecto Cotizador Interno. Mientras tanto ves los valores del código y guardar no funcionará.</div>';
+  }
+  var g = VALORES.generales;
+  var html = aviso +
+    '<div class="mv-intro">Los precios que usa el cotizador, en un solo lugar. Lo que guardes aquí <strong>rige al instante</strong> para clientes y vendedores — sin tocar el código. Si un valor no se ha guardado nunca, rige el que viene grabado en el código (se indica en cada sección).</div>' +
+
+    mvSec('Cubiertas, repisas y peldaños — $ por m² (con IVA, precio tarjeta)', 'pr',
+      '<div class="mv-sub">Cubiertas y peldaños (4 cm)</div>' + mvFila3('mv-cub', PR.cubierta) +
+      '<div class="mv-sub">Repisas / cubierta 2 cm</div>' + mvFila3('mv-rep', PR.repisa) +
+      '<div class="mv-sub">Puertas — $ por m²</div>' +
+      '<div class="mv-grid3">' +
+        '<label>Granero · m²' + mvNum('mv-pta-gr-m2', PR.granero.bajo.m2, 1000) + '</label>' +
+        '<label>Granero · fijo por puerta' + mvNum('mv-pta-gr-fijo', PR.granero.bajo.fijo, 5000) + '</label>' +
+        '<label>Maciza/Vidrios · fijo por puerta' + mvNum('mv-pta-ma-fijo', PR.maciza.bajo.fijo, 5000) + '</label>' +
+      '</div>' +
+      '<div class="finput-hint">El $/m² de puertas usa la misma tabla de maderas de cubiertas; aquí solo se define el cargo fijo por puerta.</div>' +
+      '<div class="mv-sub">Revestimiento — $ por m²</div>' +
+      '<div class="mv-grid3">' +
+        '<label>Ciprés' + mvNum('mv-rev-cipres', PR.revestimiento.cipres, 1000) + '</label>' +
+        '<label>Coihue' + mvNum('mv-rev-coihue', PR.revestimiento.coihue, 1000) + '</label>' +
+      '</div>',
+      'La fórmula base de todo el cotizador: <strong>precio = m² × valor de la madera</strong> (+ fijos en puertas).') +
+
+    mvSec('Espesor 8 cm macizo — multiplicador sobre el $/m²', 'esp8',
+      '<div class="mv-grid3">' +
+        '<label>Pino Oregón (×)' + mvNum('mv-e8-bajo', ESP8_MULT.bajo, 0.01) + '</label>' +
+        '<label>Castaño / Ciprés / Mañío (×)' + mvNum('mv-e8-medio', ESP8_MULT.medio, 0.01) + '</label>' +
+        '<label>Coihue / Raulí / Lenga (×)' + mvNum('mv-e8-alto', ESP8_MULT.alto, 0.01) + '</label>' +
+      '</div>',
+      'Doble madera + proceso de encolado. <strong>precio 8 cm = $/m² × multiplicador</strong> (tabla del asesor financiero, ago 2026).') +
+
+    mvSec('Reborde', 'reborde',
+      '<div class="mv-grid3"><label>Ancho de la pieza (cm)' + mvNum('mv-rb-ancho', Math.round(REBORDE_ANCHO_M * 100), 1) + '</label></div>',
+      'Pieza de 4 × 4 cm cobrada como cubierta: <strong>1 metro lineal = (ancho/100) m² × valor de la madera</strong>. Los cantos se eligen pieza por pieza en el cotizador.') +
+
+    mvSec('Generales del costeo', 'generales',
+      '<div class="mv-grid3">' +
+        '<label>Hora hombre ($)' + mvNum('mv-g-hh', g.hh, 500) + '</label>' +
+        '<label>IVA (%)' + mvNum('mv-g-iva', Math.round(g.iva * 100), 1) + '</label>' +
+        '<label>Margen objetivo (%)' + mvNum('mv-g-margen', Math.round(g.margen * 100), 1) + '</label>' +
+        '<label>Comisión vendedor (%)' + mvNum('mv-g-comision', Math.round(g.comision * 100), 0.5) + '</label>' +
+        '<label>Dcto. transferencia (%)' + mvNum('mv-g-transf', Math.round(g.transferencia * 100), 1) + '</label>' +
+      '</div>',
+      'Alimentan la sugerencia de base de madera. El margen es sobre el precio de venta sin IVA, después de comisión (planilla de costos).') +
+
+    mvSec('Mesas — base de madera: $ por pulgada maderera (sin IVA)', 'tierPulgada',
+      '<div class="mv-grid3">' +
+        '<label>Pino Oregón' + mvNum('mv-tp-bajo', VALORES.tierPulgada.bajo, 1000) + '</label>' +
+        '<label>Castaño / Ciprés / Mañío' + mvNum('mv-tp-medio', VALORES.tierPulgada.medio, 1000) + '</label>' +
+        '<label>Coihue / Raulí / Lenga' + mvNum('mv-tp-alto', VALORES.tierPulgada.alto, 1000) + '</label>' +
+      '</div>',
+      'Se usa la especie MÁS CARA de cada grupo (peor caso, igual que la planilla). Fórmula de la sugerencia: <strong>pulgadas del modelo × $ pulgada + horas × HH + insumos → ÷ (1 − margen − comisión) → × (1 + IVA)</strong>. Las pulgadas por modelo vienen del catálogo (hoja MODELOS_MESA).') +
+
+    mvSec('Mesas — bases de fierro por tramo', 'basesFierro',
+      '<div class="mv-tramos">' + VALORES.basesFierro.map(function(t, i) {
+        return '<div class="mv-tramo">' +
+          '<div class="mv-tramo-n">' + escA(t.nombre) + ' <span class="rb-pieza-med">hasta ' + t.largoMax + ' cm</span></div>' +
+          '<div class="mv-grid3">' +
+            '<label>Costo proveedor sin IVA' + mvNum('mv-bf-costo-' + i, t.costo, 5000) + '</label>' +
+            '<label>Valor al cliente con IVA' + mvNum('mv-bf-cliente-' + i, t.cliente, 5000) + '</label>' +
+          '</div>' +
+          '<div class="finput-hint">' + (t.cliente > 0 ? ('Se sugiere al vendedor: ' + fmt(t.cliente)) : ('Sin valor al cliente aún → se sugiere costo + IVA: ' + fmt(baseFierroCliente(t)))) + '</div>' +
+        '</div>';
+      }).join('') + '</div>',
+      'El cotizador elige el tramo según el LARGO de la cubierta y se lo sugiere al vendedor (nunca cobra solo: el vendedor confirma). Deja "Valor al cliente" en 0 para usar costo + IVA mientras defines el precio final.');
+
+  document.getElementById('dash-tbl').innerHTML = html;
+}
+/* guarda una sección del manual en Supabase y la aplica al tiro en esta sesión */
+async function guardarValores(clave) {
+  var v = null;
+  if (clave === 'pr') {
+    v = {
+      cubierta: { bajo: mvLee('mv-cub-bajo'), medio: mvLee('mv-cub-medio'), alto: mvLee('mv-cub-alto') },
+      peldano:  { bajo: mvLee('mv-cub-bajo'), medio: mvLee('mv-cub-medio'), alto: mvLee('mv-cub-alto') },
+      repisa:   { bajo: mvLee('mv-rep-bajo'), medio: mvLee('mv-rep-medio'), alto: mvLee('mv-rep-alto') },
+      granero:  { bajo:{m2:mvLee('mv-cub-bajo'), fijo:mvLee('mv-pta-gr-fijo')}, medio:{m2:mvLee('mv-cub-medio'), fijo:mvLee('mv-pta-gr-fijo')}, alto:{m2:mvLee('mv-cub-alto'), fijo:mvLee('mv-pta-gr-fijo')} },
+      maciza:   { bajo:{m2:mvLee('mv-cub-bajo'), fijo:mvLee('mv-pta-ma-fijo')}, medio:{m2:mvLee('mv-cub-medio'), fijo:mvLee('mv-pta-ma-fijo')}, alto:{m2:mvLee('mv-cub-alto'), fijo:mvLee('mv-pta-ma-fijo')} },
+      vidrios:  { bajo:{m2:mvLee('mv-cub-bajo'), fijo:mvLee('mv-pta-ma-fijo')}, medio:{m2:mvLee('mv-cub-medio'), fijo:mvLee('mv-pta-ma-fijo')}, alto:{m2:mvLee('mv-cub-alto'), fijo:mvLee('mv-pta-ma-fijo')} },
+      revestimiento: { cipres: mvLee('mv-rev-cipres'), coihue: mvLee('mv-rev-coihue') }
+    };
+  } else if (clave === 'esp8') {
+    v = { bajo: mvLee('mv-e8-bajo'), medio: mvLee('mv-e8-medio'), alto: mvLee('mv-e8-alto') };
+  } else if (clave === 'reborde') {
+    v = { anchoM: mvLee('mv-rb-ancho') / 100 };
+  } else if (clave === 'generales') {
+    v = { hh: mvLee('mv-g-hh'), iva: mvLee('mv-g-iva') / 100, margen: mvLee('mv-g-margen') / 100,
+          comision: mvLee('mv-g-comision') / 100, transferencia: mvLee('mv-g-transf') / 100 };
+  } else if (clave === 'tierPulgada') {
+    v = { bajo: mvLee('mv-tp-bajo'), medio: mvLee('mv-tp-medio'), alto: mvLee('mv-tp-alto') };
+  } else if (clave === 'basesFierro') {
+    v = VALORES.basesFierro.map(function(t, i) {
+      return { nombre: t.nombre, forma: t.forma, largoMax: t.largoMax,
+               costo: mvLee('mv-bf-costo-' + i), cliente: mvLee('mv-bf-cliente-' + i) };
+    });
+  }
+  if (v == null) return;
+  try {
+    var sess = await sbClient.auth.getSession();
+    var quien = (sess.data && sess.data.session && sess.data.session.user.email) || null;
+    var res = await sbClient.from('cotizador_valores')
+      .upsert({ clave: clave, valor: v, updated_at: new Date().toISOString(), updated_by: quien }, { onConflict: 'clave' });
+    if (res.error) { showToast('No se pudo guardar: ' + (res.error.code === '42P01' ? 'falta correr supabase/valores.sql' : 'solo la cuenta admin puede escribir valores'), false); console.error('guardarValores:', res.error); return; }
+    aplicarValor(clave, v);
+    VALORES_META[clave] = new Date().toISOString();
+    renderManual();
+    showToast('Valores guardados — rigen desde ahora para todos', true);
+  } catch (e) { showToast('No se pudo guardar los valores', false); console.error('guardarValores:', e); }
+}
 function renderDash() {
   var dAll = currentTableRows();
   var d = sortDashData(applyDashFilters(dAll));
@@ -3292,6 +3575,7 @@ function extrasBlock(m2) {
 
 /* ── EVENT LISTENERS ── */
 document.addEventListener('DOMContentLoaded', function() {
+  cargarValores();   /* precios desde el manual central; si falla, rigen los del código */
   applyLogo();
   applyFotos();
   document.querySelectorAll('.pcard').forEach(function(card) {
