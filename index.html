@@ -28431,14 +28431,65 @@ function categoriaDe(r){
 // los m² del pedido — ver por_venta más abajo.
 // Son el punto de partida: se editan desde la app (botón "Costos estándar")
 // y quedan guardados en la base, así la planilla y el sistema no divergen.
-const PROCESO_ITEMS=[
-  {k:'insumos',      cat:'Insumos',       desc:'Insumos: lijas, tornillos y ferretería'},
-  {k:'acabado',      cat:'Acabado',       desc:'Acabado: cola, diluyente, vitrificado y sellador'},
-  {k:'embalaje',     cat:'Embalaje',      desc:'Embalaje: cartón, alusa, esquineros, MDF, etiqueta, plumón'},
-  {k:'mano_obra',    cat:'Mano de obra',  desc:'Mano de obra (5 HH)'},
-  {k:'arbol',        cat:'Reforestación', desc:'Árbol de reforestación (por m²)'},
-  {k:'herramientas', cat:'Herramientas',  desc:'Desgaste de herramientas (10%)'}
+// Catálogo de la planilla INVENTARIO, ítem por ítem. Antes esto eran seis
+// bolsas ("insumos = $4.901/m²") y no se podía ver en qué se iba la plata ni
+// corregir un pedido que gastó el triple de lija.
+//   precio  = lo que cuesta el ENVASE completo, CON IVA (es lo que dice la
+//             boleta del proveedor, así que actualizarlo es copiar un número)
+//   envase  = cuántas unidades trae ese envase
+//   porM2   = cuánto se usa por m²
+// Costo unitario sin IVA = precio / 1,19 / envase.
+// Verificado contra los subtotales de la planilla: insumos $4.901, acabado
+// $8.266, embalaje $7.166, kit caja $3.571.
+const IVA=1.19;
+const INVENTARIO_ITEMS=[
+  // ── Insumos ──
+  {k:'lija5_100', cat:'Insumos', desc:'Lija 5" grano 100', unidad:'un', precio:350, envase:1, porM2:1},
+  {k:'lija7_40',  cat:'Insumos', desc:'Lija 7" grano 40',  unidad:'un', precio:350, envase:1, porM2:1},
+  {k:'lija7_60',  cat:'Insumos', desc:'Lija 7" grano 60',  unidad:'un', precio:350, envase:1, porM2:1},
+  {k:'lija7_100', cat:'Insumos', desc:'Lija 7" grano 100', unidad:'un', precio:350, envase:1, porM2:1},
+  {k:'lija7_120', cat:'Insumos', desc:'Lija 7" grano 120', unidad:'un', precio:350, envase:1, porM2:1},
+  {k:'lija400',   cat:'Insumos', desc:'Lija grano 400',    unidad:'un', precio:400, envase:1, porM2:1},
+  {k:'tornillo',  cat:'Insumos', desc:'Tornillo 1"',       unidad:'un', precio:40,  envase:1, porM2:14},
+  {k:'broca_fe',  cat:'Insumos', desc:'Broca fierro',      unidad:'un', precio:3000,envase:8, porM2:0.1},
+  {k:'broca_mad', cat:'Insumos', desc:'Broca madera',      unidad:'un', precio:2000,envase:8, porM2:0.1},
+  {k:'tarugos',   cat:'Insumos', desc:'Tarugos 12 mm',     unidad:'un', precio:20,  envase:1, porM2:1},
+  {k:'disco',     cat:'Insumos', desc:'Disco corte fierro',unidad:'un', precio:400, envase:1, porM2:0.1},
+  {k:'fierro_ang',cat:'Insumos', desc:'Fierro ángulo 20×20',unidad:'mt',precio:10000,envase:6,porM2:1.8},
+  // ── Acabado ──
+  {k:'cola',      cat:'Acabado', desc:'Cola fría',         unidad:'lt', precio:5000, envase:1,  porM2:0.3},
+  {k:'diluyente', cat:'Acabado', desc:'Diluyente',         unidad:'lt', precio:3500, envase:1,  porM2:0.2},
+  {k:'vitrificado',cat:'Acabado',desc:'Vitrificado mate',  unidad:'lt', precio:65000,envase:3.7,porM2:0.3},
+  {k:'sellador',  cat:'Acabado', desc:'Sellador',          unidad:'lt', precio:89900,envase:19, porM2:0.5},
+  // ── Embalaje (lo único que también paga una pieza de fierro) ──
+  {k:'cinta',     cat:'Embalaje',desc:'Cinta adhesiva',    unidad:'mt', precio:2000, envase:300,porM2:36},
+  {k:'alusa',     cat:'Embalaje',desc:'Alusa',             unidad:'mt', precio:6000, envase:300,porM2:20},
+  {k:'esquineros',cat:'Embalaje',desc:'Esquineros',        unidad:'mt', precio:450,  envase:1.5,porM2:8},
+  {k:'mdf',       cat:'Embalaje',desc:'MDF',               unidad:'m2', precio:10000,envase:3.6,porM2:1},
+  {k:'carton',    cat:'Embalaje',desc:'Cartón',            unidad:'m2', precio:30000,envase:24, porM2:2},
+  {k:'etiqueta',  cat:'Embalaje',desc:'Etiqueta',          unidad:'un', precio:200,  envase:1,  porM2:1},
+  {k:'plumon',    cat:'Embalaje',desc:'Plumón',            unidad:'un', precio:1000, envase:1,  porM2:0.01},
+  // ── Papelería ── (centavos por m², pero estaba en la planilla)
+  {k:'hoja',      cat:'Embalaje',desc:'Hoja de papel',     unidad:'un', precio:5000, envase:500, porM2:0.002},
+  {k:'corchetes', cat:'Embalaje',desc:'Corchetes',         unidad:'un', precio:2000, envase:1000,porM2:0.004},
+  {k:'lapiz',     cat:'Embalaje',desc:'Lápiz',             unidad:'un', precio:500,  envase:1,   porM2:0.0004},
+  // ── Mano de obra y reforestación ──
+  {k:'mano_obra', cat:'Mano de obra',  desc:'Mano de obra', unidad:'hh', precio:5000, envase:1, porM2:5},
+  {k:'arbol',     cat:'Reforestación', desc:'Árbol de reforestación', unidad:'un', precio:2000, envase:1, porM2:1}
 ];
+// Sobre todo lo anterior se suma un 10% por desgaste de herramientas.
+const DESGASTE_PCT=10;
+function _itemUnit(it){
+  var cfg=(costoEstandar.items||{})[it.k]||{};
+  var precio=cfg.precio!==undefined?Number(cfg.precio):it.precio;
+  var envase=cfg.envase!==undefined?Number(cfg.envase):it.envase;
+  if(!envase)envase=1;
+  return (Number(precio)||0)/IVA/envase;
+}
+function _itemPorM2(it){
+  var cfg=(costoEstandar.items||{})[it.k]||{};
+  return cfg.porM2!==undefined?Number(cfg.porM2):it.porM2;
+}
 // Los ítems "por venta" tampoco son por m², pero a diferencia de los extras
 // no dependen del tipo de producto: se cobran UNA vez por pedido, sin
 // importar cuántas piezas o m² tenga.
@@ -28453,7 +28504,9 @@ const POR_VENTA_ITEMS=[
 // de mesa son a medida y no todas la llevan (a diferencia de una Mesa
 // completa, que siempre trae base).
 const COSTO_ESTANDAR_DEFAULT={
-  proceso:{insumos:4901,acabado:8266,embalaje:7166,mano_obra:21008,arbol:1681,herramientas:4302},
+  // items: overrides por ítem del catálogo INVENTARIO_ITEMS ({precio, envase,
+  // porM2}). Vacío = valen los del catálogo. Se llena al editar desde la app.
+  items:{},
   por_venta:{kit_caja:3571},
   // pulgadas por m² × valor de la pulgada, según la planilla:
   // Oregón 4×12.000 · Ciprés 4×18.000 · Castaño 3×20.000 · Mañío 3×25.000
@@ -28472,9 +28525,10 @@ const COSTO_ESTANDAR_DEFAULT={
     {prod:'Cubierta mesa',desc:'Pintura de base (pintura, lija y mano de obra)',cat:'Acabado',valor:15000,condicional:'fierro'}
   ]
 };
+// Total por m² sumando el catálogo ítem por ítem, más el desgaste.
 function procesoTotalM2(){
-  var p=costoEstandar.proceso||{};
-  return PROCESO_ITEMS.reduce(function(s,it){return s+(Number(p[it.k])||0);},0);
+  var base=INVENTARIO_ITEMS.reduce(function(s,it){return s+_itemUnit(it)*_itemPorM2(it);},0);
+  return Math.round(base*(1+DESGASTE_PCT/100));
 }
 function porVentaTotal(){
   var p=costoEstandar.por_venta||{};
@@ -28541,7 +28595,7 @@ async function loadCost(){
     // para que no aparezca como un pedido más en la lista.
     var cfg=todos.find(function(r){return String(r.num||'')===COSTO_ESTANDAR_KEY;});
     if(cfg){
-      costoEstandar={proceso:cfg.proceso||COSTO_ESTANDAR_DEFAULT.proceso,
+      costoEstandar={items:cfg.items||COSTO_ESTANDAR_DEFAULT.items,
                      por_venta:cfg.por_venta||COSTO_ESTANDAR_DEFAULT.por_venta,
                      maderas:cfg.maderas||COSTO_ESTANDAR_DEFAULT.maderas,
                      extras:cfg.extras||COSTO_ESTANDAR_DEFAULT.extras};
@@ -28594,17 +28648,29 @@ function _lineasEstandar(lineasProd){
   });
   // El proceso va desglosado por categoría: así el resumen del pedido muestra
   // en qué se va la plata, en vez de un bloque único de "proceso".
-  // El embalaje se cobra sobre TODO lo que se despacha; el resto del proceso
-  // solo sobre los m² de madera (ver el comentario de m2Madera más arriba).
-  var p=costoEstandar.proceso||{};
-  PROCESO_ITEMS.forEach(function(it){
-    var unit=Number(p[it.k])||0;
-    if(!unit)return;
-    var base=(it.k==='embalaje')?m2Total:m2Madera;
+  // Una línea por ítem del inventario, con la CANTIDAD que se usó — no una
+  // bolsa por m². Así se ve en qué se va la plata y se puede corregir el
+  // pedido que gastó el triple de lija, que era el punto de costear.
+  // El embalaje se cobra sobre todo lo que se despacha; el resto solo sobre
+  // los m² de madera (una base de fierro llega lista, ver m2Madera arriba).
+  var _subtotal=0;
+  INVENTARIO_ITEMS.forEach(function(it){
+    var base=(it.cat==='Embalaje')?m2Total:m2Madera;
     if(!base)return;
-    out.push({desc:it.desc,categoria:it.cat,qty:Number(base.toFixed(2)),
-              unidad:'m2',unit_val:unit,total:Math.round(base*unit)});
+    var unit=_itemUnit(it),porM2=_itemPorM2(it);
+    if(!unit||!porM2)return;
+    var qty=base*porM2,total=Math.round(qty*unit);
+    _subtotal+=qty*unit;
+    // Los ítems de centavos (hoja, corchete, lápiz) se omiten si redondean a
+    // cero: ensuciaban la lista sin mover el total.
+    if(!total)return;
+    out.push({desc:it.desc,categoria:it.cat,qty:Number(qty.toFixed(3)),
+              unidad:it.unidad,unit_val:Math.round(unit*100)/100,total:total});
   });
+  // El desgaste va como una línea sola, calculada sobre todo lo anterior.
+  var _desg=Math.round(_subtotal*DESGASTE_PCT/100);
+  if(_desg)out.push({desc:'Desgaste de herramientas ('+DESGASTE_PCT+'%)',categoria:'Herramientas',
+                     qty:1,unidad:'un',unit_val:_desg,total:_desg});
   // Ítems fijos por venta: se cobran una sola vez por pedido, no por m².
   var pv=costoEstandar.por_venta||{};
   POR_VENTA_ITEMS.forEach(function(it){
@@ -28637,10 +28703,33 @@ function abrirCostoEstandar(){
     '<div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:14px">Vienen de tu planilla <em>INVENTARIO · COSTOS POR METRO</em>. El costo de la madera es <strong>pulgadas por m² × valor de la pulgada</strong>. El proceso junta insumos, mano de obra y desgaste de herramientas. Todo <strong>sin IVA</strong>.</div>'+
     '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Proceso por m² <span id="ce-proc-total" style="font-weight:400;color:var(--text-3)"></span></div>'+
     '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">'+
-    PROCESO_ITEMS.map(function(it){
-      var v=Number((costoEstandar.proceso||{})[it.k])||0;
-      return '<tr><td style="padding:5px 8px">'+esc(it.desc)+'</td><td style="padding:5px 8px;text-align:right"><input type="number" min="0" step="100" value="'+v+'" data-proc="'+it.k+'" class="ce-proc" oninput="_ceTotal()" style="width:110px;padding:5px 8px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text)"></td></tr>';
-    }).join('')+'</table></div>'+
+    (function(){
+      // Precio del envase (con IVA, como viene en la boleta), cuántas unidades
+      // trae y cuánto se usa por m². El costo por m² se calcula solo.
+      var st='width:78px;padding:4px 6px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text);font-size:11px;text-align:right';
+      var filas='<tr style="background:var(--surface2)">'+
+        '<th style="padding:5px 8px;text-align:left;font-size:10px;color:var(--text-3)">ÍTEM</th>'+
+        '<th style="padding:5px 6px;font-size:10px;color:var(--text-3)" title="Lo que cuesta el envase completo, con IVA">ENVASE $</th>'+
+        '<th style="padding:5px 6px;font-size:10px;color:var(--text-3)" title="Cuántas unidades trae ese envase">TRAE</th>'+
+        '<th style="padding:5px 6px;font-size:10px;color:var(--text-3)" title="Cuánto se usa por metro cuadrado">USO/m²</th>'+
+        '<th style="padding:5px 8px;text-align:right;font-size:10px;color:var(--text-3)">$/m²</th></tr>';
+      var catAnt='';
+      INVENTARIO_ITEMS.forEach(function(it){
+        if(it.cat!==catAnt){catAnt=it.cat;
+          filas+='<tr><td colspan="5" style="padding:7px 8px 3px;font-size:10px;font-weight:700;color:var(--wood);letter-spacing:0.05em">'+esc(it.cat.toUpperCase())+'</td></tr>';}
+        var cfg=(costoEstandar.items||{})[it.k]||{};
+        var pr=cfg.precio!==undefined?cfg.precio:it.precio;
+        var en=cfg.envase!==undefined?cfg.envase:it.envase;
+        var pm=cfg.porM2!==undefined?cfg.porM2:it.porM2;
+        filas+='<tr class="ce-item-row" data-k="'+it.k+'">'+
+          '<td style="padding:4px 8px;font-size:11px">'+esc(it.desc)+' <span style="color:var(--text-3)">('+esc(it.unidad)+')</span></td>'+
+          '<td style="padding:4px 6px"><input type="number" min="0" step="10" class="ce-it-precio" value="'+pr+'" oninput="_ceTotal()" style="'+st+'"></td>'+
+          '<td style="padding:4px 6px"><input type="number" min="0" step="0.1" class="ce-it-envase" value="'+en+'" oninput="_ceTotal()" style="'+st+';width:56px"></td>'+
+          '<td style="padding:4px 6px"><input type="number" min="0" step="0.1" class="ce-it-porm2" value="'+pm+'" oninput="_ceTotal()" style="'+st+';width:60px"></td>'+
+          '<td class="ce-it-m2" style="padding:4px 8px;text-align:right;font-size:11px;font-weight:700;color:var(--wood)"></td></tr>';
+      });
+      return filas;
+    })()+'</table></div>'+
     '<div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:4px">Por venta (fijo, no escala con m²)</div>'+
     '<div style="font-size:11px;color:var(--text-3);margin-bottom:6px">Se cobra una sola vez por pedido, sin importar los m² o piezas. Ej: el kit de caja, cera, paño, posavasos y bolsa.</div>'+
     '<div style="border:1px solid var(--border);border-radius:8px;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">'+
@@ -28701,14 +28790,34 @@ function _ceDelExtra(i){
   });
   l.splice(i,1);_ceRenderExtras(l);
 }
+// Recalcula el $/m² de cada ítem y el total, en vivo mientras se escribe.
 function _ceTotal(){
-  var t=0;document.querySelectorAll('.ce-proc').forEach(function(i){t+=Number(i.value)||0;});
-  var el=document.getElementById('ce-proc-total');if(el)el.textContent='— total '+fmtCLP(t)+'/m²';
+  var t=0;
+  document.querySelectorAll('.ce-item-row').forEach(function(tr){
+    var pr=Number(tr.querySelector('.ce-it-precio').value)||0;
+    var en=Number(tr.querySelector('.ce-it-envase').value)||1;
+    var pm=Number(tr.querySelector('.ce-it-porm2').value)||0;
+    var v=pr/IVA/(en||1)*pm;
+    t+=v;
+    var c=tr.querySelector('.ce-it-m2');
+    if(c)c.textContent=v>=1?fmtCLP(Math.round(v)):(v>0?'$'+v.toFixed(2):'—');
+  });
+  var conDesg=Math.round(t*(1+DESGASTE_PCT/100));
+  var el=document.getElementById('ce-proc-total');
+  if(el)el.textContent='— '+fmtCLP(Math.round(t))+' + '+DESGASTE_PCT+'% desgaste = '+fmtCLP(conDesg)+'/m²';
+}
+function _ceLeerItems(){
+  var out={};
+  document.querySelectorAll('.ce-item-row').forEach(function(tr){
+    out[tr.getAttribute('data-k')]={precio:Number(tr.querySelector('.ce-it-precio').value)||0,
+                                    envase:Number(tr.querySelector('.ce-it-envase').value)||1,
+                                    porM2:Number(tr.querySelector('.ce-it-porm2').value)||0};
+  });
+  return out;
 }
 function cerrarCostoEstandar(){var b=document.getElementById('modal-costo-estandar-bg');if(b)b.classList.remove('open');}
 async function guardarCostoEstandarUI(){
-  var proc={};
-  document.querySelectorAll('.ce-proc').forEach(function(i){proc[i.getAttribute('data-proc')]=Number(i.value)||0;});
+  var items=_ceLeerItems();
   var pv={};
   document.querySelectorAll('.ce-pv').forEach(function(i){pv[i.getAttribute('data-pv')]=Number(i.value)||0;});
   var mads={};
@@ -28716,7 +28825,7 @@ async function guardarCostoEstandarUI(){
     var m=i.getAttribute('data-madera'),v=Number(i.value)||0;
     if(m)mads[m.toUpperCase()]=v;
   });
-  costoEstandar={proceso:proc,por_venta:pv,maderas:mads,extras:_ceLeerExtras()};
+  costoEstandar={items:items,por_venta:pv,maderas:mads,extras:_ceLeerExtras()};
   var ok=await guardarCostoEstandar();
   cerrarCostoEstandar();
   showToast(ok?'✓ Costos estándar guardados':'✗ No se pudieron guardar');
