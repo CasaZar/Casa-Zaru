@@ -953,15 +953,72 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
   .cost-margen-pill { min-width: 56px; padding: 5px 10px; }
   .cost-del-btn { margin-left: auto; }
 
-  /* ── Costos — líneas de ítems: tabla → tarjetas ── */
+  /* ── Costos — líneas de ítems: tabla → tarjetas ──
+     El costeo viene precargado con los 28 ítems del inventario, así que el
+     trabajo real en el taller es QUITAR lo que no se usó y CORREGIR lo que se
+     usó distinto. Esas dos acciones mandan el diseño: quitar es un botón
+     rotulado de ancho completo (antes un 🗑 de 11px imposible de acertar), y
+     la cantidad es el campo más grande de la tarjeta. */
   .cost-table thead { display: none; }
   .cost-table, .cost-table tbody, .cost-table tr { display: block; width: 100%; }
-  .cost-table tr { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; padding: 8px 10px; background: var(--surface2); }
-  .cost-table td { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--border); }
-  .cost-table td:last-child { border-bottom: none; justify-content: flex-end; }
-  .cost-table td::before { content: attr(data-label); font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
-  .cost-table td input, .cost-table td select { width: 60%; text-align: right; }
-  .cost-table td:first-child input { width: 65%; text-align: left; }
+  .cost-table tr {
+    border: 1px solid var(--border); border-radius: 12px;
+    margin-bottom: 10px; padding: 10px 12px; background: var(--surface2);
+  }
+  .cost-table td {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--border);
+  }
+  .cost-table td::before {
+    content: attr(data-label); font-size: 10px; font-weight: 600;
+    color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .cost-table td input, .cost-table td select {
+    width: 58%; text-align: right; min-height: 40px;
+  }
+
+  /* El nombre del ítem manda: ocupa la fila entera y se lee de un vistazo. */
+  .cost-table td[data-label="Descripción"] { flex-direction: column; align-items: stretch; gap: 4px; }
+  .cost-table td[data-label="Descripción"] input {
+    width: 100% !important; text-align: left !important;
+    font-size: 15px !important; font-weight: 600; min-height: 44px;
+  }
+
+  /* Cantidad: es lo que más se corrige (media lata de cola, 3 lijas en vez
+     de 1). Campo grande, centrado y con teclado numérico. */
+  .cost-table td[data-label="Cantidad"] input {
+    width: 116px !important; min-height: 46px;
+    font-size: 18px !important; font-weight: 700; text-align: center;
+  }
+
+  .cost-table td[data-label="Total línea"] {
+    border-bottom: none;
+    font-size: 15px !important; font-weight: 800; color: var(--wood) !important;
+  }
+
+  /* Quitar la línea: la acción principal acá. */
+  .cost-table td:last-child { border-bottom: none; padding-top: 8px; }
+  .cost-table td:last-child::before { content: none; }
+  .cost-table .btn-del-row {
+    width: 100%; min-height: 44px; border-radius: 10px;
+    font-size: 13px; font-weight: 600;
+  }
+  .cost-table .btn-del-row::after { content: '  Quitar esta línea'; }
+
+  /* Encabezado de categoría: con 28 ítems precargados, sin esto la lista es
+     un muro. Queda pegado arriba mientras se recorre el grupo. */
+  .cost-table tr.cost-cat-head {
+    background: none; border: none; padding: 0;
+    margin: 16px 0 6px; position: sticky; top: 0; z-index: 2;
+  }
+  .cost-table tr.cost-cat-head td {
+    display: block; border: none; padding: 7px 10px;
+    background: var(--wood,#7B5B3A); color: #fff;
+    border-radius: 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .cost-table tr.cost-cat-head td::before { content: none; }
 
   /* ── Toolbar — columna con buen gap ── */
   .toolbar {
@@ -1037,7 +1094,15 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
   .form-grid { grid-template-columns: 1fr !important; }
 }
 
+/* En escritorio la tabla de costos sigue siendo una tabla: el encabezado de
+   categoría se muestra como una fila de separación, no como pastilla. */
 @media (min-width: 769px) {
+  .cost-table tr.cost-cat-head td {
+    padding: 10px 8px 4px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--wood,#7B5B3A); background: none; border: none;
+    border-bottom: 1px solid var(--border-md,#E0D5C8);
+  }
   .mobile-cards { display: none !important; }
   .table-wrap { display: block; }
 }
@@ -28316,7 +28381,9 @@ function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return 
 
 // ── COSTOS ──────────────────────────────────────────────────────────────────
 let costRecords=[];
-const CATEGORIAS_COSTO=['Madera','Base/Estructura','Insumos','Mano de obra','Acabado','Envío/Flete','Herramientas','Embalaje','Comisión plataforma','Garantía/Rehacer','Otro'];
+// El orden también manda: las líneas del costeo se agrupan siguiendo esta
+// lista, así cada categoría queda junta en la tarjeta en vez de repetida.
+const CATEGORIAS_COSTO=['Madera','Base/Estructura','Insumos','Acabado','Mano de obra','Reforestación','Embalaje','Envío/Flete','Herramientas','Comisión plataforma','Garantía/Rehacer','Otro'];
 // ── Margen honesto ─────────────────────────────────────────────────────────
 // La venta bruta incluye el 19% de IVA (que va al SII, no es tuyo) y no
 // descuenta la comisión que MercadoPago/Shopify te restan del depósito.
@@ -28686,6 +28753,14 @@ function _lineasEstandar(lineasProd){
     if(!n||!val)return;
     out.push({desc:ex.desc||('Extra '+ex.prod),categoria:ex.cat||'Otro',qty:n,unidad:'un',unit_val:val,total:Math.round(n*val)});
   });
+  // Agrupadas por categoría siguiendo CATEGORIAS_COSTO: el kit caja y el
+  // embalaje por m² son los dos "Embalaje" y tienen que salir juntos, no en
+  // dos bloques separados por toda la lista.
+  out.sort(function(a,b){
+    var ia=CATEGORIAS_COSTO.indexOf(a.categoria),ib=CATEGORIAS_COSTO.indexOf(b.categoria);
+    if(ia<0)ia=999;if(ib<0)ib=999;
+    return ia-ib;
+  });
   return out;
 }
 // Editor de los costos estándar por m². Se guardan en la base (no en el
@@ -29004,7 +29079,7 @@ function renderCost(){
 }
 function deleteCostRecord(idx){if(!confirm('¿Eliminar registro de costos?'))return;const numStr=String(costRecords[idx].num||'');costRecords.splice(idx,1);if(DB_URL&&numStr)api('costos/'+numStr,'DELETE').catch(()=>{});renderCost();showToast('✓ Eliminado');}
 function toggleCostCard(idx){const body=document.getElementById('cost-body-'+idx),arrow=document.getElementById('cost-arrow-'+idx),isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);if(arrow)arrow.textContent=isOpen?'▸':'▾';}
-function renderCostRows(idx){const r=costRecords[idx];if(!r)return;const tbody=document.getElementById('cost-rows-'+idx);if(!tbody)return;tbody.innerHTML=(r.lineas||[]).map((l,li)=>{const catSelected=CATEGORIAS_COSTO.map(c=>`<option${c===l.categoria?' selected':''}>${c}</option>`).join('');return`<tr><td data-label="Descripción"><input value="${esc(l.desc)}" onchange="updateCostRow(${idx},${li},'desc',this.value)" placeholder="Ej: Tablón Coihue 3m"></td><td data-label="Categoría"><select onchange="updateCostRow(${idx},${li},'categoria',this.value)">${catSelected}</select></td><td data-label="Cantidad"><input type="number" value="${l.qty||1}" min="0" step="0.01" onchange="updateCostRow(${idx},${li},'qty',this.value)" style="width:60px"></td><td data-label="Unidad"><input value="${esc(l.unidad||'un')}" onchange="updateCostRow(${idx},${li},'unidad',this.value)" style="width:50px" placeholder="un"></td><td data-label="Valor unit."><input type="number" value="${l.unit_val||0}" min="0" onchange="updateCostRow(${idx},${li},'unit_val',this.value)"></td><td data-label="Total línea" style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);text-align:right" id="cost-line-total-${idx}-${li}">${fmtCLP(l.total||0)}</td><td><button class="btn-del-row" onclick="delCostRow(${idx},${li})">🗑</button></td></tr>`;}).join('');}
+function renderCostRows(idx){const r=costRecords[idx];if(!r)return;const tbody=document.getElementById('cost-rows-'+idx);if(!tbody)return;var _catPrev='';tbody.innerHTML=(r.lineas||[]).map((l,li)=>{const catSelected=CATEGORIAS_COSTO.map(c=>`<option${c===l.categoria?' selected':''}>${c}</option>`).join('');var _cat=l.categoria||'Otro',_cab='';if(_cat!==_catPrev){_catPrev=_cat;_cab='<tr class="cost-cat-head"><td colspan="7">'+esc(_cat)+'</td></tr>';}return _cab+`<tr><td data-label="Descripción"><input value="${esc(l.desc)}" onchange="updateCostRow(${idx},${li},'desc',this.value)" placeholder="Ej: Tablón Coihue 3m"></td><td data-label="Categoría"><select onchange="updateCostRow(${idx},${li},'categoria',this.value)">${catSelected}</select></td><td data-label="Cantidad"><input type="number" value="${l.qty||1}" min="0" step="0.01" onchange="updateCostRow(${idx},${li},'qty',this.value)" style="width:60px"></td><td data-label="Unidad"><input value="${esc(l.unidad||'un')}" onchange="updateCostRow(${idx},${li},'unidad',this.value)" style="width:50px" placeholder="un"></td><td data-label="Valor unit."><input type="number" value="${l.unit_val||0}" min="0" onchange="updateCostRow(${idx},${li},'unit_val',this.value)"></td><td data-label="Total línea" style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);text-align:right" id="cost-line-total-${idx}-${li}">${fmtCLP(l.total||0)}</td><td><button class="btn-del-row" onclick="delCostRow(${idx},${li})">🗑</button></td></tr>`;}).join('');}
 function renderCostSummary(idx){
   const r=costRecords[idx];if(!r)return;
   const el=document.getElementById('cost-sum-'+idx);if(!el)return;
