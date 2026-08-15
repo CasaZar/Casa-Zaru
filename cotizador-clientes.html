@@ -1727,7 +1727,16 @@ async function confirmar() {
     else if (prod === 'revlibre') html = htmlRevLibre(cli, fecha);
     document.getElementById('q-out').innerHTML = html;
     show('s3');
-    try { window.history.replaceState(null, '', buildShareUrl()); } catch(e) {}
+    /* La URL del navegador solo se reemplaza por el link compartible cuando NO
+       hay sesión de vendedor. buildShareUrl() sale de BASE_URL, que no lleva
+       query, así que hacerlo con un vendedor le borraba de la barra su ?pro=zr
+       y su ?src=: al recargar o volver atrás quedaba como cliente anónimo —
+       sin botón de copiar mensaje y, peor, guardando las cotizaciones sin su
+       correo, o sea sin atribución al vendedor. El vendedor comparte con el
+       botón "Copiar mensaje", que arma el link limpio aparte. */
+    if (!srcEmail && !vendorMode) {
+      try { window.history.replaceState(null, '', buildShareUrl()); } catch(e) {}
+    }
   } finally {
     confirming = false;
     if (btn) { btn.disabled = false; if (btn.dataset.txt) btn.textContent = btn.dataset.txt; }
