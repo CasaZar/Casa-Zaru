@@ -2510,9 +2510,16 @@ function buildSegGroups(){
   });
   return groups;
 }
+/* Pendientes del tab Seguimiento. Cuenta lo que toca gestionar HOY (vencidos +
+   los de hoy) dentro del filtro activo: si el vendedor está mirando solo sus
+   clientes, el número no arrastra los cientos de web. Sin esto, el badge decía
+   255 aunque en su vista tuviera 130. */
 function computeSegPend(){
   var hoy=hoyISO(); segPend=0;
-  buildSegGroups().forEach(function(g){ var d=dueDate(g.lead); if(d && d<=hoy) segPend++; });
+  buildSegGroups().forEach(function(g){
+    if (segBloque && g.owner !== segBloque) return;
+    var d=dueDate(g.lead); if(d && d<=hoy) segPend++;
+  });
 }
 
 /* teléfono chileno → número apto wa.me (o null si no hay teléfono usable) */
@@ -2617,7 +2624,7 @@ function segBloquesDef(){
   else { b.push({t:'👤 Mis clientes', o:panelSeller.code}); if(!panelSeller.b2b) b.push({t:'🌐 Clientes Web', o:'web'}); }
   return b;
 }
-function setSegBloque(o){ segBloque=o; renderSegFilters(); renderSeguimiento(); }
+function setSegBloque(o){ segBloque=o; computeSegPend(); renderTabs(); renderSegFilters(); renderSeguimiento(); }
 function toggleSegInteresados(){ segSoloInteresados=!segSoloInteresados; renderSegFilters(); renderSeguimiento(); }
 function renderSegFilters(){
   var chips = '<button class="seg-chip'+(segBloque===''?' on':'')+'" onclick="setSegBloque(\'\')">Todos</button>'+
@@ -2756,14 +2763,16 @@ function renderSeguimiento(){
       (hoyDone.length ? sec('✅ Contactados hoy','donehoy',hoyDone,'') : '');
   });
   /* alerta de velocidad: cotizaciones web sin primer contacto hace +24h */
+  /* Se muestra SIEMPRE, aunque el vendedor esté filtrando solo sus clientes:
+     es la única parte del mundo web que no puede esperar (una cotización recién
+     hecha, contestada dentro del día, convierte muchísimo más). Es una línea,
+     no la lista completa, así que no vuelve a llenar la cola. */
   var lentos = 0;
-  if (segBloque==='' || segBloque==='web'){
-    groups.forEach(function(g){
-      var x=g.lead;
-      if (isWeb(x) && (x.seg_etapa||0)===0 && x.fecha_creacion &&
-          (Date.now()-new Date(x.fecha_creacion).getTime()) > 86400000) lentos++;
-    });
-  }
+  groups.forEach(function(g){
+    var x=g.lead;
+    if (isWeb(x) && (x.seg_etapa||0)===0 && x.fecha_creacion &&
+        (Date.now()-new Date(x.fecha_creacion).getTime()) > 86400000) lentos++;
+  });
   var banner = lentos>0
     ? '<div class="speed-alert" onclick="setSegBloque(\'web\')">⚡ '+lentos+' cotizaci'+(lentos===1?'ón':'ones')+' web sin primer contacto hace +24h — contáctalas primero →</div>'
     : '';
@@ -3330,6 +3339,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (pcode === PANEL_ADMIN) { panelSeller = null; pOK = true; }
     else { var sv = sellerByCode(pcode); if (sv) { panelSeller = sv; pOK = true; } }
   }
+  /* El vendedor abre viendo SOLO sus clientes: los web se acumulan de a cientos
+     y sepultaban a la gente con la que ya habló. Siguen a un clic, en su chip.
+     El admin parte en "Todos" porque su panel es justamente la vista global. */
+  if (pOK && panelSeller) segBloque = panelSeller.code;
   if (pOK) {
     panelPcode = pcode;
     var lgPass = document.getElementById('lg-pass');
