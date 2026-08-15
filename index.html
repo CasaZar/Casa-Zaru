@@ -645,6 +645,12 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 /* ── COSTOS ── */
 .cost-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);margin-bottom:10px;overflow:hidden;transition:border-color .15s; }
 .cost-card:hover { border-color:var(--border-md); }
+/* Selector de acabado (Vitrificado / CUTEK) dentro de la tarjeta de costos */
+.cost-acabado-sel { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 4px; }
+.cost-acabado-lbl { font-size:11px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-3); }
+.cost-acab-btn { padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s; }
+.cost-acab-btn:hover { border-color:var(--wood); }
+.cost-acab-btn.on { background:var(--wood);color:#fff;border-color:var(--wood); }
 .cost-card-header { display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;gap:12px;user-select:none; }
 .cost-card-info { display:flex;align-items:center;gap:12px;flex:1;min-width:0; }
 .cost-card-client { min-width:0; }
@@ -27565,7 +27571,7 @@ async function confirmOrder(){
 }
 function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';}
 const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
-const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO','TEÑIDO CHOCOLATE 3 MANOS'];
+const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','CUTEK','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO','TEÑIDO CHOCOLATE 3 MANOS'];
 function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return isNaN(m)?0:m;}
 async function updateProdField(oi,field,val,li){
   if(field==='envio'){
@@ -28383,7 +28389,7 @@ function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return 
 let costRecords=[];
 // El orden también manda: las líneas del costeo se agrupan siguiendo esta
 // lista, así cada categoría queda junta en la tarjeta en vez de repetida.
-const CATEGORIAS_COSTO=['Madera','Base/Estructura','Insumos','Acabado','Mano de obra','Reforestación','Embalaje','Envío/Flete','Herramientas','Comisión plataforma','Garantía/Rehacer','Otro'];
+const CATEGORIAS_COSTO=['Madera','Base/Estructura','Pegado','Insumos','Acabado','Mano de obra','Reforestación','Embalaje','Envío/Flete','Herramientas','Comisión plataforma','Garantía/Rehacer','Otro'];
 // ── Margen honesto ─────────────────────────────────────────────────────────
 // La venta bruta incluye el 19% de IVA (que va al SII, no es tuyo) y no
 // descuenta la comisión que MercadoPago/Shopify te restan del depósito.
@@ -28523,11 +28529,16 @@ const INVENTARIO_ITEMS=[
   {k:'tarugos',   cat:'Insumos', desc:'Tarugos 12 mm',     unidad:'un', precio:20,  envase:1, porM2:1},
   {k:'disco',     cat:'Insumos', desc:'Disco corte fierro',unidad:'un', precio:400, envase:1, porM2:0.1},
   {k:'fierro_ang',cat:'Insumos', desc:'Fierro ángulo 20×20',unidad:'mt',precio:10000,envase:6,porM2:1.8},
-  // ── Acabado ──
-  {k:'cola',      cat:'Acabado', desc:'Cola fría',         unidad:'lt', precio:5000, envase:1,  porM2:0.3},
-  {k:'diluyente', cat:'Acabado', desc:'Diluyente',         unidad:'lt', precio:3500, envase:1,  porM2:0.2},
-  {k:'vitrificado',cat:'Acabado',desc:'Vitrificado mate',  unidad:'lt', precio:65000,envase:3.7,porM2:0.3},
-  {k:'sellador',  cat:'Acabado', desc:'Sellador',          unidad:'lt', precio:89900,envase:19, porM2:0.5},
+  // ── Pegado ── (arma la cubierta; se usa siempre, sin importar el acabado)
+  {k:'cola',      cat:'Pegado',  desc:'Cola fría',         unidad:'lt', precio:5000, envase:1,  porM2:0.3},
+  // ── Acabado ── El "finish" marca a qué receta pertenece: una cubierta lleva
+  // UN solo acabado. Vitrificado (interior) = vitrificado + sellador + diluyente
+  // (el diluyente diluye el sellador). CUTEK (exterior) = solo cutek. Los ítems
+  // sin "finish" (como la cola) no dependen del acabado y van siempre.
+  {k:'vitrificado',cat:'Acabado',desc:'Vitrificado mate',  unidad:'lt', precio:65000,envase:3.7,porM2:0.3, finish:'VITRIFICADO'},
+  {k:'sellador',  cat:'Acabado', desc:'Sellador',          unidad:'lt', precio:89900,envase:19, porM2:0.5, finish:'VITRIFICADO'},
+  {k:'diluyente', cat:'Acabado', desc:'Diluyente',         unidad:'lt', precio:3500, envase:1,  porM2:0.2, finish:'VITRIFICADO'},
+  {k:'cutek',     cat:'Acabado', desc:'CUTEK (aceite exterior)', unidad:'gl', precio:110000, envase:1, porM2:0.025, finish:'CUTEK'},
   // ── Embalaje (lo único que también paga una pieza de fierro) ──
   {k:'cinta',     cat:'Embalaje',desc:'Cinta adhesiva',    unidad:'mt', precio:2000, envase:300,porM2:36},
   {k:'alusa',     cat:'Embalaje',desc:'Alusa',             unidad:'mt', precio:6000, envase:300,porM2:20},
@@ -28557,11 +28568,28 @@ function _itemPorM2(it){
   var cfg=(costoEstandar.items||{})[it.k]||{};
   return cfg.porM2!==undefined?Number(cfg.porM2):it.porM2;
 }
+// Acabados para el selector del costeo. Una cubierta lleva UNO solo. El default
+// es vitrificado (interior, lo más común); CUTEK es el aceite de exterior.
+const ACABADOS_COSTEO=[
+  {k:'VITRIFICADO', label:'Vitrificado (interior)'},
+  {k:'CUTEK',       label:'CUTEK (exterior)'}
+];
+// Deduce el acabado desde el campo "acabado" de Producción: si alguna línea
+// dice CUTEK/EXTERIOR es exterior; si no, vitrificado. Así el costeo llega
+// precargado con el acabado correcto sin que el jefe de taller lo elija a mano.
+function _acabadoDeLineas(lineasProd){
+  var esCutek=(lineasProd||[]).some(function(l){return /CUTEK|EXTERIOR/i.test(String(l.acabado||''));});
+  return esCutek?'CUTEK':'VITRIFICADO';
+}
 // Los ítems "por venta" tampoco son por m², pero a diferencia de los extras
 // no dependen del tipo de producto: se cobran UNA vez por pedido, sin
 // importar cuántas piezas o m² tenga.
 const POR_VENTA_ITEMS=[
-  {k:'kit_caja', cat:'Embalaje', desc:'Kit caja: caja, cera, paño, posavasos y bolsa'}
+  {k:'kit_caja', cat:'Embalaje',    desc:'Kit caja: caja, cera, paño, posavasos y bolsa'},
+  // El viaje a dejar pedidos en Starken se hace 2-3 veces/semana y cubre
+  // varios pedidos: es el costo del VIAJE prorrateado por pedido, no el flete
+  // que paga el cliente. Se borra en la tarjeta cuando el cliente retira.
+  {k:'starken',  cat:'Envío/Flete', desc:'Despacho a Starken (viaje prorrateado)'}
 ];
 // Los extras NO son por m²: son costos fijos POR PIEZA que dependen del tipo
 // de producto. La base de fierro de una mesa cuesta lo mismo sea la mesa
@@ -28574,7 +28602,7 @@ const COSTO_ESTANDAR_DEFAULT={
   // items: overrides por ítem del catálogo INVENTARIO_ITEMS ({precio, envase,
   // porM2}). Vacío = valen los del catálogo. Se llena al editar desde la app.
   items:{},
-  por_venta:{kit_caja:3571},
+  por_venta:{kit_caja:3571, starken:2000},
   // pulgadas por m² × valor de la pulgada, según la planilla:
   // Oregón 4×12.000 · Ciprés 4×18.000 · Castaño 3×20.000 · Mañío 3×25.000
   // Coihue 3×28.000 · Raulí 3×27.000 · Lenga 3×30.000
@@ -28674,7 +28702,11 @@ async function loadCost(){
 }
 // Arma las líneas de costo estándar a partir de las líneas de Producción.
 // Se usa al confirmar un pedido nuevo y desde el botón "Precargar estándar".
-function _lineasEstandar(lineasProd){
+function _lineasEstandar(lineasProd,acabadoForzado){
+  // Acabado seleccionado: el que se pasa a mano (selector de la tarjeta) o el
+  // que se deduce del campo "acabado" de Producción. Solo se cargan los ítems
+  // de esa receta; nunca vitrificado Y cutek a la vez.
+  var acabadoSel=acabadoForzado||_acabadoDeLineas(lineasProd);
   // m2Total incluye todo; m2Madera deja fuera las piezas de fierro u otro
   // material. La base de fierro llega lista y solo se pinta, así que no le
   // corresponden las 5 HH/m², ni lijas, acabado, herramientas ni árbol —
@@ -28722,6 +28754,9 @@ function _lineasEstandar(lineasProd){
   // los m² de madera (una base de fierro llega lista, ver m2Madera arriba).
   var _subtotal=0;
   INVENTARIO_ITEMS.forEach(function(it){
+    // Ítems de acabado: solo los de la receta elegida (vitrificado XOR cutek).
+    // Los que no tienen "finish" (cola, lijas, embalaje…) van siempre.
+    if(it.finish&&it.finish!==acabadoSel)return;
     var base=(it.cat==='Embalaje')?m2Total:m2Madera;
     if(!base)return;
     var unit=_itemUnit(it),porM2=_itemPorM2(it);
@@ -28928,12 +28963,16 @@ function setCostClasif(idx,campo,val){
 }
 // Precarga las líneas de costo con los valores estándar por m². Costear pasa
 // a ser corregir en vez de escribir desde cero.
-function precargarCostos(idx){
+function precargarCostos(idx,acabadoOverride){
   var r=costRecords[idx];if(!r)return;
   var lineas=lineasProdDe(r.num);
   if(!lineas.length){showToast('Este pedido no tiene líneas en Producción, no hay m² para calcular');return;}
   if((r.lineas||[]).length&&!confirm('Este pedido ya tiene '+r.lineas.length+' línea(s) de costo.\n\n¿Reemplazarlas por las estándar? Se pierde lo que hayas escrito.'))return;
-  var nuevas=_lineasEstandar(lineas);
+  // El acabado guardado (o el forzado por el selector) manda; si no hay, se
+  // deduce de Producción. Se recién commitea acá, pasada la confirmación.
+  var acab=acabadoOverride||r.acabado||_acabadoDeLineas(lineas);
+  r.acabado=acab;
+  var nuevas=_lineasEstandar(lineas,acab);
   if(!nuevas.length){showToast('Las líneas no tienen medidas cargadas (largo × ancho)');return;}
   // Dos motivos distintos para quedar en $0: una madera combinada (hay que
   // desglosarla a mano) o una especie sin precio cargado. El aviso lo dice,
@@ -28950,6 +28989,14 @@ function precargarCostos(idx){
   if(faltantes.length)avisos.push('falta el costo por m² de: '+faltantes.join(', '));
   showToast(avisos.length?('Precargado, pero '+avisos.join(' · ')):'✓ Costos estándar precargados — revisalos y ajustá');
 }
+// Cambiar el acabado de un pedido rehace la receta (vitrificado XOR cutek).
+// Reusa precargarCostos, que ya pide confirmación si hay líneas escritas; así
+// el desgaste y todo lo demás se recalcula correcto, no solo las líneas del
+// acabado.
+function _setAcabadoCosteo(idx,k){
+  var r=costRecords[idx];if(!r||r.acabado===k)return;
+  precargarCostos(idx,k);
+}
 // Rellena de una vez todos los pedidos sin costear del mes que se está
 // mirando. Sirve para ponerse al día con los meses viejos (julio, junio…),
 // donde los registros se crearon antes de que existiera la precarga.
@@ -28965,7 +29012,9 @@ async function precargarTodosSinCostear(){
   var ok=0,fallo=0;
   for(var i=0;i<pend.length;i++){
     var r=pend[i];
-    r.lineas=_lineasEstandar(lineasProdDe(r.num));
+    var _lp=lineasProdDe(r.num);
+    r.acabado=r.acabado||_acabadoDeLineas(_lp);
+    r.lineas=_lineasEstandar(_lp,r.acabado);
     if(DB_URL){
       try{await api('costos/'+String(r.num||''),'PUT',r);ok++;}catch(e){fallo++;}
     }else ok++;
@@ -29073,7 +29122,12 @@ function renderCost(){
     const margenColor=!costeado?'#8a8a8a':margen>=30?'#639922':margen>=15?'#EF9F27':'#993556';
     const margenBg=!costeado?'#f0efed':margen>=30?'#eaf5e1':margen>=15?'#faeeda':'#fdf0f5';
     const margenLbl=costeado?'Margen':'Sin costear';
-    return`<div class="cost-card"><div class="cost-card-header" onclick="toggleCostCard(${idx})"><div class="cost-card-info"><span class="pedido-num">${r.num||'—'}</span><span class="semana-badge">${r.semana||'—'}</span><div class="cost-card-client"><div class="cost-card-name">${esc(r.nombre)} ${esc(r.apellido)}</div><div class="cost-card-prod">${esc(r.producto)}</div></div></div><div class="cost-card-stats"><div class="cost-stat-item"><div class="cost-stat-label" title="Sin IVA y sin comisión de plataforma">Venta neta</div><div class="cost-stat-val" style="color:var(--green)">${fmtCLP(neta)}</div></div><div class="cost-stat-item"><div class="cost-stat-label">Costos</div><div class="cost-stat-val" style="color:var(--amber)">${fmtCLP(totalCosto)}</div></div><div class="cost-margen-pill" style="background:${margenBg}"><div class="cost-stat-label" style="color:${margenColor}">${margenLbl}</div><div class="cost-margen-val" style="color:${margenColor}">${margenTxt}</div></div><span class="cost-arrow" id="cost-arrow-${idx}">▸</span><button class="btn-del cost-del-btn" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();deleteCostRecord(${idx})">🗑</button></div></div><div class="cost-card-body" id="cost-body-${idx}"><table class="cost-table"><thead><tr><th style="width:30%">Descripción</th><th style="width:18%">Categoría</th><th style="width:12%">Cantidad</th><th style="width:8%">Unidad</th><th style="width:14%">Valor unit.</th><th style="width:12%">Total línea</th><th style="width:6%"></th></tr></thead><tbody id="cost-rows-${idx}"></tbody></table>${_costClasifHtml(r,idx)}<button class="btn-ghost" style="margin:8px 0" onclick="addCostRow(${idx})">+ Agregar ítem</button><button class="btn-ghost" style="margin:8px 0 8px 6px" onclick="precargarCostos(${idx})" title="Crea las líneas de madera y proceso con los costos estándar por m²">✨ Precargar estándar</button><div class="cost-summary" id="cost-sum-${idx}"></div></div></div>`;
+    // Selector de acabado: una cubierta lleva UNO solo. Se muestra el que se
+    // dedujo de Producción (o el guardado) y se puede cambiar; al cambiarlo se
+    // rehace la receta del acabado (vitrificado + sellador + diluyente, o cutek).
+    const acab=r.acabado||_acabadoDeLineas(lineasProdDe(r.num));
+    const acabSel=ACABADOS_COSTEO.map(function(a){return '<button class="cost-acab-btn'+(a.k===acab?' on':'')+'" onclick="_setAcabadoCosteo('+idx+',\''+a.k+'\')">'+esc(a.label)+'</button>';}).join('');
+    return`<div class="cost-card"><div class="cost-card-header" onclick="toggleCostCard(${idx})"><div class="cost-card-info"><span class="pedido-num">${r.num||'—'}</span><span class="semana-badge">${r.semana||'—'}</span><div class="cost-card-client"><div class="cost-card-name">${esc(r.nombre)} ${esc(r.apellido)}</div><div class="cost-card-prod">${esc(r.producto)}</div></div></div><div class="cost-card-stats"><div class="cost-stat-item"><div class="cost-stat-label" title="Sin IVA y sin comisión de plataforma">Venta neta</div><div class="cost-stat-val" style="color:var(--green)">${fmtCLP(neta)}</div></div><div class="cost-stat-item"><div class="cost-stat-label">Costos</div><div class="cost-stat-val" style="color:var(--amber)">${fmtCLP(totalCosto)}</div></div><div class="cost-margen-pill" style="background:${margenBg}"><div class="cost-stat-label" style="color:${margenColor}">${margenLbl}</div><div class="cost-margen-val" style="color:${margenColor}">${margenTxt}</div></div><span class="cost-arrow" id="cost-arrow-${idx}">▸</span><button class="btn-del cost-del-btn" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();deleteCostRecord(${idx})">🗑</button></div></div><div class="cost-card-body" id="cost-body-${idx}"><table class="cost-table"><thead><tr><th style="width:30%">Descripción</th><th style="width:18%">Categoría</th><th style="width:12%">Cantidad</th><th style="width:8%">Unidad</th><th style="width:14%">Valor unit.</th><th style="width:12%">Total línea</th><th style="width:6%"></th></tr></thead><tbody id="cost-rows-${idx}"></tbody></table>${_costClasifHtml(r,idx)}<div class="cost-acabado-sel"><span class="cost-acabado-lbl">Acabado</span>${acabSel}</div><button class="btn-ghost" style="margin:8px 0" onclick="addCostRow(${idx})">+ Agregar ítem</button><button class="btn-ghost" style="margin:8px 0 8px 6px" onclick="precargarCostos(${idx})" title="Crea las líneas de madera y proceso con los costos estándar por m²">✨ Precargar estándar</button><div class="cost-summary" id="cost-sum-${idx}"></div></div></div>`;
   }).join('');
   list.forEach(r=>{const idx=costRecords.indexOf(r);renderCostRows(idx);renderCostSummary(idx);});
 }
