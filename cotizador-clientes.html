@@ -386,6 +386,12 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 /* nota viva de ergonomía: cómo se vería la mesa con esas medidas */
 .ms-ergo { font-size:11px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.45; }
 .ms-ergo:empty { display:none; }
+/* fase 4: pausas con motivo (modal de posponer) */
+.pausa-sec { font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--acd);margin:6px 0 6px;text-align:left; }
+.pausa-sec-sub { font-weight:400;text-transform:none;letter-spacing:0;color:var(--tm);font-size:10.5px; }
+.pausa-tip { font-size:10px;color:var(--tm);line-height:1.35;margin:-4px 0 8px;padding:0 2px;text-align:left; }
+.mbtn-sub { font-size:10px;font-weight:400;color:var(--tm);float:right; }
+.pausa-badge { display:inline-block;background:#FEF3C7;color:#92400E;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 /* respondió: la señal que más predice el cierre después de la recompra */
 .resp-badge { display:inline-block;background:#DCFCE7;color:#166534;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 .sbtn.resp { border-color:#86EFAC;color:#166534; }
@@ -2678,7 +2684,28 @@ function vendedorPorSrc(code){
 }
 var CADENCIA = [2, 8, 15, 21, 29, 40];   /* días desde la cotización para los 6 toques */
 var PEZ_GORDO = 2000000;            /* monto sobre el cual un atrasado se marca como "pez gordo" */
-var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Número no funciona / sin WhatsApp', 'Otro'];
+/* FASE 4 (spec §4): lista CERRADA, sin "Otro" — el 66% de las pérdidas web caía
+   ahí y no decía nada. Se conservan las etiquetas humanas que ya están
+   guardadas en la base para no partir las estadísticas históricas en dos
+   (equivalen 1:1 al enum del spec: precio, plazo_entrega, compro_otro_lado,
+   sin_respuesta, numero_invalido). Las perdidas antiguas con "Otro" siguen
+   mostrándose tal cual; solo ya no se puede elegir. */
+var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Número no funciona / sin WhatsApp'];
+/* motivos que implican que el cliente CONVERSÓ: al marcarlos se aprende
+   respondio=true solo (validación del spec sin ponerle un error a César) */
+var MOTIVOS_CON_RESPUESTA = ['Precio', 'Plazo de entrega', 'Compró en otro lado'];
+/* motivos de PAUSA (spec §4): cada uno agenda su próximo toque solo */
+var PAUSAS = [
+  { id:'decision_familiar', t:'🏠 Lo conversa en familia', dias:7,
+    tip:'Al toque del día 7: fotos de piezas parecidas ya instaladas — ayudan en la sobremesa.' },
+  { id:'comparando', t:'⚖️ Está comparando', dias:5,
+    tip:'"Si te pasan otro precio, mándamelo y te digo al tiro en qué se diferencia." Nunca igualar con descuento.' },
+  { id:'presupuesto', t:'💰 Tema presupuesto', dias:21,
+    tip:'Ofrece camino, no rebaja: Pino Oregón, 4 cm de espesor o ajustar medidas.' },
+  { id:'esperando_obra', t:'🏗️ Esperando obra / casa', dias:0,
+    tip:'Pregunta el mes de la obra: el toque se agenda solo 30 días antes.' }
+];
+function pausaLabel(id){ var p=PAUSAS.find(function(q){return q.id===id;}); return p ? p.t.replace(/^\S+ /,'') : id; }
 var panelSeller = null;   /* null = admin (ve todo) */
 var dashRows = [];        /* cotizaciones cargadas, ya filtradas al alcance del panel */
 var allRows = [];         /* todas las cargadas (incluye eliminadas), para la pestaña Eliminadas */
@@ -3179,9 +3206,12 @@ function segClientCard(g, cls){
   var interesadoBadge = interesado ? '<span class="interesado-badge">★ Interesado</span>' : '';
   var respondio = g.quotes.some(function(q){ return q.respondio; });
   var respBadge = respondio ? '<span class="resp-badge">💬 Respondió</span>' : '';
+  var pausaBadge = x.motivo_pausa
+    ? '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+(x.seg_proxima?' · '+fmtFechaCorta(x.seg_proxima):'')+'</span>'
+    : '';
   var meta = escA(x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
   return '<div class="seg-card '+cls+(pez?' pez':'')+(interesado?' interesado':'')+'">'+
-    '<div class="seg-cli">'+starBtn+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+interesadoBadge+respBadge+'</div>'+
+    '<div class="seg-cli">'+starBtn+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+interesadoBadge+respBadge+pausaBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
     '<div class="seg-toques">'+toques+'</div>'+
@@ -3285,6 +3315,7 @@ async function segMarcar(id, n, checked){
   }
   var updates = {seg_etapa:etapa, seg_proxima:next, seg_historial:hist};
   if (checked && !x.fecha_primer_contacto) updates.fecha_primer_contacto = new Date().toISOString();
+  if (checked && x.motivo_pausa) updates.motivo_pausa = null;   /* el toque acordado ya se hizo: termina la pausa */
   if (!checked && etapa === 0) updates.fecha_primer_contacto = null;   /* deshizo el único toque */
   if (checked) registrarToque(x, n);          /* fase 2: fila en `toques` (fire-and-forget) */
   else borrarUltimoToque(x);
@@ -3300,13 +3331,56 @@ async function segNota(id, n, txt){
 }
 function segPosponerUI(id){
   var x=COTIS[id]; if(!x) return;
-  pModal('<h3>Posponer — '+escA(x.cliente||'')+'</h3>'+
+  var pausasBtns = PAUSAS.map(function(p){
+    var accion = (p.id === 'esperando_obra')
+      ? 'document.getElementById(\'pausa-obra\').classList.toggle(\'hidden\')'
+      : 'segPausar(\''+id+'\',\''+p.id+'\')';
+    return '<button class="mbtn" onclick="'+accion+'">'+p.t+(p.dias?' <span class="mbtn-sub">toque en '+p.dias+' días</span>':'')+'</button>'+
+      '<div class="pausa-tip">'+p.tip+'</div>';
+  }).join('');
+  pModal('<h3>'+escA(x.cliente||'')+'</h3>'+
+    '<div class="pausa-sec">¿Qué dijo el cliente? <span class="pausa-sec-sub">agenda el próximo toque solo</span></div>'+
+    pausasBtns+
+    '<div class="fsec hidden" id="pausa-obra" style="margin-top:4px">'+
+      '<label class="flabel">¿Para qué mes es la obra?</label>'+
+      '<input class="finput" type="month" id="pausa-obra-mes" min="'+hoyISO().slice(0,7)+'">'+
+      '<button class="mbtn pri" style="margin-top:6px" onclick="segPausarObra(\''+id+'\')">Agendar (te avisa 30 días antes)</button>'+
+    '</div>'+
+    '<div class="pausa-sec" style="margin-top:10px">Solo mover la fecha <span class="pausa-sec-sub">sin motivo</span></div>'+
     '<button class="mbtn" onclick="segPosponer(\''+id+'\',7)">En 7 días</button>'+
-    '<button class="mbtn" onclick="segPosponer(\''+id+'\',15)">En 15 días (cliente cotiza más adelante)</button>'+
+    '<button class="mbtn" onclick="segPosponer(\''+id+'\',15)">En 15 días</button>'+
     '<button class="mbtn" onclick="segPosponer(\''+id+'\',30)">En 30 días</button>'+
     '<div class="fsec" style="margin-top:6px"><label class="flabel">O elige una fecha</label><input class="finput" type="date" id="pos-fecha" min="'+addDias(hoyISO(),1)+'"></div>'+
     '<button class="mbtn pri" onclick="segPosponerFecha(\''+id+'\')">Guardar fecha</button>'+
     '<button class="mbtn cancel" onclick="pClose()">Cancelar</button>');
+}
+/* FASE 4: pausa con motivo. Saber el motivo implica que el cliente conversó,
+   así que respondio se marca solo (la validación del spec, sin error molesto). */
+async function segPausar(id, motivoId){
+  var x=COTIS[id]; if(!x) return;
+  var p = PAUSAS.find(function(q){ return q.id === motivoId; }); if(!p) return;
+  var fecha = addDias(hoyISO(), p.dias);
+  var hist = Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
+  hist.push({etapa:0, fecha:hoyISO(), nota:'Pausa: '+pausaLabel(motivoId)+' → toque el '+fecha});
+  var updates = {motivo_pausa:motivoId, seg_proxima:fecha, seg_historial:hist};
+  if (!x.respondio) { updates.respondio = true; updates.fecha_primera_respuesta = new Date().toISOString(); }
+  pClose();
+  segSave(id, updates, pausaLabel(motivoId)+' — próximo toque el '+fmtFechaCorta(fecha));
+}
+async function segPausarObra(id){
+  var x=COTIS[id]; if(!x) return;
+  var mes = (document.getElementById('pausa-obra-mes')||{}).value;   /* AAAA-MM */
+  if (!mes) return;
+  var fechaObra = mes + '-01';
+  var toque = addDias(fechaObra, -30);
+  var manana = addDias(hoyISO(), 1);
+  if (toque < manana) toque = manana;   /* obra muy cercana: el toque va mañana */
+  var hist = Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
+  hist.push({etapa:0, fecha:hoyISO(), nota:'Pausa: esperando obra ('+mes+') → toque el '+toque});
+  var updates = {motivo_pausa:'esperando_obra', fecha_agendada:fechaObra, seg_proxima:toque, seg_historial:hist};
+  if (!x.respondio) { updates.respondio = true; updates.fecha_primera_respuesta = new Date().toISOString(); }
+  pClose();
+  segSave(id, updates, 'Esperando obra — te avisa el '+fmtFechaCorta(toque)+' (30 días antes)');
 }
 function segPosponer(id, dias, fechaISO){
   var x=COTIS[id]; if(!x) return;
@@ -3330,7 +3404,17 @@ function segPerderUI(id){
     MOTIVOS.map(function(m){ return '<button class="mbtn" onclick="segPerder(\''+id+'\',\''+m+'\')">'+m+'</button>'; }).join('')+
     '<button class="mbtn cancel" onclick="pClose()">Cancelar</button>');
 }
-function segPerder(id, motivo){ pClose(); segSave(id, {estado:'perdida', motivo_perdida:motivo}, 'Marcada como perdida'); }
+function segPerder(id, motivo){
+  pClose();
+  var x = COTIS[id] || {};
+  var updates = {estado:'perdida', motivo_perdida:motivo};
+  /* si el motivo implica conversación (precio, plazo, compró en otro lado),
+     respondio queda registrado — mejora la métrica sin pedirle nada a César */
+  if (MOTIVOS_CON_RESPUESTA.indexOf(motivo) !== -1 && !x.respondio) {
+    updates.respondio = true; updates.fecha_primera_respuesta = new Date().toISOString();
+  }
+  segSave(id, updates, 'Marcada como perdida');
+}
 
 /* ── REGISTRAR VENTA DIRECTA ── */
 function panelNextNum(){ var d=new Date(); return 'V-'+String(d.getMonth()+1).padStart(2,'0')+String(d.getFullYear()).slice(2)+'-'+String(d.getTime()).slice(-4); }
