@@ -2274,6 +2274,13 @@ function shell(nombre, cli, fecha, body) {
     '</div>' +
   '</div>' +
   '<div class="info-bar">Para: <strong>'+cli+'</strong>' + (conStr ? '  ·  '+conStr : '') + '</div>' +
+  /* Confirmación transaccional (spec seguimiento v2 §5.5, versión sin API):
+     fija la expectativa del primer contacto, en especial sábado tarde y domingo.
+     Solo para el cliente web orgánico: en el flujo del vendedor o en un link
+     compartido, César ya está en la conversación y la frase sobraría. */
+  ((!srcEmail && !vendorMode && !fromHash)
+    ? '<div class="info-bar" style="background:#EFF7EF;border:1px solid #C3DAB4;color:#2D5A3D">✅ <strong>Cotización recibida.</strong> César, nuestro asesor, te escribe por WhatsApp dentro del día hábil. Si quieres avanzar antes, escríbenos tú con el botón verde de abajo.</div>'
+    : '') +
   body;
 }
 
