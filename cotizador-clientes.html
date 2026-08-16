@@ -399,6 +399,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-bloque-sub { display:block;font-size:10.5px;font-weight:400;color:var(--tm);margin-top:1px; }
 .seg-bloque-c { flex:0 0 auto;font-size:11px;font-weight:700;color:var(--acd);white-space:nowrap; }
 .seg-sec.conv { color:#166534; }
+.seg-sec.ballena { color:#9D174D; }
+.ballena-alerta { background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:11px;font-weight:700;border-radius:8px;padding:6px 10px;margin-bottom:-4px; }
 .seg-backlog, .seg-b3 { margin:8px 0 4px;border:1px dashed var(--bd2);border-radius:10px;padding:8px 10px;background:var(--crt); }
 .seg-backlog summary, .seg-b3 summary { cursor:pointer;font-size:12px;font-weight:600;color:var(--tm);list-style:revert; }
 .seg-backlog summary::marker, .seg-b3 summary::marker { color:var(--ac); }
@@ -3020,13 +3022,15 @@ function segComparator(){
 }
 /* ── FASE 5 (spec §2.1, §5.2, §8): LOS TRES BLOQUES DE LA COLA ──
    Config editable en Supabase; si la tabla no responde, rigen estos valores. */
-var CFG_SEG = { corte:400000, metaLunes:8, metaNormal:15, metaSabado:0 };
+var CFG_SEG = { corte:400000, techo:60, metaLunes:8, metaNormal:15, metaSabado:0 };
 async function cargarConfigSeg(){
   try{
     var r = await sbClient.from('config_seguimiento').select('*').limit(1);
     if (r.error || !r.data || !r.data[0]) return;
     var c = r.data[0];
     if (c.corte_monto_prioritario > 0) CFG_SEG.corte = c.corte_monto_prioritario;
+    if (c.techo_prioritarios_activos > 0) CFG_SEG.techo = c.techo_prioritarios_activos;
+    if (c.dias_cierre_cadencia > 0) CFG_SEG_CIERRE_DIAS = c.dias_cierre_cadencia;
     if (c.meta_toques_lunes  >= 0) CFG_SEG.metaLunes  = c.meta_toques_lunes;
     if (c.meta_toques_normal >= 0) CFG_SEG.metaNormal = c.meta_toques_normal;
     if (c.meta_toques_sabado >= 0) CFG_SEG.metaSabado = c.meta_toques_sabado;
@@ -3066,6 +3070,104 @@ function metaHoy(){
   if (d === 1) return CFG_SEG.metaLunes;
   if (d === 6) return CFG_SEG.metaSabado;
   return CFG_SEG.metaNormal;
+}
+/* ── FASE 8 (spec §2.4): REGLA BALLENA 🐋 ──
+   (a) ya nos compró y tiene cotización abierta, o (b) suma ≥ $2M en abiertas.
+   Van fijas arriba, FUERA del conteo de la meta (no consumen los 15 toques),
+   máximo 3 a la vez, alerta si pasan 72 h sin un toque, y nunca las cierra el
+   automático. Caso que motivó la regla: un cliente con compra previa y
+   $24.028.816 en 2 cotizaciones abiertas llevaba 18 días perdido entre los
+   atrasados, ordenado igual que el resto. */
+function montoAbierto(g){
+  return g.quotes.reduce(function(a,q){
+    return a + (((q.estado||'enviada')==='enviada') ? (q.total_alto||0) : 0);
+  }, 0);
+}
+function esBallena(g){
+  if ((g.lead.estado||'enviada') !== 'enviada') return false;
+  return esRecurrente(g) || montoAbierto(g) >= PEZ_GORDO;
+}
+/* horas desde el último toque registrado (o desde que se creó, si nunca hubo) */
+function horasSinToque(g){
+  var hist = Array.isArray(g.lead.seg_historial) ? g.lead.seg_historial : [];
+  var fechas = hist.map(function(h){ return String(h.fecha).slice(0,10); }).filter(Boolean).sort();
+  var ref = fechas.length ? fechas[fechas.length-1] : (g.lead.fecha_creacion ? fechaBaseISO(g.lead.fecha_creacion) : null);
+  if (!ref) return 0;
+  var p = ref.split('-');
+  return Math.round((Date.now() - new Date(+p[0], +p[1]-1, +p[2]).getTime()) / 3600000);
+}
+/* ── FASE 7 (spec §6): CIERRE AUTOMÁTICO ──
+   Única automatización del sistema, y no manda ningún mensaje: solo cambia el
+   estado de lo que murió de viejo, para que la cola deje de arrastrarlo y el
+   86% "sin desenlace" baje. Se marca como perdida con motivo propio, en vez
+   de inventar un estado nuevo: así encaja en los filtros, los selects y el
+   desglose de "¿por qué perdemos?" que ya existen (un estado desconocido
+   habría hecho que el <select> de la tabla mostrara "Enviada" y lo reviviera
+   al guardar). Queda anotado en el historial para poder auditarlo.
+
+   NUNCA cierra: ganadas, perdidas, las que respondieron, las pausadas con
+   fecha, las que tienen un toque agendado a futuro, ni las ballenas. */
+var CIERRE_MOTIVO = 'Sin respuesta (cierre automático)';
+var CFG_SEG_CIERRE_DIAS = 40;
+function candidatasACerrar(){
+  var limite = addDias(hoyISO(), -CFG_SEG_CIERRE_DIAS);
+  var grupos = buildSegGroups();
+  var ballenas = {};
+  grupos.forEach(function(g){ if (esBallena(g)) g.quotes.forEach(function(q){ ballenas[q.id]=true; }); });
+  return allRows.filter(function(x){
+    if (x.eliminada) return false;
+    if ((x.estado||'enviada') !== 'enviada') return false;      /* ganada o perdida: intocable */
+    if (x.respondio) return false;                               /* conversó: nunca se cierra sola */
+    if (x.motivo_pausa) return false;                            /* pausada con motivo y fecha */
+    if (x.seg_proxima && String(x.seg_proxima).slice(0,10) >= hoyISO()) return false;  /* toque agendado */
+    if (ballenas[x.id]) return false;                            /* spec §2.4 */
+    if (!x.fecha_creacion) return false;
+    return fechaBaseISO(x.fecha_creacion) < limite;
+  });
+}
+async function correrCierreAutomatico(){
+  var hoy = hoyISO();
+  if (localStorage.getItem('cz-cierre-auto') === hoy) return;    /* una vez al día basta */
+  var cand = candidatasACerrar();
+  localStorage.setItem('cz-cierre-auto', hoy);
+  if (!cand.length) return;
+  var ids = cand.map(function(x){ return x.id; });
+  try{
+    /* el historial se escribe fila por fila (cada una tiene el suyo); el estado
+       va en un solo update para que sea rápido y atómico */
+    var res = await sbClient.from('cotizaciones')
+      .update({ estado:'perdida', motivo_perdida:CIERRE_MOTIVO, seg_proxima:null })
+      .in('id', ids).select('id');
+    if (res.error){ console.error('cierre automático:', res.error); return; }
+    cand.forEach(function(x){
+      var hist = Array.isArray(x.seg_historial)?x.seg_historial.slice():[];
+      hist.push({etapa:0, fecha:hoy, nota:'Cerrada automáticamente: '+CFG_SEG_CIERRE_DIAS+' días sin respuesta'});
+      sbClient.from('cotizaciones').update({seg_historial:hist}).eq('id', x.id).then(function(){}, function(){});
+      x.estado='perdida'; x.motivo_perdida=CIERRE_MOTIVO; x.seg_historial=hist;
+    });
+    showToast('Se cerraron '+cand.length+' cotizacion'+(cand.length===1?'':'es')+' sin respuesta hace más de '+CFG_SEG_CIERRE_DIAS+' días', true);
+  } catch(e){ console.error('cierre automático:', e); }
+}
+/* ── FASE 8 (spec §2.3): AUTO-AJUSTE DEL CORTE ──
+   Si los prioritarios activos pasan del techo, el corte sube al siguiente
+   escalón de $100.000 y se avisa. Los que respondieron NUNCA salen por esto:
+   el corte solo mueve la condición de monto (el OR de esPrioritario). */
+async function autoAjustarCorte(){
+  var hoy = hoyISO();
+  if (localStorage.getItem('cz-ajuste-corte') === hoy) return;
+  localStorage.setItem('cz-ajuste-corte', hoy);
+  var activos = buildSegGroups().filter(function(g){
+    return (g.lead.estado||'enviada')==='enviada' && esPrioritario(g);
+  }).length;
+  if (activos <= CFG_SEG.techo) return;
+  var nuevo = CFG_SEG.corte + 100000;
+  try{
+    var res = await sbClient.from('config_seguimiento')
+      .update({ corte_monto_prioritario:nuevo, updated_at:new Date().toISOString() }).eq('id',1).select('id');
+    if (res.error){ console.warn('auto-ajuste del corte (solo admin puede):', res.error.message); return; }
+    CFG_SEG.corte = nuevo;
+    showToast('Había '+activos+' prioritarios activos: el corte subió a '+fmt(nuevo)+'. Los que respondieron siguen priorizados.', true);
+  } catch(e){ console.warn('auto-ajuste del corte:', e); }
 }
 function currentTableRows(){
   if (dashView==='web') return dashRows.filter(isWeb);
@@ -3139,6 +3241,11 @@ async function loadDash() {
   await cargarConfigSeg();   /* corte y metas del día antes de armar la cola */
   computeSegPend();
   setDashView(dashView);
+  /* jobs diarios (fases 7 y 8), después de pintar: no bloquean la carga y
+     cada uno corre una sola vez al día */
+  await correrCierreAutomatico();
+  await autoAjustarCorte();
+  if (dashView==='seg') renderSeguimiento();
 }
 
 /* ── VISTA SEGUIMIENTO (un recuadro por cliente, bloques por vendedor / web) ── */
@@ -3160,10 +3267,16 @@ function renderSeguimiento(){
      b1 primeros contactos (siempre primero) · b2 prioritarios con toque hoy ·
      b3 el resto (solo si sobra tiempo) · conv conversaciones vivas ·
      futuro esta semana · hoyDone lo ya hecho hoy. */
+  /* las ballenas se fijan arriba y salen del resto de los bloques: no consumen
+     la meta del día (spec §2.4). Máximo 3, por monto abierto acumulado. */
+  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && !toqueHoy(g.lead); })
+    .sort(function(a,b){ return montoAbierto(b)-montoAbierto(a); }).slice(0,3);
+  var esBall = {}; ballenas.forEach(function(g){ esBall[g.key] = true; });
   var b1=[], b1Viejos=[], b2=[], b3=[], conv=[], futuro=[], hoyDone=[], enJuego=0;
   groups.forEach(function(g){
     if (!owners[g.owner]) return;
     if (toqueHoy(g.lead)){ hoyDone.push(g); return; }   /* ya contactado hoy: queda a la vista para anotar/deshacer */
+    if (esBall[g.key]) return;                          /* ya va fija arriba */
     if (sinPrimerContacto(g)){ (diasDe(g) > 7 ? b1Viejos : b1).push(g); return; }
     if (enConversacion(g)){ conv.push(g); return; }
     var d=dueDate(g.lead); if(!d) return;
@@ -3188,6 +3301,16 @@ function renderSeguimiento(){
       '<span class="seg-bloque-c">'+cnt+'</span></div>';
   }
   var html='';
+  /* BALLENAS — fijas arriba, fuera de la meta. Una sola paga el mes. */
+  if (ballenas.length){
+    html += '<div class="seg-sec ballena">🐋 No dejar enfriar<span class="seg-cnt">'+ballenas.length+'</span></div>'+
+      '<div class="seg-empty" style="margin:-4px 0 8px">Ya nos compraron antes o suman más de '+fmt(PEZ_GORDO)+' en cotizaciones abiertas. No cuentan para la meta: van aparte porque una sola equivale a meses de venta.</div>'+
+      ballenas.map(function(g){
+        var h = horasSinToque(g);
+        var alerta = h >= 72 ? '<div class="ballena-alerta">⚠ '+Math.floor(h/24)+' días sin un toque — el acuerdo es no pasar de 72 horas</div>' : '';
+        return alerta + segClientCard(g,'ballena');
+      }).join('');
+  }
   /* BLOQUE 1 — nunca se sacrifica */
   html += bloqueH(1,'Primeros contactos','Lo primero del día, siempre',
                   (b1.length? b1.length+' por hacer' : '✓ al día'), b1.length?'urg':'ok');
