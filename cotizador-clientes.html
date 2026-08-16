@@ -386,6 +386,11 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 /* nota viva de ergonomía: cómo se vería la mesa con esas medidas */
 .ms-ergo { font-size:11px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.45; }
 .ms-ergo:empty { display:none; }
+/* badge de toques de seguimiento en la tabla del panel */
+.tq-badge { display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap; }
+.tq-badge.tq-0 { background:#F3F4F6;color:#6B7280; }
+.tq-badge.tq-1 { background:#E0F2FE;color:#0369A1; }
+.tq-badge.tq-n { background:#FCE7F3;color:#9D174D; }
 .btn-extras { width:100%;background:none;border:1px dashed var(--bd);border-radius:8px;padding:9px 14px;font-size:11px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;text-align:left;letter-spacing:.5px;transition:border-color .15s; }
 .btn-extras:hover { border-color:var(--ac);color:var(--ac); }
 .extra-row { display:flex;align-items:center;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--bg3);font-size:12px;color:var(--tx); }
@@ -3643,12 +3648,43 @@ function renderDash() {
   }
   if (!dAll.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
   if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Ninguna cotización coincide con el filtro</div>'; return; }
+  /* toques de seguimiento POR CLIENTE (agrupando sus cotizaciones, porque los
+     toques se registran en la cotización líder del grupo, no en cada una) */
+  var tqMap = {};
+  allRows.forEach(function(x){
+    if (x.eliminada) return;
+    var n = 0;
+    (Array.isArray(x.seg_historial) ? x.seg_historial : []).forEach(function(h){ if (h && h.etapa > 0) n++; });
+    var k = clientKey(x);
+    tqMap[k] = (tqMap[k] || 0) + n;
+  });
+  function tqBadge(n) {
+    if (n <= 0) return '<span class="tq-badge tq-0">sin seguim.</span>';
+    if (n === 1) return '<span class="tq-badge tq-1">1er toque</span>';
+    return '<span class="tq-badge tq-n">' + n + ' toques</span>';
+  }
+  /* resumen de esfuerzo cuando se filtran las ganadas: ¿cuánto costó ganar? */
+  var segResumen = '';
+  var estFiltro = (document.getElementById('f-dash-estado')||{}).value || '';
+  if (estFiltro === 'ganado' && d.length) {
+    var sin = 0, primero = 0, varios = 0, sumTq = 0;
+    d.forEach(function(x){
+      var n = tqMap[clientKey(x)] || 0;
+      if (n <= 0) sin++; else if (n === 1) primero++; else varios++;
+      sumTq += n;
+    });
+    var prom = (primero + varios) ? (sumTq / (primero + varios)).toFixed(1).replace('.', ',') : '0';
+    segResumen = '<div class="info-bar" style="margin-bottom:10px">🏆 De las ' + d.length + ' ganadas: ' +
+      '<strong>' + primero + '</strong> al primer toque · <strong>' + varios + '</strong> con 2+ toques (promedio ' + prom + ') · ' +
+      '<strong>' + sin + '</strong> sin seguimiento registrado</div>';
+  }
   var rows = d.map(function(x){
     var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') + ' ' + new Date(x.fecha_creacion).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
     var est = x.estado || 'enviada';
     var numHtml = x.link ? '<a href="'+x.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+(x.numero||'—')+' ↗</a>' : (x.numero||'—');
     var montoTxt = est==='ganado' && x.monto_cierre ? '$'+Math.round(x.monto_cierre).toLocaleString('es-CL') : '$'+Math.round(x.total_alto||0).toLocaleString('es-CL');
     return '<tr><td>'+numHtml+'</td><td>'+escA(x.cliente||'—')+'</td><td style="font-size:9.5px">'+escA(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>'+montoTxt+'</td><td style="font-size:9.5px">'+f+'</td>' +
+      '<td>'+tqBadge(tqMap[clientKey(x)] || 0)+'</td>' +
       '<td><select class="dash-estado '+est+'" onchange="updateEstado(\''+x.id+'\',this.value)">' +
         '<option value="enviada"'+(est==='enviada'?' selected':'')+'>Enviada</option>' +
         '<option value="ganado"'+(est==='ganado'?' selected':'')+'>Ganado</option>' +
@@ -3656,10 +3692,10 @@ function renderDash() {
       '</select></td>' +
       '<td><button class="dash-del" onclick="deleteQuote(\''+x.id+'\',\''+(x.numero||'').replace(/'/g,"")+'\')">✕</button></td></tr>';
   }).join('');
-  document.getElementById('dash-tbl').innerHTML= perdeHtml + '<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
+  document.getElementById('dash-tbl').innerHTML= segResumen + perdeHtml + '<div class="tbl-scroll"><table class="ptable"><thead><tr><th>N°</th><th>Cliente</th><th>Contacto</th><th>Producto</th>' +
     '<th class="th-sort" onclick="setDashSort(\'total_alto\')">Total'+sortArrow('total_alto')+'</th>' +
     '<th class="th-sort" onclick="setDashSort(\'fecha_creacion\')">Fecha'+sortArrow('fecha_creacion')+'</th>' +
-    '<th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    '<th>Seguim.</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
 /* ── EXTRAS ── */
