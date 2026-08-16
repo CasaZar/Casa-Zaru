@@ -3150,7 +3150,10 @@ async function segDeshacer(id){
   var etapa=(x.seg_etapa||0);
   if (etapa<=0){ showToast('No hay toque que deshacer', false); return; }
   var hist=(Array.isArray(x.seg_historial)?x.seg_historial:[]).filter(function(h){ return h.etapa!==etapa; });
-  segSave(id, {seg_etapa:etapa-1, seg_proxima:null, seg_historial:hist}, 'Contacto deshecho — vuelve a la cola');
+  var updates = {seg_etapa:etapa-1, seg_proxima:null, seg_historial:hist};
+  if (etapa === 1) updates.fecha_primer_contacto = null;   /* era el único contacto */
+  borrarUltimoToque(x);   /* fase 2: saca también la fila de `toques` */
+  segSave(id, updates, 'Contacto deshecho — vuelve a la cola');
 }
 
 /* ── GUARDAR + ACCIONES DE SEGUIMIENTO ── */
@@ -3165,7 +3168,50 @@ async function segSave(id, updates, okMsg){
   if (okMsg) showToast(okMsg, true);
   return true;
 }
-/* marcar/desmarcar una de las 5 casillas de toque */
+/* ── FASE 2 (spec §5.1): cada toque queda en la tabla `toques` ──
+   El tipo sale de la plantilla que corresponde a ese número de toque. */
+function toqueTipo(x, n){
+  if (n === 1) return fechaBaseISO(x.fecha_creacion) === hoyISO() ? 'p1' : 'p2';
+  if (n === 2) return 'p3';
+  return 'cadencia';
+}
+async function registrarToque(x, n){
+  try {
+    var sess = await sbClient.auth.getSession();
+    var quien = (sess.data && sess.data.session && sess.data.session.user.email) || null;
+    var res = await sbClient.from('toques')
+      .insert({ cotizacion_id: x.id, tipo: toqueTipo(x, n), hecho_por: quien })
+      .select('id');
+    if (!res.error && res.data && res.data[0]) x._ultimoToqueId = res.data[0].id;
+    else if (res.error) console.error('registrarToque:', res.error);
+  } catch(e) { console.error('registrarToque:', e); }
+}
+/* deshacer: borra la fila más reciente de `toques` de esa cotización */
+async function borrarUltimoToque(x){
+  try {
+    if (x._ultimoToqueId) {
+      await sbClient.from('toques').delete().eq('id', x._ultimoToqueId);
+      x._ultimoToqueId = null;
+      return;
+    }
+    var q = await sbClient.from('toques').select('id').eq('cotizacion_id', x.id).order('ts', {ascending:false}).limit(1);
+    if (!q.error && q.data && q.data[0]) await sbClient.from('toques').delete().eq('id', q.data[0].id);
+  } catch(e) { console.error('borrarUltimoToque:', e); }
+}
+/* botón de WhatsApp: registra el siguiente toque de la cadencia en el mismo
+   click (el link abre igual; esto corre aparte).
+   BUG HISTÓRICO REPARADO: esta función se borró sin querer el 13-07-2026 al
+   rediseñar la tarjeta con casillas, pero el onclick del botón siguió
+   llamándola — desde entonces abrir WhatsApp lanzaba ReferenceError y NO
+   registraba nada: había que marcar la casilla a mano. Parte del bajo
+   cumplimiento registrado viene de ahí. */
+async function segHecho(id){
+  var x=COTIS[id]; if(!x) return;
+  var n=(x.seg_etapa||0)+1;
+  if (n > CADENCIA.length) return;
+  segMarcar(id, n, true);
+}
+/* marcar/desmarcar una de las casillas de toque */
 async function segMarcar(id, n, checked){
   var x=COTIS[id]; if(!x) return;
   var etapa = checked ? n : n-1;
@@ -3176,7 +3222,12 @@ async function segMarcar(id, n, checked){
     var porCad=addDias(fechaBaseISO(x.fecha_creacion), CADENCIA[etapa]), minimo=addDias(hoyISO(),2);
     next = porCad>minimo ? porCad : minimo;
   }
-  segSave(id, {seg_etapa:etapa, seg_proxima:next, seg_historial:hist}, checked?'Toque '+n+' registrado':'Toque '+n+' desmarcado');
+  var updates = {seg_etapa:etapa, seg_proxima:next, seg_historial:hist};
+  if (checked && !x.fecha_primer_contacto) updates.fecha_primer_contacto = new Date().toISOString();
+  if (!checked && etapa === 0) updates.fecha_primer_contacto = null;   /* deshizo el único toque */
+  if (checked) registrarToque(x, n);          /* fase 2: fila en `toques` (fire-and-forget) */
+  else borrarUltimoToque(x);
+  segSave(id, updates, checked?'Toque '+n+' registrado':'Toque '+n+' desmarcado');
 }
 /* nota de lo que dijo el cliente en el toque n */
 async function segNota(id, n, txt){
