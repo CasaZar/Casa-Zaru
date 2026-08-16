@@ -381,6 +381,11 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dm-lbl { font-size:10px;text-align:center;padding:5px 4px;color:var(--tx);line-height:1.3; }
 .dm-card:hover,.dm-card.dm-sel { border-color:var(--ac); }
 .dm-card.dm-sel { box-shadow:0 0 0 1px var(--ac); }
+/* las fotos de mesas son casi cuadradas (las de puertas, verticales) */
+.dm-card.dm-mesa img { aspect-ratio:1/1; }
+/* nota viva de ergonomía: cómo se vería la mesa con esas medidas */
+.ms-ergo { font-size:11px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.45; }
+.ms-ergo:empty { display:none; }
 .btn-extras { width:100%;background:none;border:1px dashed var(--bd);border-radius:8px;padding:9px 14px;font-size:11px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;text-align:left;letter-spacing:.5px;transition:border-color .15s; }
 .btn-extras:hover { border-color:var(--ac);color:var(--ac); }
 .extra-row { display:flex;align-items:center;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--bg3);font-size:12px;color:var(--tx); }
@@ -673,24 +678,58 @@ var REBORDE_ANCHO_M = 0.04;
    pulgFijas/pulgXm/hh/insumos son las estimaciones de esa hoja, PENDIENTES de
    confirmar: cuando estén los valores definitivos, mesaBaseSugerida() los usa
    para proponer el valor de la base desde las medidas de la cubierta. */
+var MESA_FOTO_BASE = 'https://cotizador.casazaru.cl/fotos/mesas/';
 var MESA_MODELOS = [
-  { nombre:'Mesa Río Valdivia',            forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:1.5, hh:10, insumos:8000 },
-  { nombre:'Mesa Río Fuy',                 forma:'rectangular', base:'madera', pulgFijas:4, pulgXm:0.5, hh:6,  insumos:5000 },
-  { nombre:'Mesa Río Cochrane',            forma:'rectangular', base:'madera', pulgFijas:5, pulgXm:0,   hh:8,  insumos:5000 },
-  { nombre:'Mesa Lago Todos los Santos',   forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:0.5, hh:6,  insumos:5000 },
-  { nombre:'Mesa Río Trancura',            forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:1.5, hh:10, insumos:8000 },
-  { nombre:'Mesa Río Bueno',               forma:'rectangular', base:'madera', pulgFijas:2, pulgXm:1.2, hh:5,  insumos:4000 },
-  { nombre:'Mesa Lago Llanquihue',         forma:'rectangular', base:'madera', pulgFijas:2, pulgXm:1.2, hh:5,  insumos:4000 },
-  { nombre:'Mesa Río Backer',              forma:'redonda',     base:'madera', pulgFijas:3, pulgXm:0,   hh:7,  insumos:5000 },
-  { nombre:'Mesa Río Puelo',               forma:'redonda',     base:'madera', pulgFijas:3, pulgXm:0,   hh:7,  insumos:5000 },
-  { nombre:'Mesa Lago Puyehue',            forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa Lago Calafquén',          forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa y Bancas Lago Calafquén', forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa Río Maullín',             forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa y Bancas Río Maullín',    forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa Río Toltén',              forma:'redonda',     base:'fierro' },
-  { nombre:'Mesa Río Imperial',            forma:'redonda',     base:'fierro' }
+  { nombre:'Mesa Río Valdivia',            foto:'rio-valdivia',          forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:1.5, hh:10, insumos:8000 },
+  { nombre:'Mesa Río Fuy',                 foto:'rio-fuy',               forma:'rectangular', base:'madera', pulgFijas:4, pulgXm:0.5, hh:6,  insumos:5000 },
+  { nombre:'Mesa Río Cochrane',            foto:'rio-cochrane',          forma:'rectangular', base:'madera', pulgFijas:5, pulgXm:0,   hh:8,  insumos:5000 },
+  { nombre:'Mesa Lago Todos los Santos',   foto:'lago-todos-los-santos', forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:0.5, hh:6,  insumos:5000 },
+  { nombre:'Mesa Río Trancura',            foto:'rio-trancura',          forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:1.5, hh:10, insumos:8000 },
+  { nombre:'Mesa Río Bueno',               foto:'rio-bueno',             forma:'rectangular', base:'madera', estructura:'patas', pulgFijas:2, pulgXm:1.2, hh:5, insumos:4000 },
+  { nombre:'Mesa Lago Llanquihue',         foto:'lago-llanquihue',       forma:'rectangular', base:'madera', estructura:'patas', pulgFijas:2, pulgXm:1.2, hh:5, insumos:4000 },
+  { nombre:'Mesa Río Backer',              foto:'rio-backer',            forma:'redonda',     base:'madera', pulgFijas:3, pulgXm:0,   hh:7,  insumos:5000 },
+  { nombre:'Mesa Río Puelo',               foto:'rio-puelo',             forma:'redonda',     base:'madera', pulgFijas:3, pulgXm:0,   hh:7,  insumos:5000 },
+  { nombre:'Mesa Lago Puyehue',            foto:'lago-puyehue',          forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa Lago Calafquén',          foto:'lago-calafquen',        forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa y Bancas Lago Calafquén', foto:'bancas-calafquen',      forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa Río Maullín',             foto:'rio-maullin',           forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa y Bancas Río Maullín',    foto:'bancas-maullin',        forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa Río Toltén',              foto:'rio-tolten',            forma:'redonda',     base:'fierro' },
+  { nombre:'Mesa Río Imperial',            foto:'rio-imperial',          forma:'redonda',     base:'fierro' }
 ];
+/* ── ERGONOMÍA DE LA BASE (reglas de la hoja PARAMETROS §4) ──
+   El voladizo no es fijo: % del largo/ancho con tope mínimo y máximo. Devuelve
+   las medidas sugeridas de la base y los comensales, para que el vendedor sepa
+   cómo se vería ANTES de vender. Referencial: el diseño manda sobre la regla. */
+var ERGO = {
+  cabFactor: 0.17, cabMin: 22, cabMax: 38,    /* voladizo de cabecera: % del largo */
+  latFactor: 0.20, latMin: 12, latMax: 22,    /* voladizo lateral: % del ancho */
+  patasVol: 8,                                 /* modelos de 4 patas: pata casi en la esquina */
+  cmComensal: 60, cabAnchoMin: 90, cabLargoMin: 180
+};
+function mesaErgo(modelo, largo, ancho) {
+  if (!(largo > 0)) return null;
+  if (modelo && modelo.forma === 'redonda') {
+    var d = largo;   /* en redondas el largo es el diámetro */
+    var pers = Math.max(2, Math.floor(Math.PI * d / ERGO.cmComensal));
+    return { forma: 'redonda', comensales: pers,
+             texto: 'Mesa redonda de ' + d + ' cm — base centrada · ~' + pers + ' personas' };
+  }
+  if (!(ancho > 0)) return null;
+  var esPatas = modelo && modelo.estructura === 'patas';
+  var volCab = esPatas ? ERGO.patasVol : Math.min(ERGO.cabMax, Math.max(ERGO.cabMin, largo * ERGO.cabFactor));
+  var volLat = esPatas ? ERGO.patasVol : Math.min(ERGO.latMax, Math.max(ERGO.latMin, ancho * ERGO.latFactor));
+  var baseL = Math.round(largo - 2 * volCab), baseA = Math.round(ancho - 2 * volLat);
+  var lados = Math.floor(largo / ERGO.cmComensal) * 2;
+  var cabeceras = (ancho >= ERGO.cabAnchoMin && largo >= ERGO.cabLargoMin) ? 2 : 0;
+  return {
+    forma: 'rectangular', baseLargo: baseL, baseAncho: baseA,
+    volCab: Math.round(volCab), volLat: Math.round(volLat),
+    comensales: lados + cabeceras,
+    texto: 'Base sugerida ' + baseL + ' × ' + baseA + ' cm (voladizo ' + Math.round(volCab) + ' / ' + Math.round(volLat) + ' cm) · ' +
+           lados + (cabeceras ? ' + 2 cabeceras = ' + (lados + cabeceras) : '') + ' personas'
+  };
+}
 /* ── VALORES CENTRALES (el "manual") ──
    Todo parámetro de precio vive aquí como RESPALDO, y en la tabla
    cotizador_valores de Supabase como fuente principal: lo que diga la tabla
@@ -1163,16 +1202,23 @@ function renderForm(p) {
 
   } else if (p === 'mesa') {
     var modeloOpts = MESA_MODELOS.map(function(m){
-      var extra = ' (' + m.forma + ' · base ' + m.base + ')';
-      return '<option value="' + escA(m.nombre) + '">' + escA(m.nombre) + extra + '</option>';
+      return '<option value="' + escA(m.nombre) + '">' + escA(m.nombre) + '</option>';
+    }).join('');
+    var modeloCards = MESA_MODELOS.map(function(m, i){
+      return '<div class="dm-card dm-mesa" id="msc-' + i + '" onclick="mesaCardSel(' + i + ')">' +
+        '<img src="' + MESA_FOTO_BASE + m.foto + '.jpg" loading="lazy" alt="' + escA(m.nombre) + '">' +
+        '<div class="dm-lbl">' + escA(m.nombre.replace('Mesa ', '').replace('Mesa y ', '')) + '</div>' +
+      '</div>';
     }).join('');
     c.innerHTML =
       '<div class="fsec">' +
         '<label class="flabel">Modelo del catálogo</label>' +
-        '<select class="fsel" id="ms-modelo" onchange="mesaModeloSel(this.value)">' +
+        '<div class="dm-grid">' + modeloCards + '</div>' +
+        /* el select vive oculto: guarda el estado y lo restaura el link compartido */
+        '<select class="fsel hidden" id="ms-modelo" onchange="mesaModeloSel(this.value)">' +
           '<option value="">Libre / sin modelo</option>' + modeloOpts +
         '</select>' +
-        '<div class="finput-hint">Al elegir un modelo se completa el nombre y el tipo de base.</div>' +
+        '<div class="finput-hint">Al elegir un modelo se completa el nombre y el tipo de base. Toca de nuevo para des-seleccionar (mesa libre).</div>' +
       '</div>' +
       '<div class="fsec">' +
         '<label class="flabel">¿Qué es? <span class="req">*</span></label>' +
@@ -1190,6 +1236,7 @@ function renderForm(p) {
         '<div id="drows">' + dimRow(1) + '</div>' +
         '<button class="btn-add" id="btn-add-row">+ Agregar pieza</button>' +
         '<div class="finput-hint">Si la mesa es redonda, usa el diámetro como largo y ancho.</div>' +
+        '<div class="ms-ergo" id="ms-ergo"></div>' +
       '</div>' +
       '<div class="fsec">' +
         '<label class="flabel">Espesor de la cubierta</label>' +
@@ -1345,6 +1392,25 @@ function mesaModeloSel(nombre) {
   toggleBaseMesa(m.base);
   calcLive();   /* calcLive refresca también la sugerencia de base */
 }
+/* tarjeta de modelo tocada: fija el select oculto y marca la tarjeta.
+   Tocar la misma de nuevo des-selecciona (vuelve a mesa libre). */
+function mesaCardSel(i) {
+  var m = MESA_MODELOS[i]; if (!m) return;
+  var sel = document.getElementById('ms-modelo'); if (!sel) return;
+  var deselect = (sel.value === m.nombre);
+  sel.value = deselect ? '' : m.nombre;
+  mesaCardsMarcar();
+  if (deselect) { calcLive(); return; }
+  mesaModeloSel(m.nombre);
+}
+/* pinta la tarjeta que corresponde al valor del select (también tras restaurar un link) */
+function mesaCardsMarcar() {
+  var sel = document.getElementById('ms-modelo');
+  MESA_MODELOS.forEach(function(m, i){
+    var c = document.getElementById('msc-' + i);
+    if (c) c.classList.toggle('dm-sel', !!(sel && sel.value === m.nombre));
+  });
+}
 /* modelo elegido en el selector (null si es libre) */
 function mesaModeloActual() {
   var sel = document.getElementById('ms-modelo');
@@ -1356,8 +1422,15 @@ function mesaModeloActual() {
 function mesaSugerenciaRefrescar() {
   if (prod !== 'mesa') return;
   var m = mesaModeloActual();
-  var lgEl = document.getElementById('lg1');
-  var sug = m ? mesaBaseSugerida(m, parseFloat((lgEl&&lgEl.value)||0)||0, 0) : null;
+  var lgEl = document.getElementById('lg1'), anEl = document.getElementById('an1');
+  var lg = parseFloat((lgEl&&lgEl.value)||0)||0, an = parseFloat((anEl&&anEl.value)||0)||0;
+  /* nota de ergonomía: medidas de la base y comensales según las reglas del taller */
+  var ergoEl = document.getElementById('ms-ergo');
+  if (ergoEl) {
+    var e = mesaErgo(m, lg, an);
+    ergoEl.innerHTML = e ? ('📐 ' + escA(e.texto) + ' <span style="font-weight:400;color:var(--tm)">· referencial, el diseño manda</span>') : '';
+  }
+  var sug = m ? mesaBaseSugerida(m, lg, 0) : null;
   window._mesaSug = sug;
   ['fierro','madera'].forEach(function(tipo){
     var el = document.getElementById('ms-sug-' + tipo);
@@ -2063,11 +2136,18 @@ function htmlMesa(cli, fecha) {
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+pesoTotal+' kg</div></div>' +
     '</div>';
 
+  /* nota de ergonomía en la cotización: medidas de base y comensales de la pieza 1 */
+  var ergoNota = '';
+  if (filas.length) {
+    var eq = mesaErgo(mesaModeloActual(), filas[0].lg, filas[0].an);
+    if (eq) ergoNota = '<div class="info-bar">📐 ' + escA(eq.texto) + ' <span style="font-style:italic">(referencial)</span></div>';
+  }
   return shell(escA(M.nombre), cli, fecha,
     '<table class="ptable"><thead><tr><th>N°</th><th>Largo cm</th><th>Ancho cm</th><th>Cant.</th><th>M² total</th></tr></thead>' +
     '<tbody>'+dimRows+
     '<tr class="trow"><td colspan="4" style="text-align:right;padding-right:8px">M² TOTAL</td><td>'+sumM2.toFixed(2)+'</td></tr>' +
     '</tbody></table>' +
+    ergoNota +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
     tierTableMesa(tierRows, recWood(), M, esMadera, nBases) +
@@ -2383,7 +2463,7 @@ function restoreFromData(d) {
   }
   if (d.p === 'mesa' && d.mesa) {   /* restaurar la base (fierro o madera) para que el link muestre lo mismo */
     var setv = function(id,v){ var el=document.getElementById(id); if(el && v!=null && v!=='') el.value = v; };
-    setv('ms-modelo', d.mesa.modelo); setv('ms-esp-cubierta', d.mesa.espesorCubierta);
+    setv('ms-modelo', d.mesa.modelo); mesaCardsMarcar(); setv('ms-esp-cubierta', d.mesa.espesorCubierta);
     setv('ms-nombre', d.mesa.nombre); setv('ms-valor', d.mesa.valor); setv('ms-altura', d.mesa.altura);
     setv('ms-perfil', d.mesa.perfil); setv('ms-color', d.mesa.color); setv('ms-metros', d.mesa.metros);
     var baseTipo = d.mesa.baseTipo || 'fierro';
