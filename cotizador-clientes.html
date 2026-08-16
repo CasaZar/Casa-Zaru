@@ -3236,6 +3236,12 @@ function renderDashFilters() {
   var mesOpts = dashMonthOptions().map(function(ym){ return '<option value="'+ym+'"'+(dashMonth===ym?' selected':'')+'>'+fmtMesLabel(ym)+'</option>'; }).join('');
   document.getElementById('dash-filters').innerHTML =
     '<input type="text" id="f-dash-cli" placeholder="Buscar cliente…" oninput="renderDash()">' +
+    '<select id="f-dash-estado" onchange="renderDash()">' +
+      '<option value="">Todos los estados</option>' +
+      '<option value="ganado">🏆 Ganadas</option>' +
+      '<option value="enviada">En curso (enviadas)</option>' +
+      '<option value="perdida">Perdidas</option>' +
+    '</select>' +
     '<select id="f-dash-prod" onchange="renderDash()"><option value="">Todos los productos</option>'+prodOpts+'</select>' +
     '<select id="f-dash-month" onchange="dashMonth=this.value;renderDash()"><option value="">Todos los meses</option>'+mesOpts+'</select>' +
     '<input type="number" id="f-dash-min" placeholder="Monto desde" oninput="renderDash()">' +
@@ -3260,8 +3266,10 @@ function applyDashFilters(data) {
   var maxQ  = parseFloat((document.getElementById('f-dash-max')||{}).value);
   var diasQ = parseInt((document.getElementById('f-dash-dias')||{}).value) || 0;
   var cutoff = diasQ ? Date.now() - diasQ*24*60*60*1000 : 0;
+  var estQ = (document.getElementById('f-dash-estado')||{}).value || '';
   return data.filter(function(x){
     if (cliQ && (x.cliente||'').toLowerCase().indexOf(cliQ.toLowerCase()) === -1) return false;
+    if (estQ && (x.estado||'enviada') !== estQ) return false;   /* sin estado guardado = enviada */
     if (prodQ && x.producto !== prodQ) return false;
     if (dashMonth && String(x.fecha_creacion||'').slice(0,7) !== dashMonth) return false;
     var total = x.total_alto || 0;
