@@ -190,6 +190,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .mv-tramo { border-bottom:1px solid var(--bg3);padding:8px 0; }
 .mv-tramo:last-child { border-bottom:none; }
 .mv-tramo-n { font-size:12px;font-weight:600;color:var(--tx);margin-bottom:6px; }
+.mv-grid4 { display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 12px; }
+.mv-grid4 label { font-size:10.5px;color:var(--tm);display:flex;flex-direction:column;gap:4px;font-weight:600; }
 .mesa-desglose { display:block;font-size:9px;color:var(--tm);margin-top:2px;font-family:'Jost',sans-serif; }
 /* botón para quitar una pieza/puerta/marco */
 .btn-del-row { flex:0 0 auto;width:34px;min-height:44px;border:1px solid var(--bd);background:#fff;border-radius:8px;
@@ -707,6 +709,10 @@ var VALORES = {
   /* $ por pulgada maderera (sin IVA) de la especie MÁS CARA de cada tier:
      el peor caso, igual que la planilla ("margen web usa la especie más cara") */
   tierPulgada: { bajo: 10000, medio: 25000, alto: 30000 },
+  /* costo fijo por mesa, independiente del tamaño (embalaje reforzado, montaje
+     de la base, control de calidad y foto). Va DENTRO de la cadena de margen,
+     como cualquier costo. 0 = apagado hasta que el admin lo defina en el Manual. */
+  mesaFijo: 0,
   /* Base de fierro del proveedor, por tramo de largo (hoja PARAMETROS §3).
      costo = sin IVA, lo que cobra el proveedor. cliente = lo que se cobra al
      cliente CON IVA; 0 = sin definir aún → se sugiere costo+IVA redondeado. */
@@ -739,24 +745,27 @@ function baseFierroTramo(forma, largoCm) {
    Es una SUGERENCIA: solo rellena campos vacíos del vendedor, nunca cobra sola. */
 function mesaBaseSugerida(modelo, largoCm, anchoCm) {
   if (!modelo) return null;
+  var g = VALORES.generales;
+  var divisor = 1 - g.margen - g.comision;
+  if (divisor <= 0) return null;
+  /* el costo fijo por mesa (embalaje, montaje, QC) pasa por la cadena de
+     margen como cualquier costo, y aplica a TODA mesa, sea fierro o madera */
+  var fijoPrecio = VALORES.mesaFijo > 0 ? (VALORES.mesaFijo / divisor) * (1 + g.iva) : 0;
   if (modelo.base === 'fierro') {
     if (!(largoCm > 0)) return null;
     var t = baseFierroTramo(modelo.forma === 'redonda' ? 'redonda' : 'rectangular', largoCm);
     if (!t) return null;
-    var v = baseFierroCliente(t);
-    return { bajo: v, medio: v, alto: v, detalle: t.nombre };
+    var v = Math.round((baseFierroCliente(t) + fijoPrecio) / 1000) * 1000;
+    return { bajo: v, medio: v, alto: v, detalle: t.nombre + (fijoPrecio ? ' + fijo por mesa' : '') };
   }
   if (!(modelo.pulgFijas > 0) || !(largoCm > 0)) return null;
-  var g = VALORES.generales;
-  var divisor = 1 - g.margen - g.comision;
-  if (divisor <= 0) return null;
   var pulg = modelo.pulgFijas + (modelo.pulgXm || 0) * (largoCm / 100);
   function porTier(tier) {
-    var costo = pulg * VALORES.tierPulgada[tier] + (modelo.hh || 0) * g.hh + (modelo.insumos || 0);
+    var costo = pulg * VALORES.tierPulgada[tier] + (modelo.hh || 0) * g.hh + (modelo.insumos || 0) + VALORES.mesaFijo;
     return Math.round((costo / divisor) * (1 + g.iva) / 1000) * 1000;
   }
   return { bajo: porTier('bajo'), medio: porTier('medio'), alto: porTier('alto'),
-           detalle: pulg.toFixed(1).replace('.', ',') + ' pulgadas de madera' };
+           detalle: pulg.toFixed(1).replace('.', ',') + ' pulgadas de madera' + (modelo.hh ? ' · ' + modelo.hh + ' h de armado' : '') };
 }
 /* ── CARGA DE VALORES DESDE SUPABASE ──
    Pisa los defaults con lo guardado en cotizador_valores. Si la tabla no
@@ -770,6 +779,19 @@ function aplicarValor(clave, v) {
   else if (clave === 'generales')   { Object.assign(VALORES.generales, v); }
   else if (clave === 'tierPulgada') { Object.assign(VALORES.tierPulgada, v); }
   else if (clave === 'basesFierro') { if (Array.isArray(v) && v.length) VALORES.basesFierro = v; }
+  else if (clave === 'mesaModelos') {
+    /* madera y horas por modelo, llenado desde el Manual. Se mezcla POR NOMBRE:
+       si un modelo no está en lo guardado, conserva la estimación del código. */
+    if (v.fijo >= 0) VALORES.mesaFijo = v.fijo;
+    (v.modelos || []).forEach(function(mv){
+      var m = MESA_MODELOS.find(function(x){ return x.nombre === mv.nombre; });
+      if (!m) return;
+      if (mv.pulgFijas >= 0) m.pulgFijas = mv.pulgFijas;
+      if (mv.pulgXm    >= 0) m.pulgXm    = mv.pulgXm;
+      if (mv.hh        >= 0) m.hh        = mv.hh;
+      if (mv.insumos   >= 0) m.insumos   = mv.insumos;
+    });
+  }
 }
 var valoresTablaOK = null;   /* null = sin probar · true/false tras cargar (para el aviso del Manual) */
 async function cargarValores() {
@@ -3399,6 +3421,22 @@ function renderManual() {
       '</div>',
       'Se usa la especie MÁS CARA de cada grupo (peor caso, igual que la planilla). Fórmula de la sugerencia: <strong>pulgadas del modelo × $ pulgada + horas × HH + insumos → ÷ (1 − margen − comisión) → × (1 + IVA)</strong>. Las pulgadas por modelo vienen del catálogo (hoja MODELOS_MESA).') +
 
+    mvSec('Mesas — madera y horas por modelo (la planilla del taller)', 'mesaModelos',
+      '<div class="mv-grid3" style="margin-bottom:10px"><label>Costo fijo por mesa ($, cualquier modelo)' + mvNum('mv-mm-fijo', VALORES.mesaFijo, 1000) + '</label></div>' +
+      '<div class="finput-hint" style="margin-bottom:10px">Embalaje reforzado, montaje de la base, control de calidad y foto: lo que cuesta igual en una mesa chica que en una grande. Va dentro de la cadena de margen. Déjalo en 0 mientras no lo definan.</div>' +
+      '<div class="mv-tramos">' + MESA_MODELOS.filter(function(m){ return m.base === 'madera'; }).map(function(m, i) {
+        return '<div class="mv-tramo">' +
+          '<div class="mv-tramo-n">' + escA(m.nombre) + ' <span class="rb-pieza-med">' + m.forma + '</span></div>' +
+          '<div class="mv-grid4">' +
+            '<label>Pulgadas fijas' + mvNum('mv-mm-pf-' + i, m.pulgFijas, 0.5) + '</label>' +
+            '<label>Pulg. por metro de largo' + mvNum('mv-mm-px-' + i, m.pulgXm, 0.1) + '</label>' +
+            '<label>Horas de armado' + mvNum('mv-mm-hh-' + i, m.hh, 1) + '</label>' +
+            '<label>Insumos extra ($)' + mvNum('mv-mm-in-' + i, m.insumos, 1000) + '</label>' +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>',
+      'Cómo se mide una base SIN medir cada mesa: <strong>pulgadas fijas</strong> (patas o paneles, no cambian con el tamaño) + <strong>pulgadas por metro</strong> (travesaños que crecen con el largo). Ej. Río Fuy de 240: 4,0 + 0,5 × 2,4 = 5,2 pulgadas. Los valores actuales son las ESTIMACIONES de la planilla — reemplázalos con los reales de Cristián / Don Alfredo y la sugerencia del cotizador se corrige sola. Los modelos con base de fierro no van aquí: usan la tabla de tramos de abajo.') +
+
     mvSec('Mesas — bases de fierro por tramo', 'basesFierro',
       '<div class="mv-tramos">' + VALORES.basesFierro.map(function(t, i) {
         return '<div class="mv-tramo">' +
@@ -3441,6 +3479,14 @@ async function guardarValores(clave) {
       return { nombre: t.nombre, forma: t.forma, largoMax: t.largoMax,
                costo: mvLee('mv-bf-costo-' + i), cliente: mvLee('mv-bf-cliente-' + i) };
     });
+  } else if (clave === 'mesaModelos') {
+    v = {
+      fijo: mvLee('mv-mm-fijo'),
+      modelos: MESA_MODELOS.filter(function(m){ return m.base === 'madera'; }).map(function(m, i) {
+        return { nombre: m.nombre, pulgFijas: mvLee('mv-mm-pf-' + i), pulgXm: mvLee('mv-mm-px-' + i),
+                 hh: mvLee('mv-mm-hh-' + i), insumos: mvLee('mv-mm-in-' + i) };
+      })
+    };
   }
   if (v == null) return;
   try {
