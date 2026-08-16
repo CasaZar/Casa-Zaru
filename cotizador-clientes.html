@@ -1916,6 +1916,8 @@ function generar() {
   if (!cli) { errEl.textContent = 'Escribe tu nombre para continuar.'; errEl.classList.remove('hidden'); return; }
   if (!conStr) { errEl.textContent = 'Escribe tu WhatsApp o tu correo para continuar.'; errEl.classList.remove('hidden'); return; }
   if (!waPhone(conStr) && !esCorreo(conStr)) { errEl.textContent = 'Revisa tu contacto: un celular (+56 9 1234 5678) o un correo válido.'; errEl.classList.remove('hidden'); return; }
+  var telChk = waPhone(conStr);
+  if (telChk && !esCorreo(conStr) && telBasura(telChk)) { errEl.textContent = 'Ese número no parece un celular real. Revísalo — lo necesitamos para enviarte la cotización.'; errEl.classList.remove('hidden'); return; }
   if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
   if (prod === 'mesa') {
     var mChk = mesaDatos();
@@ -2776,6 +2778,17 @@ function waPhone(contacto){
   if (d.length===11 && d.slice(0,2)==='56')  return d;
   return null;
 }
+/* Números basura detectables ANTES de guardar (spec seguimiento v2, §3).
+   8 de 47 pérdidas fueron "número no funciona": cada una consumió toques de
+   una cola saturada. Esto los frena en el formulario, con mensaje inline.
+   waPhone() sigue permisivo (arma links de wa.me); esto solo filtra al enviar. */
+function telBasura(telNormalizado){
+  var nueve = telNormalizado.slice(2);              /* 9XXXXXXXX */
+  if (/^(\d)\1{8}$/.test(nueve)) return true;       /* 999999999, 911111111 no: ver tail */
+  if (/^9(\d)\1{7}$/.test(nueve)) return true;      /* 9 + ocho dígitos iguales (911111111) */
+  if (nueve === '912345678' || nueve === '987654321') return true;   /* secuencias obvias */
+  return false;
+}
 /* cómo se nombra el producto dentro del mensaje, para que suene natural */
 function prodTexto(p){
   switch(p){
@@ -2799,9 +2812,16 @@ function waMsg(x){
      ya se enterró y el cliente no la encuentra. En los toques 1-2 no, porque la acaba
      de recibir y reenviarla se siente robótico. Si la cotización no tiene link, el
      mensaje sale igual sin él. */
+  /* Toque 1 con dos textos (protocolo de triage v2): si el contacto ocurre el
+     MISMO día de la cotización va la P1 ("me llegó tu cotización"); si ya
+     pasaron días va la P2 ("hace un par de días cotizaste"), que si no suena
+     a que el mensaje llegó tarde. */
+  var esMismoDia = fechaBaseISO(x.fecha_creacion) === hoyISO();
+  var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru 🙂 Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+'). ¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
+      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+'). Si quieres afinar medidas o comparar maderas, te ayudo al tiro. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
   var msgs = {
-    1: 'Hola '+nom+'! Te escribo de Casa Zaru. ¿Alcanzaste a revisar la cotización '+num+' de '+P.suyo+'? Si tienes cualquier duda con '+P.dudas+', dime y lo vemos.',
-    2: 'Hola '+nom+', ¿cómo vas con '+P.suyo+'? Cualquier cosa que quieras ajustar de la cotización '+num+' —medidas, madera o plazos— lo cambiamos sin problema. Quedo atento.',
+    1: esMismoDia ? p1 : p2,
+    2: 'Hola '+nom+', ¿cómo va? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente. Si tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo 🙂 Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
     3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas. ' +
        (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
              : 'Tu cotización '+num+' sigue vigente, ¿te los mando?'),
