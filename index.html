@@ -1026,6 +1026,17 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
   }
   .cost-table tr.cost-cat-head td::before { content: none; }
 
+  /* Agregar un costo que no está en el catálogo (un flete especial, una
+     herramienta que se compró para ese pedido, rehacer una pieza). Tiene que
+     estar a mano, no escondido: ancho completo y con borde marcado. */
+  /* .cost-card-body para ganarle a la regla general de .btn-ghost, que viene
+     después en la hoja y lo dejaba en 40px. */
+  .cost-card-body .cost-add-btn {
+    width: 100%; min-height: 48px; font-size: 14px; font-weight: 600;
+    border: 1.5px dashed var(--border-md,#E0D5C8); border-radius: 10px;
+    color: var(--wood,#7B5B3A);
+  }
+
   /* ── Toolbar — columna con buen gap ── */
   .toolbar {
     flex-direction: column;
@@ -28523,12 +28534,15 @@ const INVENTARIO_ITEMS=[
   {k:'lija7_100', cat:'Insumos', desc:'Lija 7" grano 100', unidad:'un', precio:350, envase:1, porM2:1},
   {k:'lija7_120', cat:'Insumos', desc:'Lija 7" grano 120', unidad:'un', precio:350, envase:1, porM2:1},
   {k:'lija400',   cat:'Insumos', desc:'Lija grano 400',    unidad:'un', precio:400, envase:1, porM2:1},
-  {k:'tornillo',  cat:'Insumos', desc:'Tornillo 1"',       unidad:'un', precio:40,  envase:1, porM2:14},
-  {k:'broca_fe',  cat:'Insumos', desc:'Broca fierro',      unidad:'un', precio:3000,envase:8, porM2:0.1},
-  {k:'broca_mad', cat:'Insumos', desc:'Broca madera',      unidad:'un', precio:2000,envase:8, porM2:0.1},
-  {k:'tarugos',   cat:'Insumos', desc:'Tarugos 12 mm',     unidad:'un', precio:20,  envase:1, porM2:1},
-  {k:'disco',     cat:'Insumos', desc:'Disco corte fierro',unidad:'un', precio:400, envase:1, porM2:0.1},
-  {k:'fierro_ang',cat:'Insumos', desc:'Fierro ángulo 20×20',unidad:'mt',precio:10000,envase:6,porM2:1.8},
+  // "armado:true" = ferretería que solo se usa cuando hay que armar o fijar
+  // algo (mesa, puerta, repisa con soportes, o una cubierta que se atornilla
+  // a su base de fierro). Una cubierta sola no lleva nada de esto.
+  {k:'tornillo',  cat:'Insumos', desc:'Tornillo 1"',       unidad:'un', precio:40,  envase:1, porM2:14,  armado:true},
+  {k:'broca_fe',  cat:'Insumos', desc:'Broca fierro',      unidad:'un', precio:3000,envase:8, porM2:0.1, armado:true},
+  {k:'broca_mad', cat:'Insumos', desc:'Broca madera',      unidad:'un', precio:2000,envase:8, porM2:0.1, armado:true},
+  {k:'tarugos',   cat:'Insumos', desc:'Tarugos 12 mm',     unidad:'un', precio:20,  envase:1, porM2:1,   armado:true},
+  {k:'disco',     cat:'Insumos', desc:'Disco corte fierro',unidad:'un', precio:400, envase:1, porM2:0.1, armado:true},
+  {k:'fierro_ang',cat:'Insumos', desc:'Fierro ángulo 20×20',unidad:'mt',precio:10000,envase:6,porM2:1.8, armado:true},
   // ── Pegado ── (arma la cubierta; se usa siempre, sin importar el acabado)
   {k:'cola',      cat:'Pegado',  desc:'Cola fría',         unidad:'lt', precio:5000, envase:1,  porM2:0.3},
   // ── Acabado ── El "finish" marca a qué receta pertenece: una cubierta lleva
@@ -28580,6 +28594,17 @@ const ACABADOS_COSTEO=[
 function _acabadoDeLineas(lineasProd){
   var esCutek=(lineasProd||[]).some(function(l){return /CUTEK|EXTERIOR/i.test(String(l.acabado||''));});
   return esCutek?'CUTEK':'VITRIFICADO';
+}
+// ¿El pedido lleva ferretería de armado? Una cubierta sola es una tabla: se
+// corta, se lija y se termina, sin tornillos ni brocas. En cambio una mesa,
+// una puerta o una repisa hay que armarlas, y una cubierta con base de fierro
+// hay que atornillarla a la base. Si la regla falla, la ferretería se agrega
+// a mano con "+ Agregar ítem".
+function _necesitaArmado(lineasProd){
+  return (lineasProd||[]).some(function(l){
+    if(l.fierro)return true;
+    return String(categoriaProducto(l.producto)||'').indexOf('Cubierta')!==0;
+  });
 }
 // Los ítems "por venta" tampoco son por m², pero a diferencia de los extras
 // no dependen del tipo de producto: se cobran UNA vez por pedido, sin
@@ -28707,6 +28732,7 @@ function _lineasEstandar(lineasProd,acabadoForzado){
   // que se deduce del campo "acabado" de Producción. Solo se cargan los ítems
   // de esa receta; nunca vitrificado Y cutek a la vez.
   var acabadoSel=acabadoForzado||_acabadoDeLineas(lineasProd);
+  var conArmado=_necesitaArmado(lineasProd);
   // m2Total incluye todo; m2Madera deja fuera las piezas de fierro u otro
   // material. La base de fierro llega lista y solo se pinta, así que no le
   // corresponden las 5 HH/m², ni lijas, acabado, herramientas ni árbol —
@@ -28757,6 +28783,8 @@ function _lineasEstandar(lineasProd,acabadoForzado){
     // Ítems de acabado: solo los de la receta elegida (vitrificado XOR cutek).
     // Los que no tienen "finish" (cola, lijas, embalaje…) van siempre.
     if(it.finish&&it.finish!==acabadoSel)return;
+    // Ferretería de armado: solo si el pedido la necesita (ver _necesitaArmado).
+    if(it.armado&&!conArmado)return;
     var base=(it.cat==='Embalaje')?m2Total:m2Madera;
     if(!base)return;
     var unit=_itemUnit(it),porM2=_itemPorM2(it);
@@ -29127,7 +29155,7 @@ function renderCost(){
     // rehace la receta del acabado (vitrificado + sellador + diluyente, o cutek).
     const acab=r.acabado||_acabadoDeLineas(lineasProdDe(r.num));
     const acabSel=ACABADOS_COSTEO.map(function(a){return '<button class="cost-acab-btn'+(a.k===acab?' on':'')+'" onclick="_setAcabadoCosteo('+idx+',\''+a.k+'\')">'+esc(a.label)+'</button>';}).join('');
-    return`<div class="cost-card"><div class="cost-card-header" onclick="toggleCostCard(${idx})"><div class="cost-card-info"><span class="pedido-num">${r.num||'—'}</span><span class="semana-badge">${r.semana||'—'}</span><div class="cost-card-client"><div class="cost-card-name">${esc(r.nombre)} ${esc(r.apellido)}</div><div class="cost-card-prod">${esc(r.producto)}</div></div></div><div class="cost-card-stats"><div class="cost-stat-item"><div class="cost-stat-label" title="Sin IVA y sin comisión de plataforma">Venta neta</div><div class="cost-stat-val" style="color:var(--green)">${fmtCLP(neta)}</div></div><div class="cost-stat-item"><div class="cost-stat-label">Costos</div><div class="cost-stat-val" style="color:var(--amber)">${fmtCLP(totalCosto)}</div></div><div class="cost-margen-pill" style="background:${margenBg}"><div class="cost-stat-label" style="color:${margenColor}">${margenLbl}</div><div class="cost-margen-val" style="color:${margenColor}">${margenTxt}</div></div><span class="cost-arrow" id="cost-arrow-${idx}">▸</span><button class="btn-del cost-del-btn" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();deleteCostRecord(${idx})">🗑</button></div></div><div class="cost-card-body" id="cost-body-${idx}"><table class="cost-table"><thead><tr><th style="width:30%">Descripción</th><th style="width:18%">Categoría</th><th style="width:12%">Cantidad</th><th style="width:8%">Unidad</th><th style="width:14%">Valor unit.</th><th style="width:12%">Total línea</th><th style="width:6%"></th></tr></thead><tbody id="cost-rows-${idx}"></tbody></table>${_costClasifHtml(r,idx)}<div class="cost-acabado-sel"><span class="cost-acabado-lbl">Acabado</span>${acabSel}</div><button class="btn-ghost" style="margin:8px 0" onclick="addCostRow(${idx})">+ Agregar ítem</button><button class="btn-ghost" style="margin:8px 0 8px 6px" onclick="precargarCostos(${idx})" title="Crea las líneas de madera y proceso con los costos estándar por m²">✨ Precargar estándar</button><div class="cost-summary" id="cost-sum-${idx}"></div></div></div>`;
+    return`<div class="cost-card"><div class="cost-card-header" onclick="toggleCostCard(${idx})"><div class="cost-card-info"><span class="pedido-num">${r.num||'—'}</span><span class="semana-badge">${r.semana||'—'}</span><div class="cost-card-client"><div class="cost-card-name">${esc(r.nombre)} ${esc(r.apellido)}</div><div class="cost-card-prod">${esc(r.producto)}</div></div></div><div class="cost-card-stats"><div class="cost-stat-item"><div class="cost-stat-label" title="Sin IVA y sin comisión de plataforma">Venta neta</div><div class="cost-stat-val" style="color:var(--green)">${fmtCLP(neta)}</div></div><div class="cost-stat-item"><div class="cost-stat-label">Costos</div><div class="cost-stat-val" style="color:var(--amber)">${fmtCLP(totalCosto)}</div></div><div class="cost-margen-pill" style="background:${margenBg}"><div class="cost-stat-label" style="color:${margenColor}">${margenLbl}</div><div class="cost-margen-val" style="color:${margenColor}">${margenTxt}</div></div><span class="cost-arrow" id="cost-arrow-${idx}">▸</span><button class="btn-del cost-del-btn" style="padding:4px 8px;font-size:11px;margin:0;flex-shrink:0" onclick="event.stopPropagation();deleteCostRecord(${idx})">🗑</button></div></div><div class="cost-card-body" id="cost-body-${idx}"><table class="cost-table"><thead><tr><th style="width:30%">Descripción</th><th style="width:18%">Categoría</th><th style="width:12%">Cantidad</th><th style="width:8%">Unidad</th><th style="width:14%">Valor unit.</th><th style="width:12%">Total línea</th><th style="width:6%"></th></tr></thead><tbody id="cost-rows-${idx}"></tbody></table>${_costClasifHtml(r,idx)}<div class="cost-acabado-sel"><span class="cost-acabado-lbl">Acabado</span>${acabSel}</div><button class="btn-ghost cost-add-btn" style="margin:8px 0" onclick="addCostRow(${idx})">+ Agregar costo extra</button><button class="btn-ghost" style="margin:8px 0 8px 6px" onclick="precargarCostos(${idx})" title="Crea las líneas de madera y proceso con los costos estándar por m²">✨ Precargar estándar</button><div class="cost-summary" id="cost-sum-${idx}"></div></div></div>`;
   }).join('');
   list.forEach(r=>{const idx=costRecords.indexOf(r);renderCostRows(idx);renderCostSummary(idx);});
 }
