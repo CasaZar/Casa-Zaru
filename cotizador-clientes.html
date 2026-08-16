@@ -386,6 +386,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 /* nota viva de ergonomía: cómo se vería la mesa con esas medidas */
 .ms-ergo { font-size:11px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.45; }
 .ms-ergo:empty { display:none; }
+/* respondió: la señal que más predice el cierre después de la recompra */
+.resp-badge { display:inline-block;background:#DCFCE7;color:#166534;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
+.sbtn.resp { border-color:#86EFAC;color:#166534; }
+.sbtn.resp:hover { background:#F0FDF4; }
 /* badge de toques de seguimiento en la tabla del panel */
 .tq-badge { display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap; }
 .tq-badge.tq-0 { background:#F3F4F6;color:#6B7280; }
@@ -2682,7 +2686,7 @@ var dashView = 'seg';     /* seg | web | <code de vendedor> */
 var dashSort = {col:'fecha_creacion', dir:'desc'};
 var dashMonth = '';       /* '' = todos los meses | 'YYYY-MM': filtra las pestañas de cotizaciones por mes de fecha_creacion */
 var segSearch = '';           /* buscar cliente en seguimiento */
-var segSort = 'valor';        /* valor | reciente | antiguo */
+var segSort = 'score';        /* score | valor | reciente | antiguo */
 var segBloque = '';           /* '' = todos los bloques | code de vendedor | 'web' */
 var segSoloInteresados = false;  /* filtro: mostrar solo los marcados con la estrella */
 var COTIS = {};
@@ -2908,16 +2912,62 @@ function renderSegFilters(){
     '<div class="seg-chips">'+chips+'</div>'+
     '<input type="text" id="f-seg-q" placeholder="Buscar cliente…" value="'+escA(segSearch)+'" oninput="segSearch=this.value;renderSeguimiento()">'+
     '<select id="f-seg-sort" onchange="segSort=this.value;renderSeguimiento()">'+
+      '<option value="score"'+(segSort==='score'?' selected':'')+'>Los que van a cerrar primero</option>'+
       '<option value="valor"'+(segSort==='valor'?' selected':'')+'>Mayor monto primero</option>'+
       '<option value="reciente"'+(segSort==='reciente'?' selected':'')+'>Más reciente primero</option>'+
       '<option value="antiguo"'+(segSort==='antiguo'?' selected':'')+'>Más antiguo primero</option>'+
     '</select>';
 }
+/* ── FASE 3 (spec §2.2): SCORE DE CIERRE ──
+   Ordena la cola por probabilidad de cerrar, no por monto. Cada señal sale
+   del análisis de las 20 ganadas históricas (16-08-2026):
+     +100 ya nos compró antes (match de teléfono contra las ganadas)
+     +50  respondió alguna vez (9 de 12 ganadas grandes tuvieron conversación)
+     +30  2+ cotizaciones abiertas del mismo cliente (está iterando specs)
+     +20  tiene entre 2 y 21 días (ahí nacen todas las ganadas con seguimiento)
+     −30  más de 30 días (cero ganadas nacieron de los toques 5-6)
+     +10  puerta, mesa/mueble o cubierta ≥ $800k (ahí vive el ticket alto)
+   Empate → mayor monto. El monto solo NO predice el cierre; esto sí. */
+var _fonosGanadas = null;   /* se rearma en cada carga del panel */
+function fonosDeGanadas(){
+  if (_fonosGanadas) return _fonosGanadas;
+  _fonosGanadas = {};
+  allRows.forEach(function(x){
+    if (x.estado !== 'ganado' || x.eliminada) return;
+    var f = waPhone(x.contacto);
+    if (f) _fonosGanadas[f] = true;
+  });
+  return _fonosGanadas;
+}
+/* ¿ya nos compró antes? Una ganada nunca está "abierta", así que cualquier
+   match de teléfono contra las ganadas es una compra previa real. */
+function esRecurrente(g){
+  var f = waPhone(g.lead.contacto);
+  return !!(f && fonosDeGanadas()[f]);
+}
+function segScore(g){
+  var s = 0;
+  if (esRecurrente(g)) s += 100;
+  if (g.quotes.some(function(q){ return q.respondio; })) s += 50;
+  var abiertas = g.quotes.filter(function(q){ return (q.estado||'enviada') === 'enviada'; }).length;
+  if (abiertas >= 2) s += 30;
+  var dias = g.lead.fecha_creacion ? Math.round((Date.now() - new Date(g.lead.fecha_creacion).getTime()) / 86400000) : 0;
+  if (dias >= 2 && dias <= 21) s += 20;
+  if (dias > 30) s -= 30;
+  var ticketAlto = g.quotes.some(function(q){
+    if ((q.estado||'enviada') !== 'enviada') return false;
+    if (['granero','maciza','vidrios','mesa'].includes(q.producto)) return true;
+    return (q.total_alto||0) >= 800000;
+  });
+  if (ticketAlto) s += 10;
+  return s;
+}
 function segComparator(){
   var base;
   if (segSort==='reciente') base = function(a,b){ return new Date(b.lead.fecha_creacion||0)-new Date(a.lead.fecha_creacion||0); };
   else if (segSort==='antiguo') base = function(a,b){ return new Date(a.lead.fecha_creacion||0)-new Date(b.lead.fecha_creacion||0); };
-  else base = function(a,b){ return b.valor-a.valor; };   /* valor */
+  else if (segSort==='valor') base = function(a,b){ return b.valor-a.valor; };
+  else base = function(a,b){ return segScore(b)-segScore(a) || b.valor-a.valor; };   /* score (defecto) */
   /* los marcados como interesados (★) van primero dentro de cada sección, sea cual sea el orden elegido */
   return function(a,b){
     var ai = a.lead.interesado?1:0, bi = b.lead.interesado?1:0;
@@ -2984,6 +3034,7 @@ async function loadDash() {
   var res = await sbClient.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false});
   if (res.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+res.error.message+'</div>'; return; }
   allRows = res.data || [];
+  _fonosGanadas = null;   /* el caché de recompras se rearma con los datos frescos */
   /* las eliminadas no se muestran en el panel normal (solo en la pestaña Eliminadas del admin) */
   var all = allRows.filter(function(x){ return !x.eliminada; });
   /* vendedor: sus cotizaciones + las web (salvo B2B como Jepe, que solo ve su propio canal) */
@@ -3126,14 +3177,17 @@ function segClientCard(g, cls){
   var interesado = !!x.interesado;
   var starBtn = '<button class="seg-star'+(interesado?' on':'')+'" onclick="segToggleInteresado(\''+x.id+'\','+interesado+')" title="'+(interesado?'Quitar marca de interesado':'Marcar como interesado')+'">'+(interesado?'★':'☆')+'</button>';
   var interesadoBadge = interesado ? '<span class="interesado-badge">★ Interesado</span>' : '';
+  var respondio = g.quotes.some(function(q){ return q.respondio; });
+  var respBadge = respondio ? '<span class="resp-badge">💬 Respondió</span>' : '';
   var meta = escA(x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
   return '<div class="seg-card '+cls+(pez?' pez':'')+(interesado?' interesado':'')+'">'+
-    '<div class="seg-cli">'+starBtn+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+interesadoBadge+'</div>'+
+    '<div class="seg-cli">'+starBtn+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+interesadoBadge+respBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
     '<div class="seg-toques">'+toques+'</div>'+
     '<div class="seg-btns">'+
       (cls==='donehoy' ? '<button class="sbtn undo" onclick="segDeshacer(\''+x.id+'\')">↩ Deshacer contacto</button>' : '')+
+      (respondio ? '' : '<button class="sbtn resp" onclick="segRespondio(\''+x.id+'\')">💬 Respondió</button>')+
       '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
       wa+
       '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
@@ -3143,6 +3197,12 @@ function segClientCard(g, cls){
 /* marca/desmarca un cliente como interesado (estrella, para ubicarlo fácil en la cola) */
 async function segToggleInteresado(id, current){
   segSave(id, {interesado: !current}, current?'Ya no marcado como interesado':'Marcado como interesado ★');
+}
+/* FASE 3 (spec §5.3): el cliente contestó. Nunca vuelve a false: es la señal
+   que más pesa en el score (+50) y lo hace inmune al auto-ajuste del corte. */
+async function segRespondio(id){
+  var x=COTIS[id]; if(!x || x.respondio) return;
+  segSave(id, {respondio:true, fecha_primera_respuesta:new Date().toISOString()}, '💬 Respondió — sube en la cola');
 }
 /* deshace el último toque (para el que apretó la casilla por error) */
 async function segDeshacer(id){
@@ -3163,6 +3223,7 @@ async function segSave(id, updates, okMsg){
   if (!res.data || !res.data.length){ showToast('No se pudo guardar — falta el permiso "anon update" en Supabase', false); return false; }
   if (COTIS[id]) Object.assign(COTIS[id], updates);
   var r=dashRows.find(function(x){ return x.id===id; }); if(r) Object.assign(r, updates);
+  if (updates.estado) _fonosGanadas = null;   /* una ganada nueva cambia quién es recurrente */
   computeSegPend(); renderTabs();
   if (dashView==='seg') renderSeguimiento(); else renderDash();
   if (okMsg) showToast(okMsg, true);
