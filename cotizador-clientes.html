@@ -424,7 +424,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-touch.nuevo { background:#FEE2E2;color:#991B1B; }
 .seg-card.recu { box-shadow:0 0 0 2px #FBCFE8; }
 .recu-badge { display:inline-block;background:#FCE7F3;color:#9D174D;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
-.seg-star.recu { filter:grayscale(1);opacity:.45; }
+.seg-star.recu { filter:grayscale(1);opacity:.7; }
 .seg-star.recu.on { filter:none;opacity:1; }
 .seg-bloque { display:flex;align-items:center;gap:11px;margin:26px 0 10px;padding:12px 14px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);border-left:5px solid var(--acd);box-shadow:0 1px 3px rgba(0,0,0,.08); }
 .seg-bloque.urg { background:#FEF2F2;border-color:#FCA5A5;border-left-color:#DC2626; }
@@ -3618,26 +3618,48 @@ function renderSeguimiento(){
         '</div>'+
       '</div>'+
     '</div>';
-  /* métricas del mes: conversión y % contactadas en <24h */
+  /* Métricas del mes POR CLIENTE, no por cotización. Un cliente que pide 5
+     cotizaciones y compra una vez es UN cliente ganado, no 1 ganada y 4
+     perdidas — contarlo por fila hundía la conversión y el % de contacto
+     (los toques se registran en la cotización líder del grupo, así que las
+     otras 4 salían siempre como "sin contactar"). Misma regla que las demás
+     pestañas: la conversión va sobre los clientes DECIDIDOS. */
   var ahora=new Date(), mesAct=ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
   var mesRows = dashRows.filter(function(x){ return x.fecha_creacion && String(x.fecha_creacion).slice(0,7)===mesAct; });
-  var ganadasMes = mesRows.filter(function(x){ return x.estado==='ganado'; }).length;
-  var convMes = mesRows.length ? Math.round(ganadasMes/mesRows.length*100) : 0;
-  var rapidas = mesRows.filter(function(x){
-    if (!Array.isArray(x.seg_historial) || !x.seg_historial.length) return false;
-    var fechas = x.seg_historial.map(function(h){ return String(h.fecha).slice(0,10); }).filter(Boolean).sort();
-    if (!fechas.length) return false;
-    var creado=new Date(String(x.fecha_creacion).slice(0,10)), primer=new Date(fechas[0]);
-    var dif = primer - creado;
-    return dif <= 86400000 && dif >= -86400000;   /* mismo día o el siguiente ≈ <24h */
-  }).length;
-  var rapidPct = mesRows.length ? Math.round(rapidas/mesRows.length*100) : 0;
+  var porCliMes = {};
+  mesRows.forEach(function(x){ var k=clientKey(x); (porCliMes[k]=porCliMes[k]||[]).push(x); });
+  var clavesMes = Object.keys(porCliMes);
+  var cliGan=0, cliPer=0, cliRapidos=0;
+  clavesMes.forEach(function(k){
+    var qs = porCliMes[k];
+    if (qs.some(function(q){ return q.estado==='ganado'; })) cliGan++;
+    else if (qs.some(function(q){ return q.estado==='perdida'; })) cliPer++;
+    /* contacto <24h: primera cotización del cliente contra su primer toque,
+       mirando TODAS sus cotizaciones (el toque puede estar en cualquiera) */
+    var creados = qs.map(function(q){ return String(q.fecha_creacion).slice(0,10); }).filter(Boolean).sort();
+    var toques = [];
+    qs.forEach(function(q){
+      if (Array.isArray(q.seg_historial)) q.seg_historial.forEach(function(h){
+        var f = String(h.fecha||'').slice(0,10); if (f) toques.push(f);
+      });
+    });
+    if (!creados.length || !toques.length) return;
+    toques.sort();
+    var dif = new Date(toques[0]) - new Date(creados[0]);
+    if (dif <= 86400000 && dif >= -86400000) cliRapidos++;   /* mismo día o el siguiente ≈ <24h */
+  });
+  var cliDecididos = cliGan + cliPer;
+  var convMes = cliDecididos ? Math.round(cliGan/cliDecididos*100) : 0;
+  var rapidPct = clavesMes.length ? Math.round(cliRapidos/clavesMes.length*100) : 0;
   var st = document.getElementById('dash-stats');
   st.style.display='block';
   /* Sin fichas: el encabezado del día ya dice los dos números que importan y
      repetirlos abajo era el ruido que hacía difícil saber qué hacer. */
   st.innerHTML = banner + diaBanner +
-    '<div class="month-metrics">📅 Este mes · Conversión <strong>'+convMes+'%</strong> ('+ganadasMes+'/'+mesRows.length+') &nbsp;·&nbsp; Contacto &lt;24h <strong>'+rapidPct+'%</strong></div>';
+    '<div class="month-metrics" title="Todo contado por CLIENTE, no por cotización. La conversión va sobre los clientes ya decididos (ganados + perdidos); los que siguen en seguimiento no cuentan todavía.">'+
+      '📅 Este mes · <strong>'+clavesMes.length+'</strong> clientes ('+mesRows.length+' cotizaciones)'+
+      ' &nbsp;·&nbsp; Conversión <strong>'+convMes+'%</strong> ('+cliGan+' de '+cliDecididos+' decididos)'+
+      ' &nbsp;·&nbsp; Contacto &lt;24h <strong>'+rapidPct+'%</strong></div>';
   document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
 }
 /* salta al encabezado del bloque 1 o 2 desde el recuadro "Tu meta de hoy",
