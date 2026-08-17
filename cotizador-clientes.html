@@ -179,6 +179,8 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .ms-sug:empty { display:none; }
 .ms-sug strong { color:var(--acd); }
 /* 📖 Manual de valores (panel admin) */
+.ver-tag { display:inline-block;font-size:9.5px;font-weight:700;color:var(--tm);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:2px 7px;cursor:pointer;font-family:'Jost',sans-serif;vertical-align:2px; }
+.ver-tag:hover { color:var(--acd);border-color:var(--ac); }
 .mv-intro { font-size:12px;color:var(--tm);line-height:1.6;background:var(--bg3);border:1px solid var(--bd);border-radius:10px;padding:10px 14px;margin-bottom:14px; }
 .mv-sec .mesa-h { margin-bottom:8px; }
 .mv-sub { font-size:10.5px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--acd);margin:12px 0 6px; }
@@ -650,7 +652,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <div id="s-dash" class="hidden">
   <div class="logo-bar">
     <div class="logotype">CASA ZARU</div>
-    <div><span class="badge" style="background:var(--acd)">Panel Interno</span> <button class="btn-logout" id="btn-logout" onclick="doPanelLogout()">Salir</button></div>
+    <div><span class="badge" style="background:var(--acd)">Panel Interno</span> <span class="ver-tag" id="ver-tag" onclick="verForzarRecarga()" title="Versión del panel. Tócala para recargar sin caché si algo se ve viejo."></span> <button class="btn-logout" id="btn-logout" onclick="doPanelLogout()">Salir</button></div>
   </div>
   <div style="padding:20px 16px 40px;max-width:700px;margin:0 auto">
     <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
@@ -2857,6 +2859,23 @@ async function saveQuote(data) {
   } catch(e) { toastInterno('No se pudo registrar la cotización', false); console.error('saveQuote:', e); }
 }
 
+/* ── SELLO DE VERSIÓN ──
+   El panel pesa ~290 KB y los teléfonos lo guardan con ganas: más de una vez
+   se reportó como bug algo que ya estaba arreglado en el servidor pero viejo
+   en el celular. Con la fecha a la vista se sabe al tiro si lo que se está
+   mirando es lo último, y tocándola se fuerza la recarga sin caché. */
+var PANEL_VERSION = '2026-08-17';
+function verPinta(){
+  var el = document.getElementById('ver-tag');
+  if (el) el.textContent = 'v' + PANEL_VERSION;
+}
+function verForzarRecarga(){
+  /* el ?v= rompe el caché del navegador y del borde de GitHub Pages.
+     Ojo: hay que CONSERVAR el ?panel=, o la recarga deja fuera del panel. */
+  var p = new URLSearchParams(location.search);
+  p.set('v', String(Date.now()));
+  location.replace(location.pathname + '?' + p.toString());
+}
 /* ── PANEL INTERNO ── */
 /* Vendedores: para agregar uno nuevo, añade una línea aquí y dale su link ?panel=<code>.
    'legacy' = correos antiguos con que ya quedaron guardadas sus cotizaciones. */
@@ -3125,13 +3144,25 @@ function renderTabs(){
 }
 function setDashView(v){
   dashView=v; renderTabs();
-  if (v==='seg'){ renderSegFilters(); renderSeguimiento(); }
-  else if (v==='elim'){ renderEliminadas(); }
-  else if (v==='dormidos'){ renderDormidos(); }
-  else if (v==='actividad'){ renderActividad(); }
-  else if (v==='backlog'){ renderBacklog(); }
-  else if (v==='manual'){ renderManual(); }
-  else { renderDashFilters(); renderDash(); }
+  if (v==='seg') renderSegFilters();
+  else if (['elim','dormidos','actividad','backlog','manual'].indexOf(v) === -1) renderDashFilters();
+  renderVistaActual();
+}
+/* Redibuja la pestaña que está abierta, sea cual sea. Antes cada punto de
+   refresco decidía con un `dashView==='seg' ? ... : renderDash()`, que era
+   cierto cuando solo existían esas dos vistas. Con Backlog, Dormidos,
+   Actividad y Manual ese `else` dibujaba la tabla de ventas encima de la
+   pestaña abierta, y como filtra por dashView (que ahí vale 'backlog', no un
+   vendedor) no encontraba filas: todo en cero y "Sin cotizaciones". */
+function renderVistaActual(){
+  var v = dashView;
+  if (v==='seg')            renderSeguimiento();
+  else if (v==='elim')      renderEliminadas();
+  else if (v==='dormidos')  renderDormidos();
+  else if (v==='actividad') renderActividad();
+  else if (v==='backlog')   renderBacklog();
+  else if (v==='manual')    renderManual();
+  else                      renderDash();
 }
 /* FASE 6: vista Backlog — las que nunca se contactaron, más reciente primero */
 function renderBacklog(){
@@ -3513,7 +3544,7 @@ async function doPanelLogin(){
       showLoginErr('Esta cuenta no tiene acceso a este panel.');
       reset(); return;
     }
-    show('s-dash'); loadDash();
+    show('s-dash'); verPinta(); loadDash();
   } catch(e){ showLoginErr('Error de conexión. Intenta de nuevo.'); reset(); }
 }
 async function doPanelLogout(){ try{ await sbClient.auth.signOut(); }catch(e){} location.reload(); }
@@ -3540,7 +3571,7 @@ async function loadDash() {
      cada uno corre una sola vez al día */
   await correrCierreAutomatico();
   await autoAjustarCorte();
-  if (dashView==='seg') renderSeguimiento();
+  renderVistaActual();   /* los jobs pueden haber cerrado cotizaciones: repinta donde esté */
 }
 
 /* ── VISTA SEGUIMIENTO (un recuadro por cliente, bloques por vendedor / web) ── */
@@ -3883,7 +3914,7 @@ async function segSave(id, updates, okMsg){
   var r=dashRows.find(function(x){ return x.id===id; }); if(r) Object.assign(r, updates);
   if (updates.estado) _fonosGanadas = null;   /* una ganada nueva cambia quién es recurrente */
   computeSegPend(); renderTabs();
-  if (dashView==='seg') renderSeguimiento(); else renderDash();
+  renderVistaActual();
   if (okMsg) showToast(okMsg, true);
   return true;
 }
@@ -4142,7 +4173,7 @@ async function updateEstado(id, estado) {
   var x = COTIS[id] || {};
   if (estado === 'ganado') {
     var m = pedirMonto(x);
-    if (m === undefined) { if(dashView!=='seg') renderDash(); return; }
+    if (m === undefined) { renderVistaActual(); return; }   /* canceló el monto: repinta donde está */
     segSave(id, {estado:'ganado', monto_cierre:m}, '¡Venta ganada! 🎉');
     /* canal automático para el P&L (web / césar / jepe). Best-effort: requiere columna 'canal'. */
     var canal = ownerCode(x) || 'web';
@@ -4152,7 +4183,7 @@ async function updateEstado(id, estado) {
     });
     return;
   }
-  if (estado === 'perdida') { if(dashView!=='seg') renderDash(); segPerderUI(id); return; }
+  if (estado === 'perdida') { renderVistaActual(); segPerderUI(id); return; }
   segSave(id, {estado:estado, seg_proxima:null}, 'Estado actualizado');
 }
 async function deleteQuote(id, numero) {
@@ -4169,7 +4200,7 @@ async function deleteQuote(id, numero) {
   var r = allRows.find(function(x){ return x.id===id; }); if (r) { r.eliminada=true; r.elim_motivo=motivo; r.elim_por=quien; r.elim_fecha=new Date().toISOString(); }
   dashRows = dashRows.filter(function(x){ return x.id !== id; });
   delete COTIS[id];
-  computeSegPend(); renderTabs(); if (dashView==='seg') renderSeguimiento(); else renderDash();
+  computeSegPend(); renderTabs(); renderVistaActual();
   showToast('Cotización eliminada (queda en el registro)', true);
 }
 async function restaurarQuote(id){
@@ -4744,7 +4775,7 @@ document.addEventListener('DOMContentLoaded', function() {
     /* el panel requiere sesión iniciada; el cotizador público NO cambia */
     sbClient.auth.getSession().then(function(res){
       var sess = res.data && res.data.session;
-      if (sess && panelAccessOK(sess.user.email, pcode)) { show('s-dash'); loadDash(); }
+      if (sess && panelAccessOK(sess.user.email, pcode)) { show('s-dash'); verPinta(); loadDash(); }
       else {
         if (sess) { sbClient.auth.signOut(); showLoginErr('Esta cuenta no tiene acceso a este panel.'); }
         var le = document.getElementById('lg-email'); if (le && sess) le.value = sess.user.email;
