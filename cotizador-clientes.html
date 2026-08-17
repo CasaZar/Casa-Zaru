@@ -191,6 +191,16 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .mv-tramo:last-child { border-bottom:none; }
 .mv-tramo-n { font-size:12px;font-weight:600;color:var(--tx);margin-bottom:6px; }
 .mv-grid4 { display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px 12px; }
+/* protocolos de fabricación (reglas del taller, texto libre) */
+.pt-item { border:1px solid var(--bd);border-left:4px solid var(--acd);border-radius:10px;padding:10px 12px;margin-bottom:9px;background:#fff; }
+.pt-head { display:grid;grid-template-columns:150px 1fr auto;gap:8px;align-items:center;margin-bottom:7px; }
+.pt-txt { width:100%;min-height:62px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;font-family:'Jost',sans-serif;font-size:13px;line-height:1.5;color:var(--tx);resize:vertical;box-sizing:border-box; }
+.pt-txt:focus, .pt-head .finput:focus { outline:none;border-color:var(--ac); }
+.pt-del { background:#fff;border:1px solid #FCA5A5;color:#B91C1C;border-radius:8px;width:30px;height:30px;font-size:15px;cursor:pointer;line-height:1;flex:0 0 auto; }
+.pt-del:hover { background:#FEF2F2; }
+.pt-add { background:var(--bg3);border:1px dashed var(--ac);color:var(--acd);border-radius:9px;padding:9px 14px;font-family:'Jost',sans-serif;font-size:12.5px;font-weight:700;cursor:pointer;width:100%;margin-top:2px; }
+.pt-add:hover { background:#fff; }
+@media (max-width:640px){ .pt-head { grid-template-columns:1fr auto;grid-template-areas:'cat del' 'tit tit'; } .pt-head .pt-cat{grid-area:cat;} .pt-head .pt-tit{grid-area:tit;} .pt-del{grid-area:del;} }
 .mv-grid4 label { font-size:10.5px;color:var(--tm);display:flex;flex-direction:column;gap:4px;font-weight:600; }
 .mesa-desglose { display:block;font-size:9px;color:var(--tm);margin-top:2px;font-family:'Jost',sans-serif; }
 /* botón para quitar una pieza/puerta/marco */
@@ -830,6 +840,18 @@ var VALORES = {
     { nombre:'Par de bancas (fierro)',        forma:'bancas',      largoMax:280, costo:140000, cliente:0 }
   ]
 };
+/* ── PROTOCOLOS DE FABRICACIÓN ──
+   Las reglas del taller que NO son un número: cómo se fabrica cada cosa.
+   Viven acá como semilla y en cotizador_valores (clave 'protocolos') como
+   fuente real, para que se puedan ir agregando desde el Manual sin deploy.
+   Son de consulta: el cotizador no calcula con ellas. */
+var PROTO_CATS = ['Puertas', 'Cubiertas', 'Revestimiento', 'Mesas', 'Repisas y peldaños', 'General'];
+var PROTOCOLOS = [
+  { cat:'Puertas', titulo:'Ancho de batientes, pieinazo y cabezales',
+    texto:'Desde 90 cm de ancho de puerta: batientes, pieinazo y cabezales de 18 cm.\nBajo 90 cm de ancho: de 15 cm.' },
+  { cat:'Revestimiento', titulo:'Espesor y rendimiento del palo',
+    texto:'Espesor del revestimiento: 1,2 cm.\nDe un palo de 2" salen 3 tablones: se raja en 3 a lo largo.' }
+];
 /* precio al cliente de un tramo de fierro: el valor definido en el manual, o
    si aún no se define, el costo del proveedor + IVA redondeado al millar */
 function baseFierroCliente(t) {
@@ -924,6 +946,7 @@ function aplicarValor(clave, v) {
   else if (clave === 'generales')   { Object.assign(VALORES.generales, v); }
   else if (clave === 'tierPulgada') { Object.assign(VALORES.tierPulgada, v); }
   else if (clave === 'basesFierro') { if (Array.isArray(v) && v.length) VALORES.basesFierro = v; }
+  else if (clave === 'protocolos')  { if (Array.isArray(v)) PROTOCOLOS = v; }   /* [] válido: borrarlos todos */
   else if (clave === 'seguimiento') {
     if (v.ballena > 0) PEZ_GORDO = v.ballena;
     if (v.metaLunes  >= 0) CFG_SEG.metaLunes  = v.metaLunes;
@@ -4170,6 +4193,45 @@ function mvFila3(pref, obj) {
     '<label>Coihue / Raulí / Lenga' + mvNum(pref + '-alto', obj.alto, 1000) + '</label>' +
   '</div>';
 }
+/* ── PROTOCOLOS: editor de lista (agregar / borrar / escribir) ──
+   PROTO_WORK es la copia en edición. Antes de repintar la lista se leen los
+   campos del DOM, para no perder lo que el admin acaba de escribir. */
+var PROTO_WORK = null;
+function protoLeer() {
+  if (!PROTO_WORK) return;
+  PROTO_WORK.forEach(function(p, i) {
+    var c = document.getElementById('mv-pt-cat-' + i);
+    var t = document.getElementById('mv-pt-tit-' + i);
+    var x = document.getElementById('mv-pt-txt-' + i);
+    if (c) p.cat = c.value;
+    if (t) p.titulo = t.value;
+    if (x) p.texto = x.value;
+  });
+}
+function protoFilas() {
+  if (!PROTO_WORK.length) return '<div class="seg-empty">Todavía no hay protocolos escritos. Agrega el primero abajo.</div>';
+  return PROTO_WORK.map(function(p, i) {
+    var cats = PROTO_CATS.slice();
+    if (p.cat && cats.indexOf(p.cat) === -1) cats.unshift(p.cat);
+    var opts = cats.map(function(c) {
+      return '<option value="' + escA(c) + '"' + (c === p.cat ? ' selected' : '') + '>' + escA(c) + '</option>';
+    }).join('');
+    return '<div class="pt-item">' +
+      '<div class="pt-head">' +
+        '<select class="finput mv-in pt-cat" id="mv-pt-cat-' + i + '">' + opts + '</select>' +
+        '<input class="finput mv-in pt-tit" id="mv-pt-tit-' + i + '" value="' + escA(p.titulo) + '" placeholder="Nombre de la regla — ej. Ancho de batientes">' +
+        '<button class="pt-del" title="Borrar este protocolo" onclick="protoBorrar(' + i + ')">×</button>' +
+      '</div>' +
+      '<textarea class="pt-txt" id="mv-pt-txt-' + i + '" placeholder="La regla, en las palabras del taller. Una línea por caso.">' + escA(p.texto) + '</textarea>' +
+    '</div>';
+  }).join('');
+}
+function protoPinta() {
+  var el = document.getElementById('mv-proto-list');
+  if (el) el.innerHTML = protoFilas();
+}
+function protoAgregar() { protoLeer(); PROTO_WORK.push({ cat:'Puertas', titulo:'', texto:'' }); protoPinta(); }
+function protoBorrar(i) { protoLeer(); PROTO_WORK.splice(i, 1); protoPinta(); }
 function renderManual() {
   document.getElementById('dash-filters').innerHTML = '';
   var st = document.getElementById('dash-stats'); st.style.display = 'none'; st.innerHTML = '';
@@ -4177,9 +4239,15 @@ function renderManual() {
   if (valoresTablaOK === false) {
     aviso = '<div class="speed-alert" style="cursor:default">⚠ Falta crear la tabla en Supabase: corre <strong>supabase/valores.sql</strong> en el proyecto Cotizador Interno. Mientras tanto ves los valores del código y guardar no funcionará.</div>';
   }
+  PROTO_WORK = PROTOCOLOS.map(function(p) { return { cat:p.cat||'General', titulo:p.titulo||'', texto:p.texto||'' }; });
   var g = VALORES.generales;
   var html = aviso +
     '<div class="mv-intro">Los precios que usa el cotizador, en un solo lugar. Lo que guardes aquí <strong>rige al instante</strong> para clientes y vendedores — sin tocar el código. Si un valor no se ha guardado nunca, rige el que viene grabado en el código (se indica en cada sección).</div>' +
+
+    mvSec('📋 Protocolos de fabricación', 'protocolos',
+      '<div id="mv-proto-list">' + protoFilas() + '</div>' +
+      '<button class="pt-add" onclick="protoAgregar()">+ Agregar protocolo</button>',
+      'Las reglas del taller que <strong>no son un número</strong>: cómo se fabrica cada cosa. El cotizador no calcula con ellas — están para que la regla quede escrita en un solo lugar y no se pierda en un WhatsApp. Agrega las que vayan apareciendo. <strong>Los cambios se guardan recién al apretar Guardar</strong>, abajo.') +
 
     mvSec('Cubiertas, repisas y peldaños — $ por m² (con IVA, precio tarjeta)', 'pr',
       '<div class="mv-sub">Cubiertas y peldaños (4 cm)</div>' + mvFila3('mv-cub', PR.cubierta) +
@@ -4298,6 +4366,11 @@ async function guardarValores(clave) {
       return { nombre: t.nombre, forma: t.forma, largoMax: t.largoMax,
                costo: mvLee('mv-bf-costo-' + i), cliente: mvLee('mv-bf-cliente-' + i) };
     });
+  } else if (clave === 'protocolos') {
+    protoLeer();
+    /* se descartan los vacíos: una fila recién agregada y no escrita no se guarda */
+    v = (PROTO_WORK || []).filter(function(p) { return (p.titulo || '').trim() || (p.texto || '').trim(); })
+      .map(function(p) { return { cat: p.cat || 'General', titulo: (p.titulo || '').trim(), texto: (p.texto || '').trim() }; });
   } else if (clave === 'seguimiento') {
     v = { ballena: mvLee('mv-seg-ballena'), metaLunes: mvLee('mv-seg-ml'),
           metaNormal: mvLee('mv-seg-mn'), metaSabado: mvLee('mv-seg-ms') };
