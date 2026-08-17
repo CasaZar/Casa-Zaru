@@ -52,7 +52,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .pcard:active { transform: scale(.98) translateY(0); }
 .pcard.wide { grid-column: span 2; }
 
-.pcard-img { width: 100%; aspect-ratio: 4/3; overflow: hidden; position: relative; }
+.pcard-img { width: 100%; aspect-ratio: 3/2; overflow: hidden; position: relative; }
 .pcard.wide .pcard-img { aspect-ratio: 16/7; }
 .pcard-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pcard-img .img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg3) 0%, var(--crt) 100%); }
@@ -4388,7 +4388,10 @@ function renderDash() {
   var rows = d.map(function(x){
     var f = x.fecha_creacion ? new Date(x.fecha_creacion).toLocaleDateString('es-CL') + ' ' + new Date(x.fecha_creacion).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}) : '—';
     var est = x.estado || 'enviada';
-    var numHtml = x.link ? '<a href="'+x.link+'" target="_blank" style="color:var(--ac);text-decoration:none">'+(x.numero||'—')+' ↗</a>' : (x.numero||'—');
+    /* la columna ya dice "N°": mostrar solo "0826-402", no "N° CL-0826-402"
+       completo — eso era lo que se veía "raro" y se cortaba en el celu */
+    var numCorto = (x.numero||'—').replace(/^N°\s*CL-?/i,'');
+    var numHtml = x.link ? '<a href="'+x.link+'" target="_blank" style="color:var(--ac);text-decoration:none;white-space:nowrap">'+numCorto+' ↗</a>' : '<span style="white-space:nowrap">'+numCorto+'</span>';
     var montoTxt = est==='ganado' && x.monto_cierre ? '$'+Math.round(x.monto_cierre).toLocaleString('es-CL') : '$'+Math.round(x.total_alto||0).toLocaleString('es-CL');
     return '<tr><td>'+numHtml+'</td><td>'+escA(x.cliente||'—')+'</td><td style="font-size:9.5px">'+escA(x.contacto||'—')+'</td><td>'+(PNAME[x.producto]||x.producto||'—')+'</td><td>'+montoTxt+'</td><td style="font-size:9.5px">'+f+'</td>' +
       '<td>'+tqBadge(tqMap[clientKey(x)] || 0)+'</td>' +
