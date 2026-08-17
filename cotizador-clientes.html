@@ -3267,7 +3267,7 @@ function segComparator(){
   else base = function(a,b){ return segScore(b)-segScore(a) || b.valor-a.valor; };   /* score (defecto) */
   /* los marcados como interesados (★) van primero dentro de cada sección, sea cual sea el orden elegido */
   return function(a,b){
-    var ai = a.lead.interesado?1:0, bi = b.lead.interesado?1:0;
+    var ai = esInteresado(a)?1:0, bi = esInteresado(b)?1:0;
     if (ai !== bi) return bi-ai;
     return base(a,b);
   };
@@ -3293,8 +3293,16 @@ async function cargarConfigSeg(){
 /* Prioritario = respondió alguna vez, O monto sobre el corte. El corte separa
    a los que se cierran solos de los que necesitan trabajo (validado con las 20
    ganadas: bajo $400k, 6 de 8 cerraron con cero toques). */
+/* La ★ manda: antes solo ordenaba DENTRO de la sección, así que un cliente
+   marcado a mano podía quedar primero... adentro del bloque 3, que va
+   colapsado y "solo si sobra tiempo". O sea, marcarlo no servía de nada y se
+   perdía. Si el vendedor se tomó el trabajo de marcarlo es la señal más fuerte
+   que existe — más que cualquier umbral de monto — así que sube al bloque 2. */
+function esInteresado(g){
+  return g.quotes.some(function(q){ return q.interesado; });
+}
 function esPrioritario(g){
-  return g.quotes.some(function(q){ return q.respondio; }) || g.valor >= CFG_SEG.corte;
+  return esInteresado(g) || g.quotes.some(function(q){ return q.respondio; }) || g.valor >= CFG_SEG.corte;
 }
 /* Respondió y no está pausado: el seguimiento ES la conversación, no una
    plantilla. Sale de los bloques 2 y 3 (spec §5.3) y vuelve solo si César lo
@@ -3624,9 +3632,12 @@ function renderSeguimiento(){
   }
   /* BLOQUE 3 — solo si sobra tiempo, colapsado */
   if (b3.length){
+    /* el monto va en el título: "59" se lee como relleno, "59 · $12M" no. Es
+       la parte de la cola que se olvida, así que al menos se ve qué hay dentro */
+    var b3Valor = b3.reduce(function(a,g){ return a + (g.valor||0); }, 0);
     html += '<details class="seg-b3"><summary>'+
-      '<span class="seg-bloque-n">3</span> Resto de la cola · '+b3.length+
-      ' <span class="seg-bloque-sub">solo si sobra tiempo — no cuentan para el Día Verde</span></summary>'+
+      '<span class="seg-bloque-n">3</span> Resto de la cola · '+b3.length+' · '+fmtM(b3Valor)+
+      ' <span class="seg-bloque-sub">solo si sobra tiempo — no cuentan para el Día Verde. Si alguno vale la pena, márcalo con la ★ y sube al bloque 2.</span></summary>'+
       b3.map(function(g){ return segClientCard(g,'today'); }).join('')+'</details>';
   }
   if (futuro.length){
