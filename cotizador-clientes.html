@@ -2891,7 +2891,13 @@ var PEZ_GORDO = 2000000;
    (equivalen 1:1 al enum del spec: precio, plazo_entrega, compro_otro_lado,
    sin_respuesta, numero_invalido). Las perdidas antiguas con "Otro" siguen
    mostrándose tal cual; solo ya no se puede elegir. */
-var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Número no funciona / sin WhatsApp'];
+/* "Prueba" cierra la cotización para sacarla de la cola, pero NO es una
+   pérdida: son las que hacemos nosotros probando el cotizador, o basura que
+   entró por el formulario. Si contaran como perdidas, cada prueba bajaría la
+   conversión real — por eso se excluyen de todas las métricas (esPrueba). */
+var MOTIVO_PRUEBA = 'Prueba — no es un cliente real';
+var MOTIVOS  = ['Precio', 'Plazo de entrega', 'Compró en otro lado', 'Sin respuesta', 'Número no funciona / sin WhatsApp', MOTIVO_PRUEBA];
+function esPrueba(x){ return !!(x && x.motivo_perdida === MOTIVO_PRUEBA); }
 /* motivos que implican que el cliente CONVERSÓ: al marcarlos se aprende
    respondio=true solo (validación del spec sin ponerle un error a César) */
 var MOTIVOS_CON_RESPUESTA = ['Precio', 'Plazo de entrega', 'Compró en otro lado'];
@@ -3677,7 +3683,8 @@ function renderSeguimiento(){
      otras 4 salían siempre como "sin contactar"). Misma regla que las demás
      pestañas: la conversión va sobre los clientes DECIDIDOS. */
   var ahora=new Date(), mesAct=ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
-  var mesRows = dashRows.filter(function(x){ return x.fecha_creacion && String(x.fecha_creacion).slice(0,7)===mesAct; });
+  /* las pruebas salen de todo el conteo: no son clientes ni cotizaciones reales */
+  var mesRows = dashRows.filter(function(x){ return x.fecha_creacion && String(x.fecha_creacion).slice(0,7)===mesAct && !esPrueba(x); });
   var porCliMes = {};
   mesRows.forEach(function(x){ var k=clientKey(x); (porCliMes[k]=porCliMes[k]||[]).push(x); });
   var clavesMes = Object.keys(porCliMes);
@@ -4487,8 +4494,13 @@ async function guardarValores(clave) {
 function renderDash() {
   var dAll = currentTableRows();
   var d = sortDashData(applyDashFilters(dAll));
-  var ganadas = d.filter(function(x){ return x.estado==='ganado'; });
-  var cotizado = d.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
+  /* dReal = lo mismo sin las pruebas. La TABLA sigue mostrando d (las pruebas
+     tienen que poder verse y corregirse), pero las fichas de arriba cuentan
+     sobre dReal: una prueba no es una cotización del negocio. */
+  var dReal = d.filter(function(x){ return !esPrueba(x); });
+  var nPruebas = d.length - dReal.length;
+  var ganadas = dReal.filter(function(x){ return x.estado==='ganado'; });
+  var cotizado = dReal.reduce(function(a,x){ return a + (x.estado==='perdida' ? 0 : (x.total_alto||0)); }, 0);
   var vendido  = ganadas.reduce(function(a,x){ return a + (x.monto_cierre||x.total_medio||x.total_alto||0); }, 0);
   /* conversión por CLIENTE — se agrupa con TODO su historial (cualquier canal), no solo las
      filas de esta pestaña: misma regla del seguimiento (cliente con cotización de vendedor Y
@@ -4496,6 +4508,7 @@ function renderDash() {
      vendedor no queda contado como "perdido" en Clientes Web y "ganado" en el vendedor a la vez. */
   var porCliente = {};
   dashRows.forEach(function(x){
+    if (esPrueba(x)) return;            /* una prueba no es un cliente */
     var k = clientKey(x);
     (porCliente[k] = porCliente[k] || []).push(x);
   });
@@ -4515,10 +4528,11 @@ function renderDash() {
   var clientesCerrados = clientesGanados + clientesPerdidos;
   var conv = clientesCerrados > 0 ? Math.round(clientesGanados/clientesCerrados*100) : 0;
   /* % sobre el total de cotizaciones de esta pestaña (incluye las que aun siguen en seguimiento, sin decidir) */
-  var convTotal = d.length ? Math.round(ganadas.length/d.length*100) : 0;
+  var convTotal = dReal.length ? Math.round(ganadas.length/dReal.length*100) : 0;
   var stD=document.getElementById('dash-stats'); stD.style.display='grid';
+  var pruebaNota = nPruebas ? '<div class="stat-l" style="font-size:9px;opacity:.75">+'+nPruebas+' de prueba, fuera del conteo</div>' : '';
   stD.innerHTML =
-    '<div class="stat-card"><div class="stat-v">'+d.length+'</div><div class="stat-l">Cotizaciones</div></div>'+
+    '<div class="stat-card"><div class="stat-v">'+dReal.length+'</div><div class="stat-l">Cotizaciones</div>'+pruebaNota+'</div>'+
     '<div class="stat-card"><div class="stat-v" style="color:#059669">'+ganadas.length+'</div><div class="stat-l">Ganadas</div></div>'+
     '<div class="stat-card" title="Clientes que ganaron sobre los clientes decididos (ganados + perdidos), agrupando por WhatsApp/correo/nombre"><div class="stat-v">'+conv+'%</div><div class="stat-l">Conversión (decididos)</div></div>'+
     '<div class="stat-card" title="Cotizaciones ganadas sobre el total de esta pestana, incluyendo las que aun estan en seguimiento sin resolver"><div class="stat-v">'+convTotal+'%</div><div class="stat-l">% del total cotizado</div></div>'+
@@ -4526,7 +4540,8 @@ function renderDash() {
     '<div class="stat-card"><div class="stat-v money">'+fmt(vendido)+'</div><div class="stat-l">Total vendido</div></div>';
   /* ¿por qué perdemos? — desglose de motivos de las perdidas */
   var motivos={}, totMot=0;
-  d.forEach(function(x){ if(x.estado==='perdida' && x.motivo_perdida){ motivos[x.motivo_perdida]=(motivos[x.motivo_perdida]||0)+1; totMot++; } });
+  /* dReal: "por qué perdemos" es sobre pérdidas de verdad, no sobre pruebas */
+  dReal.forEach(function(x){ if(x.estado==='perdida' && x.motivo_perdida){ motivos[x.motivo_perdida]=(motivos[x.motivo_perdida]||0)+1; totMot++; } });
   var perdeHtml='';
   if (totMot>0){
     var keys=Object.keys(motivos).sort(function(a,b){ return motivos[b]-motivos[a]; });
