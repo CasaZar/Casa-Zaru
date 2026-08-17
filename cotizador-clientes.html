@@ -398,7 +398,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .hoy-top { background:var(--acd);color:#fff;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:7px 12px; }
 .hoy-box.ok .hoy-top { background:#16A34A; }
 .hoy-pasos { display:flex; }
-.hoy-paso { flex:1;display:flex;align-items:center;gap:9px;padding:11px 12px; }
+.hoy-paso { flex:1;display:flex;align-items:center;gap:9px;padding:11px 12px;cursor:pointer;transition:background .12s; }
+.hoy-paso:hover { background:var(--bg3); }
+.hoy-paso:active { background:var(--bd); }
+.hoy-go { display:block;font-size:9.5px;font-weight:700;color:var(--acd);letter-spacing:.4px;margin-top:3px;text-transform:uppercase; }
 .hoy-paso + .hoy-paso { border-left:1px solid var(--bd); }
 .hoy-n { flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--acd);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center; }
 .hoy-paso.ok .hoy-n { background:#DCFCE7;color:#166534; }
@@ -413,15 +416,21 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .recu-badge { display:inline-block;background:#FCE7F3;color:#9D174D;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 .seg-star.recu { filter:grayscale(1);opacity:.45; }
 .seg-star.recu.on { filter:none;opacity:1; }
-.seg-bloque { display:flex;align-items:center;gap:10px;margin:16px 0 8px;padding:9px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd); }
-.seg-bloque.urg { background:#FEF2F2;border-color:#FCA5A5; }
-.seg-bloque.ok { background:#F0FDF4;border-color:#BBF7D0; }
+.seg-bloque { display:flex;align-items:center;gap:11px;margin:26px 0 10px;padding:12px 14px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);border-left:5px solid var(--acd);box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.seg-bloque.urg { background:#FEF2F2;border-color:#FCA5A5;border-left-color:#DC2626; }
+.seg-bloque.ok { background:#F0FDF4;border-color:#BBF7D0;border-left-color:#16A34A; }
+.seg-bloque.flash { animation:segFlash 1.1s ease-out; }
+@keyframes segFlash { 0%,30% { box-shadow:0 0 0 4px rgba(184,137,74,.45); } 100% { box-shadow:0 1px 3px rgba(0,0,0,.08); } }
 .seg-bloque-n { flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--acd);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center; }
+.seg-bloque.urg .seg-bloque-n { background:#DC2626; }
+.seg-bloque.ok .seg-bloque-n { background:#16A34A; }
 .seg-bloque-t { flex:1;font-size:13px;font-weight:700;color:var(--tx);line-height:1.3; }
 .seg-bloque-sub { display:block;font-size:10.5px;font-weight:400;color:var(--tm);margin-top:1px; }
 .seg-bloque-c { flex:0 0 auto;font-size:11px;font-weight:700;color:var(--acd);white-space:nowrap; }
-.seg-sec.conv { color:#166534; }
-.seg-sec.ballena { color:#9D174D; }
+.seg-sec.conv { background:#F0FDF4;color:#166534;border-left:5px solid #16A34A; }
+.seg-sec.conv .seg-cnt { background:rgba(22,101,52,.16);color:#166534; }
+.seg-sec.ballena { background:#FDF2F8;color:#9D174D;border-left:5px solid #DB2777; }
+.seg-sec.ballena .seg-cnt { background:rgba(157,23,77,.14);color:#9D174D; }
 .ballena-alerta { background:#FEF2F2;border:1px solid #FCA5A5;color:#991B1B;font-size:11px;font-weight:700;border-radius:8px;padding:6px 10px;margin-bottom:-4px; }
 .seg-backlog, .seg-b3 { margin:8px 0 4px;border:1px dashed var(--bd2);border-radius:10px;padding:8px 10px;background:var(--crt); }
 .seg-backlog summary, .seg-b3 summary { cursor:pointer;font-size:12px;font-weight:600;color:var(--tm);list-style:revert; }
@@ -3493,7 +3502,7 @@ function renderSeguimiento(){
     return '<div class="seg-sec '+cls+'">'+t+cnt+'</div>'+(extra||'')+body;
   }
   function bloqueH(n, titulo, sub, cnt, clase){
-    return '<div class="seg-bloque '+(clase||'')+'"><span class="seg-bloque-n">'+n+'</span>'+
+    return '<div class="seg-bloque '+(clase||'')+'" id="seg-bloque-'+n+'"><span class="seg-bloque-n">'+n+'</span>'+
       '<span class="seg-bloque-t">'+titulo+'<span class="seg-bloque-sub">'+sub+'</span></span>'+
       '<span class="seg-bloque-c">'+cnt+'</span></div>';
   }
@@ -3572,15 +3581,17 @@ function renderSeguimiento(){
     '<div class="hoy-box'+(diaVerde?' ok':'')+'">'+
       '<div class="hoy-top">'+(diaVerde ? '🟢 Día Verde — listo por hoy' : 'Tu meta de hoy, '+diaNom)+'</div>'+
       '<div class="hoy-pasos">'+
-        '<div class="hoy-paso'+(p1Ok?' ok':'')+'">'+
+        '<div class="hoy-paso'+(p1Ok?' ok':'')+'" onclick="scrollToBloque(1)">'+
           '<span class="hoy-n">1</span>'+
           '<span class="hoy-txt">'+(p1Ok ? 'Nuevos contactados ✓' : '<strong>'+b1.length+'</strong> por contactar')+
-          '<span class="hoy-sub">Escribirles el mismo día</span></span>'+
+          '<span class="hoy-sub">Escribirles el mismo día</span>'+
+          '<span class="hoy-go">Ir al bloque 1 →</span></span>'+
         '</div>'+
-        '<div class="hoy-paso'+(p2Ok?' ok':'')+'">'+
+        '<div class="hoy-paso'+(p2Ok?' ok':'')+'" onclick="scrollToBloque(2)">'+
           '<span class="hoy-n">2</span>'+
           '<span class="hoy-txt">'+(meta ? '<strong>'+b2Hechos+' de '+meta+'</strong> toques' : 'Hoy sin meta')+
-          '<span class="hoy-sub">'+(p2Ok ? 'Meta cumplida ✓' : (meta ? 'Faltan '+(meta-b2Hechos) : 'Solo primeros contactos'))+'</span></span>'+
+          '<span class="hoy-sub">'+(p2Ok ? 'Meta cumplida ✓' : (meta ? 'Faltan '+(meta-b2Hechos) : 'Solo primeros contactos'))+'</span>'+
+          '<span class="hoy-go">Ir al bloque 2 →</span></span>'+
         '</div>'+
       '</div>'+
     '</div>';
@@ -3605,6 +3616,17 @@ function renderSeguimiento(){
   st.innerHTML = banner + diaBanner +
     '<div class="month-metrics">📅 Este mes · Conversión <strong>'+convMes+'%</strong> ('+ganadasMes+'/'+mesRows.length+') &nbsp;·&nbsp; Contacto &lt;24h <strong>'+rapidPct+'%</strong></div>';
   document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
+}
+/* salta al encabezado del bloque 1 o 2 desde el recuadro "Tu meta de hoy",
+   con un destello para que se note dónde quedó parado */
+function scrollToBloque(n){
+  var el = document.getElementById('seg-bloque-'+n);
+  if (!el) return;
+  var y = el.getBoundingClientRect().top + window.pageYOffset - 12;
+  window.scrollTo({top:y, behavior:'smooth'});
+  el.classList.remove('flash');
+  void el.offsetWidth;                       /* reinicia la animación */
+  el.classList.add('flash');
 }
 /* salta a la primera sección de ese tipo (fichas del día) */
 function scrollToSec(cls){
