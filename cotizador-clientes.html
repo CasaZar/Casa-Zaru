@@ -3062,14 +3062,14 @@ function waMsg(x){
      pasaron días va la P2 ("hace un par de días cotizaste"), que si no suena
      a que el mensaje llegó tarde. */
   var esMismoDia = fechaBaseISO(x.fecha_creacion) === hoyISO();
-  var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru 🙂 Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+'). ¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
+  var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru. Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+'). ¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
       p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+'). Si quieres afinar medidas o comparar maderas, te ayudo al tiro. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
   /* P4: nunca se le escribió y ya pasaron días. Reconocer la demora funciona
      mucho mejor que escribir como si nada (protocolo de triage v2). */
   var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora. ¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
   var msgs = {
     1: esBacklogQ(x) ? p4 : (esMismoDia ? p1 : p2),
-    2: 'Hola '+nom+', ¿cómo va? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente. Si tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo 🙂 Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
+    2: 'Hola '+nom+', ¿cómo estás? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente. Si tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo. Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
     3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas. ' +
        (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
              : 'Tu cotización '+num+' sigue vigente, ¿te los mando?'),
@@ -3082,7 +3082,20 @@ function waMsg(x){
        sí o no, que es justo el dato que falta para marcar ganado o perdido. */
     6: 'Hola '+nom+', te escribo por última vez por '+P.suyo+' ('+num+'). ¿Lo dejamos para más adelante o prefieres que lo retomemos ahora? Con un sí o un no me basta, así no te sigo escribiendo.'
   };
-  return msgs[toque] || msgs[1];
+  return waLimpio(msgs[toque] || msgs[1]);
+}
+/* Los emoji llegaron rotos a WhatsApp: en los mensajes ya enviados el 🙂 salió
+   como "�". El archivo está bien en UTF-8, así que se rompen en el camino —
+   no vale la pena arriesgar la cara del mensaje al cliente. Se sacan del texto
+   antes de armar el wa.me y se limpian los espacios que quedan dobles.
+   Los guiones y signos españoles (— ¿ ¡ ó) son del plano básico y no se tocan. */
+function waLimpio(s){
+  return String(s||'')
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '')   /* pares suplentes = todo emoji moderno */
+    .replace(/[️‍�]/g, '')             /* selector de variante, ZWJ y el rombo roto */
+    .replace(/ +([,.!?])/g, '$1')
+    .replace(/ {2,}/g, ' ')
+    .trim();
 }
 
 function pModal(html){ document.getElementById('pmodal').innerHTML=html; document.getElementById('pmodal-bg').classList.remove('hidden'); }
