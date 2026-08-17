@@ -453,6 +453,15 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .pausa-badge { display:inline-block;background:#FEF3C7;color:#92400E;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
 /* respondió: la señal que más predice el cierre después de la recompra */
 .resp-badge { display:inline-block;background:#DCFCE7;color:#166534;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
+/* de qué bloque salió un cliente ya contactado hoy */
+.org-badge { display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px;border:1px solid transparent; }
+.org-badge.ball { background:#FDF2F8;color:#9D174D;border-color:#F9A8D4; }
+.org-badge.b1   { background:#FEF2F2;color:#B91C1C;border-color:#FCA5A5; }
+.org-badge.b2   { background:#FEF6E7;color:#92400E;border-color:#F5D6A0; }
+.org-badge.conv { background:#F0FDF4;color:#166534;border-color:#BBF7D0; }
+.org-badge.b3   { background:#F3F4F6;color:#4B5563;border-color:#D1D5DB; }
+.org-resumen { display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 9px; }
+.org-resumen .org-badge { margin-left:0;font-size:10px;padding:3px 10px; }
 .sbtn.resp { border-color:#86EFAC;color:#166534; }
 .sbtn.resp:hover { background:#F0FDF4; }
 /* badge de toques de seguimiento en la tabla del panel */
@@ -3271,6 +3280,19 @@ function contactadoHoyEs1er(g){
 function diasDe(g){
   return g.lead.fecha_creacion ? Math.round((Date.now()-new Date(g.lead.fecha_creacion).getTime())/86400000) : 0;
 }
+/* ¿De qué bloque salió un cliente que ya se contactó hoy?
+   Sigue el MISMO orden que el clasificador de la cola, con una salvedad: el
+   primer contacto no se puede detectar con sinPrimerContacto() porque el toque
+   de hoy ya subió seg_etapa — hay que mirar fecha_primer_contacto. Sin esto,
+   "Contactados hoy" es una lista plana y no se sabe qué trabajó el vendedor. */
+var ORDEN_ORIGEN = ['ball', 'b1', 'conv', 'b2', 'b3'];
+function origenHoy(g){
+  if (esBallena(g))          return { cls:'ball', txt:'🐋 No dejar enfriar', corto:'🐋 no dejar enfriar' };
+  if (contactadoHoyEs1er(g)) return { cls:'b1',   txt:'Bloque 1 · primer contacto', corto:'del bloque 1' };
+  if (enConversacion(g))     return { cls:'conv', txt:'💬 Conversación', corto:'en conversación' };
+  if (esPrioritario(g))      return { cls:'b2',   txt:'Bloque 2 · seguimiento', corto:'del bloque 2' };
+  return { cls:'b3', txt:'Bloque 3 · resto de la cola', corto:'del bloque 3' };
+}
 /* ── FASE 6 (spec §5.4): BACKLOG ──
    Las que nunca se contactaron y ya llevan días esperando. Van a su propia
    vista para no ensuciar la cola diaria, con plantilla P4 que se hace cargo
@@ -3576,7 +3598,20 @@ function renderSeguimiento(){
       ' <span class="seg-bloque-sub">agendados para los próximos días</span></summary>'+
       futuro.map(function(g){ return segClientCard(g,'future'); }).join('')+'</details>';
   }
-  if (hoyDone.length) html += sec('✅ Contactados hoy','donehoy',hoyDone,'');
+  if (hoyDone.length){
+    /* ordenadas por bloque de origen para poder leer de un vistazo qué se
+       trabajó hoy, y un resumen contado arriba de la lista */
+    hoyDone.sort(function(a,b){
+      var d = ORDEN_ORIGEN.indexOf(origenHoy(a).cls) - ORDEN_ORIGEN.indexOf(origenHoy(b).cls);
+      return d || cmp(a,b);
+    });
+    var cuenta = {};
+    hoyDone.forEach(function(g){ var o = origenHoy(g); cuenta[o.cls] = cuenta[o.cls] || {n:0, o:o}; cuenta[o.cls].n++; });
+    var resumen = ORDEN_ORIGEN.filter(function(k){ return cuenta[k]; }).map(function(k){
+      return '<span class="org-badge '+k+'">'+cuenta[k].n+' '+cuenta[k].o.corto+'</span>';
+    }).join('');
+    html += sec('✅ Contactados hoy','donehoy',hoyDone,'','<div class="org-resumen">'+resumen+'</div>');
+  }
   /* alerta de velocidad: cotizaciones web sin primer contacto hace +24h */
   /* Se muestra SIEMPRE, aunque el vendedor esté filtrando solo sus clientes:
      es la única parte del mundo web que no puede esperar (una cotización recién
@@ -3730,6 +3765,9 @@ function segClientCard(g, cls){
   var recu = esRecurrente(g);
   var recuBtn = '<button class="seg-star recu'+(recu?' on':'')+'" onclick="segToggleRecurrente(\''+x.id+'\','+recu+')" title="'+(recu?'Quitar marca de cliente que ya compró':'Marcar: este cliente ya nos compró antes')+'">🔁</button>';
   var recuBadge = recu ? '<span class="recu-badge">🔁 Ya compró antes</span>' : '';
+  /* en "Contactados hoy": de qué bloque salió, para saber qué se trabajó */
+  var org = (cls === 'donehoy') ? origenHoy(g) : null;
+  var orgBadge = org ? '<span class="org-badge '+org.cls+'">'+org.txt+'</span>' : '';
   var pausaBadge = x.motivo_pausa
     ? '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+(x.seg_proxima?' · '+fmtFechaCorta(x.seg_proxima):'')+'</span>'
     : '';
@@ -3737,7 +3775,7 @@ function segClientCard(g, cls){
   var toqueChip = compacta ? '<span class="seg-touch nuevo">Sin contactar</span>'
                            : '<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>';
   return '<div class="seg-card '+cls+(pez?' pez':'')+(interesado?' interesado':'')+(recu?' recu':'')+'">'+
-    '<div class="seg-cli">'+starBtn+recuBtn+escA(x.cliente||'—')+toqueChip+ownChip+pezBadge+interesadoBadge+recuBadge+respBadge+pausaBadge+'</div>'+
+    '<div class="seg-cli">'+starBtn+recuBtn+escA(x.cliente||'—')+toqueChip+ownChip+orgBadge+pezBadge+interesadoBadge+recuBadge+respBadge+pausaBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
     (compacta ? '' : '<div class="seg-toques">'+toques+'</div>')+
