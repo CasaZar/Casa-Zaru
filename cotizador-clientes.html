@@ -383,6 +383,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dm-card.dm-sel { box-shadow:0 0 0 1px var(--ac); }
 /* las fotos de mesas son casi cuadradas (las de puertas, verticales) */
 .dm-card.dm-mesa img { aspect-ratio:1/1; }
+.dm-sinprecio { display:block;font-size:8.5px;color:#B45309;font-weight:700;margin-top:1px; }
 /* nota viva de ergonomía: cómo se vería la mesa con esas medidas */
 .ms-ergo { font-size:11px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.45; }
 .ms-ergo:empty { display:none; }
@@ -831,37 +832,71 @@ function baseFierroTramo(forma, largoCm) {
   for (var i = 0; i < cand.length; i++) if (largoCm <= cand[i].largoMax) return cand[i];
   return cand.length ? cand[cand.length - 1] : null;   /* más largo que el último tramo: usa el mayor */
 }
-/* ── SUGERENCIA DE VALOR DE BASE (fórmula de la hoja CALCULADORA_MESA) ──
-   BASE DE MADERA, por tier:
-     pulgadas = pulgFijas + pulgXm × (largo/100)
-     costo    = pulgadas × $pulgada(tier) + hh × $HH + insumos
-     venta    = costo / (1 − margen − comisión)      ← margen sobre venta sin IVA
-     cliente  = venta × (1 + IVA), redondeado al millar
-   BASE DE FIERRO: valor del tramo según el largo (mismo para los 3 tiers).
-   Es una SUGERENCIA: solo rellena campos vacíos del vendedor, nunca cobra sola. */
+/* ── PRECIOS DE BASE POR MODELO (lista oficial, ago 2026) ──
+   Son los precios que se cobran al cliente, CON IVA. Reemplazan al cálculo
+   estimado por pulgadas/horas: donde hay precio de lista, manda el precio.
+
+   MAPEO DE TIERS — la lista agrupa las maderas distinto que el cotizador:
+     lista "Pino Oregón"                     → bajo
+     lista "Coihue, Castaño, Ciprés o Mañío" → medio
+     lista "Raulí o Lenga"                   → alto
+   OJO: el Coihue está en el grupo del medio en la lista, pero en el cotizador
+   va en el tier alto junto a Raulí y Lenga. Se cobra con el valor de "Raulí o
+   Lenga" (el mayor) para no vender bajo costo. */
+var MESA_BASES = {
+  /* redondas de madera: el precio cambia según el diámetro */
+  'Mesa Río Backer': { modo:'diametro', tramos:[
+    { hasta:120,  bajo:299900, medio:329900, alto:369900 },
+    { hasta:9999, bajo:329900, medio:369900, alto:409900 }
+  ]},
+  'Mesa Río Puelo': { modo:'diametro', tramos:[
+    { hasta:120,  bajo:199900, medio:229900, alto:269900 },
+    { hasta:9999, bajo:229900, medio:269900, alto:309900 }
+  ]},
+  /* fierro: precio plano, no depende de la madera de la cubierta */
+  'Mesa Río Toltén':   { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
+  'Mesa Río Imperial': { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
+  'Mesa Lago Puyehue': { modo:'fijo', bajo:329900, medio:329900, alto:329900, nota:'Base de fierro compleja' },
+  /* Río Fuy no tiene precio de base: la base son 2 cubiertas iguales que se
+     cotizan como cubierta (alto 71 cm, ancho 40 cm menos que la principal),
+     más el armado. */
+  'Mesa Río Fuy': { modo:'cubiertas', altoPata:0.71, menosAncho:0.40, armado:40000 }
+};
+/* Valor de la base según la lista de precios. Devuelve null si el modelo aún
+   no tiene precio cargado — en ese caso el vendedor lo escribe a mano y el
+   modelo no se le ofrece al público. */
 function mesaBaseSugerida(modelo, largoCm, anchoCm) {
   if (!modelo) return null;
-  var g = VALORES.generales;
-  var divisor = 1 - g.margen - g.comision;
-  if (divisor <= 0) return null;
-  /* el costo fijo por mesa (embalaje, montaje, QC) pasa por la cadena de
-     margen como cualquier costo, y aplica a TODA mesa, sea fierro o madera */
-  var fijoPrecio = VALORES.mesaFijo > 0 ? (VALORES.mesaFijo / divisor) * (1 + g.iva) : 0;
-  if (modelo.base === 'fierro') {
+  var cfg = MESA_BASES[modelo.nombre];
+  if (!cfg) return null;
+  if (cfg.modo === 'fijo') {
+    return { bajo:cfg.bajo, medio:cfg.medio, alto:cfg.alto, detalle: cfg.nota || 'Precio de lista' };
+  }
+  if (cfg.modo === 'diametro') {
     if (!(largoCm > 0)) return null;
-    var t = baseFierroTramo(modelo.forma === 'redonda' ? 'redonda' : 'rectangular', largoCm);
-    if (!t) return null;
-    var v = Math.round((baseFierroCliente(t) + fijoPrecio) / 1000) * 1000;
-    return { bajo: v, medio: v, alto: v, detalle: t.nombre + (fijoPrecio ? ' + fijo por mesa' : '') };
+    var t = null;
+    for (var i=0; i<cfg.tramos.length; i++){ if (largoCm <= cfg.tramos[i].hasta){ t = cfg.tramos[i]; break; } }
+    if (!t) t = cfg.tramos[cfg.tramos.length-1];
+    var lbl = t.hasta >= 9999 ? ('desde '+cfg.tramos[0].hasta+' cm de diámetro')
+                              : ('hasta '+t.hasta+' cm de diámetro');
+    return { bajo:t.bajo, medio:t.medio, alto:t.alto, detalle:'Base '+lbl };
   }
-  if (!(modelo.pulgFijas > 0) || !(largoCm > 0)) return null;
-  var pulg = modelo.pulgFijas + (modelo.pulgXm || 0) * (largoCm / 100);
-  function porTier(tier) {
-    var costo = pulg * VALORES.tierPulgada[tier] + (modelo.hh || 0) * g.hh + (modelo.insumos || 0) + VALORES.mesaFijo;
-    return Math.round((costo / divisor) * (1 + g.iva) / 1000) * 1000;
+  if (cfg.modo === 'cubiertas') {
+    /* Río Fuy: las patas son 2 cubiertas iguales, de alto fijo y 40 cm menos
+       de ancho que la principal. Se cobran como cubierta + el armado. */
+    if (!(anchoCm > 0)) return null;
+    var anchoPata = (anchoCm/100) - cfg.menosAncho;
+    if (anchoPata <= 0) return null;
+    var m2Patas = 2 * cfg.altoPata * anchoPata;
+    function porTier(tier){ return Math.round(m2Patas * PR.cubierta[tier] + cfg.armado); }
+    return { bajo:porTier('bajo'), medio:porTier('medio'), alto:porTier('alto'),
+             detalle:'2 patas de '+Math.round(cfg.altoPata*100)+' × '+Math.round(anchoPata*100)+' cm + armado' };
   }
-  return { bajo: porTier('bajo'), medio: porTier('medio'), alto: porTier('alto'),
-           detalle: pulg.toFixed(1).replace('.', ',') + ' pulgadas de madera' + (modelo.hh ? ' · ' + modelo.hh + ' h de armado' : '') };
+  return null;
+}
+/* modelos que ya tienen precio de lista: son los únicos que ve el público */
+function mesaModelosVisibles(){
+  return MESA_MODELOS.filter(function(m){ return vendorMode || !!MESA_BASES[m.nombre]; });
 }
 /* ── CARGA DE VALORES DESDE SUPABASE ──
    Pisa los defaults con lo guardado en cotizador_valores. Si la tabla no
@@ -1283,13 +1318,18 @@ function renderForm(p) {
     c.addEventListener('input', calcLive);
 
   } else if (p === 'mesa') {
+    /* el select oculto conserva TODOS los modelos (los links compartidos con un
+       modelo sin precio deben seguir restaurándose); las tarjetas muestran solo
+       los que el usuario puede cotizar */
     var modeloOpts = MESA_MODELOS.map(function(m){
       return '<option value="' + escA(m.nombre) + '">' + escA(m.nombre) + '</option>';
     }).join('');
     var modeloCards = MESA_MODELOS.map(function(m, i){
+      if (!vendorMode && !MESA_BASES[m.nombre]) return '';       /* sin precio de lista: no se ofrece */
+      var sinPrecio = !MESA_BASES[m.nombre] ? '<span class="dm-sinprecio">a convenir</span>' : '';
       return '<div class="dm-card dm-mesa" id="msc-' + i + '" onclick="mesaCardSel(' + i + ')">' +
         '<img src="' + MESA_FOTO_BASE + m.foto + '.jpg" loading="lazy" alt="' + escA(m.nombre) + '">' +
-        '<div class="dm-lbl">' + escA(m.nombre.replace('Mesa ', '').replace('Mesa y ', '')) + '</div>' +
+        '<div class="dm-lbl">' + escA(m.nombre.replace('Mesa ', '').replace('Mesa y ', '')) + sinPrecio + '</div>' +
       '</div>';
     }).join('');
     c.innerHTML =
