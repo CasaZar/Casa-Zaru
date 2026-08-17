@@ -851,7 +851,12 @@ function aplicarValor(clave, v) {
   else if (clave === 'generales')   { Object.assign(VALORES.generales, v); }
   else if (clave === 'tierPulgada') { Object.assign(VALORES.tierPulgada, v); }
   else if (clave === 'basesFierro') { if (Array.isArray(v) && v.length) VALORES.basesFierro = v; }
-  else if (clave === 'seguimiento') { if (v.ballena > 0) PEZ_GORDO = v.ballena; }
+  else if (clave === 'seguimiento') {
+    if (v.ballena > 0) PEZ_GORDO = v.ballena;
+    if (v.metaLunes  >= 0) CFG_SEG.metaLunes  = v.metaLunes;
+    if (v.metaNormal >= 0) CFG_SEG.metaNormal = v.metaNormal;
+    if (v.metaSabado >= 0) CFG_SEG.metaSabado = v.metaSabado;
+  }
   else if (clave === 'mesaModelos') {
     /* madera y horas por modelo, llenado desde el Manual. Se mezcla POR NOMBRE:
        si un modelo no está en lo guardado, conserva la estimación del código. */
@@ -3073,18 +3078,20 @@ function segComparator(){
 }
 /* ── FASE 5 (spec §2.1, §5.2, §8): LOS TRES BLOQUES DE LA COLA ──
    Config editable en Supabase; si la tabla no responde, rigen estos valores. */
-var CFG_SEG = { corte:400000, techo:60, metaLunes:8, metaNormal:15, metaSabado:0 };
+/* corte y techo los ajusta el SISTEMA solo (config_seguimiento);
+   las metas las decide Tomás desde el Manual (clave 'seguimiento'). */
+var CFG_SEG = { corte:400000, techo:60, metaLunes:8, metaNormal:20, metaSabado:0 };
 async function cargarConfigSeg(){
   try{
     var r = await sbClient.from('config_seguimiento').select('*').limit(1);
     if (r.error || !r.data || !r.data[0]) return;
     var c = r.data[0];
+    /* solo lo que el sistema ajusta solo. Las metas NO se leen de aquí: las
+       manda el Manual (cotizador_valores), que se carga antes y quedaría
+       pisado si esta función también las escribiera. */
     if (c.corte_monto_prioritario > 0) CFG_SEG.corte = c.corte_monto_prioritario;
     if (c.techo_prioritarios_activos > 0) CFG_SEG.techo = c.techo_prioritarios_activos;
     if (c.dias_cierre_cadencia > 0) CFG_SEG_CIERRE_DIAS = c.dias_cierre_cadencia;
-    if (c.meta_toques_lunes  >= 0) CFG_SEG.metaLunes  = c.meta_toques_lunes;
-    if (c.meta_toques_normal >= 0) CFG_SEG.metaNormal = c.meta_toques_normal;
-    if (c.meta_toques_sabado >= 0) CFG_SEG.metaSabado = c.meta_toques_sabado;
   } catch(e){ /* sin config: quedan los valores de arriba */ }
 }
 /* Prioritario = respondió alguna vez, O monto sobre el corte. El corte separa
@@ -4050,9 +4057,17 @@ function renderManual() {
       '</div>',
       'Se usa la especie MÁS CARA de cada grupo (peor caso, igual que la planilla). Fórmula de la sugerencia: <strong>pulgadas del modelo × $ pulgada + horas × HH + insumos → ÷ (1 − margen − comisión) → × (1 + IVA)</strong>. Las pulgadas por modelo vienen del catálogo (hoja MODELOS_MESA).') +
 
-    mvSec('Seguimiento — umbral de cliente 🐋', 'seguimiento',
+    mvSec('Seguimiento — metas del vendedor y umbral 🐋', 'seguimiento',
+      '<div class="mv-sub">Toques a prioritarios por día</div>' +
+      '<div class="mv-grid3">' +
+        '<label>Lunes' + mvNum('mv-seg-ml', CFG_SEG.metaLunes, 1) + '</label>' +
+        '<label>Martes a viernes' + mvNum('mv-seg-mn', CFG_SEG.metaNormal, 1) + '</label>' +
+        '<label>Sábado' + mvNum('mv-seg-ms', CFG_SEG.metaSabado, 1) + '</label>' +
+      '</div>' +
+      '<div class="finput-hint" style="margin-bottom:10px">El lunes va más bajo porque se junta el sábado tarde y el domingo en los primeros contactos, que siempre van primero. El domingo no se trabaja.</div>' +
+      '<div class="mv-sub">Umbral de cliente 🐋</div>' +
       '<div class="mv-grid3"><label>Monto en cotizaciones abiertas ($)' + mvNum('mv-seg-ballena', PEZ_GORDO, 100000) + '</label></div>',
-      'Un cliente con más de este monto <strong>abierto</strong> (o que ya nos compró antes) se fija arriba de la cola, fuera de la meta diaria del vendedor, con alerta si pasa 72 h sin contacto. Referencia para calibrarlo: el ticket promedio ganado ronda los $738.000 y el mes bueno son ~$18.000.000. Si empiezan a aparecer demasiadas 🐋, súbelo; si nunca aparece ninguna, bájalo.') +
+      'Las metas son del <strong>bloque 2</strong> (toques a prioritarios): los primeros contactos no tienen tope, se hacen todos. Para el 🐋: un cliente con más de ese monto <strong>abierto</strong> —o que ya nos compró— se fija arriba, fuera de la meta, con alerta a las 72 h. Referencias: ticket promedio ganado ~$738.000, mes bueno ~$18.000.000.') +
 
     mvSec('Mesas — madera y horas por modelo (la planilla del taller)', 'mesaModelos',
       '<div class="mv-grid3" style="margin-bottom:10px"><label>Costo fijo por mesa ($, cualquier modelo)' + mvNum('mv-mm-fijo', VALORES.mesaFijo, 1000) + '</label></div>' +
@@ -4113,7 +4128,8 @@ async function guardarValores(clave) {
                costo: mvLee('mv-bf-costo-' + i), cliente: mvLee('mv-bf-cliente-' + i) };
     });
   } else if (clave === 'seguimiento') {
-    v = { ballena: mvLee('mv-seg-ballena') };
+    v = { ballena: mvLee('mv-seg-ballena'), metaLunes: mvLee('mv-seg-ml'),
+          metaNormal: mvLee('mv-seg-mn'), metaSabado: mvLee('mv-seg-ms') };
   } else if (clave === 'mesaModelos') {
     v = {
       fijo: mvLee('mv-mm-fijo'),
