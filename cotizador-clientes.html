@@ -3580,9 +3580,18 @@ function renderSeguimiento(){
   });
   [b1,b1Viejos,b2,b3,conv,futuro,hoyDone].forEach(function(a){ a.sort(cmp); });
   b1.concat(b2,b3).forEach(function(g){ enJuego += g.valor; });
-  /* progreso del día: lo hecho hoy, separando primer contacto de toque */
+  /* Progreso del día. La meta de toques cuenta TODO el seguimiento real del
+     día: ballenas, conversaciones activas y bloque 2. Antes el texto decía que
+     ballenas y conversaciones iban "fuera de la meta" pero el cálculo sí las
+     sumaba; se resolvió a favor del cálculo (8 toques de calidad ya son
+     exigentes si además hay ballenas encima) y se corrigieron los textos.
+     Quedan fuera solo los primeros contactos —que tienen su propia meta, el
+     bloque 1— y el bloque 3, que es relleno para cuando sobra tiempo.
+     Se usa origenHoy() para que el contador y los distintivos de "Contactados
+     hoy" no puedan discrepar nunca: es el mismo clasificador. */
   var b1Hechos = hoyDone.filter(function(g){ return contactadoHoyEs1er(g); }).length;
-  var b2Hechos = hoyDone.filter(function(g){ return !contactadoHoyEs1er(g) && esPrioritario(g); }).length;
+  var CUENTAN_META = ['ball', 'conv', 'b2'];
+  var b2Hechos = hoyDone.filter(function(g){ return CUENTAN_META.indexOf(origenHoy(g).cls) !== -1; }).length;
   var meta = metaHoy();
   var diaVerde = (b1.length === 0) && (b2Hechos >= meta);
   function sec(t,cls,arr,vacio,extra){
@@ -3599,7 +3608,7 @@ function renderSeguimiento(){
   /* BALLENAS — fijas arriba, fuera de la meta. Una sola paga el mes. */
   if (ballenas.length){
     html += '<div class="seg-sec ballena">🐋 No dejar enfriar<span class="seg-cnt">'+ballenas.length+'</span></div>'+
-      '<div class="seg-empty" style="margin:-4px 0 8px">Clientes que ya nos compraron antes, o con más de '+fmt(PEZ_GORDO)+' en cotizaciones abiertas (varias veces el ticket promedio). Van aparte y no consumen tu meta del día: perder uno de estos cuesta mucho más que perder varios normales.</div>'+
+      '<div class="seg-empty" style="margin:-4px 0 8px">Clientes que ya nos compraron antes, o con más de '+fmt(PEZ_GORDO)+' en cotizaciones abiertas (varias veces el ticket promedio). Van fijos arriba porque perder uno de estos cuesta mucho más que perder varios normales: <strong>parte por acá</strong>. Cuentan para tu meta de toques, igual que el bloque 2.</div>'+
       ballenas.map(function(g){
         var h = horasSinToque(g);
         var alerta = h >= 72 ? '<div class="ballena-alerta">⚠ '+Math.floor(h/24)+' días sin un toque — el acuerdo es no pasar de 72 horas</div>' : '';
@@ -3627,7 +3636,7 @@ function renderSeguimiento(){
   /* CONVERSACIONES ACTIVAS — fuera de la cola de plantillas */
   if (conv.length){
     html += '<div class="seg-sec conv">💬 Conversaciones activas<span class="seg-cnt">'+conv.length+'</span></div>'+
-      '<div class="seg-empty" style="margin:-4px 0 8px">Ya te contestaron: aquí el seguimiento es la conversación, no una plantilla. No cuentan para la meta.</div>'+
+      '<div class="seg-empty" style="margin:-4px 0 8px">Ya te contestaron: aquí el seguimiento es la conversación, no una plantilla. Cuentan para tu meta de toques.</div>'+
       conv.map(function(g){ return segClientCard(g,'conv'); }).join('');
   }
   /* BLOQUE 3 — solo si sobra tiempo, colapsado */
@@ -3692,10 +3701,10 @@ function renderSeguimiento(){
           '<span class="hoy-sub">Escribirles el mismo día</span>'+
           '<span class="hoy-go">Ir al bloque 1 →</span></span>'+
         '</div>'+
-        '<div class="hoy-paso'+(p2Ok?' ok':'')+'" onclick="scrollToBloque(2)">'+
+        '<div class="hoy-paso'+(p2Ok?' ok':'')+'" onclick="scrollToBloque(2)" title="Cuentan las ballenas, las conversaciones activas y el bloque 2. No cuentan los primeros contactos (esos son el paso 1) ni el bloque 3.">'+
           '<span class="hoy-n">2</span>'+
           '<span class="hoy-txt">'+(meta ? '<strong>'+b2Hechos+' de '+meta+'</strong> toques' : 'Hoy sin meta')+
-          '<span class="hoy-sub">'+(p2Ok ? 'Meta cumplida ✓' : (meta ? 'Faltan '+(meta-b2Hechos) : 'Solo primeros contactos'))+'</span>'+
+          '<span class="hoy-sub">'+(p2Ok ? 'Meta cumplida ✓' : (meta ? 'Faltan '+(meta-b2Hechos)+' — cuenta 🐋 y conversaciones' : 'Solo primeros contactos'))+'</span>'+
           '<span class="hoy-go">Ir al bloque 2 →</span></span>'+
         '</div>'+
       '</div>'+
@@ -4425,7 +4434,7 @@ function renderManual() {
       '<div class="finput-hint" style="margin-bottom:10px">El lunes va más bajo porque se junta el sábado tarde y el domingo en los primeros contactos, que siempre van primero. El domingo no se trabaja.</div>' +
       '<div class="mv-sub">Umbral de cliente 🐋</div>' +
       '<div class="mv-grid3"><label>Monto en cotizaciones abiertas ($)' + mvNum('mv-seg-ballena', PEZ_GORDO, 100000) + '</label></div>',
-      'Las metas son del <strong>bloque 2</strong> (toques a prioritarios): los primeros contactos no tienen tope, se hacen todos. Para el 🐋: un cliente con más de ese monto <strong>abierto</strong> —o que ya nos compró— se fija arriba, fuera de la meta, con alerta a las 72 h. Referencias: ticket promedio ganado ~$738.000, mes bueno ~$18.000.000.') +
+      'La meta cuenta <strong>todo el seguimiento del día</strong>: ballenas 🐋, conversaciones activas y bloque 2. Quedan fuera los primeros contactos —que no tienen tope, se hacen todos— y el bloque 3, que es para cuando sobra tiempo. Para el 🐋: un cliente con más de ese monto <strong>abierto</strong> —o que ya nos compró— se fija arriba de la cola, con alerta a las 72 h. Referencias: ticket promedio ganado ~$738.000, mes bueno ~$18.000.000.') +
 
     mvSec('Mesas — madera y horas por modelo (la planilla del taller)', 'mesaModelos',
       '<div class="mv-grid3" style="margin-bottom:10px"><label>Costo fijo por mesa ($, cualquier modelo)' + mvNum('mv-mm-fijo', VALORES.mesaFijo, 1000) + '</label></div>' +
