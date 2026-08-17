@@ -391,6 +391,27 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dia-verde.ok { background:#DCFCE7;border-color:#86EFAC;color:#166534; }
 .dia-verde.pend { background:var(--bg3);color:var(--tm); }
 .dia-verde strong { color:inherit; }
+/* encabezado del día: qué hay que hacer hoy, de una mirada */
+.hoy-box { border:1.5px solid var(--acd);border-radius:12px;overflow:hidden;margin-bottom:12px;background:white; }
+.hoy-box.ok { border-color:#16A34A; }
+.hoy-top { background:var(--acd);color:#fff;font-size:11px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;padding:7px 12px; }
+.hoy-box.ok .hoy-top { background:#16A34A; }
+.hoy-pasos { display:flex; }
+.hoy-paso { flex:1;display:flex;align-items:center;gap:9px;padding:11px 12px; }
+.hoy-paso + .hoy-paso { border-left:1px solid var(--bd); }
+.hoy-n { flex:0 0 auto;width:26px;height:26px;border-radius:50%;background:var(--bg3);color:var(--acd);font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center; }
+.hoy-paso.ok .hoy-n { background:#DCFCE7;color:#166534; }
+.hoy-txt { font-size:13px;color:var(--tx);line-height:1.25; }
+.hoy-txt strong { font-size:17px;color:var(--acd); }
+.hoy-paso.ok .hoy-txt strong { color:#166534; }
+.hoy-sub { display:block;font-size:10px;color:var(--tm);margin-top:2px; }
+/* tarjeta compacta del bloque 1: sin las 6 casillas de cadencia */
+.seg-card.nuevo { border-left:4px solid #DC2626; }
+.seg-touch.nuevo { background:#FEE2E2;color:#991B1B; }
+.seg-card.recu { box-shadow:0 0 0 2px #FBCFE8; }
+.recu-badge { display:inline-block;background:#FCE7F3;color:#9D174D;font-size:9px;font-weight:800;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:2px;font-family:'Jost',sans-serif;letter-spacing:.4px; }
+.seg-star.recu { filter:grayscale(1);opacity:.45; }
+.seg-star.recu.on { filter:none;opacity:1; }
 .seg-bloque { display:flex;align-items:center;gap:10px;margin:16px 0 8px;padding:9px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd); }
 .seg-bloque.urg { background:#FEF2F2;border-color:#FCA5A5; }
 .seg-bloque.ok { background:#F0FDF4;border-color:#BBF7D0; }
@@ -3042,7 +3063,12 @@ function fonosDeGanadas(){
 }
 /* ¿ya nos compró antes? Una ganada nunca está "abierta", así que cualquier
    match de teléfono contra las ganadas es una compra previa real. */
+/* Dos caminos, porque el cotizador solo conoce las ventas marcadas AQUÍ:
+   las compras históricas cargadas en Gestión (desde Producción) le son
+   invisibles. Por eso además del match por teléfono se respeta la marca
+   manual `cliente_recurrente`, que César pone con un botón en la tarjeta. */
 function esRecurrente(g){
+  if (g.quotes.some(function(q){ return q.cliente_recurrente; })) return true;
   var f = waPhone(g.lead.contacto);
   return !!(f && fonosDeGanadas()[f]);
 }
@@ -3390,9 +3416,11 @@ function renderSeguimiento(){
       }).join('');
   }
   /* BLOQUE 1 — nunca se sacrifica */
-  html += bloqueH(1,'Primeros contactos','Lo primero del día, siempre',
+  html += bloqueH(1,'Escríbeles hoy mismo','Cotizaron y nadie les ha hablado',
                   (b1.length? b1.length+' por hacer' : '✓ al día'), b1.length?'urg':'ok');
-  html += sec('','late',b1,'Todo lo nuevo está contactado. 🎉');
+  html += b1.length
+    ? b1.map(function(g){ return segClientCard(g,'nuevo'); }).join('')
+    : '<div class="seg-empty">Todo lo nuevo está contactado. 🎉</div>';
   if (b1Viejos.length){
     /* viven en su pestaña propia (fase 6): aquí solo el recordatorio, para que
        la cola del día no se llene con lo que ya no es de hoy */
@@ -3400,9 +3428,11 @@ function renderSeguimiento(){
       '📦 <strong>'+b1Viejos.length+'</strong> sin primer contacto hace más de '+BACKLOG_DIAS+' días — están en la pestaña <strong>Backlog</strong>, para después de terminar los bloques 1 y 2 →</div>';
   }
   /* BLOQUE 2 — hasta la meta del día */
-  html += bloqueH(2,'Toques a prioritarios','Respondieron alguna vez o sobre '+fmt(CFG_SEG.corte),
+  html += bloqueH(2,'Hazles seguimiento','Respondieron antes o cotizaron sobre '+fmt(CFG_SEG.corte),
                   (meta ? b2Hechos+' de '+meta : 'sin meta hoy'), (meta && b2Hechos>=meta)?'ok':'');
-  html += sec('','today',b2, meta ? 'Sin toques pendientes para hoy.' : 'Hoy no hay meta de toques (sábado).');
+  html += b2.length
+    ? b2.map(function(g){ return segClientCard(g,'today'); }).join('')
+    : '<div class="seg-empty">'+(meta ? 'Sin toques pendientes para hoy.' : 'Hoy no hay meta de toques.')+'</div>';
   /* CONVERSACIONES ACTIVAS — fuera de la cola de plantillas */
   if (conv.length){
     html += '<div class="seg-sec conv">💬 Conversaciones activas<span class="seg-cnt">'+conv.length+'</span></div>'+
@@ -3441,13 +3471,26 @@ function renderSeguimiento(){
   }
   /* Día Verde (spec §8.1): bloque 1 al 100% Y bloque 2 en la meta. El bloque 3
      no influye. Si el bloque 1 está incompleto, el día NO puede ser verde. */
-  var diaBanner = diaVerde
-    ? '<div class="dia-verde ok">🟢 <strong>Día Verde</strong> · primeros contactos al día y '+b2Hechos+' toques hechos. Lo demás es bonus.</div>'
-    : '<div class="dia-verde pend">Para el Día Verde te falta: '+
-      (b1.length ? '<strong>'+b1.length+' primer'+(b1.length===1?' contacto':'os contactos')+'</strong>' : '')+
-      (b1.length && b2Hechos<meta ? ' y ' : '')+
-      (b2Hechos<meta ? '<strong>'+(meta-b2Hechos)+' toque'+((meta-b2Hechos)===1?'':'s')+'</strong>' : '')+
-      (!b1.length && b2Hechos>=meta ? '<strong>nada</strong>' : '')+'</div>';
+  /* Encabezado del día: responde "¿qué tengo que hacer hoy?" de una mirada.
+     Dos pasos numerados, con el número que falta en cada uno. */
+  var diaNom = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][new Date().getDay()];
+  var p1Ok = b1.length === 0, p2Ok = b2Hechos >= meta;
+  var diaBanner =
+    '<div class="hoy-box'+(diaVerde?' ok':'')+'">'+
+      '<div class="hoy-top">'+(diaVerde ? '🟢 Día Verde — listo por hoy' : 'Tu meta de hoy, '+diaNom)+'</div>'+
+      '<div class="hoy-pasos">'+
+        '<div class="hoy-paso'+(p1Ok?' ok':'')+'">'+
+          '<span class="hoy-n">1</span>'+
+          '<span class="hoy-txt">'+(p1Ok ? 'Nuevos contactados ✓' : '<strong>'+b1.length+'</strong> por contactar')+
+          '<span class="hoy-sub">Escribirles el mismo día</span></span>'+
+        '</div>'+
+        '<div class="hoy-paso'+(p2Ok?' ok':'')+'">'+
+          '<span class="hoy-n">2</span>'+
+          '<span class="hoy-txt">'+(meta ? '<strong>'+b2Hechos+' de '+meta+'</strong> toques' : 'Hoy sin meta')+
+          '<span class="hoy-sub">'+(p2Ok ? 'Meta cumplida ✓' : (meta ? 'Faltan '+(meta-b2Hechos) : 'Solo primeros contactos'))+'</span></span>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
   /* métricas del mes: conversión y % contactadas en <24h */
   var ahora=new Date(), mesAct=ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0');
   var mesRows = dashRows.filter(function(x){ return x.fecha_creacion && String(x.fecha_creacion).slice(0,7)===mesAct; });
@@ -3464,12 +3507,9 @@ function renderSeguimiento(){
   var rapidPct = mesRows.length ? Math.round(rapidas/mesRows.length*100) : 0;
   var st = document.getElementById('dash-stats');
   st.style.display='block';
+  /* Sin fichas: el encabezado del día ya dice los dos números que importan y
+     repetirlos abajo era el ruido que hacía difícil saber qué hacer. */
   st.innerHTML = banner + diaBanner +
-    '<div class="day-bar">'+
-      ficha('late','1️⃣','Primeros contactos',b1.length)+
-      ficha('today','2️⃣','Toques '+(meta?('('+b2Hechos+'/'+meta+')'):''),b2.length)+
-      ficha('donehoy','✅','Hechos hoy',hoyDone.length)+
-    '</div>'+
     '<div class="month-metrics">📅 Este mes · Conversión <strong>'+convMes+'%</strong> ('+ganadasMes+'/'+mesRows.length+') &nbsp;·&nbsp; Contacto &lt;24h <strong>'+rapidPct+'%</strong></div>';
   document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
 }
@@ -3502,8 +3542,12 @@ function segClientCard(g, cls){
   var qbody = g.quotes.length>1
     ? '<details class="seg-qdet"><summary>venta probable <strong>'+fmt(g.valor)+'</strong> · '+g.quotes.length+' cotizaciones</summary><div class="seg-qlist">'+qrows+'</div></details>'
     : '<div class="seg-qlist">'+qrows+'</div>';
+  /* Las tarjetas del bloque 1 van compactas: si nunca se contactó, las 6
+     casillas de cadencia son ruido puro — lo único que hay que hacer es
+     escribirle. Menos scroll y la acción queda obvia. */
+  var compacta = (cls === 'nuevo');
   var toques='';
-  for (var n=1;n<=CADENCIA.length;n++){
+  for (var n=1;n<=CADENCIA.length && !compacta;n++){
     var h=null;
     for (var i=0;i<hist.length;i++){ if(hist[i].etapa===n){ h=hist[i]; break; } }
     var fechaTq = (h && h.fecha) ? '<span class="tq-fecha">'+fmtFechaCorta(h.fecha)+'</span>' : '';
@@ -3523,27 +3567,39 @@ function segClientCard(g, cls){
   var interesadoBadge = interesado ? '<span class="interesado-badge">★ Interesado</span>' : '';
   var respondio = g.quotes.some(function(q){ return q.respondio; });
   var respBadge = respondio ? '<span class="resp-badge">💬 Respondió</span>' : '';
+  var recu = esRecurrente(g);
+  var recuBtn = '<button class="seg-star recu'+(recu?' on':'')+'" onclick="segToggleRecurrente(\''+x.id+'\','+recu+')" title="'+(recu?'Quitar marca de cliente que ya compró':'Marcar: este cliente ya nos compró antes')+'">🔁</button>';
+  var recuBadge = recu ? '<span class="recu-badge">🔁 Ya compró antes</span>' : '';
   var pausaBadge = x.motivo_pausa
     ? '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+(x.seg_proxima?' · '+fmtFechaCorta(x.seg_proxima):'')+'</span>'
     : '';
   var meta = escA(x.contacto||'sin contacto')+' · hace '+dias+' día'+(dias===1?'':'s');
-  return '<div class="seg-card '+cls+(pez?' pez':'')+(interesado?' interesado':'')+'">'+
-    '<div class="seg-cli">'+starBtn+escA(x.cliente||'—')+'<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>'+ownChip+pezBadge+interesadoBadge+respBadge+pausaBadge+'</div>'+
+  var toqueChip = compacta ? '<span class="seg-touch nuevo">Sin contactar</span>'
+                           : '<span class="seg-touch">Toque '+Math.min(etapa+1,CADENCIA.length)+'/'+CADENCIA.length+'</span>';
+  return '<div class="seg-card '+cls+(pez?' pez':'')+(interesado?' interesado':'')+(recu?' recu':'')+'">'+
+    '<div class="seg-cli">'+starBtn+recuBtn+escA(x.cliente||'—')+toqueChip+ownChip+pezBadge+interesadoBadge+recuBadge+respBadge+pausaBadge+'</div>'+
     '<div class="seg-meta">'+meta+'</div>'+
     qbody+
-    '<div class="seg-toques">'+toques+'</div>'+
+    (compacta ? '' : '<div class="seg-toques">'+toques+'</div>')+
     '<div class="seg-btns">'+
       (cls==='donehoy' ? '<button class="sbtn undo" onclick="segDeshacer(\''+x.id+'\')">↩ Deshacer contacto</button>' : '')+
       (respondio ? '' : '<button class="sbtn resp" onclick="segRespondio(\''+x.id+'\')">💬 Respondió</button>')+
-      '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
+      (compacta ? '' : '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>')+
       wa+
-      '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
+      (compacta ? '' : '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>')+
       '<button class="sbtn lost" onclick="segPerderUI(\''+x.id+'\')">✗ Perdida</button>'+
     '</div></div>';
 }
 /* marca/desmarca un cliente como interesado (estrella, para ubicarlo fácil en la cola) */
 async function segToggleInteresado(id, current){
   segSave(id, {interesado: !current}, current?'Ya no marcado como interesado':'Marcado como interesado ★');
+}
+/* "ya nos compró antes": +100 en el score y lo convierte en 🐋. Se marca a
+   mano porque las compras cargadas en Gestión no llegan al cotizador. */
+async function segToggleRecurrente(id, current){
+  _fonosGanadas = null;
+  segSave(id, {cliente_recurrente: !current},
+    current ? 'Ya no marcado como cliente que compró' : '🔁 Cliente que ya compró — sube a lo más alto de la cola');
 }
 /* FASE 3 (spec §5.3): el cliente contestó. Nunca vuelve a false: es la señal
    que más pesa en el score (+50) y lo hace inmune al auto-ajuste del corte. */
