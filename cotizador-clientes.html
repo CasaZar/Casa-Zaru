@@ -853,10 +853,15 @@ var MESA_BASES = {
     { hasta:120,  bajo:199900, medio:229900, alto:269900 },
     { hasta:9999, bajo:229900, medio:269900, alto:309900 }
   ]},
-  /* fierro: precio plano, no depende de la madera de la cubierta */
-  'Mesa Río Toltén':   { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
-  'Mesa Río Imperial': { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
-  'Mesa Lago Puyehue': { modo:'fijo', bajo:329900, medio:329900, alto:329900, nota:'Base de fierro compleja' },
+  /* fierro: precio plano, no depende de la madera de la cubierta.
+     Simples (trapecio / cuadrada / X) $289.900 · complejas $329.900 ·
+     redondas $249.900. El tipo de cada modelo se identificó mirando su foto
+     del catálogo: Calafquén lleva base X y Maullín base cuadrada. */
+  'Mesa Río Toltén':        { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
+  'Mesa Río Imperial':      { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
+  'Mesa Lago Puyehue':      { modo:'fijo', bajo:329900, medio:329900, alto:329900, nota:'Base de fierro compleja' },
+  'Mesa Lago Calafquén':    { modo:'fijo', bajo:289900, medio:289900, alto:289900, nota:'Base de fierro X' },
+  'Mesa Río Maullín':       { modo:'fijo', bajo:289900, medio:289900, alto:289900, nota:'Base de fierro cuadrada' },
   /* Río Fuy no tiene precio de base: la base son 2 cubiertas iguales que se
      cotizan como cubierta (alto 71 cm, ancho 40 cm menos que la principal),
      más el armado. */
