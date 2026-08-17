@@ -492,9 +492,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       </div>
 
       <!-- Solo visible con el link privado de vendedor (?pro=zr) -->
-      <div class="pcard hidden" id="pcard-mesa" data-prod="mesa">
-        <div class="pcard-img"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2.5" y="6" width="19" height="2.6" rx=".8"/><path d="M5 8.6V19M19 8.6V19M5 13h14"/></svg></div></div>
-        <div class="pcard-body"><div class="pinfo"><div class="pname">Mesa o mueble con base de fierro</div><div class="psub">Uso interno · cubierta de madera + base a medida</div></div><span class="parrow">→</span></div>
+      <div class="pcard" id="pcard-mesa" data-prod="mesa">
+        <div class="pcard-img" id="img-mesa"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2.5" y="6" width="19" height="2.6" rx=".8"/><path d="M5 8.6V19M19 8.6V19M5 13h14"/></svg></div></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Mesas de madera</div><div class="psub">Comedor, centro o arrimo · 16 modelos</div></div><span class="parrow">→</span></div>
       </div>
 
       <div class="pcard" data-prod="revestimiento">
@@ -642,12 +642,14 @@ var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
 var sbClient = supabase.createClient(SB_URL, SB_KEY);
 
 /* ── FOTOS — pegar URL para activar foto en la card ── */
+/* Fotos de proyectos REALES (ago 2026). La de cubierta va recortada 16:7 para
+   la tarjeta ancha; las demás 4:3. Reemplazaron los renders de ChatGPT de
+   puertas, que además delataban su origen en el nombre del archivo. */
 var FOTOS = {
-  /* cubierta-wide: recorte horizontal 16:7 hecho desde la foto original, que es
-     vertical (1086×1448) y en la tarjeta ancha perdía el 67% de la imagen. */
   cubierta:      'https://cotizador.casazaru.cl/fotos/cubierta-wide.jpg',
   repisa:        'https://cotizador.casazaru.cl/fotos/repisa.jpg',
   peldano:       'https://cotizador.casazaru.cl/fotos/peldano.jpg',
+  mesa:          'https://cotizador.casazaru.cl/fotos/mesa.jpg',
   puertas:       'https://cotizador.casazaru.cl/fotos/puertas.jpg',
   revestimiento: 'https://cotizador.casazaru.cl/fotos/revestimiento.jpg'
 };
@@ -656,10 +658,11 @@ var FOTOS = {
    del revestimiento, que es el producto. Subirlo deja la pared y la ventana. */
 var FOTO_POS = { revestimiento: 'center 25%' };
 var FOTO_ALT = {
-  cubierta:      'Cubierta de madera maciza sobre caballetes en el taller',
+  cubierta:      'Cubierta de madera maciza en una isla de cocina, con lavaplatos',
   repisa:        'Repisa de madera montada en la pared con plantas',
   peldano:       'Peldaños de madera flotantes en una escalera',
-  puertas:       'Puerta de madera maciza con vidrios en la parte superior',
+  mesa:          'Mesa de centro de madera maciza en un living con vista al volcán',
+  puertas:       'Puerta de entrada de madera maciza instalada',
   revestimiento: 'Dormitorio con revestimiento de madera en muro y cielo'
 };
 
@@ -686,7 +689,7 @@ var WOOD = {
 var PNAME = {
   cubierta:'Cubiertas', repisa:'Repisa / Cubierta 2cm', peldano:'Peldaños',
   granero:'Puerta Granero', maciza:'Puerta Madera', vidrios:'Puerta con Vidrios',
-  revestimiento:'Revestimiento', mesa:'Mesa / Mueble con base', revlibre:'Revestimiento a medida'
+  revestimiento:'Revestimiento', mesa:'Mesas de madera', revlibre:'Revestimiento a medida'
 };
 var FIERRO_KG_M = 3;   /* 18 kg los 6 metros de perfil */
 var MODELOS = {
@@ -1046,7 +1049,10 @@ function calcLive() {
   /* mesa y revlibre (uso interno) se cotizan con valores que escribe el vendedor,
      no con la tabla de m²: mostrar "Ingresa las medidas" ahí seria mentir. */
   var wrapEl = rangeEl.closest('.live-price-wrap');
-  if (wrapEl) wrapEl.style.display = (prod === 'mesa' || prod === 'revlibre') ? 'none' : '';
+  /* revlibre siempre lo valoriza el vendedor a mano. La mesa SÍ muestra precio
+     en vivo al público, porque su base se calcula sola (mesaBaseSugerida). */
+  var sinLive = (prod === 'revlibre') || (prod === 'mesa' && vendorMode);
+  if (wrapEl) wrapEl.style.display = sinLive ? 'none' : '';
   rbAutoSync();   /* los ml del reborde dependen de las medidas Y de las cantidades */
   mesaSugerenciaRefrescar();   /* la sugerencia de base sigue al modelo y al largo */
   var bajo = 0, alto = 0;
@@ -1060,6 +1066,22 @@ function calcLive() {
       sumM2 += (lg/100)*(an/100)*ca;
     }
     if (sumM2 > 0) { bajo = sumM2 * currentPR().bajo * espesorFactor('bajo'); alto = sumM2 * currentPR().alto * espesorFactor('alto'); }
+
+  } else if (prod === 'mesa') {
+    /* cubierta + base sugerida del modelo, por cada mesa cotizada */
+    var mM2 = 0, mCant = 0;
+    for (var k=1; k<=nrows; k++) {
+      var lgm=document.getElementById('lg'+k), anm=document.getElementById('an'+k), cam=document.getElementById('ca'+k);
+      if (!lgm||!lgm.value||!anm.value) continue;
+      var ca3=parseInt((cam&&cam.value)||1)||1;
+      mM2 += (parseFloat(lgm.value)||0)/100*(parseFloat(anm.value)||0)/100*ca3;
+      mCant += ca3;
+    }
+    if (mM2 > 0) {
+      var mSug = mesaSugerido();
+      bajo = mM2*PR.cubierta.bajo + (mSug ? mSug.bajo*mCant : 0);
+      alto = mM2*PR.cubierta.alto + (mSug ? mSug.alto*mCant : 0);
+    }
 
   } else if (['granero','maciza','vidrios'].includes(prod)) {
     var sumBajo = 0, sumAlto = 0;
@@ -1298,18 +1320,22 @@ function renderForm(p) {
         '<div class="finput-hint">Si la mesa es redonda, usa el diámetro como largo y ancho.</div>' +
         '<div class="ms-ergo" id="ms-ergo"></div>' +
       '</div>' +
-      '<div class="fsec">' +
+      '<div class="fsec'+(vendorMode?'':' hidden')+'">' +
         '<label class="flabel">Espesor de la cubierta</label>' +
         '<input class="finput" type="text" id="ms-esp-cubierta" placeholder="Ej. 4 cms" value="4 cms">' +
       '</div>' +
-      '<div class="fsec">' +
+      /* El público no elige tipo de base ni escribe valores: el modelo ya define
+         si es de madera o fierro y el precio sale de mesaBaseSugerida(). Los
+         campos siguen en el DOM (ocultos) para que el link compartido y el
+         vendedor funcionen igual que siempre. */
+      '<div class="fsec'+(vendorMode?'':' hidden')+'">' +
         '<label class="flabel">Tipo de base</label>' +
         '<select class="fsel" id="ms-base-tipo" onchange="toggleBaseMesa(this.value)">' +
           '<option value="fierro">Fierro</option>' +
           '<option value="madera">Madera</option>' +
         '</select>' +
       '</div>' +
-      '<div class="mesa-box" id="ms-box-fierro">' +
+      '<div class="mesa-box'+(vendorMode?'':' hidden')+'" id="ms-box-fierro">' +
         '<div class="mesa-h">Base de fierro</div>' +
         '<div class="fsec">' +
           '<label class="flabel">Valor de la base <span class="req">*</span></label>' +
@@ -1502,6 +1528,12 @@ function mesaSugerenciaRefrescar() {
     el.innerHTML = '<span>' + txt + '</span> <button type="button" class="sbtn" onclick="mesaSugerenciaUsar()">Usar</button>';
   });
 }
+/* base sugerida del modelo elegido con el largo de la pieza 1 (o null) */
+function mesaSugerido(){
+  var m = mesaModeloActual(); if (!m) return null;
+  var lgEl = document.getElementById('lg1');
+  return mesaBaseSugerida(m, parseFloat((lgEl&&lgEl.value)||0)||0, 0);
+}
 function mesaSugerenciaUsar() {
   var sug = window._mesaSug; if (!sug) return;
   var m = mesaModeloActual(); if (!m) return;
@@ -1513,8 +1545,9 @@ function mesaSugerenciaUsar() {
 /* muestra el bloque de campos de la base fierro/madera que corresponda */
 function toggleBaseMesa(tipo) {
   var f = document.getElementById('ms-box-fierro'), m = document.getElementById('ms-box-madera');
-  if (f) f.classList.toggle('hidden', tipo === 'madera');
-  if (m) m.classList.toggle('hidden', tipo !== 'madera');
+  /* al público nunca se le muestran: su precio sale de la sugerencia */
+  if (f) f.classList.toggle('hidden', !vendorMode || tipo === 'madera');
+  if (m) m.classList.toggle('hidden', !vendorMode || tipo !== 'madera');
   calcLive();
 }
 /* ── EXTRAS LIBRES Y ESPESOR FINAL DEL VENDEDOR (nombre + valor), reutilizable en todos los productos ──
@@ -1975,10 +2008,17 @@ function generar() {
   if (telChk && !esCorreo(conStr) && telBasura(telChk)) { errEl.textContent = 'Ese número no parece un celular real. Revísalo — lo necesitamos para enviarte la cotización.'; errEl.classList.remove('hidden'); return; }
   if (!hasValidDims()) { errEl.textContent = 'Ingresa al menos una medida antes de continuar.'; errEl.classList.remove('hidden'); return; }
   if (prod === 'mesa') {
-    var mChk = mesaDatos();
-    if (mChk.baseTipo === 'madera') {
-      if (mChk.valorBajo <= 0 || mChk.valorMedio <= 0 || mChk.valorAlto <= 0) { errEl.textContent = 'Escribe el valor de la base de madera para los 3 tipos de madera.'; errEl.classList.remove('hidden'); return; }
-    } else if (mChk.valor <= 0) { errEl.textContent = 'Escribe el valor de la base de fierro.'; errEl.classList.remove('hidden'); return; }
+    /* al público no se le piden valores: los calcula el modelo. Solo se exige
+       que haya elegido uno, que es lo que define la base. */
+    if (!vendorMode) {
+      if (!mesaModeloActual()) { errEl.textContent = 'Elige un modelo de mesa para continuar.'; errEl.classList.remove('hidden'); return; }
+    } else {
+      var mChk = mesaDatos();
+      var haySug = !!mesaSugerido();
+      if (mChk.baseTipo === 'madera') {
+        if (!haySug && (mChk.valorBajo <= 0 || mChk.valorMedio <= 0 || mChk.valorAlto <= 0)) { errEl.textContent = 'Escribe el valor de la base de madera para los 3 tipos de madera, o elige un modelo del catálogo.'; errEl.classList.remove('hidden'); return; }
+      } else if (!haySug && mChk.valor <= 0) { errEl.textContent = 'Escribe el valor de la base de fierro, o elige un modelo del catálogo.'; errEl.classList.remove('hidden'); return; }
+    }
   }
   if (prod === 'revlibre') {
     var rvChk = rvDatos();
@@ -2167,11 +2207,19 @@ function htmlMesa(cli, fecha) {
   var esMadera = M.baseTipo === 'madera';
   /* el valor de la base es POR MESA: si se cotizan 2 cubiertas, van 2 bases */
   var nBases = filas.reduce(function(a,f){ return a + (f.ca||1); }, 0) || 1;
-  /* cada madera = su cubierta + sus bases (fierro: mismo valor; madera: valor propio por tipo) + reborde + extras */
+  /* Valor de la base: lo que escribió el vendedor manda; si no escribió nada
+     (siempre en el flujo público) se usa la sugerencia del modelo. */
+  var sug = mesaSugerido();
+  function baseTier(tier){
+    var manual = esMadera ? (tier==='bajo'?M.valorBajo:tier==='medio'?M.valorMedio:M.valorAlto) : M.valor;
+    if (manual > 0) return manual;
+    return sug ? sug[tier] : 0;
+  }
+  /* cada madera = su cubierta + sus bases + reborde + extras */
   var tierRows = [
-    {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo,  base: (esMadera ? M.valorBajo  : M.valor) * nBases},
-    {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio, base: (esMadera ? M.valorMedio : M.valor) * nBases},
-    {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto,  base: (esMadera ? M.valorAlto  : M.valor) * nBases}
+    {label:'Pino Oregón',              tier:'bajo',  madera: sumM2*PR.cubierta.bajo,  base: baseTier('bajo')  * nBases},
+    {label:'Castaño / Ciprés / Mañío', tier:'medio', madera: sumM2*PR.cubierta.medio, base: baseTier('medio') * nBases},
+    {label:'Coihue / Raulí / Lenga',   tier:'alto',  madera: sumM2*PR.cubierta.alto,  base: baseTier('alto')  * nBases}
   ].map(function(r){ r.total = r.madera + r.base + rebordeValor(r.tier) + vExtrasTot; return r; });
 
   var pesoMadera = Math.round(sumM2*30);
@@ -4389,8 +4437,7 @@ document.addEventListener('DOMContentLoaded', function() {
      de siempre). Un cliente nunca inicia sesión, así que jamás los ve. */
   function habilitarInternos(){
     vendorMode = true;
-    var pm = document.getElementById('pcard-mesa');
-    if (pm) pm.classList.remove('hidden');
+    /* mesa ya es pública (ago 2026); acá solo queda el revestimiento a medida */
     var pr = document.getElementById('pcard-revlibre');
     if (pr) pr.classList.remove('hidden');
   }
