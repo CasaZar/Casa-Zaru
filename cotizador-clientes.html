@@ -793,7 +793,7 @@ var ERGO = {
   cabFactor: 0.17, cabMin: 22, cabMax: 38,    /* voladizo de cabecera: % del largo */
   latFactor: 0.20, latMin: 12, latMax: 22,    /* voladizo lateral: % del ancho */
   patasVol: 8,                                 /* modelos de 4 patas: pata casi en la esquina */
-  cmComensal: 60, cabAnchoMin: 90, cabLargoMin: 180
+  cmComensal: 60                               /* regla del taller: 60 cm por persona sentada */
 };
 function mesaErgo(modelo, largo, ancho) {
   if (!(largo > 0)) return null;
@@ -808,14 +808,18 @@ function mesaErgo(modelo, largo, ancho) {
   var volCab = esPatas ? ERGO.patasVol : Math.min(ERGO.cabMax, Math.max(ERGO.cabMin, largo * ERGO.cabFactor));
   var volLat = esPatas ? ERGO.patasVol : Math.min(ERGO.latMax, Math.max(ERGO.latMin, ancho * ERGO.latFactor));
   var baseL = Math.round(largo - 2 * volCab), baseA = Math.round(ancho - 2 * volLat);
+  /* 60 cm por persona a cada lado, y SIEMPRE una en cada cabecera: se sientan
+     igual, no importa el tamaño. Antes las cabeceras solo se contaban desde
+     180 × 90 cm, así que una mesa de 160 × 80 decía 4 personas cuando caben 6
+     — y se le quitaban dos comensales a la mesa en la cara del cliente. */
   var lados = Math.floor(largo / ERGO.cmComensal) * 2;
-  var cabeceras = (ancho >= ERGO.cabAnchoMin && largo >= ERGO.cabLargoMin) ? 2 : 0;
+  var cabeceras = 2;
   return {
     forma: 'rectangular', baseLargo: baseL, baseAncho: baseA,
     volCab: Math.round(volCab), volLat: Math.round(volLat),
     comensales: lados + cabeceras,
     texto: 'Base sugerida ' + baseL + ' × ' + baseA + ' cm (voladizo ' + Math.round(volCab) + ' / ' + Math.round(volLat) + ' cm) · ' +
-           lados + (cabeceras ? ' + 2 cabeceras = ' + (lados + cabeceras) : '') + ' personas'
+           lados + ' a los lados + 2 cabeceras = ' + (lados + cabeceras) + ' personas'
   };
 }
 /* ── VALORES CENTRALES (el "manual") ──
@@ -869,7 +873,9 @@ var PROTOCOLOS = [
   { cat:'Puertas', titulo:'Ancho de batientes, pieinazo y cabezales',
     texto:'Desde 90 cm de ancho de puerta: batientes, pieinazo y cabezales de 18 cm.\nBajo 90 cm de ancho: de 15 cm.' },
   { cat:'Revestimiento', titulo:'Espesor y rendimiento del palo',
-    texto:'Espesor del revestimiento: 1,2 cm.\nDe un palo de 2" salen 3 tablones: se raja en 3 a lo largo.' }
+    texto:'Espesor del revestimiento: 1,2 cm.\nDe un palo de 2" salen 3 tablones: se raja en 3 a lo largo.' },
+  { cat:'Mesas', titulo:'Cuántas personas caben',
+    texto:'Se contemplan 60 cm por persona sentada.\nSiempre se sienta una persona en cada cabecera, sin importar el tamaño de la mesa.\nEjemplo: una mesa de 160 cm son 2 por lado (4) + 2 cabeceras = 6 personas.' }
 ];
 /* precio al cliente de un tramo de fierro: el valor definido en el manual, o
    si aún no se define, el costo del proveedor + IVA redondeado al millar */
