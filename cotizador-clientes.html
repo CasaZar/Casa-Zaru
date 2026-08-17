@@ -2881,8 +2881,11 @@ function waMsg(x){
   var esMismoDia = fechaBaseISO(x.fecha_creacion) === hoyISO();
   var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru 🙂 Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+'). ¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
       p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+'). Si quieres afinar medidas o comparar maderas, te ayudo al tiro. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
+  /* P4: nunca se le escribió y ya pasaron días. Reconocer la demora funciona
+     mucho mejor que escribir como si nada (protocolo de triage v2). */
+  var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora. ¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
   var msgs = {
-    1: esMismoDia ? p1 : p2,
+    1: esBacklogQ(x) ? p4 : (esMismoDia ? p1 : p2),
     2: 'Hola '+nom+', ¿cómo va? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente. Si tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo 🙂 Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
     3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas. ' +
        (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
@@ -2907,6 +2910,7 @@ function renderTabs(){
   if (isPanelAdmin()){
     tabs.push({id:'web',label:'Clientes Web'});
     VENDEDORES.forEach(function(v){ tabs.push({id:v.code,label:v.nombre}); });
+    tabs.push({id:'backlog',label:'📦 Backlog'});
     tabs.push({id:'dormidos',label:'😴 Dormidos'});
     tabs.push({id:'actividad',label:'📊 Actividad'});
     tabs.push({id:'manual',label:'📖 Manual'});
@@ -2914,6 +2918,7 @@ function renderTabs(){
   } else {
     tabs.push({id:panelSeller.code,label:'Mis cotizaciones'});
     if (!panelSeller.b2b) tabs.push({id:'web',label:'Clientes Web'});
+    tabs.push({id:'backlog',label:'📦 Backlog'});
     tabs.push({id:'dormidos',label:'😴 Dormidos'});
     tabs.push({id:'actividad',label:'📊 Mi actividad'});
   }
@@ -2928,8 +2933,48 @@ function setDashView(v){
   else if (v==='elim'){ renderEliminadas(); }
   else if (v==='dormidos'){ renderDormidos(); }
   else if (v==='actividad'){ renderActividad(); }
+  else if (v==='backlog'){ renderBacklog(); }
   else if (v==='manual'){ renderManual(); }
   else { renderDashFilters(); renderDash(); }
+}
+/* FASE 6: vista Backlog — las que nunca se contactaron, más reciente primero */
+function renderBacklog(){
+  document.getElementById('dash-filters').innerHTML = '';
+  var grupos = buildSegGroups().filter(function(g){
+    if (!isPanelAdmin() && g.owner !== panelSeller.code && !(isWeb(g.lead) && !panelSeller.b2b)) return false;
+    return esBacklogQ(g.lead);
+  });
+  /* más reciente primero: las de menos de 21 días son las que todavía pueden cerrar */
+  grupos.sort(function(a,b){ return new Date(b.lead.fecha_creacion||0) - new Date(a.lead.fecha_creacion||0); });
+  var frescas = grupos.filter(function(g){ return diasDe(g) <= 21; });
+  var viejas  = grupos.filter(function(g){ return diasDe(g) > 21; });
+  var enJuego = grupos.reduce(function(a,g){ return a + (g.valor||0); }, 0);
+  var cierre = addDias(SISTEMA_V2_INICIO, CFG_SEG_BACKLOG_DIAS);
+  var st = document.getElementById('dash-stats'); st.style.display = 'block';
+  st.innerHTML =
+    '<div class="dia-verde pend">📦 <strong>'+grupos.length+' sin primer contacto.</strong> Se trabajan ~10 al día, <strong>solo después</strong> de terminar los bloques 1 y 2 del Seguimiento. De arriba hacia abajo: las de arriba son las que todavía pueden cerrar.'+
+      (grupos.length ? ' Lo que no se alcance se cierra solo el '+fmtFechaCorta(cierre)+', sin culpa y sin mensaje.' : '')+'</div>'+
+    '<div class="day-bar">'+
+      '<div class="stat-card"><div class="stat-v">'+frescas.length+'</div><div class="stat-l">🟢 Hasta 21 días</div></div>'+
+      '<div class="stat-card"><div class="stat-v">'+viejas.length+'</div><div class="stat-l">⚪ Más antiguas</div></div>'+
+      '<div class="stat-card"><div class="stat-v money">'+fmtM(enJuego)+'</div><div class="stat-l">En juego</div></div>'+
+    '</div>';
+  if (!grupos.length){
+    document.getElementById('dash-tbl').innerHTML = '<div class="seg-empty" style="padding:24px;text-align:center">Backlog vacío — todo lo que entró tiene su primer contacto. 🎉</div>';
+    return;
+  }
+  var html = '';
+  if (frescas.length){
+    html += '<div class="seg-sec today">🟢 Todavía a tiempo<span class="seg-cnt">'+frescas.length+'</span></div>'+
+      '<div class="seg-empty" style="margin:-4px 0 8px">Menos de 21 días: siguen dentro de la ventana donde nacen las ventas. El mensaje ya viene con la disculpa por la demora.</div>'+
+      frescas.map(function(g){ return segClientCard(g,'today'); }).join('');
+  }
+  if (viejas.length){
+    html += '<details class="seg-b3"><summary>⚪ Más antiguas · '+viejas.length+
+      ' <span class="seg-bloque-sub">más de 21 días — solo si sobra tiempo</span></summary>'+
+      viejas.map(function(g){ return segClientCard(g,'late'); }).join('')+'</details>';
+  }
+  document.getElementById('dash-tbl').innerHTML = html;
 }
 /* Dormidos: enviadas que se cayeron de la cola (cadencia agotada o +30 días sin gestión) */
 function renderDormidos(){
@@ -3068,6 +3113,21 @@ function contactadoHoyEs1er(g){
 function diasDe(g){
   return g.lead.fecha_creacion ? Math.round((Date.now()-new Date(g.lead.fecha_creacion).getTime())/86400000) : 0;
 }
+/* ── FASE 6 (spec §5.4): BACKLOG ──
+   Las que nunca se contactaron y ya llevan días esperando. Van a su propia
+   vista para no ensuciar la cola diaria, con plantilla P4 que se hace cargo
+   del atraso. Se trabajan ~10 al día SOLO si los bloques 1 y 2 están listos,
+   de la más reciente a la más antigua: las de menos de 21 días siguen dentro
+   de la ventana donde nacen las ventas; las de +30 son arqueología. */
+var BACKLOG_DIAS = 7;                    /* sin contactar hace más de esto = backlog */
+var SISTEMA_V2_INICIO = '2026-08-16';    /* arranque del sistema v2: base del cierre a 14 días */
+function esBacklogQ(x){
+  if (!x || x.eliminada) return false;
+  if ((x.estado||'enviada') !== 'enviada') return false;
+  if (x.fecha_primer_contacto || (x.seg_etapa||0) > 0) return false;
+  if (!x.fecha_creacion) return false;
+  return fechaBaseISO(x.fecha_creacion) < addDias(hoyISO(), -BACKLOG_DIAS);
+}
 /* Meta de toques del bloque 2 según el día (spec §8). El lunes baja porque se
    junta el sábado tarde + domingo en el bloque 1. */
 function metaHoy(){
@@ -3115,8 +3175,12 @@ function horasSinToque(g){
    fecha, las que tienen un toque agendado a futuro, ni las ballenas. */
 var CIERRE_MOTIVO = 'Sin respuesta (cierre automático)';
 var CFG_SEG_CIERRE_DIAS = 40;
+var CFG_SEG_BACKLOG_DIAS = 14;   /* plazo para trabajar el backlog desde el arranque del sistema */
 function candidatasACerrar(){
   var limite = addDias(hoyISO(), -CFG_SEG_CIERRE_DIAS);
+  /* el backlog tiene su propio plazo: 14 días desde que arrancó el sistema v2,
+     no desde que se cotizó (spec §6). Antes de esa fecha no se cierra nada de ahí. */
+  var vencioBacklog = hoyISO() >= addDias(SISTEMA_V2_INICIO, CFG_SEG_BACKLOG_DIAS);
   var grupos = buildSegGroups();
   var ballenas = {};
   grupos.forEach(function(g){ if (esBallena(g)) g.quotes.forEach(function(q){ ballenas[q.id]=true; }); });
@@ -3128,7 +3192,8 @@ function candidatasACerrar(){
     if (x.seg_proxima && String(x.seg_proxima).slice(0,10) >= hoyISO()) return false;  /* toque agendado */
     if (ballenas[x.id]) return false;                            /* spec §2.4 */
     if (!x.fecha_creacion) return false;
-    return fechaBaseISO(x.fecha_creacion) < limite;
+    if (fechaBaseISO(x.fecha_creacion) < limite) return true;    /* cadencia agotada (40 días) */
+    return vencioBacklog && esBacklogQ(x);                        /* backlog no trabajado a tiempo */
   });
 }
 async function correrCierreAutomatico(){
@@ -3322,9 +3387,10 @@ function renderSeguimiento(){
                   (b1.length? b1.length+' por hacer' : '✓ al día'), b1.length?'urg':'ok');
   html += sec('','late',b1,'Todo lo nuevo está contactado. 🎉');
   if (b1Viejos.length){
-    html += '<details class="seg-backlog"><summary>📦 Backlog · '+b1Viejos.length+' sin primer contacto hace más de 7 días</summary>'+
-      '<div class="seg-empty" style="margin:4px 0 8px">Lo de arriba primero. Estas se trabajan al final del día, ~10 diarias, de la más reciente a la más antigua.</div>'+
-      b1Viejos.map(function(g){ return segClientCard(g,'late'); }).join('')+'</details>';
+    /* viven en su pestaña propia (fase 6): aquí solo el recordatorio, para que
+       la cola del día no se llene con lo que ya no es de hoy */
+    html += '<div class="seg-backlog" style="cursor:pointer" onclick="setDashView(\'backlog\')">'+
+      '📦 <strong>'+b1Viejos.length+'</strong> sin primer contacto hace más de '+BACKLOG_DIAS+' días — están en la pestaña <strong>Backlog</strong>, para después de terminar los bloques 1 y 2 →</div>';
   }
   /* BLOQUE 2 — hasta la meta del día */
   html += bloqueH(2,'Toques a prioritarios','Respondieron alguna vez o sobre '+fmt(CFG_SEG.corte),
@@ -3506,7 +3572,10 @@ async function segSave(id, updates, okMsg){
 /* ── FASE 2 (spec §5.1): cada toque queda en la tabla `toques` ──
    El tipo sale de la plantilla que corresponde a ese número de toque. */
 function toqueTipo(x, n){
-  if (n === 1) return fechaBaseISO(x.fecha_creacion) === hoyISO() ? 'p1' : 'p2';
+  if (n === 1) {
+    if (esBacklogQ(x)) return 'p4';
+    return fechaBaseISO(x.fecha_creacion) === hoyISO() ? 'p1' : 'p2';
+  }
   if (n === 2) return 'p3';
   return 'cadencia';
 }
