@@ -840,12 +840,20 @@ var VALORES = {
   mesaFijo: 0,
   /* Base de fierro del proveedor, por tramo de largo (hoja PARAMETROS §3).
      costo = sin IVA, lo que cobra el proveedor. cliente = lo que se cobra al
-     cliente CON IVA; 0 = sin definir aún → se sugiere costo+IVA redondeado. */
+     cliente CON IVA; 0 = sin definir aún → se sugiere costo+IVA redondeado.
+
+     OJO con los tramos largos: el precio de lista del fierro es PLANO por tipo
+     de base ($289.900 simple · $329.900 compleja · $249.900 redonda), pero el
+     costo del proveedor SUBE con el largo. A $289.900 el margen se cae de 28%
+     (hasta 280) a 14% (281-320) y a −0,6% (321-360: se vende BAJO COSTO). Por
+     eso solo van cargados los dos tramos sanos; los otros quedan en 0 hasta
+     que Tomás defina el precio largo. Mantener el markup del tramo corto
+     (1,392×) pediría $347.880 y $405.860. */
   basesFierro: [
-    { nombre:'Base rectangular hasta 280 cm', forma:'rectangular', largoMax:280, costo:175000, cliente:0 },
+    { nombre:'Base rectangular hasta 280 cm', forma:'rectangular', largoMax:280, costo:175000, cliente:289900 },
     { nombre:'Base rectangular 281–320 cm',   forma:'rectangular', largoMax:320, costo:210000, cliente:0 },
     { nombre:'Base rectangular 321–360 cm',   forma:'rectangular', largoMax:360, costo:245000, cliente:0 },
-    { nombre:'Base redonda (cruz / trípode)', forma:'redonda',     largoMax:150, costo:150000, cliente:0 },
+    { nombre:'Base redonda (cruz / trípode)', forma:'redonda',     largoMax:150, costo:150000, cliente:249900 },
     { nombre:'Par de bancas (fierro)',        forma:'bancas',      largoMax:280, costo:140000, cliente:0 }
   ]
 };
@@ -866,6 +874,15 @@ var PROTOCOLOS = [
 function baseFierroCliente(t) {
   if (t.cliente > 0) return t.cliente;
   return Math.round(t.costo * (1 + VALORES.generales.iva) / 1000) * 1000;
+}
+/* margen real del tramo con el precio que se le cobra al cliente. Se muestra
+   en el Manual porque el precio de lista del fierro es plano y el costo del
+   proveedor sube con el largo: sin este aviso es fácil dejar un tramo largo
+   vendiéndose bajo costo sin notarlo. */
+function baseFierroMargen(t) {
+  var venta = baseFierroCliente(t) / (1 + VALORES.generales.iva);
+  var m = venta - t.costo;
+  return { pesos: Math.round(m), pct: venta > 0 ? (m / venta * 100) : 0 };
 }
 function baseFierroTramo(forma, largoCm) {
   var cand = VALORES.basesFierro.filter(function(t){ return t.forma === forma; });
@@ -4292,6 +4309,17 @@ function protoPinta() {
 }
 function protoAgregar() { protoLeer(); PROTO_WORK.push({ cat:'Puertas', titulo:'', texto:'' }); protoPinta(); }
 function protoBorrar(i) { protoLeer(); PROTO_WORK.splice(i, 1); protoPinta(); }
+/* aviso de margen de un tramo de base de fierro, para el Manual */
+function mvMargenTramo(t) {
+  /* sin precio definido el "margen" es cero por construcción (costo + IVA):
+     avisar de margen apretado ahí sería ruido, lo que falta es el precio */
+  if (!(t.cliente > 0)) return ' · <strong style="color:#B45309">costo + IVA = sin margen, falta definir el precio</strong>';
+  var m = baseFierroMargen(t);
+  var pct = m.pct.toFixed(1) + '%';
+  if (m.pesos < 0)  return ' · <strong style="color:#B91C1C">⚠ bajo costo: pierde ' + fmt(-m.pesos) + ' por base (' + pct + ')</strong>';
+  if (m.pct < 20)   return ' · <strong style="color:#B45309">⚠ margen apretado: ' + fmt(m.pesos) + ' (' + pct + ')</strong>';
+  return ' · margen ' + fmt(m.pesos) + ' (' + pct + ')';
+}
 function renderManual() {
   document.getElementById('dash-filters').innerHTML = '';
   var st = document.getElementById('dash-stats'); st.style.display = 'none'; st.innerHTML = '';
@@ -4392,7 +4420,7 @@ function renderManual() {
             '<label>Costo proveedor sin IVA' + mvNum('mv-bf-costo-' + i, t.costo, 5000) + '</label>' +
             '<label>Valor al cliente con IVA' + mvNum('mv-bf-cliente-' + i, t.cliente, 5000) + '</label>' +
           '</div>' +
-          '<div class="finput-hint">' + (t.cliente > 0 ? ('Se sugiere al vendedor: ' + fmt(t.cliente)) : ('Sin valor al cliente aún → se sugiere costo + IVA: ' + fmt(baseFierroCliente(t)))) + '</div>' +
+          '<div class="finput-hint">' + (t.cliente > 0 ? ('Se sugiere al vendedor: ' + fmt(t.cliente)) : ('Sin valor al cliente aún → se sugiere costo + IVA: ' + fmt(baseFierroCliente(t)))) + mvMargenTramo(t) + '</div>' +
         '</div>';
       }).join('') + '</div>',
       'El cotizador elige el tramo según el LARGO de la cubierta y se lo sugiere al vendedor (nunca cobra solo: el vendedor confirma). Deja "Valor al cliente" en 0 para usar costo + IVA mientras defines el precio final.');
