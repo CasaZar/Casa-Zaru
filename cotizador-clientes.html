@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Cotizador en Línea · Casa Zaru</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Sans:wght@400;500;600;700&family=Jost:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
 :root {
@@ -483,6 +483,111 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   body { background: white; }
   .coti { padding: 8px; max-width: 100%; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FASE 1 — LEGIBILIDAD DEL PANEL EN EL PC
+   El panel se trabaja más en el PC que en el celular, y estaba escrito
+   con la letra de un celular: 40 tamaños definidos bajo 11 px. A
+   distancia de monitor eso obliga a acercarse justo en los datos que
+   más se miran (montos, días, toques).
+   Jost es geométrica —hecha para títulos— y a 10 px sus letras se
+   confunden; IBM Plex Sans es humanista, con aberturas más abiertas y
+   cifras tabulares de fábrica. El cambio va SOLO dentro de #s-dash:
+   el cotizador público conserva su tipografía de marca intacta.
+   ═══════════════════════════════════════════════════════════════════ */
+#s-dash { font-family:'IBM Plex Sans',ui-sans-serif,system-ui,sans-serif; }
+#s-dash * { font-family:inherit; }
+/* la serif de marca se queda donde estaba: nombres de cliente, cifras
+   grandes, títulos y el logotipo siguen en Cormorant */
+#s-dash .logotype, #s-dash .dash-body h2, #s-dash .coti-logo, #s-dash .coti-title,
+#s-dash .datos-h, #s-dash .mesa-h, #s-dash .val-h, #s-dash .stat-v, #s-dash .login-h,
+#s-dash .perde-h, #s-dash .seg-cli, #s-dash .seg-block-h, #s-dash .pmodal h3,
+#s-dash .btn-primary, #s-dash .wa-btn, #s-dash .form-hdr h2, #s-dash .lp-range,
+#s-dash .pcard .pname { font-family:'Cormorant Garamond',serif; }
+
+/* piso de 12 px: nada del panel baja de ahí */
+#s-dash .stat-l, #s-dash .day-bar .stat-l, #s-dash .mv-meta, #s-dash .mesa-desglose,
+#s-dash .dash-estado, #s-dash .seg-hist, #s-dash .hoy-sub, #s-dash .aviso-ext,
+#s-dash .seg-tq-chk, #s-dash .dm-lbl, #s-dash .hoy-go { font-size:12px; }
+
+/* chips y etiquetas: suben de 9 a 11,5 y se les da aire para que respiren */
+#s-dash .pez-badge, #s-dash .interesado-badge, #s-dash .recu-badge, #s-dash .resp-badge,
+#s-dash .org-badge, #s-dash .seg-touch, #s-dash .seg-owner, #s-dash .tq-fecha,
+#s-dash .badge-red, #s-dash .ver-tag, #s-dash .pausa-badge
+  { font-size:11.5px; padding:2px 9px; }
+
+/* texto de trabajo: lo que de verdad se lee toque a toque */
+#s-dash .seg-meta, #s-dash .seg-qrow, #s-dash .seg-tq-nota, #s-dash .seg-bloque-sub,
+#s-dash .seg-bloque-c, #s-dash .seg-empty, #s-dash .ballena-alerta, #s-dash .mv-sub,
+#s-dash .mv-grid3 label, #s-dash .mv-grid4 label, #s-dash .finput-hint,
+#s-dash .dash-filters input, #s-dash .dash-filters select, #s-dash .dash-filters .df-clear,
+#s-dash .seg-qdet > summary, #s-dash .hoy-top, #s-dash .btn-dtab, #s-dash .dash-del,
+#s-dash .btn-logout, #s-dash .seg-dias, #s-dash .pausa-sec, #s-dash .month-metrics,
+#s-dash .seg-bloque-n, #s-dash .mv-intro { font-size:12.5px; }
+#s-dash .seg-sec { font-size:14.5px; }
+#s-dash .hoy-txt { font-size:14px; }
+#s-dash .seg-cli { font-size:19px; }
+
+/* cifras tabulares: los montos se alinean por columna y se comparan de
+   un vistazo, en vez de bailar según los dígitos */
+#s-dash .stat-v, #s-dash .money, #s-dash .seg-qrow, #s-dash .seg-cnt, #s-dash .mv-in,
+#s-dash .seg-dias, #s-dash .hoy-txt, #s-dash .month-metrics, #s-dash .seg-bloque-c,
+#s-dash .tq-fecha, #s-dash .dash-tbl td { font-variant-numeric:tabular-nums; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   FASE 2 — ANCHO Y BARRA LATERAL
+   El panel estaba topado en 700 px: en un monitor de 1440 px eso deja
+   la mitad de la pantalla vacía mientras la cola se desplaza en una
+   sola columna. Y las 9 pestañas vivían en una barra con scroll
+   horizontal, que en el PC no tiene ninguna razón de ser.
+   Desde 1100 px el panel pasa a dos columnas (rail fijo + contenido).
+   Bajo 1100 px NO cambia nada: sigue siendo exactamente el panel de
+   hoy, para que en el celular nadie pierda lo que ya sabe usar.
+   ═══════════════════════════════════════════════════════════════════ */
+.dash-wrap { padding:20px 16px 40px; max-width:700px; margin:0 auto; }
+.dash-topbar { display:flex; gap:8px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+
+@media (min-width:1100px){
+  .dash-wrap {
+    max-width:1400px; padding:24px 28px 56px;
+    display:grid; grid-template-columns:210px minmax(0,1fr);
+    gap:0 28px; align-items:start;
+  }
+  /* el rail: pegado arriba, siempre a la vista */
+  .dash-topbar {
+    grid-column:1; grid-row:1;
+    position:sticky; top:20px;
+    flex-direction:column; align-items:stretch; gap:6px; margin-bottom:0;
+  }
+  .dash-topbar #dash-tabs {
+    flex-direction:column; overflow:visible; gap:3px; width:100%;
+  }
+  .dash-topbar .btn-dtab {
+    width:100%; text-align:left; border:none; background:none; border-radius:8px;
+    padding:9px 12px; border-left:3px solid transparent; display:flex;
+    align-items:center; gap:8px; color:var(--tx);
+  }
+  .dash-topbar .btn-dtab:hover { background:var(--bg3); }
+  .dash-topbar .btn-dtab.active {
+    background:white; border-left-color:var(--ac); color:var(--acd); font-weight:600;
+    box-shadow:0 1px 3px rgba(0,0,0,.07);
+  }
+  /* el contador se va al final de la fila, como en un menú de verdad */
+  .dash-topbar .badge-red { margin-left:auto; }
+  .dash-topbar .btn-venta { width:100%; margin-top:10px; }
+  /* el contenido ocupa la segunda columna */
+  .dash-main { grid-column:2; grid-row:1; min-width:0; }
+  /* con más ancho, las fichas y filtros pueden respirar */
+  #s-dash #dash-stats { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)) !important; }
+  #s-dash .day-bar { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  #s-dash .seg-card { padding:14px 18px; }
+  #s-dash .hoy-paso { padding:13px 16px; }
+}
+/* en pantallas muy anchas la cola no se estira sin fin: leer una fila de
+   1200 px de largo es peor que una de 900 */
+@media (min-width:1500px){
+  .dash-wrap { grid-template-columns:210px minmax(0,1100px); justify-content:start; }
+}
 </style>
 </head>
 <body>
@@ -654,14 +759,16 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <div class="logotype">CASA ZARU</div>
     <div><span class="badge" style="background:var(--acd)">Panel Interno</span> <span class="ver-tag" id="ver-tag" onclick="verForzarRecarga()" title="Versión del panel. Tócala para recargar sin caché si algo se ve viejo."></span> <button class="btn-logout" id="btn-logout" onclick="doPanelLogout()">Salir</button></div>
   </div>
-  <div style="padding:20px 16px 40px;max-width:700px;margin:0 auto">
-    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap">
+  <div class="dash-wrap">
+    <div class="dash-topbar">
       <div id="dash-tabs" style="display:flex;gap:8px;overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch"></div>
       <button class="btn-venta" id="btn-venta" onclick="ventaUI()">+ Venta</button>
     </div>
+    <div class="dash-main">
     <div id="dash-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
     <div id="dash-filters" class="dash-filters"></div>
     <div id="dash-tbl"></div>
+    </div>
   </div>
 </div>
 <div class="pmodal-bg hidden" id="pmodal-bg"><div class="pmodal" id="pmodal"></div></div>
