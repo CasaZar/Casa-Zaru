@@ -635,6 +635,17 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-fila .sf-rt { padding:10px 14px 10px 0; text-align:right; white-space:nowrap; }
 .seg-fila .sf-plata { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
 .seg-fila .sf-dias { font-size:12px; color:var(--tm); font-variant-numeric:tabular-nums; }
+/* la fila deja de ser un botón: ahora es una grilla con un área abrible
+   y el botón de contacto al final, para escribir sin abrir la ficha */
+.seg-fila { grid-template-columns:4px minmax(0,1fr) auto auto; }
+.seg-fila .sf-open {
+  display:block; text-align:left; background:none; border:0; padding:10px 0;
+  min-width:0; cursor:pointer; font-family:inherit; color:inherit; width:100%;
+}
+.seg-fila .sf-act { padding:8px 14px 8px 12px; }
+.seg-fila .sf-act .sbtn { padding:7px 12px; font-size:12.5px; white-space:nowrap; }
+.sbtn.mail { background:#1D4ED8; border-color:#1D4ED8; color:#fff; }
+.sbtn.mail:hover { background:#1E40AF; }
 .seg-detalle-vacio { padding:30px 22px; text-align:center; color:var(--tm); font-size:13px; }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -4169,27 +4180,74 @@ function usaDetalle(){ return esEscritorio() && dashView === 'seg'; }
 /* fila de una línea: lo justo para decidir a quién le toca, sin acciones
    —las acciones viven en el panel de la derecha, para que no haya dos
    botones distintos haciendo lo mismo. */
+/* ── CONTACTO: teléfono o correo ──
+   x.contacto guarda una u otra cosa. Los que llegan por correo no tienen
+   WhatsApp, y hasta ahora se quedaban sin botón: había que copiar la
+   dirección a mano. */
+function correoDe(x){
+  var c = String((x&&x.contacto)||'').trim();
+  return (!waPhone(c) && c.indexOf('@') !== -1) ? c : null;
+}
+/* Asunto del correo: corto y concreto. Nada de "seguimiento" ni signos de
+   exclamación, que es lo que manda un correo a Promociones. */
+function correoAsunto(x){
+  var P = prodTexto(x.producto);
+  var num = x.numero ? ' (N° '+x.numero+')' : '';
+  return 'Tu cotización de '+P.suyo.replace('tu ','')+num+' · Casa Zaru';
+}
+/* Abre Gmail YA COMPUESTO en la cuenta de Casa Zaru. authuser fuerza la
+   cuenta correcta aunque en el Chrome haya varias sesiones abiertas. El
+   cuerpo es el MISMO texto del toque que se manda por WhatsApp, para que
+   no existan dos versiones del mensaje que se desincronicen. */
+function correoUrl(x, g){
+  var quien = (g && g.owner && sellerByCode(g.owner)) ? sellerByCode(g.owner).nombre : 'Equipo Casa Zaru';
+  var cuerpo = waMsg(x) + '\n\n—\n' + quien + '\nCasa Zaru · Madera del sur de Chile a medida\ncotizador.casazaru.cl';
+  return 'https://mail.google.com/mail/?authuser=hola@casazaru.cl&view=cm&fs=1' +
+         '&to=' + encodeURIComponent(correoDe(x)) +
+         '&su=' + encodeURIComponent(correoAsunto(x)) +
+         '&body=' + encodeURIComponent(cuerpo);
+}
+/* El botón de contacto, uno solo: WhatsApp si hay teléfono, Correo si hay
+   dirección. Registra el toque igual que el de la tarjeta. */
+function segBotonContacto(g, x, clase){
+  var etapa = x.seg_etapa||0;
+  var marca = (etapa < CADENCIA.length) ? 'segHecho(\''+x.id+'\');' : '';
+  var phone = waPhone(x.contacto);
+  if (phone) {
+    return '<a class="'+clase+' wa" target="_blank" onclick="event.stopPropagation();'+marca+'" '+
+           'href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>';
+  }
+  if (correoDe(x)) {
+    return '<a class="'+clase+' mail" target="_blank" onclick="event.stopPropagation();'+marca+'" '+
+           'href="'+escA(correoUrl(x, g))+'">✉ Correo</a>';
+  }
+  return '';
+}
+/* Fila de una línea. Ojo: NO puede ser un <button>, porque adentro lleva
+   el botón de contacto y anidar interactivos es HTML inválido (y el clic
+   del hijo se lo come el padre). Va como div con un área abrible. */
 function segFila(g, cls){
   var x = g.lead;
   var dias = x.fecha_creacion ? Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)) : 0;
   var etapa = x.seg_etapa||0;
   var marcas = '';
-  if (esInteresado(g))                                              marcas += '<span class="interesado-badge">★ Interesado</span>';
-  if (esRecurrente(g))                                              marcas += '<span class="recu-badge">🔁 Ya compró</span>';
-  if (g.quotes.some(function(q){ return q.respondio; }))            marcas += '<span class="resp-badge">💬 Respondió</span>';
-  if (x.motivo_pausa)                                               marcas += '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+'</span>';
+  if (esInteresado(g))                                   marcas += '<span class="interesado-badge">★ Interesado</span>';
+  if (esRecurrente(g))                                   marcas += '<span class="recu-badge">🔁 Ya compró</span>';
+  if (g.quotes.some(function(q){ return q.respondio; })) marcas += '<span class="resp-badge">💬 Respondió</span>';
+  if (x.motivo_pausa)                                    marcas += '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+'</span>';
   var toque = (cls === 'nuevo') ? 'sin contactar'
                                 : 'toque '+Math.min(etapa+1, CADENCIA.length)+'/'+CADENCIA.length;
   var ncot = g.quotes.length + (g.quotes.length===1 ? ' cotización' : ' cotizaciones');
-  return '<button class="seg-fila f-'+cls+(x.id===segSel?' abierta':'')+'" onclick="segAbrir(\''+x.id+'\')">'+
+  return '<div class="seg-fila f-'+cls+(x.id===segSel?' abierta':'')+'">'+
     '<span class="sf-stripe"></span>'+
-    '<span class="sf-mid">'+
+    '<button class="sf-open" onclick="segAbrir(\''+x.id+'\')" title="Ver la ficha completa">'+
       '<span class="sf-nom">'+escA(x.cliente||'—')+marcas+'</span>'+
       '<span class="sf-det">'+ncot+' · '+toque+'</span>'+
-    '</span>'+
+    '</button>'+
     '<span class="sf-rt"><span class="sf-plata">'+fmt(g.valor)+'</span><br>'+
       '<span class="sf-dias">hace '+dias+' d</span></span>'+
-  '</button>';
+    '<span class="sf-act">'+segBotonContacto(g, x, 'sbtn')+'</span>'+
+  '</div>';
 }
 /* lo que se pinta en la cola: fila en escritorio, tarjeta completa en el
    celular. Un solo punto de decisión para todas las secciones. */
@@ -4260,9 +4318,10 @@ function segClientCard(g, cls){
     '</div>';
   }
   var phone=waPhone(x.contacto);
-  /* al abrir WhatsApp, registra el toque automáticamente (si aún queda cadencia) */
-  var waAction = (etapa < CADENCIA.length) ? ' onclick="segHecho(\''+x.id+'\')"' : '';
-  var wa = phone ? '<a class="sbtn wa" target="_blank"'+waAction+' href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>' : '';
+  /* mismo botón que en la fila: WhatsApp si hay teléfono, Correo si hay
+     dirección. Antes los clientes que llegaban por correo se quedaban sin
+     ningún botón y había que copiar la dirección a mano. */
+  var wa = segBotonContacto(g, x, 'sbtn');
   var pez = (cls==='late' && g.valor>=PEZ_GORDO);
   var pezBadge = pez ? '<span class="pez-badge">🐋 No dejar enfriar</span>' : '';
   var interesado = !!x.interesado;
