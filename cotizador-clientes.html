@@ -3418,7 +3418,7 @@ var VENDEDORES = [
   /* firma/cargo: van al pie de los correos. nombre es el corto, para la
      interfaz y los mensajes; firma es el nombre que ve el cliente. */
   { code:'cesar', src:'k7m2', nombre:'César', firma:'César Rodríguez', cargo:'Asesor de ventas', email:'crodriguez.casazaru@gmail.com', srcEmail:'hola@casazaru.cl', legacy:['hola@casazaru.cl'] },
-  { code:'jepe',  src:'p4x9', nombre:'Jepe',  firma:'Jepe Romano',     cargo:'Asesor de ventas', email:'jeperomanosorio@gmail.com', srcEmail:'jeperomanosorio@gmail.com', b2b:true }
+  { code:'jepe',  src:'p4x9', nombre:'Jepe',  firma:'Jepe Roman',        cargo:'Asesor de ventas', email:'jeperomanosorio@gmail.com', srcEmail:'jeperomanosorio@gmail.com', b2b:true }
 ];
 /* resuelve el ?src= : primero el código opaco, luego el nombre antiguo */
 function vendedorPorSrc(code){
@@ -3558,6 +3558,25 @@ function fechaBaseISO(v){
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;      /* ya viene como fecha pura */
   var d = new Date(s);
   return isNaN(d.getTime()) ? s.slice(0,10) : isoDate(d);
+}
+/* ── ¿LO POSPUSO UNA PERSONA? ──
+   Posponer es una decisión explícita —"a este contáctalo el jueves"— y tiene
+   que pesar más que cualquier regla automática. Antes no la consultaban ni
+   las ballenas ni los marcados con ★, así que un cliente pospuesto ayer
+   volvía a pedir seguimiento hoy: posponer no servía de nada.
+   OJO con no pasarse al otro extremo: segMarcar agenda seg_proxima solo,
+   después de CADA toque (siempre a 2 días o más). Si cualquier fecha futura
+   contara como posposición, un cliente marcado con ★ no volvería a salir
+   nunca. Así que solo cuenta cuando hay motivo de pausa, o cuando la fecha
+   futura coincide con una nota "Pospuesto a" del historial — que es la huella
+   que deja segPosponer. */
+function pospuestoAMano(g){
+  var x = g.lead;
+  var d = dueDate(x);
+  if (!(d && d > hoyISO())) return false;      /* sin fecha futura no hay nada que respetar */
+  if (x.motivo_pausa) return true;             /* pausa con motivo y fecha */
+  var hist = Array.isArray(x.seg_historial) ? x.seg_historial : [];
+  return hist.some(function(h){ return h && h.nota && h.nota.indexOf('Pospuesto a '+d) !== -1; });
 }
 function dueDate(x){
   if ((x.estado||'enviada')!=='enviada') return null;
@@ -4193,7 +4212,7 @@ function renderSeguimiento(){
      se excluía a las tocadas el mismo día. Insistirle a diario al cliente más
      valioso es la forma más rápida de quemarlo. Ahora se le da aire: reaparece
      recién a las 48 h, un día antes de romper el acuerdo de las 72. */
-  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && horasSinToque(g) >= BALLENA_ESPERA_H; })
+  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && !pospuestoAMano(g) && horasSinToque(g) >= BALLENA_ESPERA_H; })
     .sort(function(a,b){ return montoAbierto(b)-montoAbierto(a); }).slice(0,3);
   var esBall = {}; ballenas.forEach(function(g){ esBall[g.key] = true; });
   var b1=[], b1Viejos=[], b2=[], b3=[], conv=[], futuro=[], hoyDone=[], enJuego=0;
@@ -4207,7 +4226,7 @@ function renderSeguimiento(){
        cadencia. Antes, si su próximo toque caía en 3 días, se iba a la
        sección "Esta semana" (colapsada) y no se veía — o sea, marcarlo no
        garantizaba nada. Ahora la marca a mano manda sobre el calendario. */
-    if (esInteresado(g)){ b2.push(g); return; }
+    if (esInteresado(g) && !pospuestoAMano(g)){ b2.push(g); return; }
     var d=dueDate(g.lead); if(!d) return;
     if (d > hoy){ if (d<=lim) futuro.push(g); return; }
     if (esPrioritario(g)) b2.push(g); else b3.push(g);
