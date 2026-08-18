@@ -823,6 +823,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   overflow:hidden;   /* segundo cinturón: nada se sale de esta columna */
 }
 .sbtn.mail { background:#1D4ED8; border-color:#1D4ED8; color:#fff; }
+/* botón en espera de confirmación: se ve apretado y pide la respuesta */
+.sbtn.esperando { background:var(--bg3) !important; color:var(--acd) !important;
+  border-color:var(--ac) !important; box-shadow:inset 0 2px 4px rgba(44,26,8,.18); font-weight:700; }
 .sbtn.mail:hover { background:#1E40AF; }
 .seg-detalle-vacio { padding:30px 22px; text-align:center; color:var(--tm); font-size:13px; }
 
@@ -3412,8 +3415,10 @@ var panelPcode = null;                  /* código de panel pedido (?panel=...),
 /* 'src' = código opaco para el link público (no expone el nombre del vendedor al cliente).
    'code' sigue sirviendo por compatibilidad con los links ya compartidos. */
 var VENDEDORES = [
-  { code:'cesar', src:'k7m2', nombre:'César', email:'crodriguez.casazaru@gmail.com', srcEmail:'hola@casazaru.cl', legacy:['hola@casazaru.cl'] },
-  { code:'jepe',  src:'p4x9', nombre:'Jepe',  email:'jeperomanosorio@gmail.com', srcEmail:'jeperomanosorio@gmail.com', b2b:true }
+  /* firma/cargo: van al pie de los correos. nombre es el corto, para la
+     interfaz y los mensajes; firma es el nombre que ve el cliente. */
+  { code:'cesar', src:'k7m2', nombre:'César', firma:'César Rodríguez', cargo:'Asesor de ventas', email:'crodriguez.casazaru@gmail.com', srcEmail:'hola@casazaru.cl', legacy:['hola@casazaru.cl'] },
+  { code:'jepe',  src:'p4x9', nombre:'Jepe',  firma:'Jepe Romano',     cargo:'Asesor de ventas', email:'jeperomanosorio@gmail.com', srcEmail:'jeperomanosorio@gmail.com', b2b:true }
 ];
 /* resuelve el ?src= : primero el código opaco, luego el nombre antiguo */
 function vendedorPorSrc(code){
@@ -3425,6 +3430,10 @@ function vendedorPorSrc(code){
   return null;
 }
 var CADENCIA = [2, 8, 15, 21, 29, 40];   /* días desde la cotización para los 6 toques */
+/* Horas que descansa una ballena después de un toque antes de volver a la
+   lista. 48 h deja un día de margen antes del acuerdo de las 72 h, y evita
+   insistirle a diario justo al cliente que más cuesta perder. */
+var BALLENA_ESPERA_H = 48;
 /* Umbral 🐋: monto en cotizaciones ABIERTAS de un mismo cliente sobre el cual
    se fija arriba de la cola. Editable en el Manual porque depende del tamaño
    del negocio: con ventas de ~$18M al mes, $2.000.000 es ~11% de un mes y unas
@@ -3661,14 +3670,14 @@ function waMsg(x){
      pasaron días va la P2 ("hace un par de días cotizaste"), que si no suena
      a que el mensaje llegó tarde. */
   var esMismoDia = fechaBaseISO(x.fecha_creacion) === hoyISO();
-  var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru. Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+'). ¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
-      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+'). Si quieres afinar medidas o comparar maderas, te ayudo al tiro. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
+  var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru. Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+').\n\n¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
+      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+').\n\nSi quieres afinar medidas o comparar maderas, te ayudo al tiro. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
   /* P4: nunca se le escribió y ya pasaron días. Reconocer la demora funciona
      mucho mejor que escribir como si nada (protocolo de triage v2). */
-  var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora. ¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
+  var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora.\n\n¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
   var msgs = {
     1: esBacklogQ(x) ? p4 : (esMismoDia ? p1 : p2),
-    2: 'Hola '+nom+', ¿cómo estás? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente. Si tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo. Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
+    2: 'Hola '+nom+', ¿cómo estás? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente.\n\nSi tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo. Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
     3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas. ' +
        (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
              : 'Tu cotización '+num+' sigue vigente, ¿te los mando?'),
@@ -4180,7 +4189,11 @@ function renderSeguimiento(){
      futuro esta semana · hoyDone lo ya hecho hoy. */
   /* las ballenas se fijan arriba y salen del resto de los bloques: no consumen
      la meta del día (spec §2.4). Máximo 3, por monto abierto acumulado. */
-  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && !toqueHoy(g.lead); })
+  /* Una ballena tocada AYER volvía a aparecer hoy pidiendo seguimiento: solo
+     se excluía a las tocadas el mismo día. Insistirle a diario al cliente más
+     valioso es la forma más rápida de quemarlo. Ahora se le da aire: reaparece
+     recién a las 48 h, un día antes de romper el acuerdo de las 72. */
+  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && horasSinToque(g) >= BALLENA_ESPERA_H; })
     .sort(function(a,b){ return montoAbierto(b)-montoAbierto(a); }).slice(0,3);
   var esBall = {}; ballenas.forEach(function(g){ esBall[g.key] = true; });
   var b1=[], b1Viejos=[], b2=[], b3=[], conv=[], futuro=[], hoyDone=[], enJuego=0;
@@ -4419,36 +4432,121 @@ function correoDe(x){
 }
 /* Asunto del correo: corto y concreto. Nada de "seguimiento" ni signos de
    exclamación, que es lo que manda un correo a Promociones. */
+/* Asunto SIN el número de cotización: al cliente el código no le dice nada y
+   le quita espacio a lo único que se alcanza a leer en la bandeja del celular
+   —qué es y de quién viene—. El número va en el cuerpo, donde sí es útil. */
 function correoAsunto(x){
   var P = prodTexto(x.producto);
-  var num = x.numero ? ' (N° '+x.numero+')' : '';
-  return 'Tu cotización de '+P.suyo.replace('tu ','')+num+' · Casa Zaru';
+  return 'Tu cotización de '+P.suyo.replace('tu ','')+' · Casa Zaru';
 }
 /* Abre Gmail YA COMPUESTO en la cuenta de Casa Zaru. authuser fuerza la
    cuenta correcta aunque en el Chrome haya varias sesiones abiertas. El
    cuerpo es el MISMO texto del toque que se manda por WhatsApp, para que
    no existan dos versiones del mensaje que se desincronicen. */
 function correoUrl(x, g){
-  var quien = (g && g.owner && sellerByCode(g.owner)) ? sellerByCode(g.owner).nombre : 'Equipo Casa Zaru';
-  var cuerpo = waMsg(x) + '\n\n—\n' + quien + '\nCasa Zaru · Madera del sur de Chile a medida\ncotizador.casazaru.cl';
+  var v = (g && g.owner) ? sellerByCode(g.owner) : null;
+  var firma = v ? (v.firma || v.nombre) : 'Equipo Casa Zaru';
+  var cargo = v ? (v.cargo || '') : '';
+  /* El link va SIEMPRE en el correo, desde el primer contacto. En WhatsApp
+     recién del toque 3 —ahí la cotización acaba de llegar al mismo chat y
+     reenviarla se siente robótico—, pero el correo es otro canal: la persona
+     no la tiene en su bandeja, y un correo se guarda. Así queda registrada. */
+  var elink = (x.link || '').trim();
+  var partes = [ waMsg(x) ];
+  if (elink) partes.push('Acá puedes revisar tu cotización' + (x.numero ? ' ' + x.numero : '') + ' cuando quieras:\n' + elink);
+  partes.push('—\n' + firma + (cargo ? '\n' + cargo : '') + '\nCasa Zaru');
+  var cuerpo = partes.join('\n\n');
   return 'https://mail.google.com/mail/?authuser=hola@casazaru.cl&view=cm&fs=1' +
          '&to=' + encodeURIComponent(correoDe(x)) +
          '&su=' + encodeURIComponent(correoAsunto(x)) +
          '&body=' + encodeURIComponent(cuerpo);
 }
+/* ── EL TOQUE SE MARCA AL CONFIRMAR, NO AL ABRIR ──
+   Antes, apretar WhatsApp marcaba el toque al instante. Pero abrir el chat
+   no es haber escrito: si el vendedor se arrepiente, se distrae o el cliente
+   no tenía WhatsApp, quedaba un toque falso y había que ir a "Contactados
+   hoy" a borrarlo a mano.
+   Ahora el botón queda "en espera" y al volver al panel se pregunta si
+   efectivamente le escribió. Solo el "Sí" marca el toque.
+   La lista de pendientes va en localStorage porque el vendedor sale de la
+   pestaña —o del navegador— entremedio. */
+var PEND_KEY = 'zaru_toques_pendientes';
+/* La lista vive en memoria y ADEMÁS se persiste. El respaldo en memoria no es
+   un lujo: si localStorage no está disponible (modo privado, cookies
+   bloqueadas, webview), sin él la lista quedaba siempre vacía y entonces el
+   botón abría WhatsApp y NUNCA se registraba el toque ni se preguntaba nada
+   — peor que antes. Así el flujo funciona igual dentro de la sesión, y si hay
+   almacenamiento sobrevive además a cerrar la pestaña. */
+var PEND_MEM = null;
+function pendLeer(){
+  if (PEND_MEM) return PEND_MEM;
+  try { var v = JSON.parse(localStorage.getItem(PEND_KEY) || '[]'); PEND_MEM = Array.isArray(v) ? v : []; }
+  catch(e){ PEND_MEM = []; }
+  return PEND_MEM;
+}
+function pendGuardar(a){
+  PEND_MEM = a;
+  try { localStorage.setItem(PEND_KEY, JSON.stringify(a)); } catch(e){}
+}
+function pendAgregar(id, nombre, canal){
+  var a = pendLeer().filter(function(p){ return p.id !== id; });
+  a.push({ id:id, nombre:nombre, canal:canal, ts:Date.now() });
+  pendGuardar(a);
+}
+function pendQuitar(id){ pendGuardar(pendLeer().filter(function(p){ return p.id !== id; })); }
+function pendTiene(id){ return pendLeer().some(function(p){ return p.id === id; }); }
+/* Al volver al panel: pregunta por el primero que lleve más de 2 s en espera.
+   El margen evita preguntar por el rebote de foco del propio clic. */
+function pendPreguntar(){
+  if (document.getElementById('pmodal-bg') && !document.getElementById('pmodal-bg').classList.contains('hidden')) return;
+  var a = pendLeer().filter(function(p){ return Date.now() - p.ts > 2000; });
+  if (!a.length) return;
+  var p = a[0];
+  var x = COTIS[p.id];
+  var quien = escA(p.nombre || (x && x.cliente) || 'este cliente');
+  var canal = p.canal === 'mail' ? 'el correo' : 'WhatsApp';
+  pModal('<h3>¿Le escribiste a '+quien+'?</h3>'+
+    '<div class="seg-empty" style="text-align:center;padding:0 4px 14px">Se abrió '+canal+
+    '. El toque se marca solo si confirmas que enviaste el mensaje.</div>'+
+    '<button class="mbtn" onclick="pendConfirmar(\''+p.id+'\',true)">Sí, ya le escribí</button>'+
+    '<button class="mbtn" onclick="pendConfirmar(\''+p.id+'\',false)">No, todavía no</button>'+
+    '<button class="mbtn cancel" onclick="pClose()">Preguntar después</button>');
+}
+function pendConfirmar(id, si){
+  pClose();
+  pendQuitar(id);
+  if (si) segHecho(id);
+  else { renderVistaActual(); showToast('Sin marcar — queda pendiente para hoy', true); }
+  setTimeout(pendPreguntar, 400);   /* si abrió varios chats, sigue con el próximo */
+}
+(function(){
+  var alVolver = function(){ if (!document.hidden) setTimeout(pendPreguntar, 300); };
+  window.addEventListener('focus', alVolver);
+  document.addEventListener('visibilitychange', alVolver);
+})();
 /* El botón de contacto, uno solo: WhatsApp si hay teléfono, Correo si hay
-   dirección. Registra el toque igual que el de la tarjeta. */
+   dirección. Deja el toque EN ESPERA de confirmación, no lo marca. */
 function segBotonContacto(g, x, clase){
   var etapa = x.seg_etapa||0;
-  var marca = (etapa < CADENCIA.length) ? 'segHecho(\''+x.id+'\');' : '';
+  var nom = String(x.cliente||'').replace(/'/g,'');
+  /* si ya está en espera, el botón se ve apretado y lo dice */
+  var esperando = pendTiene(x.id);
+  function accion(canal){
+    if (etapa >= CADENCIA.length) return '';
+    return 'pendAgregar(\''+x.id+'\',\''+escA(nom)+'\',\''+canal+'\');renderVistaActual();';
+  }
   var phone = waPhone(x.contacto);
   if (phone) {
-    return '<a class="'+clase+' wa" target="_blank" onclick="event.stopPropagation();'+marca+'" '+
-           'href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">💬 WhatsApp</a>';
+    return '<a class="'+clase+' wa'+(esperando?' esperando':'')+'" target="_blank" '+
+           'onclick="event.stopPropagation();'+accion('wa')+'" '+
+           'href="https://wa.me/'+phone+'?text='+encodeURIComponent(waMsg(x))+'">'+
+           (esperando ? '⏳ ¿Le escribiste?' : '💬 WhatsApp')+'</a>';
   }
   if (correoDe(x)) {
-    return '<a class="'+clase+' mail" target="_blank" onclick="event.stopPropagation();'+marca+'" '+
-           'href="'+escA(correoUrl(x, g))+'">✉ Correo</a>';
+    return '<a class="'+clase+' mail'+(esperando?' esperando':'')+'" target="_blank" '+
+           'onclick="event.stopPropagation();'+accion('mail')+'" '+
+           'href="'+escA(correoUrl(x, g))+'">'+
+           (esperando ? '⏳ ¿Le escribiste?' : '✉ Correo')+'</a>';
   }
   return '';
 }
