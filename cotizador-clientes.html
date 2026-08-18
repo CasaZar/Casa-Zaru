@@ -485,6 +485,95 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   BLOQUES: UN COLOR POR CONCEPTO
+   El rosa estaba haciendo dos trabajos —la sección 🐋 y la marca ★
+   Interesado— y encima la alerta de 72 h pintaba de rojo toda la zona
+   de ballenas, justo al lado del bloque 1 que también es rojo. Con tres
+   rojizos pegados no se distinguía dónde empezaba cada cosa.
+   Ahora cada concepto tiene su color, y la ballena además tiene otro
+   PESO: barra sólida en vez de tinte, porque es lo único que no se
+   puede dejar pasar.
+     🐋 ballena ......... violeta (el único frío: salta sobre la crema)
+     1 sin contactar .... rojo    (urgencia)
+     💬 conversación .... verde   (diálogo vivo)
+     2 seguimiento ...... café de marca (rutina)
+     3 resto ............ gris    (relleno)
+     ★ interesado ....... rosa    (marca a mano; ya no compite con 🐋)
+     🔁 ya compró ....... ámbar   (historial)
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --blq-ball:    #6D28D9;  --blq-ball-bg:  #F5F3FF;  --blq-ball-tx: #4C1D95;
+  --blq-uno:     #DC2626;  --blq-uno-bg:   #FEF2F2;
+  --blq-conv:    #059669;  --blq-conv-bg:  #F0FDF4;
+  --blq-tres:    #6B7280;  --blq-tres-bg:  #F3F4F6;
+  --mrk-inter:   #DB2777;  --mrk-inter-bg: #FCE7F3;  --mrk-inter-tx: #9D174D;
+  --mrk-compro:  #B45309;  --mrk-compro-bg:#FEF3C7;  --mrk-compro-tx:#92400E;
+}
+
+/* ── 🐋 la ballena: barra sólida, no un tinte más ── */
+.seg-sec.ballena {
+  background:var(--blq-ball); color:#fff; border-left:5px solid var(--blq-ball-tx);
+}
+.seg-sec.ballena .seg-cnt { background:rgba(255,255,255,.22); color:#fff; }
+.seg-fila.f-ballena .sf-stripe { background:var(--blq-ball); }
+.seg-card.ballena { border-left-color:var(--blq-ball); }
+.org-badge.ball { background:var(--blq-ball-bg); color:var(--blq-ball-tx); border-color:#C4B5FD; }
+/* la alerta de 72 h se queda DENTRO del mundo de la ballena: antes era
+   roja y hacía que la zona 🐋 se leyera como el bloque 1 */
+.ballena-alerta {
+  background:var(--blq-ball-bg); border:1px solid #C4B5FD; border-left:4px solid var(--blq-ball);
+  color:var(--blq-ball-tx); font-weight:700; border-radius:8px; padding:7px 11px; margin-bottom:-4px;
+}
+
+/* ── ★ interesado: se queda con el rosa, ya sin competencia ── */
+.interesado-badge { background:var(--mrk-inter-bg); color:var(--mrk-inter-tx); }
+.seg-card.interesado { border-color:var(--mrk-inter); box-shadow:0 0 0 3px rgba(219,39,119,.14); background:#FFF7FB; }
+.seg-star.on, .seg-chip.star.on { color:var(--mrk-inter); }
+.seg-chip.star.on { background:var(--mrk-inter); border-color:var(--mrk-inter); color:#fff; }
+
+/* ── 🔁 ya compró: ámbar, para no confundirla con la estrella ── */
+.recu-badge { background:var(--mrk-compro-bg); color:var(--mrk-compro-tx); }
+
+/* ── el resto de los bloques, con su franja bien marcada ── */
+.seg-bloque.urg { background:var(--blq-uno-bg); border-color:#FCA5A5; border-left-color:var(--blq-uno); }
+.seg-fila.f-nuevo .sf-stripe { background:var(--blq-uno); }
+.seg-sec.conv { background:var(--blq-conv-bg); color:#166534; border-left:5px solid var(--blq-conv); }
+.seg-fila.f-conv .sf-stripe { background:var(--blq-conv); }
+/* selector "ver como" y su cinta de aviso */
+.ver-como-sel {
+  width:100%; margin-top:10px; padding:8px 10px; border:1px dashed var(--ac);
+  border-radius:8px; background:white; color:var(--acd); font-size:12.5px;
+  font-weight:600; font-family:inherit; cursor:pointer;
+}
+.vista-como {
+  background:#EEF2FF; border:1px solid #C7D2FE; border-left:4px solid #4338CA;
+  color:#3730A3; border-radius:9px; padding:10px 14px; margin-bottom:14px;
+  font-size:13px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+}
+.vista-como button {
+  margin-left:auto; background:#4338CA; color:white; border:0; border-radius:7px;
+  padding:6px 12px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;
+}
+.vista-como button:hover { background:#3730A3; }
+.seg-b3 > summary { color:var(--blq-tres); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   EL RAIL, DE ARRIBA ABAJO
+   Quedaba como una lista corta flotando arriba a la izquierda, con
+   mucho blanco debajo: no se leía como una barra de navegación.
+   Ahora es un panel propio que llega hasta el borde inferior y
+   acompaña el scroll.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (min-width:1100px){
+  .dash-topbar {
+    min-height:calc(100vh - 40px);
+    background:var(--crt); border:1px solid var(--bd); border-radius:12px;
+    padding:14px 10px; gap:4px;
+  }
+  .dash-topbar .btn-venta { margin-top:auto; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
    FASE 3 — COLA Y DETALLE LADO A LADO
    El problema real de trabajar la cola en el PC: para actuar sobre un
    cliente había que expandir su tarjeta en el lugar, lo que empujaba
@@ -3148,6 +3237,59 @@ var segSoloInteresados = false;  /* filtro: mostrar solo los marcados con la est
 var COTIS = {};
 var segPend = 0;
 
+/* ── VER EL PANEL COMO LO VE UN VENDEDOR ──
+   El admin no tiene la clave de César, así que no podía comprobar cómo le
+   queda a él lo que se cambia acá. Esto cambia SOLO la vista: vuelve a
+   filtrar dashRows desde allRows con el alcance del vendedor y repinta.
+   No es un permiso nuevo: el admin ya ve todos estos datos y más — está
+   viendo MENOS, no más. Nada toca la base ni la sesión. */
+var panelEsAdminReal = false;   /* se fija al entrar; sin esto no hay previsualización */
+var vistaComo = null;           /* code del vendedor que se está previsualizando */
+function verComoVendedor(code){
+  if (!panelEsAdminReal) return;
+  var sv = code ? sellerByCode(code) : null;
+  if (code && !sv) return;
+  panelSeller = sv;             /* null = volver a admin */
+  vistaComo = sv ? sv.code : null;
+  /* mismo filtro que aplica loadDash al entrar con la sesión del vendedor */
+  var vivas = allRows.filter(function(x){ return !x.eliminada; });
+  dashRows = sv
+    ? vivas.filter(function(x){ return ownerCode(x) === sv.code || (isWeb(x) && !sv.b2b); })
+    : vivas;
+  COTIS = {}; dashRows.forEach(function(x){ COTIS[x.id]=x; });
+  segBloque = sv ? sv.code : '';
+  dashView = 'seg'; segSel = null; segSearch = '';
+  _fonosGanadas = null;
+  computeSegPend();
+  setDashView('seg');
+  verPintaAviso();
+}
+/* cinta de aviso: que nunca quede la duda de qué se está mirando */
+function verPintaAviso(){
+  var id = 'vista-como-aviso';
+  var vieja = document.getElementById(id);
+  if (vieja) vieja.remove();
+  if (!vistaComo) return;
+  var sv = sellerByCode(vistaComo);
+  var d = document.createElement('div');
+  d.id = id;
+  d.className = 'vista-como';
+  d.innerHTML = 'Estás viendo el panel tal como lo ve <strong>' + escA(sv.nombre) + '</strong> — ' +
+                'solo cambia lo que se muestra, no se modifica nada.' +
+                '<button onclick="verComoVendedor(null)">Volver a mi panel</button>';
+  var wrap = document.querySelector('.dash-main');
+  if (wrap) wrap.insertBefore(d, wrap.firstChild);
+}
+/* selector en el rail, solo para el admin */
+function verSelectorHtml(){
+  if (!panelEsAdminReal) return '';
+  var opts = VENDEDORES.map(function(v){
+    return '<option value="' + v.code + '"' + (vistaComo === v.code ? ' selected' : '') + '>Ver como ' + escA(v.nombre) + '</option>';
+  }).join('');
+  return '<select class="ver-como-sel" onchange="verComoVendedor(this.value||null)" ' +
+         'title="Mira el panel con el alcance de un vendedor, sin necesitar su clave">' +
+         '<option value="">Mi panel (admin)</option>' + opts + '</select>';
+}
 function isPanelAdmin(){ return panelSeller === null; }
 function sellerByCode(code){ return VENDEDORES.find(function(v){ return v.code === code; }) || null; }
 function ownerCode(x){
@@ -3343,7 +3485,7 @@ function renderTabs(){
   document.getElementById('dash-tabs').innerHTML = tabs.map(function(t){
     var badge = (t.id==='seg' && segPend>0) ? '<span class="badge-red">'+segPend+'</span>' : '';
     return '<button class="btn-dtab'+(dashView===t.id?' active':'')+'" onclick="setDashView(\''+t.id+'\')">'+t.label+badge+'</button>';
-  }).join('');
+  }).join('') + verSelectorHtml();
 }
 function setDashView(v){
   dashView=v; renderTabs();
@@ -5039,7 +5181,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (pmb) pmb.addEventListener('click', function(e){ if(e.target===this) pClose(); });
   var pcode = params.get('panel'), pOK = false;
   if (pcode) {
-    if (pcode === PANEL_ADMIN) { panelSeller = null; pOK = true; }
+    if (pcode === PANEL_ADMIN) { panelSeller = null; pOK = true; panelEsAdminReal = true; }
     else { var sv = sellerByCode(pcode); if (sv) { panelSeller = sv; pOK = true; } }
   }
   /* El vendedor abre viendo SOLO sus clientes: los web se acumulan de a cientos
