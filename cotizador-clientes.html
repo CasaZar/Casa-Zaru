@@ -46,22 +46,91 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dash-divider { width: 40px; height: 1px; background: var(--ac); margin: 12px auto; }
 .dash-intro { font-size: 12px; color: var(--tm); line-height: 1.7; letter-spacing: .3px; }
 
-.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-width: 480px; margin: 0 auto; }
-.pcard { background: white; border: 1.5px solid var(--bd); border-radius: 12px; overflow: hidden; cursor: pointer; transition: border-color .2s, transform .15s; user-select: none; }
-.pcard:hover { border-color: var(--ac); transform: translateY(-2px); }
-.pcard:active { transform: scale(.98) translateY(0); }
-.pcard.wide { grid-column: span 2; }
+/* ═══════════════════════════════════════════════════════════════════
+   VITRINA DE PRODUCTOS (lo primero que ve el cliente)
+   Antes: rejilla de 2 columnas topada en 480 px, con una tarjeta
+   "wide" que rompía el ritmo, foto apaisada, caja blanca debajo y una
+   flecha → en cada tarjeta (redundante: la tarjeta entera es clickeable).
+   En un monitor se veía como una app de celular pegada en la pantalla.
 
-.pcard-img { width: 100%; aspect-ratio: 3/2; overflow: hidden; position: relative; }
-.pcard.wide .pcard-img { aspect-ratio: 16/7; }
-.pcard-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.pcard-img .img-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg3) 0%, var(--crt) 100%); }
-.pcard-img .img-ph svg { width: 38px; height: 38px; opacity: .28; color: var(--ac); }
-.pcard-body { padding: 11px 13px 13px; display: flex; align-items: flex-start; justify-content: space-between; }
-.pcard-body .pinfo { flex: 1; }
-.pcard .pname { font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 600; color: var(--tx); line-height: 1.2; }
-.pcard .psub { font-size: 10px; color: var(--tm); margin-top: 3px; letter-spacing: .3px; }
-.pcard .parrow { color: var(--ac); font-size: 16px; margin-top: 2px; flex-shrink: 0; }
+   Ahora: tarjetas VERTICALES 4:5 con la foto a sangre y el nombre
+   encima, sobre un degradado. La madera es lo que vende, así que la
+   foto ocupa la tarjeta completa en vez de un tercio. Todas del mismo
+   tamaño —incluida la cubierta, que antes iba aparte— porque la
+   uniformidad es lo que hace que una vitrina se vea ordenada; el
+   producto estrella se distingue con una etiqueta, no con otro tamaño.
+   ═══════════════════════════════════════════════════════════════════ */
+.pgrid {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px; max-width:1120px; margin:0 auto; padding:0 2px;
+}
+@media (min-width:720px){ .pgrid { grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; } }
+@media (min-width:1040px){ .pgrid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:18px; } }
+
+.pcard {
+  position:relative; aspect-ratio:4/5; overflow:hidden; border-radius:14px;
+  border:1px solid var(--bd); background:var(--bg3); cursor:pointer;
+  user-select:none; isolation:isolate;
+  transition:box-shadow .25s ease, transform .25s ease, border-color .25s ease;
+}
+.pcard:hover { border-color:var(--ac); transform:translateY(-3px); box-shadow:0 14px 28px -14px rgba(44,26,8,.45); }
+.pcard:active { transform:translateY(-1px) scale(.995); }
+.pcard.wide { grid-column:auto; }          /* se anula: ahora todas iguales */
+
+.pcard-img { position:absolute; inset:0; aspect-ratio:auto; overflow:hidden; }
+.pcard-img img {
+  width:100%; height:100%; object-fit:cover; display:block;
+  object-position:center 42%;              /* el producto suele estar sobre el centro */
+  transition:transform .5s cubic-bezier(.2,.6,.2,1);
+}
+.pcard:hover .pcard-img img { transform:scale(1.05); }
+/* velo inferior: deja leer el nombre sobre cualquier foto, clara u oscura */
+.pcard::after {
+  content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:linear-gradient(to top,
+    rgba(30,17,5,.90) 0%, rgba(30,17,5,.72) 22%, rgba(30,17,5,.28) 46%, rgba(30,17,5,0) 68%);
+  transition:opacity .25s ease;
+}
+.pcard:hover::after { opacity:.94; }
+
+.pcard-body {
+  position:absolute; z-index:2; left:0; right:0; bottom:0;
+  padding:0 15px 14px; display:block;
+}
+.pcard .pname {
+  font-family:'Cormorant Garamond',serif; font-size:22px; font-weight:600;
+  color:#fff; line-height:1.12; letter-spacing:.2px; display:block;
+  text-shadow:0 1px 12px rgba(0,0,0,.35);
+}
+.pcard .psub {
+  display:block; font-size:11.5px; line-height:1.4; margin-top:5px;
+  color:rgba(255,255,255,.88); letter-spacing:.2px; font-weight:400;
+}
+.pcard .parrow { display:none; }            /* la tarjeta entera es el botón */
+/* etiqueta del producto estrella: distingue sin romper la rejilla */
+.pcard .ptag {
+  position:absolute; z-index:2; top:11px; left:11px;
+  background:rgba(255,255,255,.94); color:var(--acd);
+  font-size:9.5px; font-weight:700; letter-spacing:.9px; text-transform:uppercase;
+  padding:4px 9px; border-radius:20px;
+}
+/* sin foto (revestimiento a medida, uso interno): fondo de madera oscura
+   para que el texto blanco siga legible */
+.pcard-img .img-ph {
+  width:100%; height:100%; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(150deg,#6B4A22 0%,#3F2A11 100%);
+}
+.pcard-img .img-ph svg { width:44px; height:44px; opacity:.5; color:#F0E6D0; }
+
+@media (min-width:720px){
+  .pcard .pname { font-size:24px; }
+  .pcard-body { padding:0 17px 16px; }
+}
+@media (prefers-reduced-motion:reduce){
+  .pcard, .pcard-img img, .pcard::after { transition:none; }
+  .pcard:hover { transform:none; }
+  .pcard:hover .pcard-img img { transform:none; }
+}
 
 /* ── FORM ── */
 .form-body { padding: 0 16px 36px; max-width: 480px; margin: 0 auto; }
@@ -771,7 +840,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     </div>
     <div class="pgrid">
 
-      <div class="pcard wide" data-prod="cubierta">
+      <div class="pcard" data-prod="cubierta"><span class="ptag">Lo más pedido</span>
         <div class="pcard-img" id="img-cubierta"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="7" width="18" height="3.5" rx="1"/><rect x="3" y="13.5" width="18" height="3.5" rx="1"/></svg></div></div>
         <div class="pcard-body"><div class="pinfo"><div class="pname">Cubierta de madera</div><div class="psub">Espesor 2,1 a 4,0 cm · Coihue, Raulí, Lenga, Ciprés, Pino…</div></div><span class="parrow">→</span></div>
       </div>
@@ -951,7 +1020,7 @@ var sbClient = supabase.createClient(SB_URL, SB_KEY);
    la tarjeta ancha; las demás 4:3. Reemplazaron los renders de ChatGPT de
    puertas, que además delataban su origen en el nombre del archivo. */
 var FOTOS = {
-  cubierta:      'https://cotizador.casazaru.cl/fotos/cubierta-wide.jpg',
+  cubierta:      'https://cotizador.casazaru.cl/fotos/cubierta.jpg',   /* la vertical: la -wide era el recorte apaisado de la tarjeta ancha */
   repisa:        'https://cotizador.casazaru.cl/fotos/repisa.jpg',
   peldano:       'https://cotizador.casazaru.cl/fotos/peldano.jpg',
   mesa:          'https://cotizador.casazaru.cl/fotos/mesa.jpg',
@@ -961,7 +1030,9 @@ var FOTOS = {
 /* Dónde recortar cada foto cuando su proporción no calza con la tarjeta.
    revestimiento.jpg es muy vertical (343×679): centrado mostraba la cama en vez
    del revestimiento, que es el producto. Subirlo deja la pared y la ventana. */
-var FOTO_POS = { revestimiento: 'center 25%' };
+/* encuadre por foto: las 4 apaisadas (repisa, peldaño, mesa, puertas) se
+   recortan al pasar a vertical, así que se elige qué parte se conserva */
+var FOTO_POS = { revestimiento:'center 25%', peldano:'center 35%', puertas:'center 40%', mesa:'center 50%', repisa:'center 45%' };
 var FOTO_ALT = {
   cubierta:      'Cubierta de madera maciza en una isla de cocina, con lavaplatos',
   repisa:        'Repisa de madera montada en la pared con plantas',
