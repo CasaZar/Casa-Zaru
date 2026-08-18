@@ -485,6 +485,70 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
+   FASE 3 — COLA Y DETALLE LADO A LADO
+   El problema real de trabajar la cola en el PC: para actuar sobre un
+   cliente había que expandir su tarjeta en el lugar, lo que empujaba
+   todo lo de abajo y hacía perder la posición del scroll. Con 285 en
+   cola eso se paga decenas de veces al día.
+   En escritorio la cola pasa a filas de una línea y el cliente abierto
+   vive en un panel propio a la derecha, pegado al hacer scroll. La
+   tarjeta del detalle es EXACTAMENTE la de siempre (segClientCard), así
+   que las casillas de toque, las notas y los botones son los mismos
+   —no hay una segunda implementación que se pueda desincronizar.
+   Solo aplica a Seguimiento y solo sobre 1100 px. Bajo eso, y en el
+   resto de las pestañas, todo queda como hoy.
+   ═══════════════════════════════════════════════════════════════════ */
+.dash-split { display:block; }
+#dash-detalle { display:none; }
+
+@media (min-width:1100px){
+  .dash-split.con-detalle {
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,430px);
+    gap:0 22px; align-items:start;
+  }
+  .dash-split.con-detalle #dash-detalle {
+    display:block; position:sticky; top:20px;
+    max-height:calc(100vh - 40px); overflow-y:auto;
+    border:1px solid var(--bd); border-radius:12px; background:white;
+    box-shadow:0 2px 10px -4px rgba(44,26,8,.18);
+  }
+  .dash-split.con-detalle #dash-detalle .seg-card {
+    border:none; border-left:none; border-radius:12px; margin-bottom:0;
+  }
+}
+
+/* ── fila compacta de la cola ── */
+.seg-fila {
+  display:grid; grid-template-columns:4px minmax(0,1fr) auto; gap:0 11px;
+  align-items:center; width:100%; text-align:left; background:white;
+  border:0; border-bottom:1px solid var(--bg3); padding:0; cursor:pointer;
+  font-family:inherit; color:var(--tx);
+}
+.seg-fila:hover { background:var(--crt); }
+.seg-fila.abierta { background:var(--bg3); }
+.seg-fila .sf-stripe { align-self:stretch; background:var(--bd); }
+.seg-fila.f-ballena .sf-stripe { background:#DB2777; }
+.seg-fila.f-nuevo   .sf-stripe { background:#DC2626; }
+.seg-fila.f-conv    .sf-stripe { background:#16A34A; }
+.seg-fila.f-today   .sf-stripe { background:var(--ac); }
+.seg-fila.f-future  .sf-stripe { background:#B8894A; }
+.seg-fila.f-donehoy .sf-stripe { background:#059669; }
+.seg-fila .sf-mid { padding:10px 0; min-width:0; }
+.seg-fila .sf-nom {
+  font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:600;
+  color:var(--tx); display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  line-height:1.15; margin-bottom:3px;
+}
+.seg-fila .sf-det {
+  font-size:12.5px; color:var(--tm); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis;
+}
+.seg-fila .sf-rt { padding:10px 14px 10px 0; text-align:right; white-space:nowrap; }
+.seg-fila .sf-plata { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+.seg-fila .sf-dias { font-size:12px; color:var(--tm); font-variant-numeric:tabular-nums; }
+.seg-detalle-vacio { padding:30px 22px; text-align:center; color:var(--tm); font-size:13px; }
+
+/* ═══════════════════════════════════════════════════════════════════
    FASE 1 — LEGIBILIDAD DEL PANEL EN EL PC
    El panel se trabaja más en el PC que en el celular, y estaba escrito
    con la letra de un celular: 40 tamaños definidos bajo 11 px. A
@@ -767,7 +831,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <div class="dash-main">
     <div id="dash-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
     <div id="dash-filters" class="dash-filters"></div>
-    <div id="dash-tbl"></div>
+    <div class="dash-split" id="dash-split">
+      <div id="dash-tbl"></div>
+      <aside id="dash-detalle" aria-live="polite"></aside>
+    </div>
     </div>
   </div>
 </div>
@@ -3712,6 +3779,11 @@ async function loadDash() {
 
 /* ── VISTA SEGUIMIENTO (un recuadro por cliente, bloques por vendedor / web) ── */
 function renderSeguimiento(){
+  /* fase 3: cada cliente que se pinta en la cola queda registrado con su
+     clase, para que el panel de detalle pueda encontrar al abierto sin
+     recalcular a qué bloque pertenecía. */
+  var pares = [];
+  function segRegistrar(g, cls){ pares.push({ g:g, cls:cls }); return segItem(g, cls); }
   var groups = buildSegGroups();
   if (segSearch){
     var q = segSearch.toLowerCase();
@@ -3762,7 +3834,7 @@ function renderSeguimiento(){
   var meta = metaHoy();
   var diaVerde = (b1.length === 0) && (b2Hechos >= meta);
   function sec(t,cls,arr,vacio,extra){
-    var body = arr.length ? arr.map(function(g){ return segClientCard(g,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
+    var body = arr.length ? arr.map(function(g){ return segRegistrar(g,cls); }).join('') : '<div class="seg-empty">'+vacio+'</div>';
     var cnt = arr.length ? '<span class="seg-cnt">'+arr.length+'</span>' : '';
     return '<div class="seg-sec '+cls+'">'+t+cnt+'</div>'+(extra||'')+body;
   }
@@ -3779,14 +3851,14 @@ function renderSeguimiento(){
       ballenas.map(function(g){
         var h = horasSinToque(g);
         var alerta = h >= 72 ? '<div class="ballena-alerta">⚠ '+Math.floor(h/24)+' días sin un toque — el acuerdo es no pasar de 72 horas</div>' : '';
-        return alerta + segClientCard(g,'ballena');
+        return alerta + segRegistrar(g,'ballena');
       }).join('');
   }
   /* BLOQUE 1 — nunca se sacrifica */
   html += bloqueH(1,'Escríbeles hoy mismo','Cotizaron y nadie les ha hablado',
                   (b1.length? b1.length+' por hacer' : '✓ al día'), b1.length?'urg':'ok');
   html += b1.length
-    ? b1.map(function(g){ return segClientCard(g,'nuevo'); }).join('')
+    ? b1.map(function(g){ return segRegistrar(g,'nuevo'); }).join('')
     : '<div class="seg-empty">Todo lo nuevo está contactado. 🎉</div>';
   if (b1Viejos.length){
     /* viven en su pestaña propia (fase 6): aquí solo el recordatorio, para que
@@ -3798,13 +3870,13 @@ function renderSeguimiento(){
   html += bloqueH(2,'Hazles seguimiento','Respondieron antes o cotizaron sobre '+fmt(CFG_SEG.corte),
                   (meta ? b2Hechos+' de '+meta : 'sin meta hoy'), (meta && b2Hechos>=meta)?'ok':'');
   html += b2.length
-    ? b2.map(function(g){ return segClientCard(g,'today'); }).join('')
+    ? b2.map(function(g){ return segRegistrar(g,'today'); }).join('')
     : '<div class="seg-empty">'+(meta ? 'Sin toques pendientes para hoy.' : 'Hoy no hay meta de toques.')+'</div>';
   /* CONVERSACIONES ACTIVAS — fuera de la cola de plantillas */
   if (conv.length){
     html += '<div class="seg-sec conv">💬 Conversaciones activas<span class="seg-cnt">'+conv.length+'</span></div>'+
       '<div class="seg-empty" style="margin:-4px 0 8px">Ya te contestaron: aquí el seguimiento es la conversación, no una plantilla. Cuentan para tu meta de toques.</div>'+
-      conv.map(function(g){ return segClientCard(g,'conv'); }).join('');
+      conv.map(function(g){ return segRegistrar(g,'conv'); }).join('');
   }
   /* BLOQUE 3 — solo si sobra tiempo, colapsado */
   if (b3.length){
@@ -3814,12 +3886,12 @@ function renderSeguimiento(){
     html += '<details class="seg-b3"><summary>'+
       '<span class="seg-bloque-n">3</span> Resto de la cola · '+b3.length+' · '+fmtM(b3Valor)+
       ' <span class="seg-bloque-sub">solo si sobra tiempo — no cuentan para el Día Verde. Si alguno vale la pena, márcalo con la ★ y sube al bloque 2.</span></summary>'+
-      b3.map(function(g){ return segClientCard(g,'today'); }).join('')+'</details>';
+      b3.map(function(g){ return segRegistrar(g,'today'); }).join('')+'</details>';
   }
   if (futuro.length){
     html += '<details class="seg-b3"><summary>⚪ Esta semana · '+futuro.length+
       ' <span class="seg-bloque-sub">agendados para los próximos días</span></summary>'+
-      futuro.map(function(g){ return segClientCard(g,'future'); }).join('')+'</details>';
+      futuro.map(function(g){ return segRegistrar(g,'future'); }).join('')+'</details>';
   }
   if (hoyDone.length){
     /* ordenadas por bloque de origen para poder leer de un vistazo qué se
@@ -3920,6 +3992,7 @@ function renderSeguimiento(){
       ' &nbsp;·&nbsp; Conversión <strong>'+convMes+'%</strong> ('+cliGan+' de '+cliDecididos+' decididos)'+
       ' &nbsp;·&nbsp; Contacto &lt;24h <strong>'+rapidPct+'%</strong></div>';
   document.getElementById('dash-tbl').innerHTML = html || '<div class="seg-empty" style="padding:24px;text-align:center">No hay seguimientos pendientes 🎉</div>';
+  segPintarDetalle(pares);
 }
 /* salta al encabezado del bloque 1 o 2 desde el recuadro "Tu meta de hoy",
    con un destello para que se note dónde quedó parado */
@@ -3942,6 +4015,75 @@ function fmtM(n){ n=n||0; if(n>=1e6) return '$'+(n/1e6).toFixed(n>=1e7?0:1)+'M';
 /* fecha corta dd/mm para mostrar el día del toque */
 function fmtFechaCorta(iso){ var p=String(iso).slice(0,10).split('-'); return p.length===3 ? p[2]+'/'+p[1] : String(iso); }
 function escA(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+/* ── FASE 3: cola de filas + panel de detalle (solo escritorio) ──
+   segSel guarda el id de la cotización líder del cliente abierto. Se usa
+   el id (uuid) y no la clave del grupo porque va dentro de un onclick
+   inline y un uuid no puede traer comillas ni acentos. */
+var segSel = null;
+function esEscritorio(){ return window.matchMedia('(min-width:1100px)').matches; }
+/* ¿la vista actual usa cola + detalle? Solo Seguimiento: el Backlog y los
+   Dormidos siguen con la tarjeta completa en línea, como hasta ahora. */
+function usaDetalle(){ return esEscritorio() && dashView === 'seg'; }
+/* fila de una línea: lo justo para decidir a quién le toca, sin acciones
+   —las acciones viven en el panel de la derecha, para que no haya dos
+   botones distintos haciendo lo mismo. */
+function segFila(g, cls){
+  var x = g.lead;
+  var dias = x.fecha_creacion ? Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)) : 0;
+  var etapa = x.seg_etapa||0;
+  var marcas = '';
+  if (esInteresado(g))                                              marcas += '<span class="interesado-badge">★ Interesado</span>';
+  if (esRecurrente(g))                                              marcas += '<span class="recu-badge">🔁 Ya compró</span>';
+  if (g.quotes.some(function(q){ return q.respondio; }))            marcas += '<span class="resp-badge">💬 Respondió</span>';
+  if (x.motivo_pausa)                                               marcas += '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+'</span>';
+  var toque = (cls === 'nuevo') ? 'sin contactar'
+                                : 'toque '+Math.min(etapa+1, CADENCIA.length)+'/'+CADENCIA.length;
+  var ncot = g.quotes.length + (g.quotes.length===1 ? ' cotización' : ' cotizaciones');
+  return '<button class="seg-fila f-'+cls+(x.id===segSel?' abierta':'')+'" onclick="segAbrir(\''+x.id+'\')">'+
+    '<span class="sf-stripe"></span>'+
+    '<span class="sf-mid">'+
+      '<span class="sf-nom">'+escA(x.cliente||'—')+marcas+'</span>'+
+      '<span class="sf-det">'+ncot+' · '+toque+'</span>'+
+    '</span>'+
+    '<span class="sf-rt"><span class="sf-plata">'+fmt(g.valor)+'</span><br>'+
+      '<span class="sf-dias">hace '+dias+' d</span></span>'+
+  '</button>';
+}
+/* lo que se pinta en la cola: fila en escritorio, tarjeta completa en el
+   celular. Un solo punto de decisión para todas las secciones. */
+function segItem(g, cls){
+  return usaDetalle() ? segFila(g, cls) : segClientCard(g, cls);
+}
+function segAbrir(id){
+  segSel = id;
+  renderSeguimiento();
+  var el = document.getElementById('dash-detalle');
+  if (el) el.scrollTop = 0;
+}
+/* pinta el panel derecho con el cliente abierto. Reutiliza segClientCard:
+   las casillas de toque, las notas y los botones son los mismos de siempre. */
+/* si se cruza el umbral de 1100 px (ventana redimensionada, monitor
+   externo conectado, celular girado) hay que repintar: la cola cambia de
+   tarjetas a filas y el panel de detalle aparece o se va. */
+(function(){
+  var mq = window.matchMedia('(min-width:1100px)');
+  var alCambiar = function(){ if (document.getElementById('dash-tbl')) renderVistaActual(); };
+  if (mq.addEventListener) mq.addEventListener('change', alCambiar);
+  else if (mq.addListener) mq.addListener(alCambiar);   /* navegadores viejos */
+})();
+function segPintarDetalle(pares){
+  var pane = document.getElementById('dash-detalle');
+  var split = document.getElementById('dash-split');
+  if (!pane || !split) return;
+  if (!usaDetalle()){ split.classList.remove('con-detalle'); pane.innerHTML=''; return; }
+  split.classList.add('con-detalle');
+  /* si el abierto ya no está en la cola (se cerró, se filtró, cambió de
+     pestaña), se abre el primero en vez de dejar el panel en blanco */
+  var sel = pares.filter(function(p){ return p.g.lead.id === segSel; })[0] || pares[0];
+  if (!sel){ pane.innerHTML = '<div class="seg-detalle-vacio">Sin clientes en la cola.</div>'; segSel=null; return; }
+  segSel = sel.g.lead.id;
+  pane.innerHTML = segClientCard(sel.g, sel.cls);
+}
 function segClientCard(g, cls){
   var x = g.lead;
   var etapa = x.seg_etapa||0;
