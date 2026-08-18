@@ -917,6 +917,9 @@ function baseFierroTramo(forma, largoCm) {
    OJO: el Coihue está en el grupo del medio en la lista, pero en el cotizador
    va en el tier alto junto a Raulí y Lenga. Se cobra con el valor de "Raulí o
    Lenga" (el mayor) para no vender bajo costo. */
+/* Sobre este largo de CUBIERTA la base de fierro lleva recargo (ago 2026):
+   simple 289.900 → 319.900 · compleja 329.900 → 349.900. */
+var MESA_LARGO_EXTRA = 240;
 var MESA_BASES = {
   /* redondas de madera: el precio cambia según el diámetro */
   'Mesa Río Backer': { modo:'diametro', tramos:[
@@ -930,12 +933,14 @@ var MESA_BASES = {
   /* fierro: precio plano, no depende de la madera de la cubierta.
      Simples (trapecio / cuadrada / X) $289.900 · complejas $329.900 ·
      redondas $249.900. El tipo de cada modelo se identificó mirando su foto
-     del catálogo: Calafquén lleva base X y Maullín base cuadrada. */
+     del catálogo: Calafquén lleva base X y Maullín base cuadrada.
+     largoExtra: recargo cuando la cubierta pasa de MESA_LARGO_EXTRA cm.
+     Las redondas no llevan recargo (no se hacen tan largas). */
   'Mesa Río Toltén':        { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
   'Mesa Río Imperial':      { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
-  'Mesa Lago Puyehue':      { modo:'fijo', bajo:329900, medio:329900, alto:329900, nota:'Base de fierro compleja' },
-  'Mesa Lago Calafquén':    { modo:'fijo', bajo:289900, medio:289900, alto:289900, nota:'Base de fierro X' },
-  'Mesa Río Maullín':       { modo:'fijo', bajo:289900, medio:289900, alto:289900, nota:'Base de fierro cuadrada' },
+  'Mesa Lago Puyehue':      { modo:'fijo', bajo:329900, medio:329900, alto:329900, largoExtra:20000, nota:'Base de fierro compleja' },
+  'Mesa Lago Calafquén':    { modo:'fijo', bajo:289900, medio:289900, alto:289900, largoExtra:30000, nota:'Base de fierro X' },
+  'Mesa Río Maullín':       { modo:'fijo', bajo:289900, medio:289900, alto:289900, largoExtra:30000, nota:'Base de fierro cuadrada' },
   /* Río Fuy no tiene precio de base: la base son 2 cubiertas iguales que se
      cotizan como cubierta (alto 71 cm, ancho 40 cm menos que la principal),
      más el armado. */
@@ -949,7 +954,16 @@ function mesaBaseSugerida(modelo, largoCm, anchoCm) {
   var cfg = MESA_BASES[modelo.nombre];
   if (!cfg) return null;
   if (cfg.modo === 'fijo') {
-    return { bajo:cfg.bajo, medio:cfg.medio, alto:cfg.alto, detalle: cfg.nota || 'Precio de lista' };
+    /* Recargo por mesa larga (regla de agosto 2026): sobre 240 cm de CUBIERTA
+       la base sube $30.000 — simple 289.900 → 319.900, compleja 329.900 →
+       349.900. El umbral se mide sobre el largo de la cubierta, no sobre la
+       base calculada: es lo que el vendedor tiene a la vista y no cambia
+       según el modelo (en los de 4 patas la base es 60 cm más larga que en
+       los normales para la misma cubierta). Las redondas no llevan recargo. */
+    var rec = (cfg.largoExtra && largoCm > MESA_LARGO_EXTRA) ? cfg.largoExtra : 0;
+    var det = cfg.nota || 'Precio de lista';
+    if (rec) det += ' · sobre ' + MESA_LARGO_EXTRA + ' cm de largo';
+    return { bajo:cfg.bajo+rec, medio:cfg.medio+rec, alto:cfg.alto+rec, detalle: det };
   }
   if (cfg.modo === 'diametro') {
     if (!(largoCm > 0)) return null;
