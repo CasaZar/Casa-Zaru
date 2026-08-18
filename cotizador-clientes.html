@@ -412,7 +412,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-row input { width:14px;height:14px;cursor:pointer;accent-color:var(--ac); }
 .seg-dias { width:52px;padding:4px 5px;border:1px solid var(--bd);border-radius:6px;font-size:10.5px;font-family:'Jost',sans-serif;text-align:center; }
 /* ── SEGUIMIENTO (cola diaria) ── */
-.seg-sec { font-family:'Jost',sans-serif;font-size:14px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin:44px 0 12px;display:flex;align-items:center;gap:9px;padding:11px 15px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.seg-sec { font-family:'Jost',sans-serif;font-size:14px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin:46px 0 20px;display:flex;align-items:center;gap:9px;padding:11px 15px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08); }
 .seg-sec:first-child { margin-top:4px; }
 .seg-sec.late   { background:#DC2626;color:#fff;border-left:5px solid #7F1212; }
 .seg-sec.today  { background:#F59E0B;color:#4A2E00;border-left:5px solid #B45309; }
@@ -568,7 +568,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 /* Separación entre bloques: mucho aire ARRIBA (separa de lo anterior) y
    poco ABAJO (el encabezado pertenece a sus tarjetas, no flota entre las
    dos secciones). Es la regla que hace que se lean como grupos. */
-.seg-bloque { display:flex;align-items:center;gap:11px;margin:44px 0 12px;padding:13px 15px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);border-left:5px solid var(--acd);box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.seg-bloque { display:flex;align-items:center;gap:11px;margin:46px 0 20px;padding:14px 16px;border-radius:10px;background:var(--bg3);border:1px solid var(--bd);border-left:5px solid var(--acd);box-shadow:0 1px 3px rgba(0,0,0,.08); }
 .seg-bloque:first-child { margin-top:4px; }
 .seg-bloque.urg { background:#FEF2F2;border-color:#FCA5A5;border-left-color:#DC2626; }
 .seg-bloque.ok { background:#F0FDF4;border-color:#BBF7D0;border-left-color:#16A34A; }
@@ -777,24 +777,28 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-fila.f-donehoy .sf-stripe { background:#059669; }
 .seg-fila .sf-mid { padding:10px 0; min-width:0; }
 .seg-fila .sf-nom {
-  font-family:'Cormorant Garamond',serif; font-size:19px; font-weight:600;
+  font-family:'Cormorant Garamond',serif; font-size:20px; font-weight:600;
   color:var(--tx); display:flex; align-items:center; gap:7px; flex-wrap:wrap;
-  line-height:1.15; margin-bottom:3px;
+  line-height:1.2; margin-bottom:5px;
 }
+/* display:block es imprescindible, no decorativo: en un elemento EN LÍNEA,
+   overflow:hidden, nowrap y text-overflow NO se aplican. Sin esto la línea
+   de datos se desbordaba y se pintaba ENCIMA del monto —hasta 152 px de
+   invasión bajo 760 px de ancho—, que es la letra sobrepuesta que se veía. */
 .seg-fila .sf-det {
-  font-size:12.5px; color:var(--tm); white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis;
+  display:block; font-size:12.5px; color:var(--tm); line-height:1.4;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 /* Cada zona en su columna y TODAS centradas en el mismo eje: antes el
    precio quedaba arriba y el botón abajo, y la tarjeta se veía torcida.
    Una sola línea visual: marcas · cliente · plata · acción. */
 .seg-fila .sf-rt {
-  display:flex; flex-direction:column; align-items:flex-end; gap:2px;
-  padding:10px 0; text-align:right; white-space:nowrap;
+  display:flex; flex-direction:column; align-items:flex-end; gap:3px;
+  padding:15px 0; text-align:right; white-space:nowrap;
 }
 .seg-fila .sf-plata { font-size:15px; font-weight:700; color:var(--tx); font-variant-numeric:tabular-nums; line-height:1.15; }
 .seg-fila .sf-dias { font-size:12px; color:var(--tm); font-variant-numeric:tabular-nums; }
-.seg-fila .sf-act { padding:10px 13px 10px 0; }
+.seg-fila .sf-act { padding:15px 15px 15px 0; }
 .seg-fila .sf-act .sbtn { padding:8px 13px; font-size:12.5px; white-space:nowrap; }
 
 /* ★ INTERESADO: la marca tiene que verse desde lejos, si no marcarla no
@@ -814,8 +818,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
    (Antes acá había un grid-template-columns de 4 columnas, sobrante de una
    versión anterior, que pisaba el de 5 definido más arriba.) */
 .seg-fila .sf-open {
-  display:block; text-align:left; background:none; border:0; padding:10px 0;
+  display:block; text-align:left; background:none; border:0; padding:15px 0;
   min-width:0; cursor:pointer; font-family:inherit; color:inherit; width:100%;
+  overflow:hidden;   /* segundo cinturón: nada se sale de esta columna */
 }
 .sbtn.mail { background:#1D4ED8; border-color:#1D4ED8; color:#fff; }
 .sbtn.mail:hover { background:#1E40AF; }
@@ -4185,6 +4190,11 @@ function renderSeguimiento(){
     if (esBall[g.key]) return;                          /* ya va fija arriba */
     if (sinPrimerContacto(g)){ (diasDe(g) > 7 ? b1Viejos : b1).push(g); return; }
     if (enConversacion(g)){ conv.push(g); return; }
+    /* Marcado con ★: sale TODOS los días, sin esperar la fecha de la
+       cadencia. Antes, si su próximo toque caía en 3 días, se iba a la
+       sección "Esta semana" (colapsada) y no se veía — o sea, marcarlo no
+       garantizaba nada. Ahora la marca a mano manda sobre el calendario. */
+    if (esInteresado(g)){ b2.push(g); return; }
     var d=dueDate(g.lead); if(!d) return;
     if (d > hoy){ if (d<=lim) futuro.push(g); return; }
     if (esPrioritario(g)) b2.push(g); else b3.push(g);
