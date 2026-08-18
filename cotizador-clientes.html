@@ -688,7 +688,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
    para decidir sin abrirla. La franja de color al borde dice de qué bloque
    viene sin tener que leer. */
 .seg-fila {
-  display:grid; grid-template-columns:5px minmax(0,1fr) auto auto; gap:0 12px;
+  display:grid; grid-template-columns:5px auto minmax(0,1fr) auto auto; gap:0 10px;
   align-items:center; width:100%; text-align:left; background:white;
   border:1px solid var(--bd); border-radius:11px; margin-bottom:8px;
   overflow:hidden; padding:0; font-family:inherit; color:var(--tx);
@@ -716,10 +716,15 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-fila .sf-rt { padding:11px 0; text-align:right; white-space:nowrap; }
 .seg-fila .sf-plata { display:block; font-size:15px; font-weight:700; color:var(--tx); font-variant-numeric:tabular-nums; }
 .seg-fila .sf-dias { display:block; font-size:12px; color:var(--tm); font-variant-numeric:tabular-nums; margin-top:2px; }
+/* ★ y 🔁 al costado del nombre: se marcan al vuelo recorriendo la cola,
+   sin abrir la ficha. La ★ además sube al cliente al bloque 2. */
+.seg-fila .sf-marcas { display:flex; align-items:center; gap:1px; padding-left:9px; }
+.seg-fila .sf-marcas .seg-star { margin:0; padding:3px; font-size:18px; line-height:1; }
+.seg-fila .sf-marcas .seg-star:hover { transform:scale(1.15); }
 /* dentro del escritorio pero angosto: el botón baja para no aplastarse */
 @media (max-width:1340px){
-  .seg-fila { grid-template-columns:5px minmax(0,1fr) auto; }
-  .seg-fila .sf-act { grid-column:2 / -1; padding:0 14px 11px 0; text-align:right; }
+  .seg-fila { grid-template-columns:5px auto minmax(0,1fr) auto; }
+  .seg-fila .sf-act { grid-column:3 / -1; padding:0 14px 11px 0; text-align:right; }
 }
 /* la fila deja de ser un botón: ahora es una grilla con un área abrible
    y el botón de contacto al final, para escribir sin abrir la ficha */
@@ -4327,9 +4332,10 @@ function segFila(g, cls){
   var x = g.lead;
   var dias = x.fecha_creacion ? Math.max(0,Math.round((Date.now()-new Date(x.fecha_creacion).getTime())/86400000)) : 0;
   var etapa = x.seg_etapa||0;
+  /* Solo las marcas que NO tienen botón propio en la fila: la ★ y el 🔁 ya
+     muestran su estado en el botón, repetirlos como etiqueta a 20 px de
+     distancia era ruido. */
   var marcas = '';
-  if (esInteresado(g))                                   marcas += '<span class="interesado-badge">★ Interesado</span>';
-  if (esRecurrente(g))                                   marcas += '<span class="recu-badge">🔁 Ya compró</span>';
   if (g.quotes.some(function(q){ return q.respondio; })) marcas += '<span class="resp-badge">💬 Respondió</span>';
   if (x.motivo_pausa)                                    marcas += '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+'</span>';
   /* de quién es el cliente: mismo criterio que la ficha completa */
@@ -4349,8 +4355,20 @@ function segFila(g, cls){
   /* la línea de datos: lo justo para decidir sin abrir la ficha */
   var linea = [escA(x.contacto||'sin contacto'), prods.join(' · '), ncot, toque]
                 .filter(Boolean).join('  ·  ');
+  /* Marcar interesado (★) y "ya compró" (🔁) SIN abrir la ficha: son las dos
+     marcas que se ponen al vuelo mientras se recorre la cola, y la ★ además
+     sube al cliente al bloque 2. Van fuera del área abrible porque anidar
+     botones es HTML inválido; como .seg-fila no tiene onclick propio, no hay
+     que frenar propagación. */
+  var interesado = !!x.interesado, recu = esRecurrente(g);
+  var estrellas =
+    '<button class="seg-star'+(interesado?' on':'')+'" onclick="segToggleInteresado(\''+x.id+'\','+interesado+')" '+
+      'title="'+(interesado?'Quitar marca de interesado':'Marcar como interesado — sube al bloque 2')+'">'+(interesado?'★':'☆')+'</button>'+
+    '<button class="seg-star recu'+(recu?' on':'')+'" onclick="segToggleRecurrente(\''+x.id+'\','+recu+')" '+
+      'title="'+(recu?'Quitar marca de cliente que ya compró':'Marcar: este cliente ya nos compró antes')+'">🔁</button>';
   return '<div class="seg-fila f-'+cls+(x.id===segSel?' abierta':'')+'">'+
     '<span class="sf-stripe"></span>'+
+    '<span class="sf-marcas">'+estrellas+'</span>'+
     '<button class="sf-open" onclick="segAbrir(\''+x.id+'\')" title="Ver la ficha completa con la cadencia y las notas">'+
       '<span class="sf-nom">'+escA(x.cliente||'—')+
         '<span class="seg-owner '+oClase+'">'+origen+'</span>'+marcas+'</span>'+
