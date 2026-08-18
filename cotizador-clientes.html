@@ -485,8 +485,14 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dm-card.dm-mesa img { aspect-ratio:1/1; }
 .dm-sinprecio { display:block;font-size:8.5px;color:#B45309;font-weight:700;margin-top:1px; }
 /* nota viva de ergonomía: cómo se vería la mesa con esas medidas */
-.ms-ergo { font-size:11px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;margin-top:8px;line-height:1.45; }
+.ms-ergo { display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--acd);background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:9px 10px;margin-top:8px;line-height:1.45; }
 .ms-ergo:empty { display:none; }
+.ms-ergo-txt { flex:1;min-width:0; }
+/* ✕ para cerrar la sugerencia cuando no viene al caso (un escritorio, un
+   mueble a medida) sin que estorbe mientras sí sirve */
+.ms-ergo-x { flex:0 0 auto;background:none;border:0;color:var(--tm);font-size:14px;line-height:1;
+  cursor:pointer;padding:2px 4px;border-radius:5px;font-family:inherit; }
+.ms-ergo-x:hover { background:rgba(0,0,0,.07);color:var(--tx); }
 /* fase 5: los tres bloques de la cola diaria */
 .dia-verde { border-radius:10px;padding:10px 14px;font-size:12.5px;line-height:1.5;margin-bottom:10px;border:1px solid var(--bd); }
 .dia-verde.ok { background:#DCFCE7;border-color:#86EFAC;color:#166534; }
@@ -1192,6 +1198,23 @@ var ERGO = {
      4 personas; 140 ya es de 6). */
   cmComensal: 60, cabLargoMin: 140
 };
+/* ── ¿Aplica la sugerencia de comensales? ──
+   La regla de los 60 cm por persona y las cabeceras es de mesa de comedor.
+   Se lee lo que el vendedor escribió en "¿Qué es?": si es un escritorio, un
+   arrimo, una mesa de centro o un velador, nadie se sienta alrededor y la
+   nota sobra. Ante la duda se muestra: es referencial y se puede cerrar. */
+var ERGO_NO_APLICA = /escritorio|arrimo|centro|velador|noche|consola|lateral|apoyo|rinc[oó]n|caf[eé]|tv|mudador|repisa/i;
+var ergoCerrada = false;   /* la ✕ del vendedor, mientras dure la cotización */
+function mesaAplicaErgo(){
+  var el = document.getElementById('ms-nombre');
+  var t = (el && el.value) ? el.value.trim() : '';
+  return !(t && ERGO_NO_APLICA.test(t));
+}
+function ergoCerrar(){
+  ergoCerrada = true;
+  var el = document.getElementById('ms-ergo');
+  if (el) el.innerHTML = '';
+}
 function mesaErgo(modelo, largo, ancho) {
   if (!(largo > 0)) return null;
   if (modelo && modelo.forma === 'redonda') {
@@ -1704,6 +1727,7 @@ function initProd(p) {
   nrows = 1;
   peldanoEspesor = '4';
   cubiertaEspesor = '4';
+  ergoCerrada = false;   /* cada cotización parte mostrando la sugerencia */
   document.getElementById('f-title').textContent = isPuertas ? 'Puertas de madera' : PNAME[p];
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
@@ -2040,11 +2064,19 @@ function mesaSugerenciaRefrescar() {
   var m = mesaModeloActual();
   var lgEl = document.getElementById('lg1'), anEl = document.getElementById('an1');
   var lg = parseFloat((lgEl&&lgEl.value)||0)||0, an = parseFloat((anEl&&anEl.value)||0)||0;
-  /* nota de ergonomía: medidas de la base y comensales según las reglas del taller */
+  /* Nota de ergonomía: medidas de la base y comensales según las reglas del
+     taller. Solo tiene sentido en una mesa donde la gente se sienta alrededor:
+     en un escritorio, un arrimo o una mesa de centro, hablar de "8 personas"
+     es ruido. Se esconde sola según lo que se escriba en "¿Qué es?", y además
+     se puede cerrar a mano con la ✕ para cualquier caso que no adivine. */
   var ergoEl = document.getElementById('ms-ergo');
   if (ergoEl) {
-    var e = mesaErgo(m, lg, an);
-    ergoEl.innerHTML = e ? ('📐 ' + escA(e.texto) + ' <span style="font-weight:400;color:var(--tm)">· referencial, el diseño manda</span>') : '';
+    var e = (mesaAplicaErgo() && !ergoCerrada) ? mesaErgo(m, lg, an) : null;
+    ergoEl.innerHTML = e
+      ? ('<span class="ms-ergo-txt">📐 ' + escA(e.texto) +
+         ' <span style="font-weight:400;color:var(--tm)">· referencial, el diseño manda</span></span>' +
+         '<button type="button" class="ms-ergo-x" onclick="ergoCerrar()" title="No mostrar esta sugerencia">✕</button>')
+      : '';
   }
   var sug = m ? mesaBaseSugerida(m, lg, 0) : null;
   window._mesaSug = sug;
@@ -2777,8 +2809,10 @@ function htmlMesa(cli, fecha) {
     '</div>';
 
   /* nota de ergonomía en la cotización: medidas de base y comensales de la pieza 1 */
+  /* misma regla que en el formulario: si es un escritorio o un arrimo, o el
+     vendedor cerró la sugerencia, tampoco sale en la cotización del cliente */
   var ergoNota = '';
-  if (filas.length) {
+  if (filas.length && mesaAplicaErgo() && !ergoCerrada) {
     var eq = mesaErgo(mesaModeloActual(), filas[0].lg, filas[0].an);
     if (eq) ergoNota = '<div class="info-bar">📐 ' + escA(eq.texto) + ' <span style="font-style:italic">(referencial)</span></div>';
   }
