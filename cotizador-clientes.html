@@ -3690,7 +3690,7 @@ function waMsg(x){
      a que el mensaje llegó tarde. */
   var esMismoDia = fechaBaseISO(x.fecha_creacion) === hoyISO();
   var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru. Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+').\n\n¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
-      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+').\n\nSi quieres afinar medidas o comparar maderas, te ayudo al tiro. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
+      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+').\n\nSi quieres afinar medidas o comparar maderas, te ayudo. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
   /* P4: nunca se le escribió y ya pasaron días. Reconocer la demora funciona
      mucho mejor que escribir como si nada (protocolo de triage v2). */
   var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora.\n\n¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
@@ -4463,7 +4463,16 @@ function correoAsunto(x){
    cuerpo es el MISMO texto del toque que se manda por WhatsApp, para que
    no existan dos versiones del mensaje que se desincronicen. */
 function correoUrl(x, g){
-  var v = (g && g.owner) ? sellerByCode(g.owner) : null;
+  /* Quién firma: el que está TRABAJANDO la cola, no el dueño del registro.
+     Un cliente que llegó por la web no tiene vendedor asignado, así que
+     firmaba "Equipo Casa Zaru" mientras el cuerpo decía "César de Casa Zaru"
+     — el correo se contradecía solo.
+     Orden: quien tiene el panel abierto (o a quién está previsualizando el
+     admin) · el dueño del registro · y si no, César, que es a quien nombran
+     las plantillas. */
+  var v = panelSeller
+       || ((g && g.owner) ? sellerByCode(g.owner) : null)
+       || sellerByCode('cesar');
   var firma = v ? (v.firma || v.nombre) : 'Equipo Casa Zaru';
   var cargo = v ? (v.cargo || '') : '';
   /* El link va SIEMPRE en el correo, desde el primer contacto. En WhatsApp
