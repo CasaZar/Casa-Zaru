@@ -138,20 +138,26 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .btn-back { background: none; border: 1px solid var(--bd); border-radius: 7px; padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--tm); flex-shrink: 0; font-family: 'Jost', sans-serif; letter-spacing: .5px; }
 .btn-back:hover { border-color: var(--ac); color: var(--ac); }
 .form-hdr h2 { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 400; color: var(--acd); flex: 1; }
-.flabel { display: block; font-size: 9px; font-weight: 600; letter-spacing: 1.8px; text-transform: uppercase; color: var(--acd); margin-bottom: 6px; }
+/* Etiquetas: 9 px con 1,8 de espaciado era casi ilegible en el celular.
+   A 11 px y con menos separación entre letras se leen sin esfuerzo y
+   siguen pareciendo etiquetas. */
+.flabel { display: block; font-size: 11px; font-weight: 600; letter-spacing: 1.1px; text-transform: uppercase; color: var(--acd); margin-bottom: 9px; }
 .flabel .req { color: #c0392b; }
-.finput, .fsel { width: 100%; padding: 11px 14px; border: 1px solid var(--bd); border-radius: 8px; font-size: 14px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); }
+/* 16 px NO es capricho: bajo ese tamaño, Safari en iPhone hace zoom solo
+   al tocar el campo y descuadra la página entera. Estaba en 14. */
+.finput, .fsel { width: 100%; padding: 13px 15px; border: 1px solid var(--bd); border-radius: 9px; font-size: 16px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); }
 .finput::placeholder { color: var(--tm); }
-.finput:focus, .fsel:focus { outline: none; border-color: var(--ac); }
-.fsec { margin-bottom: 16px; }
+.finput:focus, .fsel:focus { outline: none; border-color: var(--ac); box-shadow: 0 0 0 3px rgba(184,137,74,.14); }
+/* el aire entre secciones era de 16 px y todo se veía pegado */
+.fsec { margin-bottom: 26px; }
 
 /* ── LIVE PRICE WIDGET ── */
-.live-price-wrap { background: var(--bg3); border: 1px solid var(--bd); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; text-align: center; }
-.lp-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--tm); margin-bottom: 6px; }
+.live-price-wrap { background: var(--bg3); border: 1px solid var(--bd); border-radius: 12px; padding: 20px 18px; margin-bottom: 26px; text-align: center; }
+.lp-label { font-size: 10.5px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--tm); margin-bottom: 8px; }
 .lp-range { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--tx); font-weight: 600; line-height: 1.1; }
 .lp-range .sep-dash { color: var(--ac); margin: 0 4px; }
-.lp-note { font-size: 9px; color: var(--tm); margin-top: 4px; }
-.lp-empty { font-family: 'Jost', sans-serif; font-size: 12px; color: var(--tm); font-style: italic; font-weight: 300; }
+.lp-note { font-size: 11px; color: var(--tm); margin-top: 6px; }
+.lp-empty { font-family: 'Jost', sans-serif; font-size: 13.5px; color: var(--tm); font-style: italic; font-weight: 300; }
 
 .btn-primary { width: 100%; background: var(--ac); color: white; border: none; border-radius: 10px; padding: 14px; font-size: 14px; font-family: 'Cormorant Garamond', serif; font-weight: 600; cursor: pointer; letter-spacing: 2px; text-transform: uppercase; transition: background .15s; margin-top: 4px; }
 .btn-primary:hover { background: var(--acd); }
@@ -161,17 +167,18 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .cta-dock .btn-primary { max-width: 480px; margin: 0 auto; display: block; padding: 15px; font-size: 15px; }
 .msg-err { color: #c0392b; font-size: 12px; text-align: center; margin-top: 8px; }
 
-.col-labels { display: flex; gap: 5px; margin-bottom: 4px; }
-.col-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: .5px; color: var(--tm); text-align: center; flex: 1; }
+.col-labels { display: flex; gap: 8px; margin-bottom: 6px; }
+.col-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--tm); text-align: center; flex: 1; }
 .col-lbl.nar { flex: .45; }
 .col-lbl.wide { flex: 1.4; }
-.dim-row { display: flex; gap: 5px; margin-bottom: 6px; align-items: center; }
-.rnum { font-size: 10px; color: var(--tm); min-width: 14px; text-align: center; flex-shrink: 0; }
-.dim-row input, .dim-row select { flex: 1; padding: 9px 7px; border: 1px solid var(--bd); border-radius: 7px; font-size: 13px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); min-width: 0; }
+.dim-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.rnum { font-size: 11.5px; color: var(--tm); min-width: 14px; text-align: center; flex-shrink: 0; }
+/* mismos 16 px: estos son los campos que más se tocan en el celular */
+.dim-row input, .dim-row select { flex: 1; padding: 12px 9px; border: 1px solid var(--bd); border-radius: 8px; font-size: 16px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); min-width: 0; }
 .dim-row .nar { flex: .45; }
 .dim-row .wid { flex: 1.4; }
 .dim-row input:focus, .dim-row select:focus { outline: none; border-color: var(--ac); }
-.btn-add { width: 100%; padding: 8px; border: 1.5px dashed var(--bd2); border-radius: 8px; background: none; color: var(--tm); font-size: 12px; cursor: pointer; margin-top: 4px; font-family: 'Jost', sans-serif; letter-spacing: .5px; }
+.btn-add { width: 100%; padding: 13px; border: 1.5px dashed var(--bd2); border-radius: 9px; background: none; color: var(--tm); font-size: 13.5px; cursor: pointer; margin-top: 8px; font-family: 'Jost', sans-serif; letter-spacing: .5px; }
 .btn-add:hover { border-color: var(--ac); color: var(--ac); }
 
 /* ── QUOTE s3 ── */
@@ -542,7 +549,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .tq-badge.tq-n { background:#FCE7F3;color:#9D174D; }
 .btn-extras { width:100%;background:none;border:1px dashed var(--bd);border-radius:8px;padding:9px 14px;font-size:11px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;text-align:left;letter-spacing:.5px;transition:border-color .15s; }
 .btn-extras:hover { border-color:var(--ac);color:var(--ac); }
-.extra-row { display:flex;align-items:center;justify-content:space-between;padding:8px 2px;border-bottom:1px solid var(--bg3);font-size:12px;color:var(--tx); }
+.extra-row { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 2px;border-bottom:1px solid var(--bg3);font-size:14px;color:var(--tx); }
 .extra-row:last-child { border-bottom:none; }
 .extra-row label { flex:1;cursor:pointer;display:flex;align-items:center;gap:8px; }
 .extra-price { color:var(--tm);font-size:10px;white-space:nowrap; }
@@ -675,19 +682,24 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   }
 }
 
-/* ── fila compacta de la cola ── */
+/* ── TARJETA DE LA COLA ──
+   Contenida y separada de la siguiente, no una fila pegada a otra: así se
+   ve dónde empieza y termina cada cliente, y cabe la info que se necesita
+   para decidir sin abrirla. La franja de color al borde dice de qué bloque
+   viene sin tener que leer. */
 .seg-fila {
-  display:grid; grid-template-columns:4px minmax(0,1fr) auto; gap:0 11px;
+  display:grid; grid-template-columns:5px minmax(0,1fr) auto auto; gap:0 12px;
   align-items:center; width:100%; text-align:left; background:white;
-  border:0; border-bottom:1px solid var(--bg3); padding:0; cursor:pointer;
-  font-family:inherit; color:var(--tx);
+  border:1px solid var(--bd); border-radius:11px; margin-bottom:8px;
+  overflow:hidden; padding:0; font-family:inherit; color:var(--tx);
+  transition:border-color .15s, box-shadow .15s;
 }
-.seg-fila:hover { background:var(--crt); }
-.seg-fila.abierta { background:var(--bg3); }
+.seg-fila:hover { border-color:var(--ac); box-shadow:0 3px 10px -5px rgba(44,26,8,.3); }
+.seg-fila.abierta { border-color:var(--ac); box-shadow:0 0 0 2px rgba(184,137,74,.22); background:var(--crt); }
 .seg-fila .sf-stripe { align-self:stretch; background:var(--bd); }
-.seg-fila.f-ballena .sf-stripe { background:#DB2777; }
-.seg-fila.f-nuevo   .sf-stripe { background:#DC2626; }
-.seg-fila.f-conv    .sf-stripe { background:#16A34A; }
+.seg-fila.f-ballena .sf-stripe { background:var(--blq-ball); }
+.seg-fila.f-nuevo   .sf-stripe { background:var(--blq-uno); }
+.seg-fila.f-conv    .sf-stripe { background:var(--blq-conv); }
 .seg-fila.f-today   .sf-stripe { background:var(--ac); }
 .seg-fila.f-future  .sf-stripe { background:#B8894A; }
 .seg-fila.f-donehoy .sf-stripe { background:#059669; }
@@ -701,9 +713,14 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   font-size:12.5px; color:var(--tm); white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis;
 }
-.seg-fila .sf-rt { padding:10px 14px 10px 0; text-align:right; white-space:nowrap; }
-.seg-fila .sf-plata { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
-.seg-fila .sf-dias { font-size:12px; color:var(--tm); font-variant-numeric:tabular-nums; }
+.seg-fila .sf-rt { padding:11px 0; text-align:right; white-space:nowrap; }
+.seg-fila .sf-plata { display:block; font-size:15px; font-weight:700; color:var(--tx); font-variant-numeric:tabular-nums; }
+.seg-fila .sf-dias { display:block; font-size:12px; color:var(--tm); font-variant-numeric:tabular-nums; margin-top:2px; }
+/* dentro del escritorio pero angosto: el botón baja para no aplastarse */
+@media (max-width:1340px){
+  .seg-fila { grid-template-columns:5px minmax(0,1fr) auto; }
+  .seg-fila .sf-act { grid-column:2 / -1; padding:0 14px 11px 0; text-align:right; }
+}
 /* la fila deja de ser un botón: ahora es una grilla con un área abrible
    y el botón de contacto al final, para escribir sin abrir la ficha */
 .seg-fila { grid-template-columns:4px minmax(0,1fr) auto auto; }
@@ -4315,16 +4332,31 @@ function segFila(g, cls){
   if (esRecurrente(g))                                   marcas += '<span class="recu-badge">🔁 Ya compró</span>';
   if (g.quotes.some(function(q){ return q.respondio; })) marcas += '<span class="resp-badge">💬 Respondió</span>';
   if (x.motivo_pausa)                                    marcas += '<span class="pausa-badge">⏸ '+escA(pausaLabel(x.motivo_pausa))+'</span>';
+  /* de quién es el cliente: mismo criterio que la ficha completa */
+  var origen = (g.hasVendor && g.hasWeb) ? 'Cotizó con '+(sellerByCode(g.owner)||{nombre:g.owner}).nombre+' y solo'
+             : g.hasVendor               ? 'Cliente '+(sellerByCode(g.owner)||{nombre:g.owner}).nombre
+             :                             'Cotizó solo';
+  var oClase = (g.hasVendor && g.hasWeb) ? 'mix' : (g.hasVendor ? 'vend' : 'web');
+  /* qué pidió, sin repetir productos */
+  var prods = [];
+  g.quotes.forEach(function(q){
+    var p = PNAME[q.producto] || q.producto;
+    if (p && prods.indexOf(p) === -1) prods.push(p);
+  });
   var toque = (cls === 'nuevo') ? 'sin contactar'
                                 : 'toque '+Math.min(etapa+1, CADENCIA.length)+'/'+CADENCIA.length;
   var ncot = g.quotes.length + (g.quotes.length===1 ? ' cotización' : ' cotizaciones');
+  /* la línea de datos: lo justo para decidir sin abrir la ficha */
+  var linea = [escA(x.contacto||'sin contacto'), prods.join(' · '), ncot, toque]
+                .filter(Boolean).join('  ·  ');
   return '<div class="seg-fila f-'+cls+(x.id===segSel?' abierta':'')+'">'+
     '<span class="sf-stripe"></span>'+
-    '<button class="sf-open" onclick="segAbrir(\''+x.id+'\')" title="Ver la ficha completa">'+
-      '<span class="sf-nom">'+escA(x.cliente||'—')+marcas+'</span>'+
-      '<span class="sf-det">'+ncot+' · '+toque+'</span>'+
+    '<button class="sf-open" onclick="segAbrir(\''+x.id+'\')" title="Ver la ficha completa con la cadencia y las notas">'+
+      '<span class="sf-nom">'+escA(x.cliente||'—')+
+        '<span class="seg-owner '+oClase+'">'+origen+'</span>'+marcas+'</span>'+
+      '<span class="sf-det">'+linea+'</span>'+
     '</button>'+
-    '<span class="sf-rt"><span class="sf-plata">'+fmt(g.valor)+'</span><br>'+
+    '<span class="sf-rt"><span class="sf-plata">'+fmt(g.valor)+'</span>'+
       '<span class="sf-dias">hace '+dias+' d</span></span>'+
     '<span class="sf-act">'+segBotonContacto(g, x, 'sbtn')+'</span>'+
   '</div>';
