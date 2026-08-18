@@ -651,6 +651,10 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .cost-acab-btn { padding:8px 14px;min-height:40px;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s; }
 .cost-acab-btn:hover { border-color:var(--wood); }
 .cost-acab-btn.on { background:var(--wood);color:#fff;border-color:var(--wood); }
+/* Vendedor en el pantallazo: mismo patrón de pastillas que el acabado */
+.vend-btn { padding:9px 16px;min-height:42px;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s; }
+.vend-btn:hover { border-color:var(--wood); }
+.vend-btn.on { background:var(--wood);color:#fff;border-color:var(--wood); }
 .cost-card-header { display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface2);border-bottom:1px solid var(--border);cursor:pointer;gap:12px;user-select:none; }
 .cost-card-info { display:flex;align-items:center;gap:12px;flex:1;min-width:0; }
 .cost-card-client { min-width:0; }
@@ -25927,6 +25931,13 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <div class="chips" id="chips"></div>
       </div>
     </div>
+    <!-- Quién vendió: base para la comisión, así que va arriba y no se salta -->
+    <div id="prev-vendedor" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:12px 0 16px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius-lg);border:1px solid var(--border-md)">
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:2px">👤 ¿Quién hizo esta venta?</div>
+      <div id="pp-vend-btns" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <input type="hidden" id="pp-vendedor" value="">
+    </div>
+
     <!-- Finanzas editable antes de confirmar -->
     <div id="prev-fin" style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:12px 0 16px;padding:14px 16px;background:var(--surface2);border-radius:var(--radius-lg);border:1px solid var(--border-md)">
       <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin-bottom:2px">💰 Valores — edita si Claude se equivocó</div>
@@ -27386,6 +27397,7 @@ async function analyzeImage(dataUrl,file,apiKey){
     pedidoData._cliente=parsed.cliente||{};
     prodPending=pedidoData;
     document.getElementById('prev-img').src=dataUrl;
+    renderPrevVendedor(VENDEDOR_DEFAULT);
     renderPrevProd(pedidoData);
     document.getElementById('prev').classList.add('on');
     document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
@@ -27514,6 +27526,11 @@ async function confirmOrder(){
   if(o.fecha_venta&&o.fecha_venta.indexOf('-')!==-1){var _fv=o.fecha_venta.split('-');o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];}
   else{o.fecha_creacion=fechaFromSemana(o.envio||'');}
   o.fecha=o.fecha_creacion;
+  // Vendedor: se guarda en Producción y Finanzas. De acá sale la base para la
+  // comisión, así que si el selector quedó vacío se cae al default en vez de
+  // dejar la venta sin atribuir.
+  const vendedorSel=(document.getElementById('pp-vendedor')||{}).value||VENDEDOR_DEFAULT;
+  o.vendedor=vendedorSel;
   // 1. PRODUCCIÓN
   const existProdIdx=prodOrders.findIndex(p=>String(p.pedido||'')===numStr);
   if(existProdIdx>=0)prodOrders[existProdIdx]=o;else prodOrders.push(o);
@@ -27541,6 +27558,7 @@ async function confirmOrder(){
   const docTipo=document.getElementById('pp-doc').value;
   const dirEnvio=document.getElementById('pp-dir').value.trim()||cli.direccion||'';
   const datosDoc={
+    vendedor:vendedorSel,
     canal_pago:canalPago,descuento_pct:descPct,descuento_monto:_cv.descMonto,
     costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_cv.costos,neto_recibido:_cv.neto,
     direccion:dirEnvio,
@@ -27583,6 +27601,22 @@ async function confirmOrder(){
 function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';}
 const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
 const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','CUTEK','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO','TEÑIDO CHOCOLATE 3 MANOS'];
+// Quién hizo la venta. Se elige al subir el pantallazo y queda en Producción y
+// Finanzas: de acá sale la base para calcular la comisión de César, que hasta
+// ahora había que reconstruir a mano desde la planilla de seguimiento.
+// "Interno" es la venta que no atribuye comisión a nadie.
+const VENDEDORES=['César','Tomás','Jose Pedro','Coté','Interno'];
+const VENDEDOR_DEFAULT='César';
+// Botones en vez de <select>: se ve de una quién quedó marcado, sin desplegar.
+// En el teléfono son además un blanco cómodo para el dedo.
+function renderPrevVendedor(sel){
+  var cont=document.getElementById('pp-vend-btns');if(!cont)return;
+  var v=sel||VENDEDOR_DEFAULT;
+  document.getElementById('pp-vendedor').value=v;
+  cont.innerHTML=VENDEDORES.map(function(n){
+    return '<button type="button" class="vend-btn'+(n===v?' on':'')+'" onclick="renderPrevVendedor(\''+n.replace(/'/g,"\\'")+'\')">'+esc(n)+'</button>';
+  }).join('');
+}
 function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return isNaN(m)?0:m;}
 async function updateProdField(oi,field,val,li){
   if(field==='envio'){
@@ -28319,15 +28353,16 @@ document.getElementById('modal-fin-bg').addEventListener('click',e=>{if(e.target
 function exportFinCSV(){
   var toExport=getFilteredFin();if(!toExport.length){showToast('No hay registros');return;}
   var sumValProd=0,sumEnvio=0,sumCom=0,sumTotal=0,sumA1=0,sumA2=0,sumA3=0,sumPend=0,sumSinCom=0,sumSinIva=0;
-  var dataRows=toExport.map(function(r){var vp=Number(r.val_prod)||0,ve=Number(r.val_envio)||0,vc=Number(r.val_comision)||0,total=Number(r.total)||0,a1=Number(r.abono1)||0,a2=Number(r.abono2)||0,a3=Number(r.abono3)||0,pend=Math.max(0,total-(a1+a2+a3)),sinCom=vp+ve,sinIva=sinCom?Math.round(sinCom/1.19):0;sumValProd+=vp;sumEnvio+=ve;sumCom+=vc;sumTotal+=total;sumA1+=a1;sumA2+=a2;sumA3+=a3;sumPend+=pend;sumSinCom+=sinCom;sumSinIva+=sinIva;return{'N° VENTA':r.num||'','FECHA VENTA':r.fecha_creacion||r.fecha||'','SEMANA':r.semana||'','NOMBRE':(r.nombre||'')+' '+(r.apellido||''),'EMAIL':r.email||'','CELULAR':r.celular||'','PRODUCTO':r.producto||'','MEDIO PAGO':r.medio_pago||'','CÓMO NOS CONOCIÓ':r.como||'','VALOR PRODUCTO':vp,'ENVÍO':ve,'COMISIÓN':vc,'TOTAL':total,'ABONO 1':a1,'ABONO 2':a2,'ABONO 3':a3,'PENDIENTE':pend,'SIN COM/ENV':sinCom,'SIN IVA':sinIva,'DOC 1':(r.doc1_tipo||'BOLETA')+(r.doc1_num?' #'+r.doc1_num:'')+(r.doc1_emitida?' ✓':''),'DOC 2':(r.doc2_tipo||'BOLETA')+(r.doc2_num?' #'+r.doc2_num:'')+(r.doc2_emitida?' ✓':''),'ESTADO':(r.doc1_emitida&&r.doc2_emitida)?'LISTO':'PENDIENTE'};});
-  dataRows.push({'N° VENTA':'TOTALES','FECHA VENTA':'','SEMANA':'','NOMBRE':'','EMAIL':'','CELULAR':'','PRODUCTO':'','MEDIO PAGO':'','CÓMO NOS CONOCIÓ':'','VALOR PRODUCTO':sumValProd,'ENVÍO':sumEnvio,'COMISIÓN':sumCom,'TOTAL':sumTotal,'ABONO 1':sumA1,'ABONO 2':sumA2,'ABONO 3':sumA3,'PENDIENTE':sumPend,'SIN COM/ENV':sumSinCom,'SIN IVA':sumSinIva,'DOC 1':'','DOC 2':'','ESTADO':''});
+  var dataRows=toExport.map(function(r){var vp=Number(r.val_prod)||0,ve=Number(r.val_envio)||0,vc=Number(r.val_comision)||0,total=Number(r.total)||0,a1=Number(r.abono1)||0,a2=Number(r.abono2)||0,a3=Number(r.abono3)||0,pend=Math.max(0,total-(a1+a2+a3)),sinCom=vp+ve,sinIva=sinCom?Math.round(sinCom/1.19):0;sumValProd+=vp;sumEnvio+=ve;sumCom+=vc;sumTotal+=total;sumA1+=a1;sumA2+=a2;sumA3+=a3;sumPend+=pend;sumSinCom+=sinCom;sumSinIva+=sinIva;return{'N° VENTA':r.num||'','FECHA VENTA':r.fecha_creacion||r.fecha||'','SEMANA':r.semana||'','NOMBRE':(r.nombre||'')+' '+(r.apellido||''),'EMAIL':r.email||'','CELULAR':r.celular||'','PRODUCTO':r.producto||'','MEDIO PAGO':r.medio_pago||'','CÓMO NOS CONOCIÓ':r.como||'','VENDEDOR':r.vendedor||'','VALOR PRODUCTO':vp,'ENVÍO':ve,'COMISIÓN':vc,'TOTAL':total,'ABONO 1':a1,'ABONO 2':a2,'ABONO 3':a3,'PENDIENTE':pend,'SIN COM/ENV':sinCom,'SIN IVA':sinIva,'DOC 1':(r.doc1_tipo||'BOLETA')+(r.doc1_num?' #'+r.doc1_num:'')+(r.doc1_emitida?' ✓':''),'DOC 2':(r.doc2_tipo||'BOLETA')+(r.doc2_num?' #'+r.doc2_num:'')+(r.doc2_emitida?' ✓':''),'ESTADO':(r.doc1_emitida&&r.doc2_emitida)?'LISTO':'PENDIENTE'};});
+  dataRows.push({'N° VENTA':'TOTALES','FECHA VENTA':'','SEMANA':'','NOMBRE':'','EMAIL':'','CELULAR':'','PRODUCTO':'','MEDIO PAGO':'','CÓMO NOS CONOCIÓ':'','VENDEDOR':'','VALOR PRODUCTO':sumValProd,'ENVÍO':sumEnvio,'COMISIÓN':sumCom,'TOTAL':sumTotal,'ABONO 1':sumA1,'ABONO 2':sumA2,'ABONO 3':sumA3,'PENDIENTE':sumPend,'SIN COM/ENV':sumSinCom,'SIN IVA':sumSinIva,'DOC 1':'','DOC 2':'','ESTADO':''});
   var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);
-  ws['!cols']=[{wch:8},{wch:12},{wch:16},{wch:22},{wch:24},{wch:14},{wch:22},{wch:16},{wch:18},{wch:14},{wch:10},{wch:10},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:10}];
+  ws['!cols']=[{wch:8},{wch:12},{wch:16},{wch:22},{wch:24},{wch:14},{wch:22},{wch:16},{wch:18},{wch:12},{wch:14},{wch:10},{wch:10},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:10}];
   var range=XLSX.utils.decode_range(ws['!ref']);
   var headerStyle={font:{bold:true,color:{rgb:'FFFFFF'},sz:11},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center',vertical:'center'},border:{bottom:{style:'medium',color:{rgb:'C4936A'}}}};
   var totalStyle={font:{bold:true,sz:11},fill:{fgColor:{rgb:'F5EDE3'}},border:{top:{style:'medium',color:{rgb:'8B5E3C'}}}};
   var moneyStyle={numFmt:'"$"#,##0'},moneyTotalStyle={font:{bold:true},numFmt:'"$"#,##0',fill:{fgColor:{rgb:'F5EDE3'}}};
-  var moneyCols=[9,10,11,12,13,14,15,16,17,18],totalRow=dataRows.length;
+  // Corridos en 1 al insertar VENDEDOR en la posición 9.
+  var moneyCols=[10,11,12,13,14,15,16,17,18,19],totalRow=dataRows.length;
   for(var C=range.s.c;C<=range.e.c;C++){var hcell=XLSX.utils.encode_cell({r:0,c:C});if(ws[hcell])ws[hcell].s=headerStyle;var tcell=XLSX.utils.encode_cell({r:totalRow,c:C});if(ws[tcell])ws[tcell].s=totalStyle;}
   for(var R=1;R<totalRow;R++){moneyCols.forEach(function(C){var cell=XLSX.utils.encode_cell({r:R,c:C});if(ws[cell])ws[cell].s=moneyStyle;});}
   moneyCols.forEach(function(C){var cell=XLSX.utils.encode_cell({r:totalRow,c:C});if(ws[cell])ws[cell].s=moneyTotalStyle;});
@@ -29903,7 +29938,7 @@ function renderFinCards(){
   var el=document.getElementById('fin-mobile-cards');if(!el)return;
   var list=getFilteredFin();if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">💰</span>No hay registros.</div>';return;}
   var html2='';
-  list.forEach(function(r){var idx2=finRecords.indexOf(r),pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),listo=r.doc1_emitida&&r.doc2_emitida;html2+='<div class="fin-card"><div class="fin-card-header"><div><div class="fin-card-num">#'+(r.num||'—')+'</div><div class="fin-card-semana">'+(r.semana||'')+'</div></div><span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span></div><div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+esc(r.producto)+'</div><div class="fin-card-montos"><div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Pendiente</div><div class="fin-card-monto-val" style="color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+fmtCLP(pend||0)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div></div><div class="fin-card-docs"><div class="fin-card-docs-title">Documentos</div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 1</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),1)+'</div></div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 2</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),2)+'</div></div></div><button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button></div>';});
+  list.forEach(function(r){var idx2=finRecords.indexOf(r),pend=Math.max(0,(Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0))),listo=r.doc1_emitida&&r.doc2_emitida;html2+='<div class="fin-card"><div class="fin-card-header"><div><div class="fin-card-num">#'+(r.num||'—')+'</div><div class="fin-card-semana">'+(r.semana||'')+'</div></div><span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span></div><div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+esc(r.producto)+(r.vendedor?' · <span style="font-weight:600;color:var(--wood)">👤 '+esc(r.vendedor)+'</span>':'')+'</div><div class="fin-card-montos"><div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Pendiente</div><div class="fin-card-monto-val" style="color:'+(pend>0?'var(--amber)':'var(--green)')+'">'+fmtCLP(pend||0)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div></div><div class="fin-card-docs"><div class="fin-card-docs-title">Documentos</div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 1</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),1)+'</div></div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 2</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),2)+'</div></div></div><button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button></div>';});
   el.innerHTML=html2;
 }
 function renderProdCards(){
