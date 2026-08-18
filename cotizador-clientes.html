@@ -134,6 +134,48 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 
 /* ── FORM ── */
 .form-body { padding: 0 16px 36px; max-width: 480px; margin: 0 auto; }
+/* ═══════════════════════════════════════════════════════════════════
+   COTIZAR DESDE EL PC (solo equipo)
+   El formulario es una columna de 480 px pensada para el pulgar. En un
+   monitor obliga a bajar y subir entre las medidas y el precio, que es
+   justo lo que se mira alternado al cotizar: cambio una medida, miro el
+   precio, cambio otra.
+   En escritorio pasa a dos columnas: los campos a la izquierda y, fijo a
+   la derecha, el precio en vivo con los datos del cliente y el botón. El
+   precio queda SIEMPRE a la vista mientras se ajustan medidas.
+   Todo cuelga de body.modo-vendedor, que solo se activa con el link
+   privado (?pro=zr) o con sesión del equipo en el dispositivo: el
+   cliente, en celular o en PC, ve exactamente lo de siempre.
+   ═══════════════════════════════════════════════════════════════════ */
+.form-side { display: contents; }        /* en celular no existe como caja */
+
+@media (min-width:1100px){
+  body.modo-vendedor .form-body {
+    max-width: 1180px; padding: 0 28px 56px;
+    display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr);
+    gap: 0 34px; align-items: start;
+  }
+  body.modo-vendedor .form-hdr { grid-column: 1 / -1; margin-bottom: 26px; }
+  body.modo-vendedor #f-dyn { grid-column: 1; min-width: 0; }
+  /* la columna derecha se vuelve caja y se pega al hacer scroll */
+  body.modo-vendedor .form-side {
+    display: block; grid-column: 2; position: sticky; top: 20px;
+    background: white; border: 1px solid var(--bd); border-radius: 14px;
+    padding: 22px; box-shadow: 0 6px 24px -16px rgba(44,26,8,.4);
+  }
+  /* dentro del panel los bloques ya no necesitan su propio marco */
+  body.modo-vendedor .form-side .live-price-wrap { margin-bottom: 20px; padding: 22px 18px; }
+  body.modo-vendedor .form-side .lp-range { font-size: 30px; }
+  body.modo-vendedor .form-side .datos-sec { border: 0; padding: 0; margin: 0 0 16px; background: none; }
+  body.modo-vendedor .form-side .btn-primary { margin-top: 0; }
+  /* el formulario respira: en el PC sobra el ancho */
+  body.modo-vendedor #f-dyn .fsec { margin-bottom: 22px; }
+  body.modo-vendedor .form-hdr h2 { font-size: 26px; }
+}
+/* pantallas grandes de verdad: no estirar sin fin, que la vista viaje menos */
+@media (min-width:1500px){
+  body.modo-vendedor .form-body { max-width: 1280px; grid-template-columns: minmax(0,1.25fr) 420px; }
+}
 .form-hdr { display: flex; align-items: center; gap: 10px; padding: 16px 0 14px; border-bottom: 1px solid var(--bd); margin-bottom: 20px; }
 .btn-back { background: none; border: 1px solid var(--bd); border-radius: 7px; padding: 6px 12px; font-size: 11px; cursor: pointer; color: var(--tm); flex-shrink: 0; font-family: 'Jost', sans-serif; letter-spacing: .5px; }
 .btn-back:hover { border-color: var(--ac); color: var(--ac); }
@@ -940,6 +982,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     </div>
     <!-- 1º las medidas: la persona ve su precio antes de dar datos personales -->
     <div id="f-dyn"></div>
+    <!-- Columna derecha en escritorio de vendedor. En celular y para el
+         cliente NO existe: .form-side va con display:contents, así que sus
+         hijos fluyen exactamente igual que antes, en el mismo orden. -->
+    <aside class="form-side">
     <div id="b2b-wrap" class="hidden"></div>
     <!-- precio estimado en vivo: el cliente ve un numero ANTES de dar sus datos.
          calcLive() ya calculaba el rango, pero este bloque no existia en el DOM. -->
@@ -963,6 +1009,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     </div>
     <div class="msg-err hidden" id="f-err">Por favor completa tus datos para continuar.</div>
     <button class="btn-primary" id="btn-calc">Ver mi cotización →</button>
+    </aside>
   </div>
 </div>
 
@@ -5429,6 +5476,9 @@ document.addEventListener('DOMContentLoaded', function() {
      de siempre). Un cliente nunca inicia sesión, así que jamás los ve. */
   function habilitarInternos(){
     vendorMode = true;
+    /* marca en el <body>: TODO el layout de escritorio del cotizador cuelga
+       de esta clase, así el cliente —en celular o en PC— no ve ni un cambio */
+    document.body.classList.add('modo-vendedor');
     /* mesa ya es pública (ago 2026); acá solo queda el revestimiento a medida */
     var pr = document.getElementById('pcard-revlibre');
     if (pr) pr.classList.remove('hidden');
