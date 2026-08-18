@@ -793,7 +793,10 @@ var ERGO = {
   cabFactor: 0.17, cabMin: 22, cabMax: 38,    /* voladizo de cabecera: % del largo */
   latFactor: 0.20, latMin: 12, latMax: 22,    /* voladizo lateral: % del ancho */
   patasVol: 8,                                 /* modelos de 4 patas: pata casi en la esquina */
-  cmComensal: 60                               /* regla del taller: 60 cm por persona sentada */
+  /* 60 cm por persona sentada. cabLargoMin: bajo ese largo no se pone nadie en
+     la cabecera, porque queda encima de los de los lados (120 y 130 cm son de
+     4 personas; 140 ya es de 6). */
+  cmComensal: 60, cabLargoMin: 140
 };
 function mesaErgo(modelo, largo, ancho) {
   if (!(largo > 0)) return null;
@@ -808,18 +811,24 @@ function mesaErgo(modelo, largo, ancho) {
   var volCab = esPatas ? ERGO.patasVol : Math.min(ERGO.cabMax, Math.max(ERGO.cabMin, largo * ERGO.cabFactor));
   var volLat = esPatas ? ERGO.patasVol : Math.min(ERGO.latMax, Math.max(ERGO.latMin, ancho * ERGO.latFactor));
   var baseL = Math.round(largo - 2 * volCab), baseA = Math.round(ancho - 2 * volLat);
-  /* 60 cm por persona a cada lado, y SIEMPRE una en cada cabecera: se sientan
-     igual, no importa el tamaño. Antes las cabeceras solo se contaban desde
-     180 × 90 cm, así que una mesa de 160 × 80 decía 4 personas cuando caben 6
-     — y se le quitaban dos comensales a la mesa en la cara del cliente. */
+  /* Comensales, con las reglas del taller (agosto 2026):
+       · 60 cm por persona sentada, a cada lado largo.
+       · Cabeceras: recién desde 140 cm de largo. Bajo eso la cabecera queda
+         encima de los de los lados — por eso 120 × 60 y 130 × 60 son de 4 y
+         140 × 60 ya es de 6.
+       · En mesas anchas caben VARIOS por cabecera, con el mismo criterio de
+         60 cm: una de 240 × 140 lleva 2 cómodos en cada punta. */
   var lados = Math.floor(largo / ERGO.cmComensal) * 2;
-  var cabeceras = 2;
+  var porCabecera = largo >= ERGO.cabLargoMin ? Math.max(1, Math.floor(ancho / ERGO.cmComensal)) : 0;
+  var cabeceras = porCabecera * 2;
+  var detCab = !cabeceras ? '' :
+    (porCabecera === 1 ? ' + 2 cabeceras' : ' + ' + cabeceras + ' en las cabeceras (' + porCabecera + ' por punta)');
   return {
     forma: 'rectangular', baseLargo: baseL, baseAncho: baseA,
     volCab: Math.round(volCab), volLat: Math.round(volLat),
     comensales: lados + cabeceras,
     texto: 'Base sugerida ' + baseL + ' × ' + baseA + ' cm (voladizo ' + Math.round(volCab) + ' / ' + Math.round(volLat) + ' cm) · ' +
-           lados + ' a los lados + 2 cabeceras = ' + (lados + cabeceras) + ' personas'
+           lados + ' a los lados' + detCab + ' = ' + (lados + cabeceras) + ' personas'
   };
 }
 /* ── VALORES CENTRALES (el "manual") ──
@@ -875,7 +884,7 @@ var PROTOCOLOS = [
   { cat:'Revestimiento', titulo:'Espesor y rendimiento del palo',
     texto:'Espesor del revestimiento: 1,2 cm.\nDe un palo de 2" salen 3 tablones: se raja en 3 a lo largo.' },
   { cat:'Mesas', titulo:'Cuántas personas caben',
-    texto:'Se contemplan 60 cm por persona sentada.\nSiempre se sienta una persona en cada cabecera, sin importar el tamaño de la mesa.\nEjemplo: una mesa de 160 cm son 2 por lado (4) + 2 cabeceras = 6 personas.' }
+    texto:'Se contemplan 60 cm por persona sentada a cada lado largo.\nCabeceras: recién desde 140 cm de largo. Bajo eso la cabecera queda encima de los de los lados, así que 120 × 60 y 130 × 60 son de 4 personas y 140 × 60 ya es de 6.\nEn mesas anchas cabe más de uno por cabecera, con el mismo criterio de 60 cm: una de 240 × 140 lleva 2 cómodos en cada punta (8 a los lados + 4 = 12).' }
 ];
 /* precio al cliente de un tramo de fierro: el valor definido en el manual, o
    si aún no se define, el costo del proveedor + IVA redondeado al millar */
