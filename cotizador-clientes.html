@@ -167,10 +167,22 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .cta-dock .btn-primary { max-width: 480px; margin: 0 auto; display: block; padding: 15px; font-size: 15px; }
 .msg-err { color: #c0392b; font-size: 12px; text-align: center; margin-top: 8px; }
 
-.col-labels { display: flex; gap: 8px; margin-bottom: 6px; }
-.col-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--tm); text-align: center; flex: 1; }
+/* Las etiquetas tienen que calzar EXACTO con los campos de abajo. Con flex
+   no calzaban: el mismo reparto daba 120/120/54 en las etiquetas y 116/116/63
+   en los campos, porque los <input> traen ancho intrínseco propio. Con grid
+   y las MISMAS columnas en las dos filas, el calce es exacto por definición.
+   La primera columna es el número de pieza y la última el botón ✕. */
+.col-labels.dg, .dim-row.dg {
+  display: grid;
+  grid-template-columns: 14px minmax(0,1fr) minmax(0,1fr) minmax(0,.45fr) 34px;
+  gap: 8px; align-items: center;
+}
+.col-labels { display: flex; gap: 8px; margin-bottom: 6px; align-items: flex-end; }
+.col-lbl { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--tm); text-align: center; flex: 1; min-width: 0; }
 .col-lbl.nar { flex: .45; }
 .col-lbl.wide { flex: 1.4; }
+.col-lbl.num { flex: 0 0 auto; min-width: 14px; }   /* espeja el número de pieza */
+.col-lbl.del { flex: 0 0 auto; width: 34px; }       /* espeja el botón de quitar */
 .dim-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
 .rnum { font-size: 11.5px; color: var(--tm); min-width: 14px; text-align: center; flex-shrink: 0; }
 /* mismos 16 px: estos son los campos que más se tocan en el celular */
@@ -550,6 +562,12 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .btn-extras { width:100%;background:none;border:1px dashed var(--bd);border-radius:8px;padding:9px 14px;font-size:11px;cursor:pointer;color:var(--tm);font-family:'Jost',sans-serif;text-align:left;letter-spacing:.5px;transition:border-color .15s; }
 .btn-extras:hover { border-color:var(--ac);color:var(--ac); }
 .extra-row { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 2px;border-bottom:1px solid var(--bg3);font-size:14px;color:var(--tx); }
+/* aviso de que hay una persona detrás del cotizador */
+.nota-asesor { display:flex;gap:9px;align-items:flex-start;background:var(--crt);border:1px solid var(--bd);
+  border-left:3px solid var(--ac);border-radius:10px;padding:13px 15px;margin-bottom:26px;
+  font-size:13.5px;line-height:1.5;color:var(--tm); }
+.nota-asesor strong { color:var(--acd);font-weight:600; }
+.nota-asesor::before { content:'💬';flex:0 0 auto;font-size:15px;line-height:1.3; }
 .extra-row:last-child { border-bottom:none; }
 .extra-row label { flex:1;cursor:pointer;display:flex;align-items:center;gap:8px; }
 .extra-price { color:var(--tm);font-size:10px;white-space:nowrap; }
@@ -1690,6 +1708,7 @@ function initProd(p) {
   document.getElementById('f-err').classList.add('hidden');
   renderForm(p);
   if (['cubierta','repisa','peldano'].includes(p) && !cubiertaSolo) renderExtras();
+  renderNotaAsesor();   /* va en todos los productos: los planos aplican igual a puertas y mesas */
   renderB2B();
   renumRows('drows'); renumRows('mrows');   /* con una sola fila, oculta el botón de quitar */
   show('s2');
@@ -1739,11 +1758,12 @@ function renderForm(p) {
     c.innerHTML = usoField + espCubField +
       '<div class="fsec">' +
         '<label class="flabel">Dimensiones</label>' +
-        '<div class="col-labels">' +
-          '<div class="col-lbl nar"></div>' +
+        '<div class="col-labels dg">' +
+          '<div class="col-lbl num"></div>' +
           '<div class="col-lbl">Largo cm</div>' +
           '<div class="col-lbl">Ancho cm</div>' +
           '<div class="col-lbl nar">Cant.</div>' +
+          '<div class="col-lbl del"></div>' +
         '</div>' +
         '<div id="drows">' + dimRow(1) + '</div>' +
         '<button class="btn-add" id="btn-add-row">'+addRowLabel+'</button>' +
@@ -1818,7 +1838,7 @@ function renderForm(p) {
       '</div>' +
       '<div class="fsec">' +
         '<label class="flabel">Medidas de la cubierta</label>' +
-        '<div class="col-labels">' +
+        '<div class="col-labels dg">' +
           '<div class="col-lbl nar"></div>' +
           '<div class="col-lbl">Largo cm</div>' +
           '<div class="col-lbl">Ancho cm</div>' +
@@ -2416,7 +2436,7 @@ function vidrioExtraDatos() {
 }
 
 function dimRow(n) {
-  return '<div class="dim-row" id="r'+n+'">' +
+  return '<div class="dim-row dg" id="r'+n+'">' +
     '<span class="rnum">'+n+'</span>' +
     '<input type="number" inputmode="decimal" placeholder="220" min="1" id="lg'+n+'">' +
     '<input type="number" inputmode="decimal" placeholder="60"  min="1" id="an'+n+'">' +
@@ -5279,12 +5299,17 @@ function renderDash() {
     '<th>Seguim.</th><th>Estado</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
 }
 
-/* ── EXTRAS ── */
+/* ── EXTRAS ──
+   Los rótulos parten con "Agregar" porque el cliente está eligiendo, no
+   leyendo una lista de características: "Teñido" a secas se lee como un
+   dato de la cubierta, "Agregar teñido" se lee como una acción.
+   La "Unión en 45°" se sacó del cotizador público (ago 2026): confundía
+   —hay que saber qué es para decidir— y se cotiza igual conversando con
+   el asesor cuando el proyecto la necesita. */
 var EXTRAS = [
-  { id:'tenido',   label:'Teñido',                          precio:10000, unit:'m²' },
-  { id:'perf_enc', label:'Perf. encimera (lavaplatos)',      precio:14900, unit:'c/u' },
-  { id:'perf_red', label:'Perf. redonda (llave/desagüe)',    precio:5000,  unit:'c/u' },
-  { id:'union45',  label:'Unión en 45°',                     precio:24900, unit:'c/u' }
+  { id:'tenido',   label:'Agregar teñido',                        precio:10000, unit:'m²' },
+  { id:'perf_enc', label:'Agregar perforación de encimera (lavaplatos)', precio:14900, unit:'c/u' },
+  { id:'perf_red', label:'Agregar perforación redonda (llave/desagüe)',  precio:5000,  unit:'c/u' }
 ];
 
 function renderExtras() {
@@ -5302,6 +5327,20 @@ function renderExtras() {
   c.appendChild(wrap);
 }
 
+/* Aviso de que hay una persona detrás. El cotizador cubre lo estándar, y
+   cuando alguien necesita algo que no está en la lista —una medida rara,
+   un plano, una terminación especial— lo que corta la cotización es la
+   duda de "¿y esto dónde lo pido?". Esto la responde antes de que aparezca. */
+function renderNotaAsesor() {
+  var c = document.getElementById('f-dyn');
+  if (!c || document.getElementById('nota-asesor')) return;
+  var d = document.createElement('div');
+  d.id = 'nota-asesor';
+  d.className = 'nota-asesor';
+  d.innerHTML = '¿Necesitas algo que no aparece acá? Al final vas a poder ' +
+                '<strong>contactar a un asesor del equipo</strong> para agregar detalles o enviarnos tus planos.';
+  c.appendChild(d);
+}
 function getExtrasTotal(m2) {
   var t = 0;
   EXTRAS.forEach(function(e) {
