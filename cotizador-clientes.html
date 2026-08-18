@@ -1030,9 +1030,18 @@ var FOTOS = {
 /* Dónde recortar cada foto cuando su proporción no calza con la tarjeta.
    revestimiento.jpg es muy vertical (343×679): centrado mostraba la cama en vez
    del revestimiento, que es el producto. Subirlo deja la pared y la ventana. */
-/* encuadre por foto: las 4 apaisadas (repisa, peldaño, mesa, puertas) se
-   recortan al pasar a vertical, así que se elige qué parte se conserva */
-var FOTO_POS = { revestimiento:'center 25%', peldano:'center 35%', puertas:'center 40%', mesa:'center 50%', repisa:'center 45%' };
+/* Encuadre por foto. OJO con el eje: en un marco vertical, una foto
+   APAISADA se recorta a lo ANCHO (se conserva el 60% central), así que
+   lo que manda es el primer valor. Poner ahí un porcentaje vertical no
+   hace nada — error que cometí en la primera versión.
+   Los valores salen de mirar cada foto:
+     peldaño  42% → la escalera está a la izquierda; centrarla evita
+                    comerse la punta de los peldaños y tanto mármol negro
+     puertas  45% → la puerta queda centrada en el recorte
+     mesa     46% → conserva el canto izquierdo de la mesa
+     repisa   sin ajuste: la repisa cruza toda la foto y el centro sirve
+     revestimiento: esta SÍ es vertical, se recorta a lo alto → 'center 25%' */
+var FOTO_POS = { revestimiento:'center 25%', peldano:'42% center', puertas:'45% center', mesa:'46% center' };
 var FOTO_ALT = {
   cubierta:      'Cubierta de madera maciza en una isla de cocina, con lavaplatos',
   repisa:        'Repisa de madera montada en la pared con plantas',
