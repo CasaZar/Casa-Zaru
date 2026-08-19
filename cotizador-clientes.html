@@ -5121,40 +5121,79 @@ function renderActividad(){
   var muestraVend = !soloCode;   /* la columna Vendedor solo aporta si hay más de uno */
   var hoy   = hoyISO();
   var desde = addDias(hoy, -ACTIVIDAD_DIAS);
-  var porDia = {};
+  /* ── CONTEO POR CLIENTE, Y EL TRABAJO EN EL DÍA QUE SE HIZO ──
+     Dos errores que hundían las cifras:
+     1) Se contaba por COTIZACIÓN. Un cliente con 6 cotizaciones sumaba 6 en
+        "tocaban", pero el toque se registra solo en la cotización líder del
+        grupo — así que aportaba 1 en "hechos". El % salía por el suelo sin
+        que nadie hiciera nada mal.
+     2) "Hechos" se anotaba en el día en que el toque VENCÍA, no en el día en
+        que se hizo. Si ayer se trabajaron 20 clientes que vencían la semana
+        pasada, ayer aparecían 2. Eso es lo que se veía raro.
+     Ahora hay dos medidas distintas y explícitas:
+       · cumplimiento — de los que vencían ese día, cuántos están hechos
+       · toques del día — cuántos se hicieron efectivamente ese día */
+  var porCli = {};
   allRows.forEach(function(x){
-    if (x.eliminada) return;
-    var code = ownerCode(x);
-    if (!code || !x.fecha_creacion) return;
-    if (soloCode && code !== soloCode) return;   /* cada vendedor ve solo su propia actividad */
-    var hist = Array.isArray(x.seg_historial) ? x.seg_historial : [];
-    var base = fechaBaseISO(x.fecha_creacion);
+    if (x.eliminada || !x.fecha_creacion) return;
+    var k = clientKey(x);
+    (porCli[k] = porCli[k] || []).push(x);
+  });
+  var porDia = {};
+  function celda(fecha, code){
+    var key = fecha+'|'+code;
+    if (!porDia[key]) porDia[key] = {fecha:fecha, code:code, correspondian:0, hechos:0, delDia:0};
+    return porDia[key];
+  }
+  Object.keys(porCli).forEach(function(k){
+    var qs = porCli[k].slice().sort(function(a,b){
+      return new Date(b.fecha_creacion||0) - new Date(a.fecha_creacion||0);
+    });
+    /* dueño del cliente: el de su cotización más reciente que tenga vendedor,
+       igual criterio que el resto del panel */
+    var code = null;
+    qs.some(function(q){ var c = ownerCode(q); if (c){ code = c; return true; } return false; });
+    if (!code) return;                            /* cliente 100% web: sin vendedor a quien atribuir */
+    if (soloCode && code !== soloCode) return;
+    var lead = qs[0];
+    /* el historial vive en la cotización líder, pero se juntan todas por si acaso */
+    var hist = [];
+    qs.forEach(function(q){ if (Array.isArray(q.seg_historial)) hist = hist.concat(q.seg_historial); });
+    /* 1 · lo que le tocaba a ESTE CLIENTE, una vez por etapa */
+    var base = fechaBaseISO(lead.fecha_creacion);
     for (var n=1; n<=CADENCIA.length; n++){
       var due = addDias(base, CADENCIA[n-1]);
       if (due > hoy || due < desde) continue;
-      var key = due+'|'+code;
-      if (!porDia[key]) porDia[key] = {fecha:due, code:code, correspondian:0, hechos:0};
-      porDia[key].correspondian++;
-      var done=false;
-      for (var i=0;i<hist.length;i++){ if (hist[i].etapa===n){ done=true; break; } }
-      if (done) porDia[key].hechos++;
+      var c = celda(due, code);
+      c.correspondian++;
+      if (hist.some(function(h){ return h.etapa===n; })) c.hechos++;
     }
+    /* 2 · los toques que realmente se hicieron, en SU día.
+       etapa 0 son las notas de "Pospuesto a", no son toques. */
+    hist.forEach(function(h){
+      if (!h || !h.fecha || !(h.etapa >= 1)) return;
+      var f = String(h.fecha).slice(0,10);
+      if (f > hoy || f < desde) return;
+      celda(f, code).delDia++;
+    });
   });
   var keys = Object.keys(porDia).sort(function(a,b){
     var ka=porDia[a], kb=porDia[b];
     return kb.fecha.localeCompare(ka.fecha) || ka.code.localeCompare(kb.code);
   });
-  var hoyTot = {correspondian:0, hechos:0};
+  var hoyTot = {correspondian:0, hechos:0, delDia:0};
   Object.keys(porDia).forEach(function(k){
     var r = porDia[k];
-    if (r.fecha === hoy){ hoyTot.correspondian += r.correspondian; hoyTot.hechos += r.hechos; }
+    if (r.fecha === hoy){ hoyTot.correspondian += r.correspondian; hoyTot.hechos += r.hechos; hoyTot.delDia += r.delDia; }
   });
   var noHoy = hoyTot.correspondian - hoyTot.hechos;
   var st = document.getElementById('dash-stats'); st.style.display='grid';
+  /* la ficha del medio muestra el TRABAJO DEL DÍA, que es lo que se quiere
+     saber al mirar "hechos hoy" — no cuántos de los vencidos hoy están hechos */
   st.innerHTML =
     '<div class="stat-card"><div class="stat-v">'+hoyTot.correspondian+'</div><div class="stat-l">Tocaban hoy</div></div>'+
-    '<div class="stat-card seg-donehoyf"><div class="stat-v">'+hoyTot.hechos+'</div><div class="stat-l">Hechos hoy</div></div>'+
-    '<div class="stat-card'+(noHoy>0?' seg-latef':'')+'"><div class="stat-v">'+noHoy+'</div><div class="stat-l">Sin hacer hoy</div></div>';
+    '<div class="stat-card seg-donehoyf"><div class="stat-v">'+hoyTot.delDia+'</div><div class="stat-l">Toques hechos hoy</div></div>'+
+    '<div class="stat-card'+(noHoy>0?' seg-latef':'')+'"><div class="stat-v">'+noHoy+'</div><div class="stat-l">De hoy, sin hacer</div></div>';
   if (!keys.length){
     document.getElementById('dash-tbl').innerHTML='<div class="seg-empty" style="padding:24px;text-align:center">Sin seguimientos registrados en los últimos '+ACTIVIDAD_DIAS+' días</div>';
     return;
@@ -5171,13 +5210,17 @@ function renderActividad(){
     return '<tr'+(esHoy?' style="background:var(--bg3)"':'')+'>'+
       '<td>'+fmtFechaCorta(r.fecha)+(esHoy?' <strong>· hoy</strong>':'')+'</td>'+celdaVend+
       '<td>'+r.correspondian+'</td><td>'+r.hechos+'</td><td>'+noHechos+'</td>'+
-      '<td style="color:'+pctCol+';font-weight:700">'+pct+'%</td></tr>';
+      '<td style="color:'+pctCol+';font-weight:700">'+pct+'%</td>'+
+      '<td style="font-weight:700">'+r.delDia+'</td></tr>';
   }).join('');
   var thVend = muestraVend ? '<th>Vendedor</th>' : '';
   document.getElementById('dash-tbl').innerHTML = '<div class="tbl-scroll"><table class="ptable"><thead><tr>'+
-    '<th>Fecha</th>'+thVend+'<th>Tocaban</th><th>Hechos</th><th>Sin hacer</th><th>% cumplido</th></tr></thead>'+
+    '<th>Fecha</th>'+thVend+'<th>Tocaban</th><th>Hechos</th><th>Sin hacer</th><th>% cumplido</th>'+
+    '<th>Toques del día</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table></div>'+
-    '<div class="ptier-note" style="border-radius:0 0 7px 7px">Últimos '+ACTIVIDAD_DIAS+' días · un seguimiento "tocaba" según la cadencia '+CADENCIA.join('-')+' desde la fecha de la cotización</div>';
+    '<div class="ptier-note" style="border-radius:0 0 7px 7px">Últimos '+ACTIVIDAD_DIAS+' días · se cuenta por <strong>cliente</strong>, no por cotización. '+
+    '<strong>Tocaban / Hechos / % cumplido</strong>: de los seguimientos que vencían ese día (cadencia '+CADENCIA.join('-')+' desde la cotización), cuántos están hechos. '+
+    '<strong>Toques del día</strong>: cuántos se hicieron efectivamente ese día, hayan vencido cuando hayan vencido.</div>';
 }
 /* ── 📖 MANUAL DE VALORES (solo admin) ──
    El panel central de precios: muestra y edita los valores que usa el
