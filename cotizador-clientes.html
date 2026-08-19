@@ -4737,9 +4737,14 @@ function segClientCard(g, cls){
     '<div class="seg-btns">'+
       (cls==='donehoy' ? '<button class="sbtn undo" onclick="segDeshacer(\''+x.id+'\')">↩ Deshacer contacto</button>' : '')+
       (respondio ? '' : '<button class="sbtn resp" onclick="segRespondio(\''+x.id+'\')">💬 Respondió</button>')+
-      (compacta ? '' : '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>')+
+      /* Posponer y Ganada van SIEMPRE, también en el bloque 1. Lo compacto
+         era para esconder las 6 casillas de cadencia —que en un cliente sin
+         contactar son ruido—, pero de pasada se llevó los dos botones: no se
+         podía agendar a alguien que aún no se contacta, ni marcar la venta de
+         quien compra en el primer contacto. */
+      '<button class="sbtn" onclick="segPosponerUI(\''+x.id+'\')">⏰ Posponer</button>'+
       wa+
-      (compacta ? '' : '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>')+
+      '<button class="sbtn win" onclick="updateEstado(\''+x.id+'\',\'ganado\')">💰 Ganada</button>'+
       '<button class="sbtn lost" onclick="segPerderUI(\''+x.id+'\')">✗ Perdida</button>'+
     '</div></div>';
 }
