@@ -2316,10 +2316,17 @@ function rbMl() {
 /* m² equivalentes: cada metro lineal es una tira de 100 × 4 cm */
 function rbM2() { return rbMl() * REBORDE_ANCHO_M; }
 /* precio por m² que le corresponde al reborde según el producto y la madera */
+/* El reborde es SIEMPRE una pieza de 4 × 4 cm de madera maciza, vaya pegada
+   a una cubierta de 4 cm o a una repisa de 2 cm — justamente sirve para que
+   una pieza delgada se vea gruesa. Por eso se cobra como cubierta en todos
+   los productos, tal como dice el Manual ("pieza de 4 × 4 cm cobrada como
+   cubierta") y como ya se hacía en puertas y mesas.
+   Antes, repisa y peldaño de 2 cm caían a currentPR(), que devuelve el valor
+   de 2 cm: se cobraba ~13% menos por la misma madera de 4 cm.
+   El revestimiento queda aparte: tiene su propia tabla de maderas. */
 function rebordePrecioM2(tier) {
   if (prod === 'revestimiento') return tier === 'bajo' ? PR.revestimiento.cipres : PR.revestimiento.coihue;
-  if (['granero','maciza','vidrios','mesa'].includes(prod)) return PR.cubierta[tier];   /* puertas y mesas: se cobra como cubierta */
-  return currentPR()[tier];
+  return PR.cubierta[tier];
 }
 function rebordeValor(tier) { return rbM2() * rebordePrecioM2(tier); }
 /* detalle por pieza para la cotización: solo las que llevan reborde */
