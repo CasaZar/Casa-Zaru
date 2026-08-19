@@ -2355,7 +2355,18 @@ function rbMl() {
   return parseFloat((mlEl&&mlEl.value)||0)||0;
 }
 /* m² equivalentes: cada metro lineal es una tira de 100 × 4 cm */
-function rbM2() { return rbMl() * REBORDE_ANCHO_M; }
+/* Alto del reborde: 4 cm (el de siempre, para que una pieza delgada se vea
+   gruesa) o 2 cm (a ras de una repisa de 2 cm). El cobro es estrictamente
+   proporcional: un reborde de 2 cm ocupa la mitad de m² por metro lineal que
+   uno de 4, así que vale la mitad. REBORDE_ANCHO_M sigue siendo el valor por
+   defecto y lo edita el Manual. */
+var rbAlto = null;   /* null = usa el del Manual */
+function rbAltoM(){
+  var el = document.getElementById('rb-alto');
+  var cm = el ? parseFloat(el.value) : (rbAlto ? rbAlto*100 : 0);
+  return cm > 0 ? cm/100 : REBORDE_ANCHO_M;
+}
+function rbM2() { return rbMl() * rbAltoM(); }
 /* precio por m² que le corresponde al reborde según el producto y la madera */
 /* El reborde es SIEMPRE una pieza de 4 × 4 cm de madera maciza, vaya pegada
    a una cubierta de 4 cm o a una repisa de 2 cm — justamente sirve para que
@@ -2387,18 +2398,19 @@ function rbDatos() {
   var totales = ' (' + ml.toFixed(2).replace('.',',') + ' ml · ' + rbM2().toFixed(2).replace('.',',') + ' m²)';
   /* si el vendedor escribió los ml a mano no hay detalle por pieza que mostrar */
   var cuerpo = det.length ? (' — ' + det.join(' · ')) : '';
-  return { ml: ml, m2: rbM2(), nombre: 'Reborde 4 cm' + cuerpo + totales };
+  return { ml: ml, m2: rbM2(), nombre: 'Reborde ' + Math.round(rbAltoM()*100) + ' cm' + cuerpo + totales };
 }
 /* muestra bajo el campo cuánto costaría el reborde en la madera más barata y la más cara */
 function rbRefrescarHint() {
   var el = document.getElementById('rb-hint');
   if (!el) return;
   var ml = rbMl();
-  if (ml <= 0) { el.textContent = 'Marca los cantos de cada pieza. Cada metro lineal se cobra como una cubierta de 100 × 4 cm.'; return; }
+  var altoCm = Math.round(rbAltoM()*100);
+  if (ml <= 0) { el.textContent = 'Marca los cantos de cada pieza. Cada metro lineal se cobra como una cubierta de 100 × '+altoCm+' cm.'; return; }
   var vB = rebordeValor('bajo'), vA = rebordeValor('alto');
   var nP = rbDetallePiezas().length;
   var quien = rbManual ? 'total escrito a mano' : (nP === 1 ? '1 pieza con reborde' : nP + ' piezas con reborde');
-  el.innerHTML = quien + ' · ' + rbM2().toFixed(2).replace('.',',') + ' m² · <strong>' + fmt(vB) + ' a ' + fmt(vA) + '</strong> según la madera';
+  el.innerHTML = quien + ' · reborde de ' + altoCm + ' cm · ' + rbM2().toFixed(2).replace('.',',') + ' m² · <strong>' + fmt(vB) + ' a ' + fmt(vA) + '</strong> según la madera';
 }
 /* teñido y perforación: valor manual + detalle, mientras no haya tarifa definida */
 function vxFijoDatos(prefix, nombreBase) {
@@ -2433,7 +2445,14 @@ function vExtrasFieldHtml() {
   return '<div class="mesa-box'+(vendorMode?'':' hidden')+'">' +
     '<div class="mesa-h">Extras (opcional)</div>' +
     '<div class="vx-sub">' +
-      '<div class="vx-sub-h">Reborde 4 cm — simula mayor espesor, por metro lineal</div>' +
+      '<div class="vx-sub-h">Reborde — simula mayor espesor, por metro lineal</div>' +
+      '<div class="col-labels"><div class="col-lbl">Alto del reborde</div></div>' +
+      '<div class="dim-row">' +
+        '<select class="finput" id="rb-alto" onchange="rbSync()">' +
+          '<option value="4">4 cm — se ve más grueso</option>' +
+          '<option value="2">2 cm — a ras de una repisa de 2 cm</option>' +
+        '</select>' +
+      '</div>' +
       '<div id="rb-piezas"></div>' +
       '<div class="col-labels"><div class="col-lbl">Total metros lineales</div></div>' +
       '<div class="dim-row">' +
@@ -3175,7 +3194,7 @@ function getShareData() {
       rbPiezasActivas().forEach(function(p){
         if (rbTieneCanto(p.cantos)) rbPz[p.idx] = p.cantos;
       });
-      data.rb = { ml: rbMlNow, manual: rbManual, piezas: rbPz };
+      data.rb = { ml: rbMlNow, manual: rbManual, piezas: rbPz, alto: Math.round(rbAltoM()*100) };
     }
     var vEspNow = vEspesorFinal(); if (vEspNow) data.espFinal = vEspNow;
   }
@@ -3343,6 +3362,9 @@ function restoreFromData(d) {
 /* Restaura el reborde de un link compartido. Requiere que las piezas ya existan. */
 function rbRestaurar(d) {
   if (!d.rb || !(d.rb.ml > 0)) return;
+  /* el alto va antes que todo: de él dependen los m² y el precio */
+  var selAlto = document.getElementById('rb-alto');
+  if (selAlto && d.rb.alto > 0) selAlto.value = String(d.rb.alto);
   rbRenderPiezas();
   var setChk = function(id,v){ var el=document.getElementById(id); if (el) el.checked = !!v; };
   if (d.rb.piezas) {                      /* formato por pieza */
