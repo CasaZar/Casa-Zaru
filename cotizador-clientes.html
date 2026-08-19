@@ -1408,15 +1408,28 @@ function baseFierroTramo(forma, largoCm) {
 /* Sobre este largo de CUBIERTA la base de fierro lleva recargo (ago 2026):
    simple 289.900 → 319.900 · compleja 329.900 → 349.900. */
 var MESA_LARGO_EXTRA = 240;
+/* Tabla estándar de base rectangular de madera (lista de precios ago 2026).
+   La comparten todos los modelos de ese tipo; se define una sola vez para que
+   un cambio de lista no haya que replicarlo modelo por modelo. */
+var BASE_MADERA_RECT = [
+  { hasta:180,  bajo:199900, medio:229900, alto:269900 },
+  { hasta:9999, bajo:229900, medio:269900, alto:309900 }
+];
 var MESA_BASES = {
   /* redondas de madera: el precio cambia según el diámetro */
   'Mesa Río Backer': { modo:'diametro', tramos:[
     { hasta:120,  bajo:299900, medio:329900, alto:369900 },
     { hasta:9999, bajo:329900, medio:369900, alto:409900 }
   ]},
+  /* Río Puelo se recalculó desde casazaru.cl (ago 2026): la web vende la mesa
+     completa, así que la base sale de restarle la cubierta (π·r² × madera).
+     Los valores anteriores cotizaban ~20% bajo el precio de venta real —una
+     redonda de 120 en pino salía $473.471 contra $562.900 de la web—. Con tres
+     tramos el ajuste queda dentro del 3% en todos los diámetros. */
   'Mesa Río Puelo': { modo:'diametro', tramos:[
-    { hasta:120,  bajo:199900, medio:229900, alto:269900 },
-    { hasta:9999, bajo:229900, medio:269900, alto:309900 }
+    { hasta:110,  bajo:249900, medio:289900, alto:359900 },
+    { hasta:130,  bajo:289900, medio:359900, alto:429900 },
+    { hasta:9999, bajo:319900, medio:389900, alto:479900 }
   ]},
   /* fierro: precio plano, no depende de la madera de la cubierta.
      Simples (trapecio / cuadrada / X) $289.900 · complejas $329.900 ·
@@ -1432,7 +1445,29 @@ var MESA_BASES = {
   /* Río Fuy no tiene precio de base: la base son 2 cubiertas iguales que se
      cotizan como cubierta (alto 71 cm, ancho 40 cm menos que la principal),
      más el armado. */
-  'Mesa Río Fuy': { modo:'cubiertas', altoPata:0.71, menosAncho:0.40, armado:40000 }
+  'Mesa Río Fuy': { modo:'cubiertas', altoPata:0.71, menosAncho:0.40, armado:40000 },
+
+  /* ── LOS QUE ESTABAN SIN PRECIO (ago 2026) ──
+     Salían como "a convenir" y no se le ofrecían al público. No están en la
+     web ni en la lista de Notion, así que se les carga el precio del tipo de
+     base que les corresponde, que es lo que se hace en el taller: son todas
+     bases rectangulares de madera y comparten la tabla estándar de la lista
+     (la misma del Lago Maihue). Los de estructura de patas —Río Bueno y Lago
+     Llanquihue— llevan menos madera y menos horas, así que ahí puede haber
+     margen para bajarlos; se dejan igual hasta tener el precio de lista. */
+  'Mesa Río Valdivia':          { modo:'largo', tramos:BASE_MADERA_RECT },
+  'Mesa Río Cochrane':          { modo:'largo', tramos:BASE_MADERA_RECT },
+  'Mesa Lago Todos los Santos': { modo:'largo', tramos:BASE_MADERA_RECT },
+  'Mesa Río Trancura':          { modo:'largo', tramos:BASE_MADERA_RECT },
+  'Mesa Río Bueno':             { modo:'largo', tramos:BASE_MADERA_RECT },
+  'Mesa Lago Llanquihue':       { modo:'largo', tramos:BASE_MADERA_RECT },
+
+  /* Mesa y bancas: la base simple ($289.900) más el par de bancas. Las bancas
+     le cuestan $140.000 al proveedor; aplicando el mismo margen que a la base
+     simple (que cuesta $175.000 y se vende a $289.900, ×1,66) quedan en
+     $229.900. Total $519.900. Confirmar contra la lista cuando exista. */
+  'Mesa y Bancas Lago Calafquén': { modo:'fijo', bajo:519900, medio:519900, alto:519900, largoExtra:30000, nota:'Base de fierro X + par de bancas' },
+  'Mesa y Bancas Río Maullín':    { modo:'fijo', bajo:519900, medio:519900, alto:519900, largoExtra:30000, nota:'Base de fierro cuadrada + par de bancas' }
 };
 /* Valor de la base según la lista de precios. Devuelve null si el modelo aún
    no tiene precio cargado — en ese caso el vendedor lo escribe a mano y el
@@ -1453,13 +1488,19 @@ function mesaBaseSugerida(modelo, largoCm, anchoCm) {
     if (rec) det += ' · sobre ' + MESA_LARGO_EXTRA + ' cm de largo';
     return { bajo:cfg.bajo+rec, medio:cfg.medio+rec, alto:cfg.alto+rec, detalle: det };
   }
-  if (cfg.modo === 'diametro') {
+  /* 'diametro' y 'largo' funcionan igual —eligen tramo por la medida mayor de
+     la cubierta— y solo cambian cómo se le explica al vendedor. */
+  if (cfg.modo === 'diametro' || cfg.modo === 'largo') {
     if (!(largoCm > 0)) return null;
+    var esDiam = cfg.modo === 'diametro';
     var t = null;
     for (var i=0; i<cfg.tramos.length; i++){ if (largoCm <= cfg.tramos[i].hasta){ t = cfg.tramos[i]; break; } }
     if (!t) t = cfg.tramos[cfg.tramos.length-1];
-    var lbl = t.hasta >= 9999 ? ('desde '+cfg.tramos[0].hasta+' cm de diámetro')
-                              : ('hasta '+t.hasta+' cm de diámetro');
+    var unidad = esDiam ? ' cm de diámetro' : ' cm de largo';
+    var anterior = cfg.tramos[cfg.tramos.indexOf(t)-1];
+    var lbl = t.hasta >= 9999
+      ? ('desde '+((anterior?anterior.hasta:cfg.tramos[0].hasta))+unidad)
+      : ('hasta '+t.hasta+unidad);
     return { bajo:t.bajo, medio:t.medio, alto:t.alto, detalle:'Base '+lbl };
   }
   if (cfg.modo === 'cubiertas') {
