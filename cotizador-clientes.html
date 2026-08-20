@@ -5103,7 +5103,7 @@ function renderDashFilters() {
   var prodOpts = Object.keys(PNAME).map(function(k){ return '<option value="'+k+'">'+PNAME[k]+'</option>'; }).join('');
   var mesOpts = dashMonthOptions().map(function(ym){ return '<option value="'+ym+'"'+(dashMonth===ym?' selected':'')+'>'+fmtMesLabel(ym)+'</option>'; }).join('');
   document.getElementById('dash-filters').innerHTML =
-    '<input type="text" id="f-dash-cli" placeholder="Buscar cliente…" oninput="renderDash()">' +
+    '<input type="text" id="f-dash-cli" placeholder="Buscar por nombre, N° o teléfono…" oninput="renderDash()">' +
     '<select id="f-dash-estado" onchange="renderDash()">' +
       '<option value="">Todos los estados</option>' +
       '<option value="ganado">🏆 Ganadas</option>' +
@@ -5127,6 +5127,24 @@ function clearDashFilters() {
   renderDashFilters();
   renderDash();
 }
+/* ¿la fila calza con lo buscado? Nombre, N° de cotización o contacto.
+   El número se compara sin el "N° CL-" para poder escribir solo "0826-419". */
+function dashCoincide(x, q){
+  var t = String(q||'').trim().toLowerCase();
+  if (!t) return true;
+  var campos = [x.cliente||'', x.numero||'', x.contacto||''].join(' ').toLowerCase();
+  if (campos.indexOf(t) !== -1) return true;
+  var num = String(x.numero||'').toLowerCase().replace(/^n[°º]?\s*/,'').replace(/^cl-/,'');
+  return num.indexOf(t.replace(/^n[°º]?\s*/,'').replace(/^cl-/,'')) !== -1;
+}
+/* En qué pestaña vive una cotización, para poder decirlo cuando la búsqueda
+   no encuentra nada en la que se está mirando. */
+function dashDonde(x){
+  if (x.eliminada) return '🗑 Eliminadas';
+  var c = ownerCode(x);
+  if (c) { var v = sellerByCode(c); return v ? v.nombre : c; }
+  return 'Clientes Web';
+}
 function applyDashFilters(data) {
   var cliQ  = (document.getElementById('f-dash-cli')||{}).value || '';
   var prodQ = (document.getElementById('f-dash-prod')||{}).value || '';
@@ -5136,7 +5154,10 @@ function applyDashFilters(data) {
   var cutoff = diasQ ? Date.now() - diasQ*24*60*60*1000 : 0;
   var estQ = (document.getElementById('f-dash-estado')||{}).value || '';
   return data.filter(function(x){
-    if (cliQ && (x.cliente||'').toLowerCase().indexOf(cliQ.toLowerCase()) === -1) return false;
+    /* buscar también por N° de cotización y por contacto: el buscador solo
+       miraba el nombre, así que no había forma de encontrar una cotización
+       por su número —que es justo como se la nombra por teléfono—. */
+    if (cliQ && !dashCoincide(x, cliQ)) return false;
     if (estQ && (x.estado||'enviada') !== estQ) return false;   /* sin estado guardado = enviada */
     if (prodQ && x.producto !== prodQ) return false;
     if (dashMonth && String(x.fecha_creacion||'').slice(0,7) !== dashMonth) return false;
@@ -5666,7 +5687,27 @@ function renderDash() {
       }).join('')+'</div>';
   }
   if (!dAll.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Sin cotizaciones</div>'; return; }
-  if (!d.length) { document.getElementById('dash-tbl').innerHTML='<div style="padding:30px;text-align:center;color:var(--tm)">Ninguna cotización coincide con el filtro</div>'; return; }
+  if (!d.length) {
+    /* Si lo buscado NO está en esta pestaña pero sí existe en otra, decirlo.
+       Antes solo salía "ninguna coincide" y quedaba la duda de si la
+       cotización no existía o estaba en otro lado. */
+    var q = (document.getElementById('f-dash-cli')||{}).value || '';
+    var fuera = q ? allRows.filter(function(x){ return dashCoincide(x, q); }) : [];
+    var aviso = '';
+    if (fuera.length){
+      var lugares = fuera.map(dashDonde).filter(function(v,i,a){ return a.indexOf(v)===i; });
+      aviso = '<div class="seg-backlog" style="margin:14px auto;max-width:520px;cursor:default">'+
+        '🔎 <strong>'+fuera.length+'</strong> coincidencia'+(fuera.length===1?'':'s')+' fuera de esta pestaña: '+
+        fuera.slice(0,4).map(function(x){
+          return '<br>· '+escA(x.numero||'—')+' — '+escA(x.cliente||'sin nombre')+' <strong>en '+escA(dashDonde(x))+'</strong>';
+        }).join('')+
+        (fuera.length>4 ? '<br>· y '+(fuera.length-4)+' más' : '')+
+        '<br><br>Cambia a '+escA(lugares.join(' o '))+' para verla.</div>';
+    }
+    document.getElementById('dash-tbl').innerHTML =
+      '<div style="padding:30px 10px 4px;text-align:center;color:var(--tm)">Ninguna cotización coincide con el filtro</div>'+aviso;
+    return;
+  }
   /* toques de seguimiento POR CLIENTE (agrupando sus cotizaciones, porque los
      toques se registran en la cotización líder del grupo, no en cada una) */
   var tqMap = {};
