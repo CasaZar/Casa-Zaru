@@ -3777,7 +3777,7 @@ function waMsg(x){
      a que el mensaje llegó tarde. */
   var esMismoDia = fechaBaseISO(x.fecha_creacion) === hoyISO();
   var p1 = 'Hola '+nom+', ¿cómo estás? Soy César, de Casa Zaru. Me llegó tu cotización de '+P.suyo.replace('tu ','')+' ('+num+').\n\n¿Es para un proyecto que ya tienes andando o para más adelante? Cualquier duda de medidas o maderas me preguntas nomás — sin compromiso.',
-      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+').\n\nSi quieres afinar medidas o comparar maderas, te ayudo. Y si todavía lo estás pensando, tranquilo: tu cotización queda guardada. ¿Te la reenvío?';
+      p2 = 'Hola '+nom+', César de Casa Zaru. Hace un par de días cotizaste '+P.suyo.replace('tu ','')+' con nosotros ('+num+').\n\nSi quieres afinar medidas o comparar maderas, te ayudo. Y si todavía lo estás pensando, tu cotización queda guardada. ¿Te la reenvío?';
   /* P4: nunca se le escribió y ya pasaron días. Reconocer la demora funciona
      mucho mejor que escribir como si nada (protocolo de triage v2). */
   var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora.\n\n¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
@@ -4581,7 +4581,14 @@ function correoUrl(x, g){
      reenviarla se siente robótico—, pero el correo es otro canal: la persona
      no la tiene en su bandeja, y un correo se guarda. Así queda registrada. */
   var elink = (x.link || '').trim();
-  var partes = [ waMsg(x) ];
+  var cuerpoMsg = waMsg(x);
+  /* Ofrecer reenviar la cotización cuando el link va justo abajo es raro: en
+     WhatsApp esa pregunta sí sirve —ahí el link recién se manda del toque 3—
+     pero en el correo sobra, porque siempre va adjunto. Se saca solo acá. */
+  if (elink) cuerpoMsg = cuerpoMsg.replace(/\s*¿Te la reenvío\?/g, '')
+                                  .replace(/\s*¿Te mando las fotos\?/g, ' ¿Te sirven?')
+                                  .replace(/\s*,?\s*¿te los mando\?/gi, '');
+  var partes = [ cuerpoMsg ];
   if (elink) partes.push('Acá puedes revisar tu cotización' + (x.numero ? ' ' + x.numero : '') + ' cuando quieras:\n' + elink);
   partes.push('—\n' + firma + (cargo ? '\n' + cargo : '') + '\nCasa Zaru');
   var cuerpo = partes.join('\n\n');
