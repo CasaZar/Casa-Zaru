@@ -3767,10 +3767,13 @@ function waMsg(x){
   var num=x.numero||'tu cotización';
   var link = (x.link||'').trim();
   var P = prodTexto(x.producto);
-  /* El link se reenvía recién del toque 3 (día 9) en adelante: para entonces el chat
-     ya se enterró y el cliente no la encuentra. En los toques 1-2 no, porque la acaba
-     de recibir y reenviarla se siente robótico. Si la cotización no tiene link, el
-     mensaje sale igual sin él. */
+  /* El link va SIEMPRE, desde el primer toque y en los dos canales. Antes se
+     mandaba recién del toque 3, con la idea de que en los primeros el cliente
+     la acababa de recibir; pero en la práctica el chat se entierra al tiro, y
+     el caso más común del primer toque es justamente el que cotizó hace días
+     y nunca recibió respuesta. Tenerla a mano quita fricción y no cuesta nada.
+     Va como un bloque único al final —no embebido en cada plantilla— para que
+     no haya cuatro formas distintas de mandar lo mismo. */
   /* Toque 1 con dos textos (protocolo de triage v2): si el contacto ocurre el
      MISMO día de la cotización va la P1 ("me llegó tu cotización"); si ya
      pasaron días va la P2 ("hace un par de días cotizaste"), que si no suena
@@ -3784,19 +3787,21 @@ function waMsg(x){
   var msgs = {
     1: esBacklogQ(x) ? p4 : (esMismoDia ? p1 : p2),
     2: 'Hola '+nom+', ¿cómo estás? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente.\n\nSi tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo. Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
-    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas. ' +
-       (link ? 'Acá te dejo tu cotización '+num+' de nuevo, por si se te perdió:\n'+link+'\n¿Te mando las fotos?'
-             : 'Tu cotización '+num+' sigue vigente, ¿te los mando?'),
-    4: 'Hola '+nom+', ¿te gustaría avanzar con '+P.suyo+'? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).' +
-       (link ? '\n\nAcá la tienes a mano:\n'+link : ''),
-    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas lo de '+P.suyo+' ('+num+'), acá estoy para ayudarte y te puedo mantener el precio.' +
-       (link ? '\n\nTe dejo tu cotización por si la necesitas:\n'+link : ' Quedo atento cuando lo necesites.'),
+    3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas.\n\n¿Te las mando?',
+    4: 'Hola '+nom+', ¿te gustaría avanzar con '+P.suyo+'? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).',
+    5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas lo de '+P.suyo+' ('+num+'), acá estoy para ayudarte y te puedo mantener el precio. Quedo atento cuando lo necesites.',
     /* Toque 6 (día 40): el último. Antes repetía el mensaje 5 porque msgs solo
        llegaba a 5 y el Math.min lo truncaba. Cierra pidiendo una respuesta de
        sí o no, que es justo el dato que falta para marcar ganado o perdido. */
     6: 'Hola '+nom+', te escribo por última vez por '+P.suyo+' ('+num+'). ¿Lo dejamos para más adelante o prefieres que lo retomemos ahora? Con un sí o un no me basta, así no te sigo escribiendo.'
   };
-  return waLimpio(msgs[toque] || msgs[1]);
+  var m = msgs[toque] || msgs[1];
+  if (link) {
+    /* con el link adjunto, ofrecer reenviar la cotización sobra */
+    m = m.replace(/\s*¿Te la reenvío\?/g, '');
+    m += '\n\nAcá puedes revisar tu cotización' + (x.numero ? ' ' + x.numero : '') + ' cuando quieras:\n' + link;
+  }
+  return waLimpio(m);
 }
 /* Los emoji llegaron rotos a WhatsApp: en los mensajes ya enviados el 🙂 salió
    como "�". El archivo está bien en UTF-8, así que se rompen en el camino —
@@ -4580,18 +4585,9 @@ function correoUrl(x, g){
      recién del toque 3 —ahí la cotización acaba de llegar al mismo chat y
      reenviarla se siente robótico—, pero el correo es otro canal: la persona
      no la tiene en su bandeja, y un correo se guarda. Así queda registrada. */
-  var elink = (x.link || '').trim();
-  var cuerpoMsg = waMsg(x);
-  /* Ofrecer reenviar la cotización cuando el link va justo abajo es raro: en
-     WhatsApp esa pregunta sí sirve —ahí el link recién se manda del toque 3—
-     pero en el correo sobra, porque siempre va adjunto. Se saca solo acá. */
-  if (elink) cuerpoMsg = cuerpoMsg.replace(/\s*¿Te la reenvío\?/g, '')
-                                  .replace(/\s*¿Te mando las fotos\?/g, ' ¿Te sirven?')
-                                  .replace(/\s*,?\s*¿te los mando\?/gi, '');
-  var partes = [ cuerpoMsg ];
-  if (elink) partes.push('Acá puedes revisar tu cotización' + (x.numero ? ' ' + x.numero : '') + ' cuando quieras:\n' + elink);
-  partes.push('—\n' + firma + (cargo ? '\n' + cargo : '') + '\nCasa Zaru');
-  var cuerpo = partes.join('\n\n');
+  /* waMsg ya arma el mensaje completo con su bloque de link, igual para los dos
+     canales. Acá solo se le agrega la firma, que es lo único propio del correo. */
+  var cuerpo = waMsg(x) + '\n\n—\n' + firma + (cargo ? '\n' + cargo : '') + '\nCasa Zaru';
   return 'https://mail.google.com/mail/?authuser=hola@casazaru.cl&view=cm&fs=1' +
          '&to=' + encodeURIComponent(correoDe(x)) +
          '&su=' + encodeURIComponent(correoAsunto(x)) +
