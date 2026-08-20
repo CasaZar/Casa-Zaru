@@ -1411,9 +1411,20 @@ var MESA_LARGO_EXTRA = 240;
 /* Tabla estándar de base rectangular de madera (lista de precios ago 2026).
    La comparten todos los modelos de ese tipo; se define una sola vez para que
    un cambio de lista no haya que replicarlo modelo por modelo. */
+/* Cuatro tramos, no dos: una base de 300 cm lleva más madera y más horas que
+   una de 180, así que tiene que costar más. Los dos primeros son los de la
+   lista tal cual; los dos siguientes continúan la misma progresión de $30.000.
+   OJO — la lista publicada en casazaru.cl NO cobra más base por mesa grande:
+   al despejarla (precio − cubierta) da ~$210.000 parejo de 160 a 300 cm, e
+   incluso menos en la de 240×120. O sea que el margen se estaba regalando en
+   las mesas grandes en la web, no en el cotizador. Con esta escala una de
+   300×120 queda ~3% sobre el precio publicado; si algún día se actualiza la
+   web, este es el número que manda. */
 var BASE_MADERA_RECT = [
   { hasta:180,  bajo:199900, medio:229900, alto:269900 },
-  { hasta:9999, bajo:229900, medio:269900, alto:309900 }
+  { hasta:240,  bajo:229900, medio:269900, alto:309900 },
+  { hasta:300,  bajo:259900, medio:299900, alto:349900 },
+  { hasta:9999, bajo:289900, medio:329900, alto:389900 }
 ];
 var MESA_BASES = {
   /* redondas de madera: el precio cambia según el diámetro */
@@ -3640,6 +3651,12 @@ function fechaBaseISO(v){
    nunca. Así que solo cuenta cuando hay motivo de pausa, o cuando la fecha
    futura coincide con una nota "Pospuesto a" del historial — que es la huella
    que deja segPosponer. */
+/* Cadencia agotada: se le hicieron los 6 toques y no hay fecha agendada.
+   dueDate() ya devuelve null en ese caso y la pestaña Dormidos se arma
+   justamente con eso. El problema era que las ballenas y los marcados con ★
+   se saltaban el chequeo, así que un cliente con 6/6 seguía apareciendo
+   arriba de la cola —y además salía duplicado en Dormidos—. */
+function dormido(g){ return dueDate(g.lead) === null; }
 function pospuestoAMano(g){
   var x = g.lead;
   var d = dueDate(x);
@@ -4282,7 +4299,7 @@ function renderSeguimiento(){
      se excluía a las tocadas el mismo día. Insistirle a diario al cliente más
      valioso es la forma más rápida de quemarlo. Ahora se le da aire: reaparece
      recién a las 48 h, un día antes de romper el acuerdo de las 72. */
-  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && !pospuestoAMano(g) && horasSinToque(g) >= BALLENA_ESPERA_H; })
+  var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && !dormido(g) && !pospuestoAMano(g) && horasSinToque(g) >= BALLENA_ESPERA_H; })
     .sort(function(a,b){ return montoAbierto(b)-montoAbierto(a); }).slice(0,3);
   var esBall = {}; ballenas.forEach(function(g){ esBall[g.key] = true; });
   var b1=[], b1Viejos=[], b2=[], b3=[], conv=[], futuro=[], hoyDone=[], enJuego=0;
@@ -4296,8 +4313,11 @@ function renderSeguimiento(){
        cadencia. Antes, si su próximo toque caía en 3 días, se iba a la
        sección "Esta semana" (colapsada) y no se veía — o sea, marcarlo no
        garantizaba nada. Ahora la marca a mano manda sobre el calendario. */
-    if (esInteresado(g) && !pospuestoAMano(g)){ b2.push(g); return; }
+    /* La cadencia agotada manda sobre TODO: si ya se hicieron los 6 toques,
+       el cliente se va a Dormidos aunque esté marcado con ★. Por eso este
+       chequeo va ANTES del atajo de los interesados. */
     var d=dueDate(g.lead); if(!d) return;
+    if (esInteresado(g) && !pospuestoAMano(g)){ b2.push(g); return; }
     if (d > hoy){ if (d<=lim) futuro.push(g); return; }
     if (esPrioritario(g)) b2.push(g); else b3.push(g);
   });
