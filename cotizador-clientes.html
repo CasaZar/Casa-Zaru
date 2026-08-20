@@ -4940,6 +4940,14 @@ async function segMarcar(id, n, checked){
   var updates = {seg_etapa:etapa, seg_proxima:next, seg_historial:hist};
   if (checked && !x.fecha_primer_contacto) updates.fecha_primer_contacto = new Date().toISOString();
   if (checked && x.motivo_pausa) updates.motivo_pausa = null;   /* el toque acordado ya se hizo: termina la pausa */
+  /* Un cliente que llegó por la web no tiene vendedor, así que su trabajo no
+     se le contaba a nadie: la actividad del vendedor salía subestimada y el
+     cliente quedaba en la bolsa común aunque alguien ya lo estuviera
+     trabajando. El primero que le hace un toque queda como responsable.
+     La columna asignado_a ya existía y ownerCode() ya la leía — solo que
+     nadie la escribía nunca.
+     Si trabaja el admin no se asigna a nadie: no sería cierto. */
+  if (checked && panelSeller && !ownerCode(x)) updates.asignado_a = panelSeller.email;
   if (!checked && etapa === 0) updates.fecha_primer_contacto = null;   /* deshizo el único toque */
   if (checked) registrarToque(x, n);          /* fase 2: fila en `toques` (fire-and-forget) */
   else borrarUltimoToque(x);
@@ -5248,7 +5256,11 @@ function renderActividad(){
        igual criterio que el resto del panel */
     var code = null;
     qs.some(function(q){ var c = ownerCode(q); if (c){ code = c; return true; } return false; });
-    if (!code) return;                            /* cliente 100% web: sin vendedor a quien atribuir */
+    /* Sin vendedor asignado va a su propia fila en vez de desaparecer del
+       reporte: antes ese trabajo no se le contaba a nadie y no se veía en
+       ninguna parte. Desde ahora se asigna solo al primer toque, así que esta
+       fila solo debería tener lo viejo y lo que trabaje el admin. */
+    if (!code) code = 'web';
     if (soloCode && code !== soloCode) return;
     var lead = qs[0];
     /* el historial vive en la cotización líder, pero se juntan todas por si acaso */
@@ -5295,7 +5307,7 @@ function renderActividad(){
   }
   var rows = keys.map(function(k){
     var r = porDia[k];
-    var nombre = r.code;
+    var nombre = r.code === 'web' ? 'Sin asignar' : r.code;
     for (var i=0;i<VENDEDORES.length;i++){ if (VENDEDORES[i].code===r.code){ nombre=VENDEDORES[i].nombre; break; } }
     var noHechos = r.correspondian - r.hechos;
     var pct = r.correspondian ? Math.round(r.hechos/r.correspondian*100) : 0;
