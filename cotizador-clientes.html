@@ -4250,6 +4250,17 @@ async function loadDash() {
   if (res.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+res.error.message+'</div>'; return; }
   allRows = res.data || [];
   _fonosGanadas = null;   /* el caché de recompras se rearma con los datos frescos */
+  /* Bitácora de toques: guarda QUIÉN hizo cada uno y cuándo. Es la única
+     fuente que permite darle el crédito del trabajo a un vendedor sin
+     cambiarle el canal al cliente — un cliente web sigue siendo web, pero el
+     toque que le hizo César se cuenta como de César. Si falla, el reporte
+     cae a seg_historial, que atribuye por dueño (lo de antes). */
+  try {
+    var tq = await sbClient.from('toques')
+      .select('ts,hecho_por,cotizacion_id')
+      .gte('ts', addDias(hoyISO(), -ACTIVIDAD_DIAS));
+    TOQUES = (!tq.error && tq.data) ? tq.data : [];
+  } catch(e) { TOQUES = []; }
   /* las eliminadas no se muestran en el panel normal (solo en la pestaña Eliminadas del admin) */
   var all = allRows.filter(function(x){ return !x.eliminada; });
   /* vendedor: sus cotizaciones + las web (salvo B2B como Jepe, que solo ve su propio canal) */
@@ -4940,14 +4951,11 @@ async function segMarcar(id, n, checked){
   var updates = {seg_etapa:etapa, seg_proxima:next, seg_historial:hist};
   if (checked && !x.fecha_primer_contacto) updates.fecha_primer_contacto = new Date().toISOString();
   if (checked && x.motivo_pausa) updates.motivo_pausa = null;   /* el toque acordado ya se hizo: termina la pausa */
-  /* Un cliente que llegó por la web no tiene vendedor, así que su trabajo no
-     se le contaba a nadie: la actividad del vendedor salía subestimada y el
-     cliente quedaba en la bolsa común aunque alguien ya lo estuviera
-     trabajando. El primero que le hace un toque queda como responsable.
-     La columna asignado_a ya existía y ownerCode() ya la leía — solo que
-     nadie la escribía nunca.
-     Si trabaja el admin no se asigna a nadie: no sería cierto. */
-  if (checked && panelSeller && !ownerCode(x)) updates.asignado_a = panelSeller.email;
+  /* El canal de origen NO se toca: quien cotizó solo por la web queda como
+     web para siempre, haga quien haga el seguimiento. Son dos cosas distintas
+     —de dónde vino el cliente y quién lo trabajó— y mezclarlas ensucia la
+     estadística de canales. El crédito del trabajo se resuelve aparte, con la
+     tabla `toques`, que guarda quién hizo cada uno. */
   if (!checked && etapa === 0) updates.fecha_primer_contacto = null;   /* deshizo el único toque */
   if (checked) registrarToque(x, n);          /* fase 2: fila en `toques` (fire-and-forget) */
   else borrarUltimoToque(x);
@@ -5206,6 +5214,18 @@ function renderEliminadas(){
    El admin ve a todos los vendedores; cada vendedor ve SOLO lo suyo — ojo: allRows
    trae toda la tabla, así que el filtro por code es lo único que separa los datos. */
 var ACTIVIDAD_DIAS = 30;   /* ventana de la tabla; el resumen de hoy no depende de esto */
+var TOQUES = [];           /* bitácora: quién hizo cada toque y cuándo (tabla `toques`) */
+/* email del que hizo el toque → código de vendedor */
+function vendedorPorEmail(mail){
+  var m = String(mail||'').trim().toLowerCase();
+  if (!m) return null;
+  for (var i=0;i<VENDEDORES.length;i++){
+    var v = VENDEDORES[i];
+    if (v.email.toLowerCase() === m) return v.code;
+    if (v.legacy && v.legacy.some(function(l){ return String(l).toLowerCase() === m; })) return v.code;
+  }
+  return null;
+}
 var actVendedor = '';      /* '' = todos; si no, el code del vendedor filtrado */
 function setActVendedor(code){ actVendedor = code; renderActividad(); }
 function renderActividad(){
@@ -5260,7 +5280,7 @@ function renderActividad(){
        reporte: antes ese trabajo no se le contaba a nadie y no se veía en
        ninguna parte. Desde ahora se asigna solo al primer toque, así que esta
        fila solo debería tener lo viejo y lo que trabaje el admin. */
-    if (!code) code = 'web';
+    if (!code) code = 'web';   /* cotizó solo por la web: ese es su canal y no cambia */
     if (soloCode && code !== soloCode) return;
     var lead = qs[0];
     /* el historial vive en la cotización líder, pero se juntan todas por si acaso */
@@ -5276,13 +5296,26 @@ function renderActividad(){
       if (hist.some(function(h){ return h.etapa===n; })) c.hechos++;
     }
     /* 2 · los toques que realmente se hicieron, en SU día.
-       etapa 0 son las notas de "Pospuesto a", no son toques. */
-    hist.forEach(function(h){
+       etapa 0 son las notas de "Pospuesto a", no son toques.
+       Se usa solo si la bitácora `toques` no tiene nada: ahí la atribución es
+       por dueño del cliente, que es lo que se puede saber desde el historial. */
+    if (!TOQUES.length) hist.forEach(function(h){
       if (!h || !h.fecha || !(h.etapa >= 1)) return;
       var f = String(h.fecha).slice(0,10);
       if (f > hoy || f < desde) return;
       celda(f, code).delDia++;
     });
+  });
+  /* Toques del día desde la bitácora: aquí manda QUIÉN lo hizo, no de quién es
+     el cliente. Así el trabajo de César en un cliente web se le cuenta a él y
+     el cliente sigue siendo web, que es lo que corresponde. */
+  TOQUES.forEach(function(t){
+    var code = vendedorPorEmail(t.hecho_por);
+    if (!code) return;                            /* lo hizo el admin u otra cuenta */
+    if (soloCode && code !== soloCode) return;
+    var f = String(t.ts||'').slice(0,10);
+    if (!f || f > hoy || f < desde) return;
+    celda(f, code).delDia++;
   });
   var keys = Object.keys(porDia).sort(function(a,b){
     var ka=porDia[a], kb=porDia[b];
@@ -5307,7 +5340,7 @@ function renderActividad(){
   }
   var rows = keys.map(function(k){
     var r = porDia[k];
-    var nombre = r.code === 'web' ? 'Sin asignar' : r.code;
+    var nombre = r.code === 'web' ? 'Cotizaron por la web' : r.code;
     for (var i=0;i<VENDEDORES.length;i++){ if (VENDEDORES[i].code===r.code){ nombre=VENDEDORES[i].nombre; break; } }
     var noHechos = r.correspondian - r.hechos;
     var pct = r.correspondian ? Math.round(r.hechos/r.correspondian*100) : 0;
