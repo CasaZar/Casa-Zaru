@@ -1238,6 +1238,13 @@ var REBORDE_ANCHO_M = 0.04;
    confirmar: cuando estén los valores definitivos, mesaBaseSugerida() los usa
    para proponer el valor de la base desde las medidas de la cubierta. */
 var MESA_FOTO_BASE = 'https://cotizador.casazaru.cl/fotos/mesas/';
+/* La foto puede ser un nombre corto (va a la carpeta del cotizador) o una URL
+   completa. Lo segundo permite usar directo las fotos de casazaru.cl para los
+   modelos que ya están publicados allá, sin tener que duplicar archivos. */
+function mesaFotoUrl(m){
+  var f = String((m && m.foto) || '');
+  return /^https?:\/\//.test(f) ? f : MESA_FOTO_BASE + f + '.jpg';
+}
 var MESA_MODELOS = [
   { nombre:'Mesa Río Valdivia',            foto:'rio-valdivia',          forma:'rectangular', base:'madera', pulgFijas:3, pulgXm:1.5, hh:10, insumos:8000 },
   { nombre:'Mesa Río Fuy',                 foto:'rio-fuy',               forma:'rectangular', base:'madera', pulgFijas:4, pulgXm:0.5, hh:6,  insumos:5000 },
@@ -1254,7 +1261,15 @@ var MESA_MODELOS = [
   { nombre:'Mesa Río Maullín',             foto:'rio-maullin',           forma:'rectangular', base:'fierro' },
   { nombre:'Mesa y Bancas Río Maullín',    foto:'bancas-maullin',        forma:'rectangular', base:'fierro' },
   { nombre:'Mesa Río Toltén',              foto:'rio-tolten',            forma:'redonda',     base:'fierro' },
-  { nombre:'Mesa Río Imperial',            foto:'rio-imperial',          forma:'redonda',     base:'fierro' }
+  { nombre:'Mesa Río Imperial',            foto:'rio-imperial',          forma:'redonda',     base:'fierro' },
+  /* ── MESAS DE CENTRO ──
+     Se venden en casazaru.cl y faltaban acá. Las fotos apuntan directo a las
+     de la tienda: son las mismas y así no hay que duplicar archivos ni esperar
+     a subirlos. Los precios de base salen de restarle la cubierta a los
+     precios publicados, igual que se hizo con Río Puelo. */
+  { nombre:'Mesa de Centro Río Maullín',   foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20250612_163633.jpg', forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa de Centro Lago Toltén',   foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20260721_124801.jpg', forma:'redonda',     base:'fierro' },
+  { nombre:'Mesas de Centro Río Bueno (par)', foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20250613_093742.jpg', forma:'rectangular', base:'madera' }
 ];
 /* ── ERGONOMÍA DE LA BASE (reglas de la hoja PARAMETROS §4) ──
    El voladizo no es fijo: % del largo/ancho con tope mínimo y máximo. Devuelve
@@ -1477,6 +1492,24 @@ var MESA_BASES = {
      le cuestan $140.000 al proveedor; aplicando el mismo margen que a la base
      simple (que cuesta $175.000 y se vende a $289.900, ×1,66) quedan en
      $229.900. Total $519.900. Confirmar contra la lista cuando exista. */
+  /* ── MESAS DE CENTRO ──
+     Base despejada de los precios de casazaru.cl (precio publicado − cubierta).
+     La de centro lleva base más chica que la de comedor: la Río Maullín de
+     centro sale ~$100.000 contra los $289.900 de su hermana grande. */
+  'Mesa de Centro Río Maullín': { modo:'largo', tramos:[
+    { hasta:110,  bajo:99900,  medio:124900, alto:149900 },
+    { hasta:9999, bajo:129900, medio:164900, alto:199900 }
+  ]},
+  'Mesa de Centro Lago Toltén': { modo:'diametro', tramos:[
+    { hasta:80,   bajo:219900, medio:234900, alto:244900 },
+    { hasta:100,  bajo:249900, medio:269900, alto:279900 },
+    { hasta:9999, bajo:279900, medio:309900, alto:329900 }
+  ]},
+  /* El conjunto son DOS mesas de centro que se venden juntas. El cotizador
+     cobra la cubierta por m², así que acá va la parte de las bases —las dos—
+     y el vendedor ingresa la cubierta de la más grande. */
+  'Mesas de Centro Río Bueno (par)': { modo:'fijo', bajo:169900, medio:189900, alto:209900, nota:'Par de bases de madera (2 mesas)' },
+
   'Mesa y Bancas Lago Calafquén': { modo:'fijo', bajo:519900, medio:519900, alto:519900, largoExtra:30000, nota:'Base de fierro X + par de bancas' },
   'Mesa y Bancas Río Maullín':    { modo:'fijo', bajo:519900, medio:519900, alto:519900, largoExtra:30000, nota:'Base de fierro cuadrada + par de bancas' }
 };
@@ -1965,7 +1998,7 @@ function renderForm(p) {
       if (!vendorMode && !MESA_BASES[m.nombre]) return '';       /* sin precio de lista: no se ofrece */
       var sinPrecio = !MESA_BASES[m.nombre] ? '<span class="dm-sinprecio">a convenir</span>' : '';
       return '<div class="dm-card dm-mesa" id="msc-' + i + '" onclick="mesaCardSel(' + i + ')">' +
-        '<img src="' + MESA_FOTO_BASE + m.foto + '.jpg" loading="lazy" alt="' + escA(m.nombre) + '">' +
+        '<img src="' + mesaFotoUrl(m) + '" loading="lazy" alt="' + escA(m.nombre) + '">' +
         '<div class="dm-lbl">' + escA(m.nombre.replace('Mesa ', '').replace('Mesa y ', '')) + sinPrecio + '</div>' +
       '</div>';
     }).join('');
