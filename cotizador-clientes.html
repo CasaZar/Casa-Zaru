@@ -1275,7 +1275,10 @@ var MESA_MODELOS = [
      de la tienda: son las mismas y así no hay que duplicar archivos ni esperar
      a subirlos. Los precios de base salen de restarle la cubierta a los
      precios publicados, igual que se hizo con Río Puelo. */
-  { nombre:'Mesa de Centro Río Maullín',   foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20250612_163633.jpg', forma:'rectangular', base:'fierro' },
+  /* base de MADERA: la ficha de la tienda dice "base tipo panel y cubierta
+     sólida, todo madera 100% maciza". Estaba marcada como fierro y por eso la
+     cotización hablaba de una base de fierro que esta mesa no tiene. */
+  { nombre:'Mesa de Centro Río Maullín',   foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20250612_163633.jpg', forma:'rectangular', base:'madera' },
   { nombre:'Mesa de Centro Lago Toltén',   foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20260721_124801.jpg', forma:'redonda',     base:'fierro' },
   { nombre:'Mesas de Centro Río Bueno (par)', foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20250613_093742.jpg', forma:'rectangular', base:'madera' }
 ];
@@ -2927,6 +2930,13 @@ function generar() {
       var key = sw ? sw.getAttribute('data-wood') : '';
       chip.style.display = (!maderasProd || maderasProd.indexOf(key) !== -1) ? '' : 'none';
     });
+    /* Lo que INCLUYE el pedido va primero y las maderas después (21-08-2026):
+       en el orden original las 7 tarjetas de madera empujaban la lista fuera de
+       la pantalla y la promesa se leía recién después de scrollear. Se mueve
+       acá y no en el HTML porque este bloque ya maneja el muestrario; correrlo
+       de nuevo no hace nada, el nodo ya quedó en su lugar. */
+    var listaEl = document.querySelector('#s2b .val-list');
+    if (listaEl) listaEl.insertAdjacentElement('afterend', muestrarioEl);
     muestrarioEl.classList.remove('hidden');
   }
   show('s2b');
@@ -3002,6 +3012,7 @@ function htmlCubierta(cli, fecha) {
     '</tbody></table>' +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
+    tierTable(tierRows, recWood()) +
     extrasBlock(sumM2) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(esp)+'</div></div>' +
@@ -3009,11 +3020,7 @@ function htmlCubierta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() +
-    /* El precio va al final (21-08-2026): primero se lee qué incluye el pedido
-       y recién ahí las tres maderas. */
-    tierTable(tierRows, recWood()) +
-    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²')
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²')
   );
 }
 
@@ -3068,6 +3075,7 @@ function htmlPuerta(cli, fecha) {
     '<tbody>'+dimRows+'</tbody></table>' +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
+    tierTable(tierRows, recWood()) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
       (vEsp ? '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(vEsp)+'</div></div>' : '') +
@@ -3075,9 +3083,7 @@ function htmlPuerta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() +
-    tierTable(tierRows, recWood()) +
-    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
   );
 }
 
@@ -3156,10 +3162,9 @@ function htmlMesa(cli, fecha) {
     ergoNota +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
-    boxes() +
     tierTableMesa(tierRows, recWood(), M, esMadera, nBases) +
     detalleFierro +
-    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
   );
 }
 /* tabla de precios con el desglose cubierta + base (fierro o madera) */
@@ -3178,9 +3183,15 @@ function tierTableMesa(rows, recTier, M, esMadera, nBases) {
   }).join('');
   var esPro = b2bDcto > 0;
   var sufBase = (nBases > 1) ? (' × ' + nBases) : '';
+  /* El valor de la base sale de la fila, no de M.valor: en el flujo público el
+     vendedor no escribe nada y M.valor es 0, así que la nota decía "($0)".
+     Si la base cambia según la madera (Lago Toltén), no se muestra un número. */
+  var baseUnit = rows.length ? Math.round(rows[0].base / (nBases || 1)) : 0;
+  var baseIgual = rows.every(function(r){ return r.base === rows[0].base; });
   var notaBase = esMadera
     ? ('cubierta de madera + base de madera (según el tipo elegido)' + sufBase)
-    : ('cubierta de madera + base de fierro (' + fmt(M.valor) + sufBase + ')');
+    : ('cubierta de madera + base de fierro (' +
+       (baseIgual && baseUnit > 0 ? fmt(baseUnit) : 'según el tipo elegido') + sufBase + ')');
   return '<div class="ptier-block">' +
     '<div class="ptier-head">' +
       '<span>Tipo de madera</span>' +
@@ -3248,6 +3259,7 @@ function htmlRev(cli, fecha) {
     '<tbody><tr><td style="font-size:16px;font-weight:700;padding:10px">'+m2.toFixed(2)+'</td></tr></tbody></table>' +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
+    tierTable(tierRows) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">100% sólida del sur de Chile</div></div>' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">1,2 cm</div></div>' +
@@ -3255,9 +3267,7 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*10)+' kg</div></div>' +
     '</div>' +
-    boxes() +
-    tierTable(tierRows) +
-    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²')
+    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²')
   );
 }
 
