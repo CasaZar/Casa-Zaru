@@ -226,6 +226,10 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .col-lbl.num { flex: 0 0 auto; min-width: 14px; }   /* espeja el número de pieza */
 .col-lbl.del { flex: 0 0 auto; width: 34px; }       /* espeja el botón de quitar */
 .dim-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+/* bloque de una puerta: el modelo arriba a todo el ancho, medidas abajo */
+.door-blk { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px dashed var(--bd); }
+.door-blk:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
+.door-mo { font-weight: 600; }
 .rnum { font-size: 11.5px; color: var(--tm); min-width: 14px; text-align: center; flex-shrink: 0; }
 /* mismos 16 px: estos son los campos que más se tocan en el celular */
 .dim-row input, .dim-row select { flex: 1; padding: 12px 9px; border: 1px solid var(--bd); border-radius: 8px; font-size: 16px; font-family: 'Jost', sans-serif; background: white; color: var(--tx); min-width: 0; }
@@ -1203,18 +1207,22 @@ var MODELOS = {
    Ensenada es más simple de fabricar que el resto de las puertas con vidrio. */
 var DESC_MODELO = { 'Ensenada': 50000 };
 function descModelo(mo){ return DESC_MODELO[mo] || 0; }
+/* Fotos: las MISMAS que se publican en casazaru.cl (21-08-2026). Antes eran
+   renders y no correspondían a la puerta que llega. Van sin el ?v= de Shopify
+   porque el render les agrega ?width=300 y dos query strings rompen la URL. */
+var CDN = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/';
 var DOOR_MODELS = [
-  { id:'panguipulli', nombre:'Panguipulli',     tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_48_30.png' },
-  { id:'granero-cla', nombre:'Granero Clásico', tipo:'granero', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_38_25.png' },
-  { id:'valdivia',    nombre:'Valdivia',         tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_16_55.png' },
-  { id:'entrelagos',  nombre:'Entrelagos',       tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_10_01_10.png' },
-  { id:'lago-ranco',  nombre:'Lago Ranco',       tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_58_14.png' },
-  { id:'frutillar',   nombre:'Frutillar',        tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_07_56.png' },
-  { id:'cochamo',     nombre:'Cochamó',           tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_55_16.png' },
-  { id:'granero-cru', nombre:'Granero Cruz',     tipo:'granero', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_48_13.png' },
-  { id:'puertovaras', nombre:'Puerto Varas',     tipo:'maciza',  img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_30_54.png' },
-  { id:'pucon',       nombre:'Pucón',             tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_09_18_54.png' },
-  { id:'ensenada',    nombre:'Ensenada',          tipo:'vidrios', img:'https://www.casazaru.cl/cdn/shop/files/ChatGPT_Image_22_jun_2026_08_56_43.png' }
+  { id:'panguipulli', nombre:'Panguipulli',     tipo:'maciza',  img:CDN+'Photoroom_007_20240513_214344.jpg' },
+  { id:'granero-cla', nombre:'Granero Clásico', tipo:'granero', img:CDN+'Photoroom_20250613_142910.jpg' },
+  { id:'valdivia',    nombre:'Valdivia',         tipo:'vidrios', img:CDN+'Photoroom_20250613_135757.jpg' },
+  { id:'entrelagos',  nombre:'Entrelagos',       tipo:'vidrios', img:CDN+'Photoroom_20250613_170457.jpg' },
+  { id:'lago-ranco',  nombre:'Lago Ranco',       tipo:'maciza',  img:CDN+'Photoroom_20250613_141533.jpg' },
+  { id:'frutillar',   nombre:'Frutillar',        tipo:'maciza',  img:CDN+'Photoroom_20250613_141148.jpg' },
+  { id:'cochamo',     nombre:'Cochamó',           tipo:'vidrios', img:CDN+'Photoroom_20250613_142234_1.jpg' },
+  { id:'granero-cru', nombre:'Granero Cruz',     tipo:'granero', img:CDN+'Photoroom_20250613_140642.jpg' },
+  { id:'puertovaras', nombre:'Puerto Varas',     tipo:'maciza',  img:CDN+'Photoroom_20250613_172822.jpg' },
+  { id:'pucon',       nombre:'Pucón',             tipo:'vidrios', img:CDN+'Photoroom_20250613_135536.jpg' },
+  { id:'ensenada',    nombre:'Ensenada',          tipo:'vidrios', img:CDN+'Photoroom_20250613_162049.jpg' }
 ];
 /* ── ESPESOR 8 CM MACIZO (cubiertas y peldaños) ──
    No es un % plano: doble madera + un proceso extra de encolado que suma ~$13.000
@@ -1966,7 +1974,7 @@ function renderForm(p) {
     }).join('');
     c.innerHTML =
       '<div class="fsec">' +
-        '<label class="flabel">Elige el modelo</label>' +
+        '<label class="flabel">Elige el modelo y luego escribe las medidas</label>' +
         '<div class="dm-grid">'+cards+'</div>' +
       '</div>' +
       '<div id="door-sub" class="hidden"></div>';
@@ -2575,12 +2583,6 @@ function renderDoorSub(tipo) {
   sub.innerHTML =
     '<div class="fsec">' +
       '<label class="flabel">Puertas</label>' +
-      '<div class="col-labels">' +
-        '<div class="col-lbl wide">Modelo</div>' +
-        '<div class="col-lbl">Alto cm</div>' +
-        '<div class="col-lbl">Ancho cm</div>' +
-        '<div class="col-lbl nar">Cant.</div>' +
-      '</div>' +
       '<div id="drows">' + doorRow(1, opts) + '</div>' +
       '<button class="btn-add" id="btn-add-row">+ Agregar puerta</button>' +
     '</div>' +
@@ -2678,13 +2680,24 @@ function renumRows(contId) {
     var b = r.querySelector('.btn-del-row'); if (b) b.style.visibility = rows.length > 1 ? 'visible' : 'hidden';
   });
 }
+/* El modelo va en su PROPIA línea, a todo el ancho, y las medidas abajo
+   (21-08-2026): apretado en 4 columnas el nombre salía cortado ("Ensenad…").
+   El ✕ se queda dentro del .dim-row porque renumRows() lo busca ahí. */
 function doorRow(n, opts) {
-  return '<div class="dim-row" id="r'+n+'">' +
-    '<select class="wid" id="mo'+n+'">'+opts+'</select>' +
-    '<input type="number" inputmode="decimal" placeholder="200" min="1" id="lg'+n+'">' +
-    '<input type="number" inputmode="decimal" placeholder="90"  min="1" id="an'+n+'">' +
-    '<input type="number" inputmode="numeric" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
-    '<button type="button" class="btn-del-row" onclick="removeRow(\'drows\','+n+')" title="Quitar">✕</button>' +
+  return '<div class="door-blk" id="r'+n+'">' +
+    '<select class="fsel door-mo" id="mo'+n+'">'+opts+'</select>' +
+    '<div class="col-labels" style="margin-top:8px">' +
+      '<div class="col-lbl">Alto cm</div>' +
+      '<div class="col-lbl">Ancho cm</div>' +
+      '<div class="col-lbl nar">Cant.</div>' +
+      '<div class="col-lbl del"></div>' +
+    '</div>' +
+    '<div class="dim-row">' +
+      '<input type="number" inputmode="decimal" placeholder="200" min="1" id="lg'+n+'">' +
+      '<input type="number" inputmode="decimal" placeholder="90"  min="1" id="an'+n+'">' +
+      '<input type="number" inputmode="numeric" placeholder="1"   min="1" value="1" class="nar" id="ca'+n+'">' +
+      '<button type="button" class="btn-del-row" onclick="removeRow(\'drows\','+n+')" title="Quitar">✕</button>' +
+    '</div>' +
   '</div>';
 }
 function addRow() {
@@ -2858,7 +2871,6 @@ function htmlCubierta(cli, fecha) {
     '</tbody></table>' +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
-    tierTable(tierRows, recWood()) +
     extrasBlock(sumM2) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(esp)+'</div></div>' +
@@ -2866,7 +2878,11 @@ function htmlCubierta(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(sumM2*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²')
+    boxes() +
+    /* El precio va al final (21-08-2026): primero se lee qué incluye el pedido
+       y recién ahí las tres maderas. */
+    tierTable(tierRows, recWood()) +
+    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, sumM2.toFixed(2) + ' m²')
   );
 }
 
@@ -2909,7 +2925,7 @@ function htmlPuerta(cli, fecha) {
     vidrio_tipo: (vd && vd.tipo) || null
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   var vidrioNote = (vd && vd.tipo)
-    ? '<div class="info-bar">Vidrio extra: <strong>'+vd.tipo+'</strong>'+
+    ? '<div class="info-bar">Vidrio extra incluido: <strong>'+vd.tipo+'</strong>'+
       (vd.an>0 && vd.al>0 ? ' — '+vd.an+' × '+vd.al+' cm'+(vd.ca>1?' × '+vd.ca:'') : '')+'</div>'
     : '';
   return shell(PNAME[prod], cli, fecha,
@@ -2919,15 +2935,16 @@ function htmlPuerta(cli, fecha) {
     '<tbody>'+dimRows+'</tbody></table>' +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
-    tierTable(tierRows, recWood()) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">A elegir según precio</div></div>' +
       (vEsp ? '<div class="spec"><div class="sl">Espesor</div><div class="sv">'+escA(vEsp)+'</div></div>' : '') +
-      '<div class="spec"><div class="sl">Terminación</div><div class="sv">Vitrificado / Aceite-Cera. Tú eliges</div></div>' +
+      '<div class="spec"><div class="sl">Terminación</div><div class="sv">'+(uso === 'exterior' ? 'Vitrificado / Aceite-Cera / Cutek. Tú eliges' : 'Vitrificado / Aceite-Cera. Tú eliges')+'</div></div>' +
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(filas.reduce(function(a,f){return a+f.m2*f.ca;},0)*30)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
+    boxes() +
+    tierTable(tierRows, recWood()) +
+    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, filas.length + ' u.')
   );
 }
 
@@ -3006,9 +3023,10 @@ function htmlMesa(cli, fecha) {
     ergoNota +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
+    boxes() +
     tierTableMesa(tierRows, recWood(), M, esMadera, nBases) +
     detalleFierro +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
+    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[2].total, escA(M.nombre))
   );
 }
 /* tabla de precios con el desglose cubierta + base (fierro o madera) */
@@ -3097,7 +3115,6 @@ function htmlRev(cli, fecha) {
     '<tbody><tr><td style="font-size:16px;font-weight:700;padding:10px">'+m2.toFixed(2)+'</td></tr></tbody></table>' +
     rbNoteHtml() +
     vExtrasNoteHtml(vExtrasList) +
-    tierTable(tierRows) +
     '<div class="specs">' +
       '<div class="spec"><div class="sl">Madera</div><div class="sv">100% sólida del sur de Chile</div></div>' +
       '<div class="spec"><div class="sl">Espesor</div><div class="sv">1,2 cm</div></div>' +
@@ -3105,7 +3122,9 @@ function htmlRev(cli, fecha) {
       '<div class="spec"><div class="sl">Plazo envío*</div><div class="sv">7 a 15 días hábiles</div></div>' +
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+Math.round(m2*10)+' kg</div></div>' +
     '</div>' +
-    boxes() + warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²')
+    boxes() +
+    tierTable(tierRows) +
+    warranty() + muestrario() + whatsappCTA(tierRows[0].total, tierRows[1].total, m2.toFixed(2) + ' m²')
   );
 }
 
@@ -3123,13 +3142,9 @@ function shell(nombre, cli, fecha, body) {
     '</div>' +
   '</div>' +
   '<div class="info-bar">Para: <strong>'+cli+'</strong>' + (conStr ? '  ·  '+conStr : '') + '</div>' +
-  /* Confirmación transaccional (spec seguimiento v2 §5.5, versión sin API):
-     fija la expectativa del primer contacto, en especial sábado tarde y domingo.
-     Solo para el cliente web orgánico: en el flujo del vendedor o en un link
-     compartido, César ya está en la conversación y la frase sobraría. */
-  ((!srcEmail && !vendorMode && !fromHash)
-    ? '<div class="info-bar" style="background:#EFF7EF;border:1px solid #C3DAB4;color:#2D5A3D">✅ <strong>Cotización recibida.</strong> César, nuestro asesor, te escribe por WhatsApp dentro del día hábil. Si quieres avanzar antes, escríbenos tú con el botón verde de abajo.</div>'
-    : '') +
+  /* El cuadro verde de "César te escribe por WhatsApp" se sacó el 21-08-2026:
+     el botón de WhatsApp del final ya dice lo mismo y el aviso empujaba el
+     precio más abajo todavía. */
   body;
 }
 
@@ -3162,12 +3177,19 @@ function tierTable(rows, recTier) {
   '</div>';
 }
 
+/* Terminaciones que se ofrecen. En uso exterior se suma Cutek, que es el
+   aceite que aguanta intemperie (21-08-2026). */
+function terminacionOpts() {
+  var t = 'Vitrificado mate o semi brillo / Aceite cera Osmo';
+  if (uso === 'exterior') t += ' / <strong>Cutek</strong> (aceite para exterior)';
+  return t;
+}
 function boxes() {
   return '<div class="iboxes">' +
     '<div class="ibox ibox-incluye">' +
       '<div class="ibox-h">Tu pedido incluye</div>' +
       '<div class="ibox-b"><ul>' +
-        '<li>Terminación <strong>hidrorrepelente y antimanchas</strong>: Vitrificado mate o semi brillo / Aceite cera Osmo. <strong>Tú eliges</strong></li>' +
+        '<li>Terminación <strong>hidrorrepelente y antimanchas</strong>: ' + terminacionOpts() + '. <strong>Tú eliges</strong></li>' +
         '<li><strong>Embalaje reforzado</strong> para traslado seguro</li>' +
         '<li>Madera seleccionada del sur de Chile</li>' +
         '<li>Cera de mantención incluida (50cc)</li>' +
