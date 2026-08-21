@@ -6,3 +6,12 @@ node_modules/
 Thumbs.db
 .env
 .mcp.json
+
+# Planillas: este repo es PUBLICO y los Excel del negocio traen sueldos con
+# nombre y apellido, datos de clientes y movimientos bancarios. Los exports que
+# genera la app (zaru_mayor_*.xlsx, zaru_costos_*.xlsx, etc.) son lo mismo.
+# Si alguna vez hay que versionar una planilla de ejemplo, que vaya anonimizada
+# y forzada con `git add -f`.
+*.xlsx
+*.xls
+*.csv

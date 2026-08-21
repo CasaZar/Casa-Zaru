@@ -554,6 +554,15 @@ body.rol-vendedor #cli-stats .stat-card:nth-child(4) { display:none !important; 
 /* La caja son datos de Finanzas, que el vendedor no ve. */
 body.rol-vendedor #dash-caja { display:none !important; }
 
+/* ── TALLER: entra a Gastos solo por la bodega. Las facturas traen precios de
+   compra y el mayor trae los sueldos de todo el equipo, así que no los ve.
+   Como siempre, esto es cosmético: quien decide es el RLS del servidor, que
+   no le devuelve ni una fila de esas dos tablas. ── */
+body.rol-taller #gastos-view-facturas,
+body.rol-taller #gastos-view-mayor { display:none !important; }
+/* Tampoco el botón que borra ítems del catálogo: el taller ajusta cantidades. */
+body.rol-taller #gastos-view-inventario .btn-del { display:none !important; }
+
 /* ── PRODUCCIÓN ── */
 .api-banner { background:var(--amber-dim); border:1px solid rgba(251,146,60,0.25); border-radius:var(--radius-lg); padding:12px 16px; display:flex; align-items:center; gap:10px; font-size:13px; margin-bottom:16px; flex-wrap:wrap; }
 .api-banner.hidden { display:none; }
@@ -25757,6 +25766,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('fin',this)"><span class="tab-icon">💰</span> Finanzas</button>
     <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon">📊</span> Pixel Meta</button>
     <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon">🔧</span> Costos</button>
+    <button class="nav-tab" onclick="showPage('gastos',this)"><span class="tab-icon">📄</span> Gastos</button>
     <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
   </div>
   <!-- Sidebar footer -->
@@ -26239,6 +26249,81 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div id="cost-list"><div class="cost-empty"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:0.3">🔧</span>Los pedidos aparecen aquí al confirmar un pantallazo</div></div>
 </div></div>
 
+<!-- P7 GASTOS: facturas · inventario · libro mayor -->
+<div class="page" id="page-gastos">
+<div class="main">
+  <div class="toolbar" style="margin-bottom:16px">
+    <div id="gastos-subtabs" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- Facturas -->
+  <div id="gastos-view-facturas">
+    <div class="toolbar">
+      <div style="font-size:13px;color:var(--text-muted)">Facturas de proveedor — los insumos pasan por bodega, los gastos van directo al mayor</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost" style="font-size:12px" onclick="abrirFacturaFoto()">📷 Foto</button>
+        <button class="btn-ghost" style="font-size:12px" onclick="abrirImportarExcel()">📊 Importar Excel</button>
+        <button class="btn-ghost" style="font-size:12px" onclick="abrirFacturaManual()">+ Manual</button>
+      </div>
+    </div>
+    <div id="fact-month-bar" class="month-bar"></div>
+    <div class="search-wrap"><span class="search-icon">⌕</span>
+      <input type="text" id="fact-search" placeholder="Buscar por proveedor, RUT o N° documento..." oninput="renderFacturas()">
+    </div>
+    <div class="table-card"><div class="table-wrap">
+      <table class="fin">
+        <thead><tr>
+          <th>Fecha</th><th>N° doc</th><th>Proveedor</th><th>Detalle</th><th style="text-align:right">Neto</th><th style="text-align:right">Total</th><th>Estado</th><th></th>
+        </tr></thead>
+        <tbody id="fact-list"></tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <!-- Inventario -->
+  <div id="gastos-view-inventario" style="display:none">
+    <div class="stats-grid" id="inv-stats"></div>
+    <div class="toolbar">
+      <div style="font-size:13px;color:var(--text-muted)">Bodega — el stock se mide siempre en la unidad del ítem, nunca en envases</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost" style="font-size:12px" onclick="sembrarInventario()">✨ Cargar catálogo</button>
+        <button class="btn-ghost" style="font-size:12px" onclick="abrirAjusteInventario()">⚖ Ajuste de inventario</button>
+      </div>
+    </div>
+    <div class="search-wrap"><span class="search-icon">⌕</span>
+      <input type="text" id="inv-search" placeholder="Buscar ítem o SKU..." oninput="renderInventario()">
+    </div>
+    <div class="table-card"><div class="table-wrap">
+      <table class="fin">
+        <thead><tr>
+          <th>Ítem</th><th>Categoría</th><th style="text-align:right">Stock</th><th style="text-align:right">Costo prom.</th><th style="text-align:right">Último costo</th><th style="text-align:right">Valorizado</th><th>Última compra</th>
+        </tr></thead>
+        <tbody id="inv-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="inv-empty" style="display:none"><span class="empty-icon">📦</span>La bodega está vacía. Apretá «Cargar catálogo» para crear los ítems desde los costos estándar.</div>
+    </div></div>
+  </div>
+
+  <!-- Libro Mayor -->
+  <div id="gastos-view-mayor" style="display:none">
+    <div class="stats-grid" id="mayor-stats"></div>
+    <div class="toolbar">
+      <div id="mayor-cat-bar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>
+      <button class="btn-ghost" style="font-size:12px" onclick="exportMayorXLSX()">↓ Excel</button>
+    </div>
+    <div id="mayor-month-bar" class="month-bar"></div>
+    <div class="table-card"><div class="table-wrap">
+      <table class="fin">
+        <thead><tr>
+          <th>Fecha</th><th>N° doc</th><th>Descripción</th><th style="text-align:right">Cantidad</th><th>Producto</th><th>Madera</th><th>Categoría</th><th style="text-align:right">Monto</th><th>Estado</th><th>Nota</th>
+        </tr></thead>
+        <tbody id="mayor-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="mayor-empty" style="display:none"><span class="empty-icon">📒</span>No hay movimientos en este mes.</div>
+    </div></div>
+  </div>
+</div></div>
+
 <!-- P6 CLIENTES -->
 <div class="page" id="page-cli">
 <div class="main">
@@ -26260,6 +26345,64 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="empty-state" id="cli-empty" style="display:none"><span class="empty-icon">👥</span>No hay clientes. Los datos se generan desde Finanzas.</div>
   </div></div>
 </div></div>
+
+<!-- MODAL FACTURA -->
+<div class="modal-bg" id="modal-factura-bg">
+  <div class="modal" style="width:min(980px,100%)">
+    <div class="modal-header">
+      <div class="modal-title" id="fact-modal-title">Nueva factura</div>
+      <button class="btn-close" onclick="cerrarFacturaModal()">×</button>
+    </div>
+    <div class="form-grid tri">
+      <div class="form-group"><label>Proveedor</label><input id="fx-proveedor" type="text" placeholder="Ej: Maderas Voipir" onchange="setFactCampo('proveedor',this.value)"></div>
+      <div class="form-group"><label>RUT</label><input id="fx-rut" type="text" placeholder="76.123.456-7" onchange="setFactCampo('rut',this.value)"></div>
+      <div class="form-group"><label>N° documento</label><input id="fx-numdoc" type="text" placeholder="12345" onchange="setFactCampo('numero_doc',this.value)"></div>
+    </div>
+    <div class="form-grid tri">
+      <div class="form-group"><label>Tipo</label>
+        <select id="fx-tipo" onchange="setFactCampo('tipo',this.value)">
+          <option value="FACTURA">Factura</option><option value="BOLETA">Boleta</option><option value="NC">Nota de crédito</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Fecha</label><input id="fx-fecha" type="date" onchange="setFactCampo('fecha',this.value)"></div>
+      <div class="form-group"><label>Estado</label>
+        <select onchange="setFactCampo('estado_pago',this.value)">
+          <option value="pendiente">Por pagar</option><option value="pagada">Pagada</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid tri">
+      <div class="form-group"><label>Neto</label><input id="fx-neto" type="number" min="0" step="1" onchange="setFactCampo('neto',this.value)"></div>
+      <div class="form-group"><label>IVA <span style="font-weight:400;text-transform:none;color:var(--text-3)">— se propone 19%</span></label><input id="fx-iva" type="number" min="0" step="1" onchange="setFactCampo('iva',this.value)"></div>
+      <div class="form-group"><label>Total</label><input id="fx-total" type="number" min="0" step="1" onchange="setFactCampo('total',this.value)"></div>
+    </div>
+
+    <div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-weight:600;margin:16px 0 8px">Detalle de la factura</div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">
+      Los <strong>insumos</strong> entran a bodega y se vuelven costo cuando el taller los usa.
+      Los <strong>gastos directos</strong> van derecho al libro mayor. Todo en neto, sin IVA.
+    </div>
+    <div class="table-wrap">
+      <table class="cost-table">
+        <thead><tr>
+          <th style="width:12%">Tipo</th><th style="width:24%">Ítem / Categoría</th><th style="width:10%">Cantidad</th>
+          <th style="width:11%">Unidad</th><th style="width:10%">Contenido</th><th style="width:16%">Entra a bodega</th>
+          <th style="width:13%">Neto</th><th style="width:4%"></th>
+        </tr></thead>
+        <tbody id="fact-lineas"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin:10px 0;flex-wrap:wrap">
+      <button class="btn-ghost" style="font-size:12px" onclick="addFactLinea('INVENTARIO')">+ Insumo de bodega</button>
+      <button class="btn-ghost" style="font-size:12px" onclick="addFactLinea('GASTO')">+ Gasto directo</button>
+    </div>
+    <div id="fact-resumen" style="padding:10px 12px;background:var(--surface3);border-radius:var(--radius);margin-bottom:14px"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn-ghost" onclick="cerrarFacturaModal()">Cancelar</button>
+      <button class="btn-primary" id="fact-guardar" onclick="guardarFactura()">Guardar factura</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL HISTORIAL -->
 <div class="modal-bg" id="modal-hist-bg">
@@ -26624,6 +26767,7 @@ function showPage(p,btn){
   if(p==='fin'){loadFin();}
   if(p==='pixel'){loadPixel();}
   if(p==='cost'){loadCost();}
+  if(p==='gastos'){loadGastos();}
   if(p==='prod'){loadProd();}
   if(p==='cli'){renderClientes();}
   if(p==='dash'){
@@ -26634,10 +26778,23 @@ function showPage(p,btn){
 }
 function dlCSV(rows,fn){const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn;a.click();URL.revokeObjectURL(url);showToast('✓ CSV exportado');}
 
-// ── FIREBASE — ESQUEMA NUEVO ──────────────────────────────────────────────
-// Clave única en todas las colecciones = numStr (número de pedido como string)
-// /pedidos/{numStr}  /produccion/{numStr}  /finanzas/{numStr}
-// /pixel/{numStr}    /costos/{numStr}
+// ── ESQUEMA DE DATOS ──────────────────────────────────────────────────────
+// Dos mitades, a propósito distintas:
+//
+// 1) PEDIDOS — tablas gestion_*, formato {num text, data jsonb}. Clave única
+//    en todas = numStr (n° de pedido como string). Todo cuelga del pedido y
+//    no hay relaciones entre entidades, así que el blob alcanza y sobra.
+//      /pedidos/{numStr}  /produccion/{numStr}  /finanzas/{numStr}
+//      /pixel/{numStr}    /costos/{numStr}
+//
+// 2) GASTOS — siete tablas relacionales con id bigint secuencial y llaves
+//    foráneas (migración supabase/001_gastos-inventario.sql):
+//      unidades · gasto_categorias · proveedores
+//      facturas · factura_lineas · inventario · mayor
+//    Un movimiento del mayor apunta a la línea de factura que lo originó, esa
+//    línea a un ítem de bodega y ese ítem a su unidad. Dentro de un jsonb esos
+//    vínculos serían texto que nadie valida, y en datos contables un vínculo
+//    roto es plata que no cuadra.
 // ─────────────────────────────────────────────────────────────────────────
 
 // ── WASABIL (facturación electrónica) — puente vía Edge Function de Supabase ──
@@ -26677,6 +26834,9 @@ const SB_ANON=WASABIL_ANON_KEY;
 const SESION_KEY='cazaru_sesion';
 var sesion=null; try{sesion=JSON.parse(localStorage.getItem(SESION_KEY)||'null');}catch(e){sesion=null;}
 var usuarioEmail='',usuarioRol='';
+// Solo las colecciones {num, data jsonb} que habla api(). El módulo de gastos
+// NO está acá: sus siete tablas son relacionales, con id numérico y llaves
+// foráneas, y se hablan por PostgREST directo (ver sbGet/sbInsert más abajo).
 const TABLA={pedidos:'gestion_pedidos',produccion:'gestion_produccion',finanzas:'gestion_finanzas',pixel:'gestion_pixel',costos:'gestion_costos',historial:'gestion_historial'};
 
 function guardarSesion(s){sesion=s;if(s)localStorage.setItem(SESION_KEY,JSON.stringify(s));else localStorage.removeItem(SESION_KEY);}
@@ -26825,9 +26985,22 @@ async function cargarPermisos(){
 }
 // Oculta lo que el usuario no puede usar. Es solo cosmético: la protección real
 // está en el servidor (RLS), así que aunque alguien fuerce la pantalla no ve datos.
-var SECCIONES_ADMIN=['fin','cost','pixel'];
+var SECCIONES_ADMIN=['fin','cost','pixel','gastos'];
+// El taller entra a Gastos, pero solo a la bodega: recibe la mercadería y
+// hace la toma física. No ve facturas, ni el libro mayor, ni precios de venta.
 function aplicarPermisos(){
   if(usuarioRol==='admin')return;
+  if(usuarioRol==='taller'){
+    document.body.classList.add('rol-taller');
+    // Al taller se le esconde todo lo que NO sea suyo, en vez de solo lo de admin.
+    ['fin','cost','pixel','seg','cli','dash'].forEach(function(p){
+      document.querySelectorAll('[onclick*="showPage(\''+p+'\'"]').forEach(function(b){b.style.display='none';});
+      var pg=document.getElementById('page-'+p);if(pg)pg.classList.remove('active');
+    });
+    var inicio=document.getElementById('page-prod');if(inicio)inicio.classList.add('active');
+    document.querySelectorAll('.dash-money').forEach(function(el){el.style.display='none';});
+    return;
+  }
   SECCIONES_ADMIN.forEach(function(p){
     document.querySelectorAll('[onclick*="showPage(\''+p+'\'"]').forEach(function(b){b.style.display='none';});
     var pg=document.getElementById('page-'+p);if(pg)pg.classList.remove('active');
@@ -29297,7 +29470,7 @@ function renderCost(){
 }
 function deleteCostRecord(idx){if(!confirm('¿Eliminar registro de costos?'))return;const numStr=String(costRecords[idx].num||'');costRecords.splice(idx,1);if(DB_URL&&numStr)api('costos/'+numStr,'DELETE').catch(()=>{});renderCost();showToast('✓ Eliminado');}
 function toggleCostCard(idx){const body=document.getElementById('cost-body-'+idx),arrow=document.getElementById('cost-arrow-'+idx),isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);if(arrow)arrow.textContent=isOpen?'▸':'▾';}
-function renderCostRows(idx){const r=costRecords[idx];if(!r)return;const tbody=document.getElementById('cost-rows-'+idx);if(!tbody)return;var _catPrev='';tbody.innerHTML=(r.lineas||[]).map((l,li)=>{const catSelected=CATEGORIAS_COSTO.map(c=>`<option${c===l.categoria?' selected':''}>${c}</option>`).join('');var _cat=l.categoria||'Otro',_cab='';if(_cat!==_catPrev){_catPrev=_cat;_cab='<tr class="cost-cat-head"><td colspan="7">'+esc(_cat)+'</td></tr>';}return _cab+`<tr><td data-label="Descripción"><input value="${esc(l.desc)}" onchange="updateCostRow(${idx},${li},'desc',this.value)" placeholder="Ej: Tablón Coihue 3m"></td><td data-label="Categoría"><select onchange="updateCostRow(${idx},${li},'categoria',this.value)">${catSelected}</select></td><td data-label="Cantidad"><input type="number" value="${l.qty||1}" min="0" step="0.01" onchange="updateCostRow(${idx},${li},'qty',this.value)" style="width:60px"></td><td data-label="Unidad"><input value="${esc(l.unidad||'un')}" onchange="updateCostRow(${idx},${li},'unidad',this.value)" style="width:50px" placeholder="un"></td><td data-label="Valor unit."><input type="number" value="${l.unit_val||0}" min="0" onchange="updateCostRow(${idx},${li},'unit_val',this.value)"></td><td data-label="Total línea" style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);text-align:right" id="cost-line-total-${idx}-${li}">${fmtCLP(l.total||0)}</td><td><button class="btn-del-row" onclick="delCostRow(${idx},${li})">🗑</button></td></tr>`;}).join('');}
+function renderCostRows(idx){const r=costRecords[idx];if(!r)return;const tbody=document.getElementById('cost-rows-'+idx);if(!tbody)return;var _catPrev='';tbody.innerHTML=(r.lineas||[]).map((l,li)=>{const catSelected=CATEGORIAS_COSTO.map(c=>`<option${c===l.categoria?' selected':''}>${c}</option>`).join('');var _cat=l.categoria||'Otro',_cab='';if(_cat!==_catPrev){_catPrev=_cat;_cab='<tr class="cost-cat-head"><td colspan="7">'+esc(_cat)+'</td></tr>';}return _cab+`<tr><td data-label="Descripción"><input value="${esc(l.desc)}" onchange="updateCostRow(${idx},${li},'desc',this.value)" placeholder="Ej: Tablón Coihue 3m"></td><td data-label="Categoría"><select onchange="updateCostRow(${idx},${li},'categoria',this.value)">${catSelected}</select></td><td data-label="Cantidad"><input type="number" value="${l.qty||1}" min="0" step="0.001" onchange="updateCostRow(${idx},${li},'qty',this.value)" style="width:70px"></td><td data-label="Unidad"><input value="${esc(l.unidad||'un')}" onchange="updateCostRow(${idx},${li},'unidad',this.value)" style="width:50px" placeholder="un"></td><td data-label="Valor unit."><input type="number" value="${l.unit_val||0}" min="0" onchange="updateCostRow(${idx},${li},'unit_val',this.value)"></td><td data-label="Total línea" style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);text-align:right" id="cost-line-total-${idx}-${li}">${fmtCLP(l.total||0)}</td><td><button class="btn-del-row" onclick="delCostRow(${idx},${li})">🗑</button></td></tr>`;}).join('');}
 function renderCostSummary(idx){
   const r=costRecords[idx];if(!r)return;
   const el=document.getElementById('cost-sum-'+idx);if(!el)return;
@@ -29319,6 +29492,947 @@ function updateCostRow(idx,li,field,val){const r=costRecords[idx];if(!r||!r.line
 function addCostRow(idx){if(!costRecords[idx])return;costRecords[idx].lineas=costRecords[idx].lineas||[];costRecords[idx].lineas.push({desc:'',categoria:'Insumos',qty:1,unidad:'un',unit_val:0,total:0});const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(()=>{});renderCostRows(idx);renderCostSummary(idx);}
 function delCostRow(idx,li){if(!costRecords[idx])return;costRecords[idx].lineas.splice(li,1);const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(()=>{});renderCostRows(idx);renderCostSummary(idx);renderCostStats();}
 function exportCostCSV(){var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});if(!base.length){showToast('No hay registros');return;}var dataRows=[];base.forEach(function(r){var totalCosto=(r.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0),venta=Number(r.venta_total)||0,ganancia=venta-totalCosto,margen=venta?Math.round(ganancia/venta*100):0;if(!(r.lineas||[]).length){dataRows.push({'N° PEDIDO':r.num||'','SEMANA':r.semana||'','CLIENTE':(r.nombre||'')+' '+(r.apellido||''),'PRODUCTO':r.producto||'','VENTA':venta,'DESCRIPCIÓN':'','CATEGORÍA':'','CANTIDAD':'','UNIDAD':'','VALOR UNIT':'','TOTAL LÍNEA':'','TOTAL COSTOS':totalCosto,'GANANCIA':ganancia,'MARGEN %':margen+'%'});}else{(r.lineas).forEach(function(l,li){dataRows.push({'N° PEDIDO':li===0?(r.num||''):'','SEMANA':li===0?(r.semana||''):'','CLIENTE':li===0?((r.nombre||'')+' '+(r.apellido||'')):'','PRODUCTO':li===0?(r.producto||''):'','VENTA':li===0?venta:'','DESCRIPCIÓN':l.desc||'','CATEGORÍA':l.categoria||'','CANTIDAD':l.qty||'','UNIDAD':l.unidad||'','VALOR UNIT':l.unit_val||'','TOTAL LÍNEA':l.total||'','TOTAL COSTOS':li===0?totalCosto:'','GANANCIA':li===0?ganancia:'','MARGEN %':li===0?margen+'%':''});});}});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:8},{wch:16},{wch:20},{wch:20},{wch:12},{wch:22},{wch:12},{wch:8},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:8}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=costMonthFilter==='todos'?'todos':costMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Costos '+label);downloadXLSX(wb,'zaru_costos_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
+
+// ── GASTOS: FACTURAS · INVENTARIO · LIBRO MAYOR ────────────────────────────
+// El circuito que cierra el margen real:
+//
+//   Factura ─┬─> Inventario (insumos) ──> Taller consume ──┐
+//            │                                             ├──> Libro Mayor
+//            └─> Gastos directos (sueldos, luz, bencina) ──┘
+//
+// La diferencia entre las dos ramas es CUÁNDO la plata se vuelve gasto. Un
+// sueldo es gasto el día que se paga. Una tineta de vitrificado NO: es un
+// activo hasta que el taller la usa en un pedido. Por eso los insumos pasan
+// por bodega antes de llegar al mayor — si no, el costo cae en el mes en que
+// se compró y no en el del pedido, y el margen queda inflado o desinflado
+// según cuándo se hizo la compra.
+//
+// ── POR QUÉ ESTE MÓDULO NO USA api() ──────────────────────────────────────
+// api() habla el dialecto de las tablas gestion_*: {num text, data jsonb}, un
+// blob por registro. Sirve para pedidos, donde todo cuelga del número de
+// pedido. Acá no alcanza: un movimiento del mayor apunta a la línea de
+// factura que lo originó, esa línea a un ítem de bodega, y ese ítem a su
+// unidad de medida. Dentro de un jsonb esos vínculos son texto que nadie
+// valida, y en datos contables un vínculo roto es plata que no cuadra.
+// Estas siete tablas son relacionales, con id numérico y llaves foráneas
+// (migración supabase/001_gastos-inventario.sql), y se hablan por PostgREST.
+// ──────────────────────────────────────────────────────────────────────────
+
+// ── Capa de datos ─────────────────────────────────────────────────────────
+// sbJson ya resuelve la sesión y el reintento con token renovado, así que acá
+// solo queda armar la URL.
+function _rest(tabla){return SB_URL+'/rest/v1/'+tabla;}
+async function sbGet(tabla,query){
+  var r=await sbJson(_rest(tabla)+(query?('?'+query):''));
+  return r||[];
+}
+// Acepta una fila o un arreglo (PostgREST inserta el lote en un solo POST, y
+// eso importa: las líneas de una factura tienen que entrar todas o ninguna).
+// Devuelve lo mismo que recibió: fila → fila, arreglo → arreglo.
+async function sbInsert(tabla,filaOFilas){
+  var r=await sbJson(_rest(tabla),{method:'POST',
+    headers:{'Prefer':'return=representation'},body:JSON.stringify(filaOFilas)});
+  if(Array.isArray(filaOFilas))return Array.isArray(r)?r:(r?[r]:[]);
+  return Array.isArray(r)?r[0]:r;
+}
+async function sbUpdate(tabla,id,cambios){
+  var r=await sbJson(_rest(tabla)+'?id=eq.'+encodeURIComponent(id),{method:'PATCH',
+    headers:{'Prefer':'return=representation'},body:JSON.stringify(cambios)});
+  return Array.isArray(r)?r[0]:r;
+}
+async function sbDelete(tabla,id){
+  return await sbJson(_rest(tabla)+'?id=eq.'+encodeURIComponent(id),
+    {method:'DELETE',headers:{'Prefer':'return=minimal'}});
+}
+
+// ── Precisión numérica ────────────────────────────────────────────────────
+// Las cantidades son SIEMPRE decimales. Nunca parseInt, nunca Math.round:
+// media pulgada de Coihue son $14.000 y hay ítems del catálogo que se
+// consumen de a 0,002 por m². Se normaliza a 3 decimales, que es lo que ya
+// guarda _lineasEstandar y lo que acepta numeric(14,3) en la base.
+function _f3(v){var n=Number(v);return isNaN(n)?0:Number(n.toFixed(3));}
+// Los valores unitarios van a 2 decimales: un litro de sellador sale
+// $3.982,46 y redondearlo a peso descuadra la valorización de la bodega.
+function _f2(v){var n=Number(v);return isNaN(n)?0:Number(n.toFixed(2));}
+// Los montos en pesos SÍ son enteros, como en todo el resto del sistema.
+function _pesos(v){var n=Number(v);return isNaN(n)?0:Math.round(n);}
+
+// ── Catálogos de referencia ───────────────────────────────────────────────
+// Viven en la base (tablas unidades y gasto_categorias) para que agregar una
+// categoría no exija tocar el HTML. Se cargan al entrar al módulo; hasta que
+// eso pase, las listas están vacías y las vistas lo dicen en vez de inventar.
+var unidadesRef=[],categoriasRef=[],proveedoresRef=[];
+function unidadPorClave(c){return unidadesRef.find(function(u){return u.clave===c;})||null;}
+function unidadPorId(id){return unidadesRef.find(function(u){return u.id===id;})||null;}
+function unidadIdDe(clave){var u=unidadPorClave(clave);return u?u.id:null;}
+function catPorNombre(n){return categoriasRef.find(function(c){return c.nombre===n;})||null;}
+function catPorId(id){return categoriasRef.find(function(c){return c.id===id;})||null;}
+function catIdDe(nombre){var c=catPorNombre(nombre);return c?c.id:null;}
+function destinoCategoria(nombre){var c=catPorNombre(nombre);return c?c.destino:'pendiente';}
+function categoriasPorDestino(d){
+  return categoriasRef.filter(function(c){return c.destino===d;}).map(function(c){return c.nombre;});
+}
+const CAT_POR_CLASIFICAR='POR CLASIFICAR';
+
+// Cantidad + unidad, listo para mostrar. Nunca se muestra una sin la otra.
+function fmtCant(cant,clave){
+  var u=unidadPorClave(clave),dec=u?u.decimales:3;
+  var n=Number(cant)||0;
+  var txt=n.toLocaleString('es-CL',{minimumFractionDigits:0,maximumFractionDigits:dec});
+  return txt+(clave?' '+clave:'');
+}
+// Valor unitario con decimales: $14.761,90 por litro, no $14.762.
+function fmtUnit(v){
+  var n=Number(v)||0;
+  return '$'+n.toLocaleString('es-CL',{minimumFractionDigits:0,maximumFractionDigits:2});
+}
+
+// ── Fechas ────────────────────────────────────────────────────────────────
+// Las del sistema son dd-mm-aaaa (toLocaleDateString('es-CL'), que es lo que
+// ya tiene guardado el resto de la app). Postgres y el <input type="date">
+// quieren aaaa-mm-dd, y ordenar "21-08-2026" como texto ordena por DÍA:
+// agosto quedaría antes que enero. Las tres cosas pasan por acá.
+function _fechaPartes(d){
+  var p=String(d||'').trim().slice(0,10).split(/[\/\-]/);
+  if(p.length!==3)return null;
+  if(p[0].length===4)return {a:p[0],m:p[1],d:p[2]};  // ya viene aaaa-mm-dd
+  return {a:p[2],m:p[1],d:p[0]};                     // dd-mm-aaaa
+}
+function _aISO(d){
+  var p=_fechaPartes(d);
+  return p?(p.a+'-'+String(p.m).padStart(2,'0')+'-'+String(p.d).padStart(2,'0')):'';
+}
+function _deISO(d){
+  var p=_fechaPartes(d);
+  return p?(String(p.d).padStart(2,'0')+'-'+String(p.m).padStart(2,'0')+'-'+p.a):(d||'');
+}
+// Lo que vuelve de Postgres es aaaa-mm-dd; se muestra en el formato del resto
+// de la app.
+function fmtFecha(d){return _deISO(d)||'—';}
+
+// ── Pulgadas por m² ───────────────────────────────────────────────────────
+// La madera se COMPRA y se guarda en pulgadas, pero se CONSUME en m². Hasta
+// ahora el factor vivía implícito dentro de costoEstandar.maderas: el Coihue
+// a $84.000/m² es 3 pulgadas × $28.000. Al llevar stock físico hay que
+// explicitarlo, porque descontar bodega necesita el factor, no el precio.
+// Según la planilla: Oregón y Ciprés 4 pulgadas/m², el resto 3.
+const MADERA_PULG_M2_DEFAULT={'OREGÓN':4,'PINO OREGÓN':4,'CIPRÉS':4,'CASTAÑO':3,'MAÑÍO':3,'COIHUE':3,'RAULÍ':3,'LENGA':3,'LAUREL':3};
+function pulgadasPorM2(especie){
+  var cfg=(typeof costoEstandar!=='undefined'&&costoEstandar&&costoEstandar.pulg_m2)||{};
+  var buscada=_normMad(especie),claves=Object.keys(cfg);
+  for(var i=0;i<claves.length;i++){if(_normMad(claves[i])===buscada)return Number(cfg[claves[i]])||0;}
+  claves=Object.keys(MADERA_PULG_M2_DEFAULT);
+  for(var j=0;j<claves.length;j++){if(_normMad(claves[j])===buscada)return MADERA_PULG_M2_DEFAULT[claves[j]];}
+  // Una especie que no está en la tabla igual tiene que poder costearse: 3
+  // pulgadas es lo que usa la mayoría y es mejor que dividir por cero.
+  return 3;
+}
+
+// ── Catálogo de SKUs ──────────────────────────────────────────────────────
+// Los ítems no se inventan: salen de INVENTARIO_ITEMS, que es la planilla de
+// costos que ya se usa para costear, y de las especies de madera. Es la
+// semilla de la bodega y la lista del desplegable de facturas.
+function skuDeMadera(especie){return 'madera_'+_normMad(especie).toLowerCase().replace(/\s+/g,'_');}
+var _catalogoCache=null;
+function _catalogoSkus(){
+  if(_catalogoCache)return _catalogoCache;
+  var out=INVENTARIO_ITEMS.map(function(it){
+    return {sku:it.k, descripcion:it.desc, categoria:it.cat, unidad:it.unidad,
+            item_k:it.k, envase_default:it.envase, especie:''};
+  });
+  // La madera no está en INVENTARIO_ITEMS (se cotiza por m² aparte): cada
+  // especie es un SKU propio, medido en pulgadas.
+  MADERAS_ESPECIE.forEach(function(m){
+    out.push({sku:skuDeMadera(m), descripcion:'Madera '+m, categoria:'Madera',
+              unidad:'pulg', item_k:'', envase_default:1, especie:m});
+  });
+  _catalogoCache=out;
+  return out;
+}
+// Ficha del SKU: primero lo que hay en bodega, si no el catálogo. Así el
+// sistema sabe la unidad de un ítem aunque nunca se haya comprado.
+function fichaSku(sku){
+  var inv=invItems.find(function(x){return String(x.sku||'')===String(sku);});
+  if(inv)return inv;
+  return _catalogoSkus().find(function(x){return x.sku===sku;})||null;
+}
+
+// ── Conversión a unidad de stock ──────────────────────────────────────────
+// TODA conversión pasa por acá. Es a propósito: los factores sueltos
+// repartidos por el archivo son donde se esconden los errores de redondeo,
+// y acá un error se arregla en un solo lugar.
+//
+//   envase → stock   2 tinetas × 3,7  = 7,400 lt
+//   m² → pulgadas    2,5 m² de Coihue = 7,50 pulg
+//
+// Devuelve un objeto, no un número, porque una conversión que no se pudo
+// hacer tiene que poder avisarse en pantalla en vez de pasar como buena.
+function _aUnidadStock(cant,unidadOrigen,sku,contenido){
+  var n=Number(cant)||0,ficha=fichaSku(sku);
+  var destino=ficha?ficha.unidad:unidadOrigen;
+  if(!destino)return {cantidad:_f3(n),unidad:unidadOrigen||'',factor:1,ok:false,motivo:'El ítem no tiene unidad definida'};
+  if(unidadOrigen===destino)return {cantidad:_f3(n),unidad:destino,factor:1,ok:true,motivo:''};
+  // Madera: el único par de unidades que se convierte por sí solo.
+  var esp=(ficha&&ficha.especie)?ficha.especie:sku;
+  if(destino==='pulg'&&unidadOrigen==='m2'){
+    var f=pulgadasPorM2(esp);
+    return {cantidad:_f3(n*f),unidad:'pulg',factor:f,ok:true,motivo:''};
+  }
+  if(destino==='m2'&&unidadOrigen==='pulg'){
+    var f2=pulgadasPorM2(esp);
+    if(!f2)return {cantidad:_f3(n),unidad:destino,factor:1,ok:false,motivo:'Falta pulgadas por m² de la especie'};
+    return {cantidad:_f3(n/f2),unidad:'m2',factor:1/f2,ok:true,motivo:''};
+  }
+  // Envase → unidad de stock: "tineta", "caja", "rollo" no son unidades de
+  // medida, son formatos. Lo que las traduce es el contenido, que sale del
+  // catálogo y se puede corregir si el proveedor cambió el formato.
+  var c=Number(contenido)||0;
+  if(c>0)return {cantidad:_f3(n*c),unidad:destino,factor:c,ok:true,motivo:''};
+  return {cantidad:_f3(n),unidad:destino,factor:1,ok:false,
+          motivo:'No se puede pasar de "'+(unidadOrigen||'?')+'" a "'+destino+'" sin saber cuánto trae el envase'};
+}
+
+// ── Estado y gasto real ───────────────────────────────────────────────────
+// En la planilla del contador son fórmulas. Acá viven en la vista v_mayor,
+// así el panel, el export y cualquier consulta directa dan el mismo número.
+// Estas funciones solo leen lo que la vista ya calculó.
+function estadoMayor(m){return m&&m.estado?m.estado:'Gasto real';}
+function gastoRealDe(m){return _pesos(m&&m.gasto_real);}
+function costoPeriodoDe(m){return _pesos(m&&m.costo_periodo);}
+
+// ── Estado del módulo ─────────────────────────────────────────────────────
+let facturas=[],invItems=[],mayorRecords=[];
+var gastosSubtab='facturas';
+var mayorMonthFilter=currentMonthName();
+var factMonthFilter=currentMonthName();
+var gastosCargando=false,gastosListo=false;
+
+async function loadGastos(){
+  if(!DB_URL)return;
+  gastosCargando=true;
+  // El taller solo ve bodega. Pedir facturas o mayor con su sesión devuelve
+  // vacío por RLS, así que directamente no se piden.
+  var soloInventario=(usuarioRol==='taller');
+  try{
+    var refs=await Promise.all([
+      sbGet('unidades','select=*&order=id'),
+      sbGet('gasto_categorias','select=*&activa=eq.true&order=orden')
+    ]);
+    unidadesRef=refs[0];categoriasRef=refs[1];
+    var datos=await Promise.all([
+      sbGet('v_inventario','select=*&order=categoria,descripcion'),
+      soloInventario?Promise.resolve([]):sbGet('v_facturas','select=*&order=fecha.desc'),
+      soloInventario?Promise.resolve([]):sbGet('v_mayor','select=*&order=fecha'),
+      soloInventario?Promise.resolve([]):sbGet('proveedores','select=*&order=nombre')
+    ]);
+    invItems=datos[0];facturas=datos[1];mayorRecords=datos[2];proveedoresRef=datos[3];
+    gastosListo=true;
+    renderGastos();
+  }catch(e){
+    console.error('loadGastos',e);
+    gastosListo=false;
+    renderGastos();
+    // El error más probable la primera vez es que la migración 001 todavía no
+    // se corrió; decirlo ahorra media hora de buscar en la consola.
+    showToast('✗ No se pudieron cargar los gastos. ¿Corriste la migración 001 en Supabase?',true);
+  }finally{gastosCargando=false;}
+}
+// Después de cada escritura se recarga desde las vistas en vez de parchar el
+// arreglo local: los campos calculados (estado, gasto real, costo del
+// período, valorizado) los hace la base, y adivinarlos acá es como se
+// terminan teniendo dos verdades.
+async function recargarGastos(){await loadGastos();}
+
+// ── Navegación de sub-pestañas ────────────────────────────────────────────
+const GASTOS_SUBTABS=[['facturas','📄 Facturas'],['inventario','📦 Inventario'],['mayor','📒 Libro Mayor']];
+function setGastosSubtab(k){gastosSubtab=k;renderGastos();}
+function renderGastos(){
+  var barra=document.getElementById('gastos-subtabs');
+  if(!barra)return;
+  // El taller entra solo a bodega: no tiene sentido mostrarle las otras dos
+  // si el servidor no le va a devolver nada.
+  var tabs=(usuarioRol==='taller')?GASTOS_SUBTABS.filter(function(t){return t[0]==='inventario';}):GASTOS_SUBTABS;
+  if(!tabs.some(function(t){return t[0]===gastosSubtab;}))gastosSubtab=tabs[0][0];
+  barra.innerHTML=tabs.map(function(t){
+    var on=gastosSubtab===t[0]?' active':'';
+    return '<button class="filter-btn'+on+'" style="font-size:12px" onclick="setGastosSubtab(\''+t[0]+'\')">'+t[1]+'</button>';
+  }).join('');
+  GASTOS_SUBTABS.forEach(function(t){
+    var v=document.getElementById('gastos-view-'+t[0]);
+    if(v)v.style.display=(gastosSubtab===t[0])?'':'none';
+  });
+  if(gastosSubtab==='facturas')renderFacturas();
+  if(gastosSubtab==='inventario')renderInventario();
+  if(gastosSubtab==='mayor')renderMayor();
+}
+// Mensaje único para cuando la base todavía no respondió (o no está creada):
+// una tabla vacía y una tabla que no cargó se ven igual, y no son lo mismo.
+function _avisoSinDatos(icono,textoVacio){
+  if(gastosCargando)return '<div class="empty-state"><span class="empty-icon">⏳</span>Cargando…</div>';
+  if(!gastosListo)return '<div class="empty-state"><span class="empty-icon">⚠</span>No se pudo leer la base. Revisá que la migración <strong>001_gastos-inventario.sql</strong> esté corrida en el proyecto Gestión.</div>';
+  return '<div class="empty-state"><span class="empty-icon">'+icono+'</span>'+textoVacio+'</div>';
+}
+
+// ── Vista: Facturas ───────────────────────────────────────────────────────
+function renderFacturas(){
+  var el=document.getElementById('fact-list');if(!el)return;
+  renderMonthBar('fact-month-bar',facturas,factMonthFilter,'setFactMonth',function(r){return r.mes;});
+  var base=factMonthFilter==='todos'?facturas:facturas.filter(function(r){return r.mes===factMonthFilter;});
+  var q=(document.getElementById('fact-search').value||'').toLowerCase().trim();
+  var list=base.filter(function(r){
+    if(!q)return true;
+    return String(r.proveedor||'').toLowerCase().indexOf(q)>=0||
+           String(r.numero_doc||'').toLowerCase().indexOf(q)>=0||
+           String(r.rut||'').toLowerCase().indexOf(q)>=0;
+  }).sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));});
+  if(!list.length){
+    var txt=q?'No hay facturas que calcen con la búsqueda.':('No hay facturas cargadas en '+factMonthFilter+'.');
+    el.innerHTML='<tr><td colspan="8">'+_avisoSinDatos('📄',txt)+'</td></tr>';
+    return;
+  }
+  el.innerHTML=list.map(_filaFactura).join('');
+}
+function setFactMonth(m){factMonthFilter=m;renderFacturas();}
+function _filaFactura(f){
+  var nL=Number(f.n_lineas)||0,nI=Number(f.n_inventario)||0;
+  var badge=f.procesada
+    ? '<span class="semana-badge" style="background:var(--green-dim);color:var(--green)">Procesada</span>'
+    : '<span class="semana-badge" style="background:var(--amber-dim);color:var(--amber)">Por desglosar</span>';
+  var detalle=nL+' línea'+(nL===1?'':'s')+(nI?' · '+nI+' de bodega':'');
+  return '<tr>'+
+    '<td data-label="Fecha">'+esc(fmtFecha(f.fecha))+'</td>'+
+    '<td data-label="N° doc"><strong>'+esc(f.numero_doc||'—')+'</strong></td>'+
+    '<td data-label="Proveedor">'+esc(f.proveedor||'—')+'<div style="font-size:10px;color:var(--text-3)">'+esc(f.rut||'')+'</div></td>'+
+    '<td data-label="Detalle">'+detalle+'</td>'+
+    '<td data-label="Neto" style="text-align:right">'+fmtCLP(f.neto)+'</td>'+
+    '<td data-label="Total" style="text-align:right">'+fmtCLP(f.total)+'</td>'+
+    '<td data-label="Estado">'+badge+'</td>'+
+    '<td><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="borrarFactura('+f.id+')">🗑</button></td>'+
+    '</tr>';
+}
+// Borrar la factura arrastra sus líneas (on delete cascade), pero NO revierte
+// el stock ni borra los movimientos del mayor: esos quedan con
+// factura_linea_id en null (on delete set null). Es a propósito — un asiento
+// contable no desaparece porque se borre el documento — pero hay que decirlo.
+async function borrarFactura(id){
+  var f=facturas.find(function(x){return x.id===id;});
+  if(!f)return;
+  var aviso='¿Eliminar la factura '+(f.numero_doc||id)+' de '+(f.proveedor||'—')+'?';
+  if(f.procesada)aviso+='\n\n⚠ Ya impactó bodega y el libro mayor. Se borra el documento y sus líneas, pero los movimientos que generó QUEDAN en el mayor y el stock NO se devuelve. Hay que revertirlo a mano.';
+  if(!confirm(aviso))return;
+  try{
+    await sbDelete('facturas',id);
+    await recargarGastos();
+    showToast('✓ Factura eliminada');
+  }catch(e){showToast('✗ No se pudo eliminar: '+e.message,true);}
+}
+
+// ── Vista: Inventario ─────────────────────────────────────────────────────
+function renderInventario(){
+  var el=document.getElementById('inv-tbody');if(!el)return;
+  var q=(document.getElementById('inv-search').value||'').toLowerCase().trim();
+  var list=invItems.filter(function(r){
+    if(!q)return true;
+    return String(r.descripcion||'').toLowerCase().indexOf(q)>=0||String(r.sku||'').toLowerCase().indexOf(q)>=0;
+  });
+  var vacio=document.getElementById('inv-empty');
+  if(vacio){
+    vacio.style.display=list.length?'none':'';
+    if(!list.length)vacio.innerHTML=_avisoSinDatos('📦','La bodega está vacía. Apretá «Cargar catálogo» para crear los ítems desde los costos estándar.');
+  }
+  el.innerHTML=list.map(_filaInventario).join('');
+  renderInvStats();
+}
+function _filaInventario(it){
+  var stock=Number(it.stock)||0,prom=Number(it.costo_prom)||0;
+  var bajo=(Number(it.minimo)||0)>0&&stock<Number(it.minimo);
+  // Un stock negativo no es un error de la app: es que se consumió algo que
+  // nunca se cargó. Se muestra en rojo para que se persiga la factura.
+  var colorStock=stock<0?'var(--red)':(bajo?'var(--amber)':'var(--text)');
+  var alerta=stock<0?' <span title="Se consumió más de lo que se cargó">⚠</span>':(bajo?' <span title="Bajo el mínimo">▼</span>':'');
+  return '<tr>'+
+    '<td data-label="Ítem">'+esc(it.descripcion||it.sku||'—')+'<div style="font-size:10px;color:var(--text-3)">'+esc(it.sku||'')+'</div></td>'+
+    '<td data-label="Categoría">'+esc(it.categoria||'—')+'</td>'+
+    '<td data-label="Stock" style="text-align:right;color:'+colorStock+';font-weight:600">'+fmtCant(stock,it.unidad)+alerta+'</td>'+
+    '<td data-label="Costo prom." style="text-align:right">'+(prom?fmtUnit(prom):'—')+'</td>'+
+    '<td data-label="Último costo" style="text-align:right">'+(Number(it.ultimo_costo)?fmtUnit(it.ultimo_costo):'—')+'</td>'+
+    '<td data-label="Valorizado" style="text-align:right">'+fmtCLP(it.valorizado)+'</td>'+
+    '<td data-label="Última compra">'+esc(it.ultima_compra?fmtFecha(it.ultima_compra):'—')+'</td>'+
+    '</tr>';
+}
+function renderInvStats(){
+  var el=document.getElementById('inv-stats');if(!el)return;
+  var valor=invItems.reduce(function(s,it){return s+(Number(it.valorizado)||0);},0);
+  var negativos=invItems.filter(function(it){return (Number(it.stock)||0)<0;}).length;
+  var bajos=invItems.filter(function(it){
+    var m=Number(it.minimo)||0,s=Number(it.stock)||0;
+    return m>0&&s<m&&s>=0;
+  }).length;
+  var cards=[
+    {label:'Ítems en bodega',val:String(invItems.length),color:'var(--text)'},
+    {label:'Valorización',val:fmtCLP(_pesos(valor)),color:'var(--green)'},
+    {label:'Bajo el mínimo',val:String(bajos),color:bajos?'var(--amber)':'var(--text-3)'},
+    {label:'Stock negativo',val:String(negativos),color:negativos?'var(--red)':'var(--text-3)'}
+  ];
+  el.innerHTML=cards.map(function(c){
+    return '<div class="stat-card"><div class="stat-label">'+c.label+'</div><div class="stat-val" style="color:'+c.color+'">'+c.val+'</div></div>';
+  }).join('');
+}
+
+// Siembra del catálogo. Se puede correr varias veces: los SKU que ya existen
+// no se tocan, así no pisa el stock que haya.
+async function sembrarInventario(){
+  if(!gastosListo){showToast('La base no respondió — revisá la migración 001',true);return;}
+  var cat=_catalogoSkus();
+  var existentes={};invItems.forEach(function(i){existentes[i.sku]=true;});
+  var nuevos=cat.filter(function(c){return !existentes[c.sku];});
+  if(!nuevos.length){showToast('La bodega ya tiene los '+cat.length+' ítems del catálogo');return;}
+  if(!confirm('Se van a crear '+nuevos.length+' ítem(s) en bodega, con stock 0 y la unidad de medida del catálogo de costos.\n\nLos que ya existen no se tocan. ¿Seguimos?'))return;
+  var filas=nuevos.map(_filaBodegaDesdeCatalogo).filter(Boolean);
+  if(filas.length!==nuevos.length){
+    showToast('✗ Hay ítems con una unidad que no está en la tabla «unidades»',true);return;
+  }
+  try{
+    await sbInsert('inventario',filas);   // PostgREST acepta el arreglo completo en un solo POST
+    await recargarGastos();
+    showToast('✓ '+filas.length+' ítem(s) creados en bodega');
+  }catch(e){showToast('✗ No se pudo sembrar: '+e.message,true);}
+}
+// Fila de bodega a partir de un ítem del catálogo. El costo estándar vigente
+// es el mejor punto de partida mientras no haya una compra real: así la
+// valorización no arranca en cero absoluto.
+function _filaBodegaDesdeCatalogo(c){
+  var uid=unidadIdDe(c.unidad);
+  if(!uid)return null;
+  var costo=0;
+  var ref=INVENTARIO_ITEMS.find(function(x){return x.k===c.item_k;});
+  if(ref)costo=_f2(_itemUnit(ref));
+  else if(c.especie)costo=_f2(costoMaderaM2(c.especie)/(pulgadasPorM2(c.especie)||1));
+  return {sku:c.sku, descripcion:c.descripcion, categoria:c.categoria, unidad_id:uid,
+          stock:0, costo_prom:0, ultimo_costo:costo,
+          envase_default:_f3(c.envase_default||1), item_k:c.item_k||null,
+          especie:c.especie||null, minimo:0};
+}
+// Devuelve la fila de bodega del SKU, creándola si todavía no existe. Sin
+// esto, cargar una factura de un ítem que nunca se compró exigiría acordarse
+// de sembrar primero.
+async function _asegurarItemBodega(sku){
+  var it=invItems.find(function(x){return String(x.sku||'')===String(sku);});
+  if(it)return it;
+  var c=_catalogoSkus().find(function(x){return x.sku===sku;});
+  if(!c)throw new Error('El ítem "'+sku+'" no está en el catálogo');
+  var fila=_filaBodegaDesdeCatalogo(c);
+  if(!fila)throw new Error('El ítem "'+sku+'" tiene una unidad que no está registrada');
+  var creada=await sbInsert('inventario',fila);
+  invItems.push(Object.assign({},creada,{unidad:c.unidad}));
+  return creada;
+}
+
+// Toma física: se cuenta lo que hay y se corrige. La diferencia queda como
+// movimiento en el mayor, no como una edición silenciosa del stock — si
+// desapareció medio litro de cutek, tiene que verse en alguna parte.
+async function abrirAjusteInventario(){
+  if(!invItems.length){showToast('Primero cargá el catálogo de bodega');return;}
+  var busca=prompt('SKU del ítem a ajustar (o parte de su nombre):','');
+  if(!busca)return;
+  var q=String(busca).toLowerCase().trim();
+  var it=invItems.find(function(x){return String(x.sku||'').toLowerCase()===q;})||
+         invItems.find(function(x){return String(x.descripcion||'').toLowerCase().indexOf(q)>=0;});
+  if(!it){showToast('No encontré ese ítem en bodega');return;}
+  var actual=Number(it.stock)||0;
+  var txt=prompt('«'+it.descripcion+'»\n\nStock según el sistema: '+fmtCant(actual,it.unidad)+
+                 '\n\n¿Cuánto hay realmente? (en '+it.unidad+', se aceptan decimales)',String(actual));
+  if(txt===null)return;
+  var real=_f3(String(txt).replace(',','.'));
+  var dif=_f3(real-actual);
+  if(!dif){showToast('El stock ya calzaba, no se ajustó nada');return;}
+  var motivo=prompt('¿Por qué la diferencia de '+fmtCant(dif,it.unidad)+'?','Toma física')||'Toma física';
+  try{
+    await sbUpdate('inventario',it.id,{stock:real,actualizado_en:new Date().toISOString()});
+    // El ajuste se valoriza al costo promedio: si sobra, es costo negativo.
+    var unitario=Number(it.costo_prom)||Number(it.ultimo_costo)||0;
+    await _insertarMayor({
+      fecha:todayStr, descripcion:'Ajuste de bodega — '+it.descripcion,
+      cantidad:dif, unidad_id:it.unidad_id, inventario_id:it.id,
+      categoria:it.categoria==='Madera'?'Madera (proveedores)':'Materiales e insumos',
+      monto:_pesos(dif*unitario), grupo:'AJUSTE', origen_tipo:'ajuste', nota:motivo
+    });
+    await recargarGastos();
+    showToast('✓ Ajustado a '+fmtCant(real,it.unidad));
+  }catch(e){showToast('✗ No se pudo guardar el ajuste: '+e.message,true);}
+}
+
+// ── Vista: Libro Mayor ────────────────────────────────────────────────────
+var mayorCatFilter='todas';
+function setMayorMonth(m){mayorMonthFilter=m;renderMayor();}
+function setMayorCat(c){mayorCatFilter=c;renderMayor();}
+function _mayorFiltrado(){
+  var base=mayorMonthFilter==='todos'?mayorRecords:mayorRecords.filter(function(r){return r.mes===mayorMonthFilter;});
+  if(mayorCatFilter==='sin_doc')return base.filter(function(r){return !String(r.numero_doc||'').trim();});
+  if(mayorCatFilter!=='todas')base=base.filter(function(r){return r.categoria===mayorCatFilter;});
+  return base;
+}
+function renderMayor(){
+  var el=document.getElementById('mayor-tbody');if(!el)return;
+  renderMonthBar('mayor-month-bar',mayorRecords,mayorMonthFilter,'setMayorMonth',function(r){return r.mes;});
+  _renderMayorFiltros();
+  var list=_mayorFiltrado();
+  var vacio=document.getElementById('mayor-empty');
+  if(vacio){
+    vacio.style.display=list.length?'none':'';
+    if(!list.length)vacio.innerHTML=_avisoSinDatos('📒','No hay movimientos en este mes.');
+  }
+  el.innerHTML=list.map(_filaMayor).join('');
+  renderMayorStats();
+}
+function _renderMayorFiltros(){
+  var el=document.getElementById('mayor-cat-bar');if(!el)return;
+  var pend=mayorRecords.filter(function(r){return r.categoria===CAT_POR_CLASIFICAR;}).length;
+  var sinDoc=mayorRecords.filter(function(r){return !String(r.numero_doc||'').trim();}).length;
+  var opts=['<option value="todas">Todas las categorías</option>'].concat(
+    categoriasRef.map(function(c){
+      var sel=mayorCatFilter===c.nombre?' selected':'';
+      return '<option value="'+esc(c.nombre)+'"'+sel+'>'+esc(c.nombre)+'</option>';
+    })).join('');
+  var btnSinDoc='<button class="filter-btn'+(mayorCatFilter==='sin_doc'?' active':'')+'" style="font-size:12px" onclick="setMayorCat(\'sin_doc\')" title="Movimientos sin respaldo tributario">Sin documento ('+sinDoc+')</button>';
+  var avisoPend=pend?'<span style="font-size:12px;color:var(--amber);font-weight:600">⚠ '+pend+' por clasificar</span>':'';
+  el.innerHTML='<select class="filter-btn" style="padding-right:6px" onchange="setMayorCat(this.value)">'+opts+'</select>'+btnSinDoc+avisoPend;
+}
+function _filaMayor(m){
+  var excl=m.estado==='Excluido';
+  var compra=m.grupo==='COMPRA';
+  // Cantidad y unidad van juntas o no van: una celda con "7,4" y nada más no
+  // le sirve a nadie. La base tampoco lo permite (check cantidad_con_unidad).
+  var cant=(m.cantidad===null||m.cantidad===undefined||m.cantidad==='')?'—':fmtCant(m.cantidad,m.unidad);
+  var estadoTxt=excl?'<span style="color:var(--text-3)">Excluido</span>'
+    :(compra?'<span style="color:var(--brand)" title="Compra de inventario: salió de la caja pero todavía no es costo">Compra</span>'
+            :'<span style="color:var(--green)">Gasto real</span>');
+  var doc=String(m.numero_doc||'').trim();
+  var docTxt=doc?esc(doc):'<span style="color:var(--amber)" title="Sin respaldo tributario">—</span>';
+  var ped=m.pedido_num?'<div style="font-size:10px;color:var(--text-3)">Pedido '+esc(m.pedido_num)+'</div>':'';
+  return '<tr'+(excl?' style="opacity:.55"':'')+'>'+
+    '<td data-label="Fecha">'+esc(fmtFecha(m.fecha))+'</td>'+
+    '<td data-label="N° doc">'+docTxt+'</td>'+
+    '<td data-label="Descripción">'+esc(m.descripcion||'—')+ped+'</td>'+
+    '<td data-label="Cantidad" style="text-align:right">'+cant+'</td>'+
+    '<td data-label="Producto">'+esc(m.producto||'')+'</td>'+
+    '<td data-label="Madera">'+esc(m.madera||'')+'</td>'+
+    '<td data-label="Categoría">'+esc(m.categoria||'—')+'</td>'+
+    '<td data-label="Monto" style="text-align:right">'+fmtCLP(m.monto)+'</td>'+
+    '<td data-label="Estado">'+estadoTxt+'</td>'+
+    '<td data-label="Nota" style="font-size:11px;color:var(--text-3)">'+esc(m.nota||'')+'</td>'+
+    '</tr>';
+}
+function renderMayorStats(){
+  var el=document.getElementById('mayor-stats');if(!el)return;
+  var list=_mayorFiltrado();
+  var real=list.reduce(function(s,m){return s+gastoRealDe(m);},0);
+  var periodo=list.reduce(function(s,m){return s+costoPeriodoDe(m);},0);
+  var excluido=list.reduce(function(s,m){return s+(m.estado==='Excluido'?_pesos(m.monto):0);},0);
+  var cards=[
+    {label:'Gasto real (caja)',val:fmtCLP(real),color:'var(--text)',hint:'Plata que salió, incluida la compra de materiales. Es la cifra de tu planilla.'},
+    {label:'Costo del período',val:fmtCLP(periodo),color:'var(--amber)',hint:'Devengado: las compras de bodega no cuentan hasta que el taller las consume.'},
+    {label:'Excluido',val:fmtCLP(excluido),color:'var(--text-3)',hint:'Traspasos entre cuentas propias, préstamos de socios y reembolsos.'},
+    {label:'Movimientos',val:String(list.length),color:'var(--text-3)',hint:''}
+  ];
+  el.innerHTML=cards.map(function(c){
+    var t=c.hint?' title="'+esc(c.hint)+'"':'';
+    return '<div class="stat-card"'+t+'><div class="stat-label">'+c.label+'</div><div class="stat-val" style="color:'+c.color+'">'+c.val+'</div></div>';
+  }).join('');
+}
+
+// ── Asientos del mayor ────────────────────────────────────────────────────
+// Mes y mes_n se derivan de la fecha pero se guardan: en la planilla hay
+// movimientos del 31-dic cargados como ENERO, y ese criterio del contador
+// tiene que poder mantenerse sin que el sistema lo pise.
+async function _insertarMayor(campos){
+  var fecha=campos.fecha||todayStr;
+  var mes=campos.mes||extractMonthFromDate(fecha)||currentMonthName();
+  var catId=campos.categoria_id||catIdDe(campos.categoria||CAT_POR_CLASIFICAR);
+  if(!catId)throw new Error('Categoría desconocida: '+(campos.categoria||'(vacía)'));
+  var tieneCant=(campos.cantidad!==undefined&&campos.cantidad!==null&&campos.cantidad!=='');
+  return await sbInsert('mayor',{
+    fecha:_aISO(fecha), mes:mes, mes_n:MESES_ES.indexOf(mes)+1,
+    numero_doc:campos.numero_doc||null,
+    descripcion:campos.descripcion||'—',
+    cantidad:tieneCant?_f3(campos.cantidad):null,
+    unidad_id:tieneCant?(campos.unidad_id||null):null,
+    producto:campos.producto||null, madera:campos.madera||null,
+    inventario_id:campos.inventario_id||null,
+    categoria_id:catId,
+    monto:_pesos(campos.monto),
+    grupo:campos.grupo||'GASTO',
+    origen_tipo:campos.origen_tipo||'manual',
+    factura_linea_id:campos.factura_linea_id||null,
+    pedido_num:campos.pedido_num||null,
+    nota:campos.nota||null
+  });
+}
+
+// ── Proveedores ───────────────────────────────────────────────────────────
+// El RUT es la identidad real: "Maderas Voipir", "MADERAS VOIPIR VILLARRICA"
+// y "Voipir" son el mismo proveedor. Se normaliza para que el unique de la
+// base funcione de verdad y no queden tres fichas del mismo.
+function _normRut(r){return String(r||'').replace(/[^0-9kK]/g,'').toLowerCase();}
+async function _asegurarProveedor(nombre,rut){
+  var rn=_normRut(rut);
+  if(rn){
+    var yaRut=proveedoresRef.find(function(p){return _normRut(p.rut)===rn;});
+    if(yaRut)return yaRut;
+  }else{
+    // Sin RUT lo único que queda es el nombre; no es ideal, pero es mejor que
+    // crear una ficha nueva cada vez que se carga una boleta del mismo lugar.
+    var yaNom=proveedoresRef.find(function(p){return !p.rut&&String(p.nombre||'').toLowerCase()===String(nombre||'').toLowerCase();});
+    if(yaNom)return yaNom;
+  }
+  var creado=await sbInsert('proveedores',{rut:rn||null,nombre:String(nombre||'').trim()||'Sin nombre'});
+  proveedoresRef.push(creado);
+  return creado;
+}
+
+// ── Factura manual ────────────────────────────────────────────────────────
+var factPend=null;
+function _lineaVacia(tipo){
+  if(tipo==='INVENTARIO')return {tipo:'INVENTARIO',sku:'',descripcion:'',cant_envases:1,unidad_compra:'un',contenido:1,cantidad:1,unidad:'un',unit_neto:0,total_neto:0,producto:'',madera:''};
+  return {tipo:'GASTO',categoria:'',total_neto:0,nota:''};
+}
+function abrirFacturaManual(){
+  if(!gastosListo){showToast('La base no respondió — revisá la migración 001',true);return;}
+  factPend={proveedor:'',rut:'',numero_doc:'',tipo:'FACTURA',fecha:todayStr,
+            neto:0,iva:0,total:0,estado_pago:'pendiente',
+            lineas:[_lineaVacia('GASTO')]};
+  document.getElementById('fact-modal-title').textContent='Nueva factura';
+  _pintarFacturaCabecera();
+  renderFactLineas();
+  document.getElementById('modal-factura-bg').classList.add('open');
+}
+function cerrarFacturaModal(){
+  document.getElementById('modal-factura-bg').classList.remove('open');
+  factPend=null;
+}
+function _pintarFacturaCabecera(){
+  var f=factPend;if(!f)return;
+  document.getElementById('fx-proveedor').value=f.proveedor||'';
+  document.getElementById('fx-rut').value=f.rut||'';
+  document.getElementById('fx-numdoc').value=f.numero_doc||'';
+  document.getElementById('fx-tipo').value=f.tipo||'FACTURA';
+  document.getElementById('fx-fecha').value=_aISO(f.fecha);
+  document.getElementById('fx-neto').value=f.neto||0;
+  document.getElementById('fx-iva').value=f.iva||0;
+  document.getElementById('fx-total').value=f.total||0;
+}
+function setFactCampo(campo,val){
+  if(!factPend)return;
+  if(campo==='fecha')factPend.fecha=_deISO(val);
+  else if(campo==='neto'||campo==='iva'||campo==='total')factPend[campo]=_pesos(val);
+  else factPend[campo]=val;
+  // El IVA se propone solo (19% del neto), pero se puede pisar: hay facturas
+  // exentas y notas de crédito donde no calza.
+  if(campo==='neto'){
+    factPend.iva=_pesos(factPend.neto*0.19);
+    factPend.total=factPend.neto+factPend.iva;
+    document.getElementById('fx-iva').value=factPend.iva;
+    document.getElementById('fx-total').value=factPend.total;
+  }
+  if(campo==='iva'){
+    factPend.total=_pesos(factPend.neto)+_pesos(factPend.iva);
+    document.getElementById('fx-total').value=factPend.total;
+  }
+  renderFactResumen();
+}
+function addFactLinea(tipo){
+  if(!factPend)return;
+  factPend.lineas.push(_lineaVacia(tipo));
+  renderFactLineas();
+}
+function delFactLinea(li){
+  if(!factPend)return;
+  factPend.lineas.splice(li,1);
+  if(!factPend.lineas.length)factPend.lineas.push(_lineaVacia('GASTO'));
+  renderFactLineas();
+}
+function setFactLineaTipo(li,tipo){
+  if(!factPend||!factPend.lineas[li])return;
+  var total=Number(factPend.lineas[li].total_neto)||0;
+  factPend.lineas[li]=_lineaVacia(tipo);
+  factPend.lineas[li].total_neto=total;
+  renderFactLineas();
+}
+// Toda edición de una línea de inventario recalcula la cantidad que entra a
+// bodega y el costo por unidad. Se hace acá, en un solo lugar, y no en cada
+// input: es la regla que evita que "2 tinetas" terminen como 2 litros.
+function setFactLinea(li,campo,val){
+  var l=factPend&&factPend.lineas[li];if(!l)return;
+  if(campo==='cant_envases'||campo==='contenido')l[campo]=_f3(String(val).replace(',','.'));
+  else if(campo==='total_neto')l[campo]=_pesos(val);
+  else l[campo]=val;
+  if(campo==='sku'){
+    var ficha=fichaSku(val);
+    if(ficha){
+      l.descripcion=ficha.descripcion; l.unidad=ficha.unidad;
+      l.contenido=_f3(ficha.envase_default||1);
+      l.unidad_compra=(Number(ficha.envase_default)||1)===1?ficha.unidad:'envase';
+      if(ficha.especie)l.madera=ficha.especie;
+    }
+  }
+  if(l.tipo==='INVENTARIO'){
+    // Una sola llamada, sin atajos: si la unidad de compra ya es la de stock,
+    // _aUnidadStock devuelve la cantidad tal cual (10 lijas son 10 unidades,
+    // no 10 × el contenido del envase). Duplicar esa regla acá es como se
+    // terminan teniendo dos conversiones que un día dejan de coincidir.
+    var conv=_aUnidadStock(l.cant_envases,l.unidad_compra,l.sku,l.contenido);
+    l.cantidad=conv.cantidad;
+    l.unidad=conv.unidad||l.unidad;
+    l._aviso=conv.ok?'':conv.motivo;
+    l.unit_neto=l.cantidad?_f2(l.total_neto/l.cantidad):0;
+  }
+  renderFactLineas();
+}
+function renderFactLineas(){
+  var tb=document.getElementById('fact-lineas');if(!tb||!factPend)return;
+  tb.innerHTML=factPend.lineas.map(_filaFactLinea).join('');
+  renderFactResumen();
+}
+function _filaFactLinea(l,li){
+  var esInv=l.tipo==='INVENTARIO';
+  var tipoSel='<select onchange="setFactLineaTipo('+li+',this.value)">'+
+    '<option value="GASTO"'+(esInv?'':' selected')+'>Gasto directo</option>'+
+    '<option value="INVENTARIO"'+(esInv?' selected':'')+'>Inventario</option></select>';
+  var borrar='<td><button class="btn-del-row" onclick="delFactLinea('+li+')">🗑</button></td>';
+  var monto='<td data-label="Neto"><input type="number" min="0" step="1" value="'+(l.total_neto||0)+'" onchange="setFactLinea('+li+',\'total_neto\',this.value)"></td>';
+  if(!esInv){
+    var catOpts='<option value="">— elegí una categoría —</option>'+
+      categoriasPorDestino('gasto').concat(categoriasPorDestino('excluida'),categoriasPorDestino('pendiente'))
+        .map(function(c){return '<option'+(c===l.categoria?' selected':'')+'>'+esc(c)+'</option>';}).join('');
+    return '<tr><td data-label="Tipo">'+tipoSel+'</td>'+
+      '<td data-label="Categoría" colspan="4"><select onchange="setFactLinea('+li+',\'categoria\',this.value)">'+catOpts+'</select></td>'+
+      '<td data-label="Nota"><input value="'+esc(l.nota||'')+'" placeholder="Glosa" onchange="setFactLinea('+li+',\'nota\',this.value)"></td>'+
+      monto+borrar+'</tr>';
+  }
+  var skuOpts='<option value="">— elegí un ítem —</option>'+_catalogoSkus().map(function(c){
+    return '<option value="'+esc(c.sku)+'"'+(c.sku===l.sku?' selected':'')+'>'+esc(c.descripcion)+'</option>';
+  }).join('');
+  var claves=unidadesRef.map(function(u){return u.clave;});
+  var uOpts=[l.unidad_compra].concat(claves,['envase','caja','rollo','tineta','saco','pack'])
+    .filter(function(v,i,a){return v&&a.indexOf(v)===i;})
+    .map(function(u){return '<option'+(u===l.unidad_compra?' selected':'')+'>'+esc(u)+'</option>';}).join('');
+  // La conversión se muestra siempre, hecha: "2 envase × 3,7 = 7,400 lt". Es
+  // la única forma de cachar en el momento que el contenido está mal cargado.
+  var conv=l._aviso
+    ? '<span style="color:var(--red)" title="'+esc(l._aviso)+'">⚠ '+esc(l._aviso)+'</span>'
+    : '<strong>= '+fmtCant(l.cantidad,l.unidad)+'</strong>'+(l.unit_neto?' · '+fmtUnit(l.unit_neto)+'/'+esc(l.unidad):'');
+  return '<tr><td data-label="Tipo">'+tipoSel+'</td>'+
+    '<td data-label="Ítem"><select onchange="setFactLinea('+li+',\'sku\',this.value)">'+skuOpts+'</select></td>'+
+    '<td data-label="Cantidad"><input type="number" min="0" step="0.001" value="'+(l.cant_envases||0)+'" onchange="setFactLinea('+li+',\'cant_envases\',this.value)"></td>'+
+    '<td data-label="Unidad"><select onchange="setFactLinea('+li+',\'unidad_compra\',this.value)">'+uOpts+'</select></td>'+
+    '<td data-label="Contenido"><input type="number" min="0" step="0.001" value="'+(l.contenido||0)+'" title="Cuánto trae cada envase, en '+esc(l.unidad||'unidad de stock')+'" onchange="setFactLinea('+li+',\'contenido\',this.value)"></td>'+
+    '<td data-label="Entra a bodega" style="font-size:11px">'+conv+'</td>'+
+    monto+borrar+'</tr>';
+}
+function renderFactResumen(){
+  var el=document.getElementById('fact-resumen');if(!el||!factPend)return;
+  var suma=factPend.lineas.reduce(function(s,l){return s+(Number(l.total_neto)||0);},0);
+  var neto=_pesos(factPend.neto);
+  var dif=suma-neto;
+  var nInv=factPend.lineas.filter(function(l){return l.tipo==='INVENTARIO';}).length;
+  var nGas=factPend.lineas.length-nInv;
+  // Que las líneas no sumen el neto de la factura casi siempre es un typo.
+  // Se avisa, pero no se bloquea: hay facturas con descuentos por pronto pago.
+  // El caso más frecuente es cargar las líneas y olvidar el neto de arriba,
+  // así que el aviso trae el botón para copiarlo en vez de solo retar.
+  var aviso;
+  if(dif===0&&neto>0)aviso='<span style="color:var(--green)">✓ Las líneas cuadran con el neto</span>';
+  else if(!neto&&suma>0)aviso='<span style="color:var(--amber)">Falta el neto de la factura</span> '+
+    '<button class="btn-ghost" style="font-size:11px;padding:3px 8px" onclick="usarSumaComoNeto()">Usar '+fmtCLP(suma)+'</button>';
+  else aviso='<span style="color:var(--amber)">⚠ Las líneas suman '+fmtCLP(suma)+', el neto dice '+fmtCLP(neto)+
+    ' ('+(dif>0?'+':'-')+fmtCLP(Math.abs(dif))+')</span> '+
+    '<button class="btn-ghost" style="font-size:11px;padding:3px 8px" onclick="usarSumaComoNeto()">Usar '+fmtCLP(suma)+'</button>';
+  el.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">'+
+    '<span>'+nInv+' a bodega · '+nGas+' al mayor</span><span>'+aviso+'</span></div>';
+}
+function usarSumaComoNeto(){
+  if(!factPend)return;
+  var suma=factPend.lineas.reduce(function(s,l){return s+(Number(l.total_neto)||0);},0);
+  factPend.neto=_pesos(suma);
+  factPend.iva=_pesos(factPend.neto*0.19);
+  factPend.total=factPend.neto+factPend.iva;
+  _pintarFacturaCabecera();
+  renderFactResumen();
+}
+
+async function guardarFactura(){
+  var f=factPend;if(!f)return;
+  if(!String(f.proveedor||'').trim()){alert('Falta el proveedor.');return;}
+  if(!String(f.numero_doc||'').trim()){alert('Falta el N° de documento. Es la llave que une la factura con el mayor y con bodega.');return;}
+  var malas=f.lineas.filter(function(l){
+    if(l.tipo==='INVENTARIO')return !l.sku||!l.cantidad;
+    return !l.categoria;
+  });
+  if(malas.length){alert('Hay '+malas.length+' línea(s) sin clasificar: elegí el ítem de bodega o la categoría de gasto.');return;}
+  var btn=document.getElementById('fact-guardar');
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    var prov=await _asegurarProveedor(f.proveedor,f.rut);
+    var mes=extractMonthFromDate(f.fecha)||currentMonthName();
+    // La factura se guarda ANTES de impactar bodega y mayor, marcada como no
+    // procesada. Si el impacto falla a mitad de camino, queda el documento con
+    // el aviso de "por desglosar" en vez de movimientos huérfanos en el libro
+    // sin ninguna factura que los explique.
+    var cab=await sbInsert('facturas',{
+      proveedor_id:prov.id, numero_doc:String(f.numero_doc).trim(), tipo:f.tipo,
+      fecha:_aISO(f.fecha), mes:mes, mes_n:MESES_ES.indexOf(mes)+1,
+      neto:_pesos(f.neto), iva:_pesos(f.iva), total:_pesos(f.total),
+      estado_pago:f.estado_pago, origen:'manual', procesada:false
+    });
+    var lineas=await _guardarLineas(cab.id,f.lineas);
+    await procesarFactura(cab,lineas,f);
+    await sbUpdate('facturas',cab.id,{procesada:true});
+    cerrarFacturaModal();
+    await recargarGastos();
+    showToast('✓ Factura '+cab.numero_doc+' registrada');
+  }catch(e){
+    console.error('guardarFactura',e);
+    await recargarGastos();
+    // El unique (proveedor_id, numero_doc) es el que impide cargar dos veces
+    // la misma factura; el mensaje crudo de Postgres no se entiende.
+    var msg=/duplicate key|23505/.test(e.message)
+      ? 'Ya hay una factura de ese proveedor con ese N° de documento.'
+      : e.message;
+    showToast('✗ '+msg,true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Guardar factura';}
+  }
+}
+// Inserta las líneas resolviendo las llaves foráneas. El check
+// linea_coherente de la base rechaza cualquier línea a medias, así que si
+// algo se escapó de la validación del formulario, se corta acá.
+async function _guardarLineas(facturaId,lineas){
+  var filas=[];
+  for(var i=0;i<lineas.length;i++){
+    var l=lineas[i],fila={factura_id:facturaId,linea_n:i+1,tipo:l.tipo,
+                          total_neto:_pesos(l.total_neto),nota:l.nota||null};
+    if(l.tipo==='INVENTARIO'){
+      var it=await _asegurarItemBodega(l.sku);
+      var uid=unidadIdDe(l.unidad);
+      if(!uid)throw new Error('La unidad "'+l.unidad+'" no está registrada');
+      fila.inventario_id=it.id;
+      fila.descripcion=l.descripcion||null;
+      fila.cant_envases=_f3(l.cant_envases);
+      fila.unidad_compra=l.unidad_compra||null;
+      fila.contenido=_f3(l.contenido);
+      fila.cantidad=_f3(l.cantidad);
+      fila.unidad_id=uid;
+      fila.unit_neto=_f2(l.unit_neto);
+      fila.producto=l.producto||null;
+      fila.madera=l.madera||null;
+    }else{
+      var cid=catIdDe(l.categoria);
+      if(!cid)throw new Error('Categoría desconocida: '+l.categoria);
+      fila.categoria_id=cid;
+    }
+    filas.push(fila);
+  }
+  // PostgREST las devuelve en el orden en que se enviaron, así que linea_n y
+  // el índice del formulario siguen calzando.
+  return await sbInsert('factura_lineas',filas);
+}
+
+// ── Impacto de una factura ────────────────────────────────────────────────
+// Acá es donde se bifurca el diagrama. Las dos ramas escriben en el mayor,
+// pero con distinto "grupo": la compra de un insumo salió de la caja (y por
+// eso cuenta como gasto real) pero todavía no es costo del período — lo será
+// cuando el taller la consuma en un pedido.
+async function procesarFactura(cab,lineasGuardadas,form){
+  for(var i=0;i<lineasGuardadas.length;i++){
+    var lg=lineasGuardadas[i];
+    var comun={fecha:form.fecha, mes:cab.mes, numero_doc:cab.numero_doc,
+               descripcion:form.proveedor, origen_tipo:'factura', factura_linea_id:lg.id};
+    if(lg.tipo==='GASTO'){
+      await _insertarMayor(Object.assign({},comun,{
+        categoria_id:lg.categoria_id, monto:lg.total_neto, nota:lg.nota||'', grupo:'GASTO'
+      }));
+      continue;
+    }
+    var it=await _entrarABodega(lg,cab);
+    await _insertarMayor(Object.assign({},comun,{
+      categoria:_categoriaDeItem(it),
+      cantidad:lg.cantidad, unidad_id:lg.unidad_id, inventario_id:lg.inventario_id,
+      producto:lg.producto||'', madera:lg.madera||'',
+      monto:lg.total_neto, grupo:'COMPRA', nota:lg.descripcion||''
+    }));
+  }
+}
+// Los ítems del catálogo de costos vienen con sus propias categorías
+// (Insumos, Pegado, Acabado…). El mayor usa las 25 de la planilla, así que
+// hay que traducir.
+function _categoriaDeItem(it){
+  var c=String(it&&it.categoria||'');
+  if(c==='Madera')return 'Madera (proveedores)';
+  if(c==='Embalaje')return 'Embalaje';
+  return 'Materiales e insumos';
+}
+// Entrada a bodega con promedio ponderado. El promedio se calcula sobre los
+// decimales sin redondear y recién ahí se trunca: redondear antes de dividir
+// es como se pierde plata de a poco sin que nadie lo note.
+async function _entrarABodega(lg,cab){
+  var it=invItems.find(function(x){return x.id===lg.inventario_id;});
+  if(!it)throw new Error('El ítem de bodega desapareció mientras se guardaba');
+  var stockPrev=Number(it.stock)||0,promPrev=Number(it.costo_prom)||0;
+  var entra=Number(lg.cantidad)||0,unit=Number(lg.unit_neto)||0;
+  // Con stock negativo el promedio ponderado no significa nada (venías
+  // consumiendo algo que no habías cargado): manda el costo de esta compra.
+  var stockNuevo=stockPrev+entra;
+  var prom=(stockPrev>0&&stockNuevo>0)?((stockPrev*promPrev)+(entra*unit))/stockNuevo:unit;
+  var cambios={stock:_f3(stockNuevo), costo_prom:_f2(prom), ultimo_costo:_f2(unit),
+               ultima_compra:_aISO(cab.fecha), actualizado_en:new Date().toISOString()};
+  if(lg.contenido)cambios.envase_default=_f3(lg.contenido);
+  if(lg.unidad_compra)cambios.unidad_compra_default=lg.unidad_compra;
+  var act=await sbUpdate('inventario',it.id,cambios);
+  Object.assign(it,cambios);
+  return act||it;
+}
+
+// ── Export del mayor ──────────────────────────────────────────────────────
+// Reproduce la planilla que ya recibe el contador: mismas columnas y mismo
+// orden, menos Cuenta y Detalle, más N° documento y Unidad. Las cantidades
+// salen como NÚMERO con decimales, no como texto: si van como texto, Excel no
+// las suma y el archivo deja de servir.
+function exportMayorXLSX(){
+  var list=_mayorFiltrado();
+  if(!list.length){showToast('No hay movimientos que exportar');return;}
+  var dataRows=list.map(function(m){
+    var cant=(m.cantidad===null||m.cantidad===undefined||m.cantidad==='')?'':Number(m.cantidad);
+    return {
+      'Mes':m.mes||'', 'Mes N°':m.mes_n||'', 'Fecha':fmtFecha(m.fecha),
+      'N° documento':m.numero_doc||'', 'Descripción':m.descripcion||'',
+      'Cantidad':cant, 'Unidad':m.unidad||'',
+      'Producto':m.producto||'', 'Madera':m.madera||'',
+      'Categoría':m.categoria||'', 'Monto ($)':_pesos(m.monto),
+      'Estado':m.estado||'', 'Gasto real ($)':gastoRealDe(m),
+      'Costo del período ($)':costoPeriodoDe(m), 'Nota':m.nota||''
+    };
+  });
+  var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);
+  ws['!cols']=[{wch:11},{wch:7},{wch:11},{wch:13},{wch:26},{wch:11},{wch:8},{wch:16},{wch:12},{wch:26},{wch:13},{wch:11},{wch:14},{wch:18},{wch:34}];
+  var range=XLSX.utils.decode_range(ws['!ref']);
+  for(var C=range.s.c;C<=range.e.c;C++){
+    var hc=XLSX.utils.encode_cell({r:0,c:C});
+    if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};
+  }
+  // Formato de la columna Cantidad (F): hasta 3 decimales, sin ceros de más.
+  for(var R=1;R<=range.e.r;R++){
+    var cc=XLSX.utils.encode_cell({r:R,c:5});
+    if(ws[cc]&&ws[cc].t==='n')ws[cc].z='#,##0.###';
+  }
+  var label=mayorMonthFilter==='todos'?'todos':mayorMonthFilter;
+  XLSX.utils.book_append_sheet(wb,ws,'Mayor '+label);
+  downloadXLSX(wb,'zaru_mayor_'+label+'_'+todayStr.replace(/[\/\-]/g,'-')+'.xlsx');
+}
+
+// Los dos caminos automáticos son la última entrega del módulo; mientras
+// tanto se dice, en vez de dejar un botón que no hace nada.
+function abrirFacturaFoto(){showToast('La lectura de factura por foto viene en la próxima entrega — por ahora, «+ Manual»');}
+function abrirImportarExcel(){showToast('El importador del Excel diario viene en la próxima entrega — por ahora, «+ Manual»');}
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 
@@ -29551,7 +30665,8 @@ async function loadClientesSeguro(){
 }
 async function initAllModules(){
   await loadProd();
-  if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();}
+  if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
+  else if(usuarioRol==='taller'){await loadGastos();}
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
   restaurarTablero();
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
