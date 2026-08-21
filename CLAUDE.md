@@ -3,16 +3,40 @@
 ## Archivo principal
 `index.html` — single-file HTML de ~1.27 MB. Hacer **ediciones puntuales (str_replace)**, nunca regenerar el archivo completo.
 
+Ver `ESTRUCTURA.md` para el mapa completo (3 repos, 3 sitios, 3 proyectos Supabase).
+
 ## Backend: Supabase
-El backend es **Supabase**, no Firebase (migrado). Hay **dos proyectos**:
+El backend es **Supabase**, no Firebase (migrado). Tres proyectos:
 
 | Ref | Nombre en el panel | Qué tiene |
 |---|---|---|
-| `padnttpgzuotxeipjrry` | «Cotizador clientes» ⚠️ | **Es el principal**: `gestion_*`, el módulo de gastos, y además `cotizaciones` / `cotizacion_lineas` / `quote_links` |
-| `cmxqorsyxoltrakxawro` | «cotizador-interno» | El manual de valores del cotizador (`cotizador_valores`) |
+| `padnttpgzuotxeipjrry` | «Cotizador clientes» ⚠️ | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, y además `cotizaciones` / `cotizacion_lineas` / `quote_links` |
+| `cmxqorsyxoltrakxawro` | «cotizador-interno» | El cotizador público y el panel de seguimiento (`cotizador_valores`, `toques`, `config_seguimiento`) |
+| `rmktkhjteghbheyrkfxs` | — | No es Casa Zaru. No tocar. |
 
 ⚠️ El nombre del panel engaña: **`padnttpgzuotxeipjrry` es el de la app de Gestión**, aunque se llame
-«Cotizador clientes». Es el `SB_URL` de `index.html`. PostgreSQL 17.6.
+«Cotizador clientes». Guiarse siempre por el `ref` de la URL. PostgreSQL 17.6.
+
+## Consolidación de casa-zaru-gastos (en curso)
+La app `casa-zaru-gastos` (React + Vite, Firebase RTDB) **se está absorbiendo acá**. No agregarle
+nada nuevo. Sus datos ya se migraron:
+
+| Nodo Firebase | → | Destino |
+|---|---|---|
+| `proveedores` (55) | → | `proveedores` |
+| `inventario` (12) | → | `inventario` |
+| `deudas` (4) | → | `deudas` (migración 0002) |
+| `registros` (36) | → | `mayor` — son movimientos bancarios, no facturas: 29 no traen folio |
+| `config.margen` | → | se elimina; el margen sale del consumo real, no de un slider |
+
+Los movimientos migrados se reconocen por `nota like '%[migrado de casa-zaru-gastos]'`.
+
+⚠️ **Las fotos de boleta NO se migraron.** Son 766 KB de base64 en `registros/*/preview` (99% del peso
+del nodo) y siguen solo en Firebase. Decidir si van a Supabase Storage antes de borrar nada de allá.
+
+🔴 Ese Firebase **está abierto sin autenticación** y sí contiene pagos de sueldos ($4,1M en 9
+movimientos, dentro de `registros` con categoría `costo_fijo`; no hay nodo `sueldos`). Cerrarlo es lo
+más urgente del stack.
 
 ### Migraciones
 Van en **`supabase/migrations/<NNNN>_<nombre>.sql`**, correlativas desde `0001`.
