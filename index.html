@@ -27898,8 +27898,16 @@ function renderMaderaDash(){
   html+='</div>';
   el.innerHTML=html;
 }
+// La librería que arma los Word viene de un CDN externo (unpkg). Cuando ese
+// CDN falla, el script no carga y los botones de etiqueta tiraban un error
+// silencioso: no pasaba nada y parecían rotos. Ahora avisan qué hacer.
+function _docxListo(){
+  if(window.docx)return true;
+  showToast('No se pudo cargar la librería de documentos. Recargá la página con internet estable.',true);
+  return false;
+}
 async function generarEtiquetaCompra(sem){
-  if(!window.docx){showToast('docx no disponible');return;}
+  if(!_docxListo())return;
   var D=window.docx;
   var semNorm=normalizeSemana(sem)||String(sem).toUpperCase();
   // Mismo conjunto que la tarjeta: si hay filtros activos, el documento sale
@@ -28377,12 +28385,10 @@ function ciclarTipoFin(numStr){
   showToast('✓ '+numStr+' quedó como '+lbl);
 }
 function deleteFinRecord_inline(numStr){if(!confirm('¿Eliminar este registro?'))return;var idx=finRecords.findIndex(function(x){return String(x.num||'')===String(numStr);});if(idx>=0)finRecords.splice(idx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(function(){});renderFin();showToast('✓ Eliminado');}
-function recalcFin(idx){const r=finRecords[idx];if(!r)return;
-  // Mismo cálculo que el formulario. Los registros viejos no tienen descuento ni
-  // costos de plataforma, así que dan 0 y el total les queda igual que antes.
-  var c=calcularVenta(Number(r.val_prod)||0,Number(r.val_envio)||0,Number(r.val_comision)||0,Number(r.descuento_pct)||0,Number(r.costo_mp)||0,Number(r.costo_shopify)||0);
-  r.descuento_monto=c.descMonto;r.costo_plataformas=c.costos;r.neto_recibido=c.neto;
-  r.abono_monto=c.abono;r.saldo_monto=c.saldo;r.sin_com=c.sincom;r.sin_iva=c.siniva;if(c.total)r.total=c.total;const numStr=String(r.num||'');if(DB_URL&&numStr)api('finanzas/'+numStr,'PUT',r).catch(()=>{});renderFin();}
+// recalcFin() se eliminó el 21 ago 2026: estaba muerta (nadie la llamaba) pero
+// escribía abono_monto = total × 0,7, un abono inventado del 70%. Es el mismo
+// "abono1 fantasma" que infló los números y que la auditoría CEO hizo corregir.
+// Para recalcular el total de un pedido se usa finRecalcTotal(), que no toca abonos.
 async function syncFinFromProd(){
   if(DB_URL){showToast('↻ Recargando producción...');await loadProd();}
   if(!prodOrders.length){showToast('No hay pedidos en Producción');return;}
@@ -28764,8 +28770,15 @@ const COSTO_ESTANDAR_DEFAULT={
   ]
 };
 // Total por m² sumando el catálogo ítem por ítem, más el desgaste.
-function procesoTotalM2(){
-  var base=INVENTARIO_ITEMS.reduce(function(s,it){return s+_itemUnit(it)*_itemPorM2(it);},0);
+// Costo de proceso por m² PARA UN ACABADO. Hay que pasarle cuál, porque una
+// cubierta lleva uno solo: sumar el catálogo entero contaba vitrificado Y
+// cutek juntos e inflaba el total en el precio del acabado que no se usó.
+function procesoTotalM2(acabado){
+  var acab=acabado||'VITRIFICADO';
+  var base=INVENTARIO_ITEMS.reduce(function(s,it){
+    if(it.finish&&it.finish!==acab)return s;
+    return s+_itemUnit(it)*_itemPorM2(it);
+  },0);
   return Math.round(base*(1+DESGASTE_PCT/100));
 }
 function porVentaTotal(){
@@ -28977,7 +28990,7 @@ function abrirCostoEstandar(){
         var pr=cfg.precio!==undefined?cfg.precio:it.precio;
         var en=cfg.envase!==undefined?cfg.envase:it.envase;
         var pm=cfg.porM2!==undefined?cfg.porM2:it.porM2;
-        filas+='<tr class="ce-item-row" data-k="'+it.k+'">'+
+        filas+='<tr class="ce-item-row" data-k="'+it.k+'" data-finish="'+(it.finish||'')+'">'+
           '<td style="padding:4px 8px;font-size:11px">'+esc(it.desc)+' <span style="color:var(--text-3)">('+esc(it.unidad)+')</span></td>'+
           '<td style="padding:4px 6px"><input type="number" min="0" step="10" class="ce-it-precio" value="'+pr+'" oninput="_ceTotal()" style="'+st+'"></td>'+
           '<td style="padding:4px 6px"><input type="number" min="0" step="0.1" class="ce-it-envase" value="'+en+'" oninput="_ceTotal()" style="'+st+';width:56px"></td>'+
@@ -29054,13 +29067,18 @@ function _ceTotal(){
     var en=Number(tr.querySelector('.ce-it-envase').value)||1;
     var pm=Number(tr.querySelector('.ce-it-porm2').value)||0;
     var v=pr/IVA/(en||1)*pm;
-    t+=v;
+    // El total del pie es lo que cuesta UNA cubierta, y una cubierta lleva un
+    // solo acabado. Sumar el catálogo entero contaba vitrificado + cutek a la
+    // vez e inflaba la cifra con un acabado que ese pedido no usa. Se totaliza
+    // con el acabado por defecto y se aclara en el texto.
+    var fin=tr.getAttribute('data-finish')||'';
+    if(!fin||fin==='VITRIFICADO')t+=v;
     var c=tr.querySelector('.ce-it-m2');
     if(c)c.textContent=v>=1?fmtCLP(Math.round(v)):(v>0?'$'+v.toFixed(2):'—');
   });
   var conDesg=Math.round(t*(1+DESGASTE_PCT/100));
   var el=document.getElementById('ce-proc-total');
-  if(el)el.textContent='— '+fmtCLP(Math.round(t))+' + '+DESGASTE_PCT+'% desgaste = '+fmtCLP(conDesg)+'/m²';
+  if(el)el.textContent='— '+fmtCLP(Math.round(t))+' + '+DESGASTE_PCT+'% desgaste = '+fmtCLP(conDesg)+'/m² (con vitrificado)';
 }
 function _ceLeerItems(){
   var out={};
@@ -29407,7 +29425,7 @@ function _docxDoc(children){
   var mg=docx.convertInchesToTwip(0.8);
   return new docx.Document({sections:[{properties:{page:{size:{width:docx.convertInchesToTwip(8.27),height:docx.convertInchesToTwip(11.69)},margin:{top:mg,right:mg,bottom:mg,left:mg}}},children:children}]});
 }
-function generarEtiquetaProd(oi,li){
+function generarEtiquetaProd(oi,li){if(!_docxListo())return;
   var ch=buildEtiquetaChildren(oi,li,false);if(!ch.length)return;
   var o=prodOrders[oi],l=(o.lineas||[])[li];
   var pedido=String(o.pedido||''),producto=String((l||{}).producto||'');
@@ -29423,7 +29441,7 @@ function toggleEtiquetaSel(oi,li,checked){
   if(cnt)cnt.textContent=n;
   if(btn)btn.style.display=n>0?'inline-flex':'none';
 }
-function generarEtiquetasBatch(){
+function generarEtiquetasBatch(){if(!_docxListo())return;
   var keys=Array.from(etiquetasSeleccionadas);if(!keys.length)return;
   var allCh=[];
   keys.forEach(function(key,idx){
@@ -29468,7 +29486,7 @@ function toggleEnvioSel(numStr,checked){
   if(cnt)cnt.textContent=n;
   if(btn)btn.style.display=n>0?'inline-flex':'none';
 }
-function generarEtiqueta(numStr){
+function generarEtiqueta(numStr){if(!_docxListo())return;
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r){showToast('Registro no encontrado',true);return;}
   var ch=buildEnvioChildren(r,false);
@@ -29485,7 +29503,7 @@ function generarEtiqueta(numStr){
     }).catch(function(err){showToast('❌ Error: '+err.message,true);console.error(err);});
   }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
 }
-function generarEtiquetasEnvioBatch(){
+function generarEtiquetasEnvioBatch(){if(!_docxListo())return;
   var nums=Array.from(envioSeleccionados);if(!nums.length)return;
   var tw=docx.convertInchesToTwip,allCh=[];
   nums.forEach(function(numStr,idx){
@@ -29556,7 +29574,8 @@ function renderGrafico(){
   var el=document.getElementById('dash-grafico');if(!el)return;
   var now=new Date(),meses=[],labels=[];
   for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);meses.push(MESES_ES[d.getMonth()]);labels.push(MESES_ES[d.getMonth()].slice(0,3));}
-  var vals=meses.map(function(m){return finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===m;}).reduce(function(s,r){return s+(Number(r.total)||0);},0);});
+  // soloVentas: un muestrario o una devolución no son venta y levantaban la barra.
+  var vals=meses.map(function(m){return soloVentas(finRecords).filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===m;}).reduce(function(s,r){return s+(Number(r.total)||0);},0);});
   var maxVal=Math.max.apply(null,vals)||1;
   var barW=30,gap=12,h=120,svgW=(barW+gap)*6+gap;
   var bars=vals.map(function(v,i){
@@ -29575,7 +29594,9 @@ function renderGrafico(){
 function renderRanking(){
   var el=document.getElementById('dash-ranking');if(!el)return;
   var map={};
-  finRecords.forEach(function(r){
+  // soloVentas: "más vendidos" es un ranking de ventas. Un muestrario contaba
+  // como producto vendido y una devolución sumaba una venta que se deshizo.
+  soloVentas(finRecords).forEach(function(r){
     var p=(r.producto||'Sin especificar').split(' ').slice(0,3).join(' ');
     if(!map[p])map[p]={producto:p,count:0,total:0};
     map[p].count++;map[p].total+=(Number(r.total)||0);
@@ -29816,7 +29837,9 @@ function renderMeta(){
   var MESES_NOM=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   var mesNombre=MESES_NOM[mesActual].charAt(0).toUpperCase()+MESES_NOM[mesActual].slice(1);
   var mesNomUpper=MESES_ES[mesActual];
-  var facMes=finRecords.reduce(function(s,r){
+  // soloVentas: la meta se mide contra ventas. Un muestrario de $20.000 o una
+  // devolución hacían avanzar la barra sin que hubiera venta detrás.
+  var facMes=soloVentas(finRecords).reduce(function(s,r){
     return extractMonthFromDate(r.fecha_creacion||r.fecha)===mesNomUpper?s+(Number(r.total)||0):s;
   },0);
   var pctMeta=META>0?Math.min(100,Math.round(facMes/META*100)):0;
@@ -29925,7 +29948,9 @@ function renderCaja(){
   el.style.display='';
   var hoy=new Date();hoy.setHours(0,0,0,0);
   var vencidos=[],estaSem=0,proxSem=0,despues=0,nEsta=0,nProx=0;
-  finRecords.forEach(function(f){
+  // soloVentas: acá se calcula lo que FALTA POR COBRAR. Un pedido devuelto no
+  // se le cobra a nadie, así que figuraba como plata que te deben y no existe.
+  soloVentas(finRecords).forEach(function(f){
     var total=Number(f.total)||0;
     var pend=total-((Number(f.abono1)||0)+(Number(f.abono2)||0)+(Number(f.abono3)||0));
     if(pend<=0)return;
