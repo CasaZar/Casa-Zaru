@@ -17,49 +17,11 @@ El backend es **Supabase**, no Firebase (migrado). Tres proyectos:
 ⚠️ El nombre del panel engaña: **`padnttpgzuotxeipjrry` es el de la app de Gestión**, aunque se llame
 «Cotizador clientes». Guiarse siempre por el `ref` de la URL. PostgreSQL 17.6.
 
-## Consolidación de casa-zaru-gastos (en curso)
-La app `casa-zaru-gastos` (React + Vite, Firebase RTDB) **se está absorbiendo acá**. No agregarle
-nada nuevo. Sus datos ya se migraron:
 
-| Nodo Firebase | → | Destino |
-|---|---|---|
-| `proveedores` (55) | → | `proveedores` |
-| `inventario` (12) | → | `inventario` |
-| `deudas` (4) | → | `deudas` (migración 0002) |
-| `registros` (36) | → | `mayor` — son movimientos bancarios, no facturas: 29 no traen folio |
-| `config.margen` | → | se elimina; el margen sale del consumo real, no de un slider |
-
-Los movimientos migrados se reconocen por `nota like '%[migrado de casa-zaru-gastos]'`.
-
-⚠️ **Las fotos de boleta NO se migraron.** Son 766 KB de base64 en `registros/*/preview` (99% del peso
-del nodo) y siguen solo en Firebase. Decidir si van a Supabase Storage antes de borrar nada de allá.
-
-🔴 Ese Firebase **está abierto sin autenticación** y sí contiene pagos de sueldos ($4,1M en 9
-movimientos, dentro de `registros` con categoría `costo_fijo`; no hay nodo `sueldos`). Cerrarlo es lo
-más urgente del stack.
-
-### Migraciones
-Van en **`supabase/migrations/<NNNN>_<nombre>.sql`**, correlativas desde `0001`.
-Los ceros a la izquierda no son adorno: la versión se guarda como **texto**, así que sin relleno la
-`10` quedaría ordenada entre la `1` y la `2`.
-
-El registro de qué se aplicó lo lleva Supabase en `supabase_migrations.schema_migrations`, que es lo
-que muestra Database → Migrations en el panel. Al aplicar una migración a mano (SQL Editor o
-Management API) hay que **insertar la fila ahí también**, si no el panel no la ve:
-
-```sql
-insert into supabase_migrations.schema_migrations (version, name, statements)
-values ('0002', 'nombre_corto', array[$mig$ <contenido del .sql> $mig$]);
-```
-
-**No llevar una tabla de migraciones propia** — ya existe una y duplicarla es pedir que diverjan.
-
-⚠️ El CLI de Supabase (`supabase migration new`) genera timestamps de 14 dígitos, no correlativos.
-Si algún día se adopta el CLI, revisar que acepte este formato antes de correr `supabase db push`.
-
-Los `.sql` sueltos en `supabase/` (fuera de `migrations/`) son los parches viejos del cotizador, ya
-corridos a mano y **no registrados**. Dejarlos ahí es deliberado: si se movieran a `migrations/`,
-`supabase db push` intentaría re-ejecutarlos.
+## Alcance del módulo de gastos
+Es el circuito **factura → bodega → costo del pedido**, para sacar el margen real por pedido.
+No es un reemplazo de `casa-zaru-gastos`: esa app es aparte, corre sobre su propio Firebase y no se
+toca. Hubo un intento de consolidar las dos (migraciones 0002 y 0003) que se revirtió a propósito.
 
 ## Esquema de datos
 Dos mitades, a propósito distintas.
@@ -72,7 +34,7 @@ Se hablan con `api('coleccion/clave', metodo, data)`, que mantiene el contrato d
 **Producción es la fuente de verdad.** Config dentro de la colección: `costos/__estandar`.
 
 **2) Gastos** — siete tablas **relacionales**, con `id bigint generated always as identity` y llaves
-foráneas reales (migración `supabase/001_gastos-inventario.sql`):
+foráneas reales (migración `supabase/migrations/0001_gastos_inventario.sql`):
 `unidades` · `gasto_categorias` · `proveedores` · `facturas` · `factura_lineas` · `inventario` · `mayor`
 
 No usan `api()`: se hablan por PostgREST con `sbGet` / `sbInsert` / `sbUpdate` / `sbDelete`.
