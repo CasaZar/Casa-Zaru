@@ -1434,26 +1434,64 @@ var MESA_LARGO_EXTRA = 240;
 /* Tabla estándar de base rectangular de madera (lista de precios ago 2026).
    La comparten todos los modelos de ese tipo; se define una sola vez para que
    un cambio de lista no haya que replicarlo modelo por modelo. */
-/* Cuatro tramos, no dos: una base de 300 cm lleva más madera y más horas que
-   una de 180, así que tiene que costar más. Los dos primeros son los de la
-   lista tal cual; los dos siguientes continúan la misma progresión de $30.000.
-   OJO — la lista publicada en casazaru.cl NO cobra más base por mesa grande:
-   al despejarla (precio − cubierta) da ~$210.000 parejo de 160 a 300 cm, e
-   incluso menos en la de 240×120. O sea que el margen se estaba regalando en
-   las mesas grandes en la web, no en el cotizador. Con esta escala una de
-   300×120 queda ~3% sobre el precio publicado; si algún día se actualiza la
-   web, este es el número que manda. */
+/* ── RECALIBRACIÓN CONTRA LA LISTA PUBLICADA (21-08-2026) ──
+   Se despejó la base de las 864 variantes de casazaru.cl (precio publicado −
+   cubierta) y aparecieron dos cosas:
+
+   1. La web NO cobra más base por mesa grande. En el Lago Maihue la base
+      despejada BAJA de $190.686 (120×80) a $182.096 (300×120). Es plata que se
+      regala en las mesas grandes.
+   2. Peor: esta tabla estaba armada sobre el Maihue, que es el modelo MÁS
+      BARATO de la familia. Aplicada a los demás, el cotizador cotizaba bajo el
+      precio publicado —hasta −19% en Río Cochrane, −13% en Trancura, Bueno y
+      Llanquihue—, o sea el vendedor ofrecía menos que la propia tienda.
+
+   Los tramos de ahora salen de dos reglas a la vez: nunca quedar bajo la mayor
+   base despejada del tramo, y subir siempre al menos $30.000 respecto del
+   tramo anterior. Verificado sobre las 224 variantes de los modelos que están
+   en la web: ninguna queda bajo el precio publicado.
+
+   Esta tabla es la de Río Bueno / Lago Llanquihue y sirve de estándar para los
+   modelos rectangulares de madera que NO están publicados (Río Valdivia, Lago
+   Todos los Santos). Los que sí están publicados llevan la suya más abajo. */
 var BASE_MADERA_RECT = [
-  { hasta:180,  bajo:199900, medio:229900, alto:269900 },
-  { hasta:240,  bajo:229900, medio:269900, alto:309900 },
-  { hasta:300,  bajo:259900, medio:299900, alto:349900 },
-  { hasta:9999, bajo:289900, medio:329900, alto:389900 }
+  { hasta:180,  bajo:289900, medio:309900, alto:339900 },
+  { hasta:240,  bajo:319900, medio:339900, alto:369900 },
+  { hasta:300,  bajo:349900, medio:369900, alto:399900 },
+  { hasta:9999, bajo:379900, medio:399900, alto:429900 }
+];
+/* Río Trancura y Río Cochrane se venden más caros que el resto de la familia:
+   Cochrane es el único cuya base despejada SÍ sube con el largo, y fuerte. */
+var BASE_TRANCURA = [
+  { hasta:180,  bajo:289900, medio:319900, alto:379900 },
+  { hasta:240,  bajo:319900, medio:349900, alto:409900 },
+  { hasta:300,  bajo:349900, medio:379900, alto:439900 },
+  { hasta:9999, bajo:379900, medio:409900, alto:469900 }
+];
+var BASE_COCHRANE = [
+  { hasta:180,  bajo:329900, medio:429900, alto:519900 },
+  { hasta:240,  bajo:409900, medio:539900, alto:669900 },
+  { hasta:300,  bajo:439900, medio:569900, alto:699900 },
+  { hasta:9999, bajo:469900, medio:599900, alto:729900 }
+];
+/* Fierro rectangular de Calafquén y Río Maullín. La lista publicada sí les
+   sube la base con el largo ($312.848 a $352.096 despejados), así que dejan de
+   ser un precio plano y pasan a tramos. No depende de la madera: los tres
+   tiers van iguales. */
+var BASE_FIERRO_RECT = [
+  { hasta:180,  bajo:339900, medio:339900, alto:339900 },
+  { hasta:240,  bajo:369900, medio:369900, alto:369900 },
+  { hasta:300,  bajo:379900, medio:379900, alto:379900 },
+  { hasta:9999, bajo:409900, medio:409900, alto:409900 }
 ];
 var MESA_BASES = {
   /* redondas de madera: el precio cambia según el diámetro */
+  /* Río Backer SÍ está en la web y arrastraba el mismo desfase que tenía Puelo:
+     cotizaba entre 8% y 14% bajo el precio publicado en todos los diámetros.
+     Recalibrado el 21-08-2026 contra la base despejada de casazaru.cl. */
   'Mesa Río Backer': { modo:'diametro', tramos:[
-    { hasta:120,  bajo:299900, medio:329900, alto:369900 },
-    { hasta:9999, bajo:329900, medio:369900, alto:409900 }
+    { hasta:120,  bajo:369900, medio:419900, alto:489900 },
+    { hasta:9999, bajo:429900, medio:499900, alto:589900 }
   ]},
   /* Río Puelo se recalculó desde casazaru.cl (ago 2026): la web vende la mesa
      completa, así que la base sale de restarle la cubierta (π·r² × madera).
@@ -1461,9 +1499,9 @@ var MESA_BASES = {
      redonda de 120 en pino salía $473.471 contra $562.900 de la web—. Con tres
      tramos el ajuste queda dentro del 3% en todos los diámetros. */
   'Mesa Río Puelo': { modo:'diametro', tramos:[
-    { hasta:110,  bajo:249900, medio:289900, alto:359900 },
-    { hasta:130,  bajo:289900, medio:359900, alto:429900 },
-    { hasta:9999, bajo:319900, medio:389900, alto:479900 }
+    { hasta:110,  bajo:259900, medio:299900, alto:369900 },
+    { hasta:130,  bajo:299900, medio:369900, alto:439900 },
+    { hasta:9999, bajo:319900, medio:399900, alto:479900 }
   ]},
   /* fierro: precio plano, no depende de la madera de la cubierta.
      Simples (trapecio / cuadrada / X) $289.900 · complejas $329.900 ·
@@ -1474,8 +1512,10 @@ var MESA_BASES = {
   'Mesa Río Toltén':        { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
   'Mesa Río Imperial':      { modo:'fijo', bajo:249900, medio:249900, alto:249900, nota:'Base de fierro redonda' },
   'Mesa Lago Puyehue':      { modo:'fijo', bajo:329900, medio:329900, alto:329900, largoExtra:20000, nota:'Base de fierro compleja' },
-  'Mesa Lago Calafquén':    { modo:'fijo', bajo:289900, medio:289900, alto:289900, largoExtra:30000, nota:'Base de fierro X' },
-  'Mesa Río Maullín':       { modo:'fijo', bajo:289900, medio:289900, alto:289900, largoExtra:30000, nota:'Base de fierro cuadrada' },
+  /* Estos dos pasaron de precio plano a tramos (21-08-2026): con los $289.900
+     planos el cotizador quedaba ~4,5% bajo la web en TODAS las medidas. */
+  'Mesa Lago Calafquén':    { modo:'largo', tramos:BASE_FIERRO_RECT, nota:'Base de fierro X' },
+  'Mesa Río Maullín':       { modo:'largo', tramos:BASE_FIERRO_RECT, nota:'Base de fierro cuadrada' },
   /* Río Fuy no tiene precio de base: la base son 2 cubiertas iguales que se
      cotizan como cubierta (alto 71 cm, ancho 40 cm menos que la principal),
      más el armado. */
@@ -1490,11 +1530,11 @@ var MESA_BASES = {
      Llanquihue— llevan menos madera y menos horas, así que ahí puede haber
      margen para bajarlos; se dejan igual hasta tener el precio de lista. */
   'Mesa Río Valdivia':          { modo:'largo', tramos:BASE_MADERA_RECT },
-  'Mesa Río Cochrane':          { modo:'largo', tramos:BASE_MADERA_RECT },
   'Mesa Lago Todos los Santos': { modo:'largo', tramos:BASE_MADERA_RECT },
-  'Mesa Río Trancura':          { modo:'largo', tramos:BASE_MADERA_RECT },
   'Mesa Río Bueno':             { modo:'largo', tramos:BASE_MADERA_RECT },
   'Mesa Lago Llanquihue':       { modo:'largo', tramos:BASE_MADERA_RECT },
+  'Mesa Río Cochrane':          { modo:'largo', tramos:BASE_COCHRANE },
+  'Mesa Río Trancura':          { modo:'largo', tramos:BASE_TRANCURA },
 
   /* Mesa y bancas: la base simple ($289.900) más el par de bancas. Las bancas
      le cuestan $140.000 al proveedor; aplicando el mismo margen que a la base
@@ -1505,21 +1545,24 @@ var MESA_BASES = {
      La de centro lleva base más chica que la de comedor: la Río Maullín de
      centro sale ~$100.000 contra los $289.900 de su hermana grande. */
   'Mesa de Centro Río Maullín': { modo:'largo', tramos:[
-    { hasta:110,  bajo:99900,  medio:124900, alto:149900 },
-    { hasta:9999, bajo:129900, medio:164900, alto:199900 }
+    { hasta:110,  bajo:109900, medio:129900, alto:149900 },
+    { hasta:9999, bajo:139900, medio:169900, alto:209900 }
   ]},
   'Mesa de Centro Lago Toltén': { modo:'diametro', tramos:[
-    { hasta:80,   bajo:219900, medio:234900, alto:244900 },
-    { hasta:100,  bajo:249900, medio:269900, alto:279900 },
-    { hasta:9999, bajo:279900, medio:309900, alto:329900 }
+    { hasta:80,   bajo:229900, medio:249900, alto:249900 },
+    { hasta:100,  bajo:259900, medio:279900, alto:289900 },
+    { hasta:9999, bajo:289900, medio:319900, alto:329900 }
   ]},
   /* El conjunto son DOS mesas de centro que se venden juntas. El cotizador
      cobra la cubierta por m², así que acá va la parte de las bases —las dos—
      y el vendedor ingresa la cubierta de la más grande. */
   'Mesas de Centro Río Bueno (par)': { modo:'fijo', bajo:169900, medio:189900, alto:209900, nota:'Par de bases de madera (2 mesas)' },
 
-  'Mesa y Bancas Lago Calafquén': { modo:'fijo', bajo:519900, medio:519900, alto:519900, largoExtra:30000, nota:'Base de fierro X + par de bancas' },
-  'Mesa y Bancas Río Maullín':    { modo:'fijo', bajo:519900, medio:519900, alto:519900, largoExtra:30000, nota:'Base de fierro cuadrada + par de bancas' }
+  /* Base + bancas. Siguen a la base de su modelo: al pasar Calafquén y Maullín
+     a tramos, el primer tramo quedó en $339.900, así que el conjunto sube de
+     $519.900 a $569.900 ($339.900 + $229.900 de las bancas). */
+  'Mesa y Bancas Lago Calafquén': { modo:'fijo', bajo:569900, medio:569900, alto:569900, largoExtra:30000, nota:'Base de fierro X + par de bancas' },
+  'Mesa y Bancas Río Maullín':    { modo:'fijo', bajo:569900, medio:569900, alto:569900, largoExtra:30000, nota:'Base de fierro cuadrada + par de bancas' }
 };
 /* Valor de la base según la lista de precios. Devuelve null si el modelo aún
    no tiene precio cargado — en ese caso el vendedor lo escribe a mano y el
@@ -1553,7 +1596,8 @@ function mesaBaseSugerida(modelo, largoCm, anchoCm) {
     var lbl = t.hasta >= 9999
       ? ('desde '+((anterior?anterior.hasta:cfg.tramos[0].hasta))+unidad)
       : ('hasta '+t.hasta+unidad);
-    return { bajo:t.bajo, medio:t.medio, alto:t.alto, detalle:'Base '+lbl };
+    /* si el modelo trae nota (las de fierro) se muestra en vez de "Base" */
+    return { bajo:t.bajo, medio:t.medio, alto:t.alto, detalle:(cfg.nota || 'Base')+' '+lbl };
   }
   if (cfg.modo === 'cubiertas') {
     /* Río Fuy: las patas son 2 cubiertas iguales, de alto fijo y 40 cm menos
@@ -1765,6 +1809,7 @@ function calcLive() {
   if (wrapEl) wrapEl.style.display = sinLive ? 'none' : '';
   rbAutoSync();   /* los ml del reborde dependen de las medidas Y de las cantidades */
   mesaSugerenciaRefrescar();   /* la sugerencia de base sigue al modelo y al largo */
+  vidrioAutoRefrescar();       /* el vidrio sale del modelo y la medida de la puerta */
   var bajo = 0, alto = 0;
 
   if (['cubierta','repisa','peldano'].includes(prod)) {
@@ -2594,18 +2639,23 @@ function renderDoorSub(tipo) {
           '<option value="Termopanel">Termopanel (+$47.600/m² con IVA)</option>' +
           '<option value="Biselado">Biselado (+$47.600/m² con IVA)</option>' +
         '</select>' +
+        /* El cliente ya no mide el vidrio: sale del modelo y de la medida de la
+           puerta. Al vendedor se le deja igual el campo para pisarlo a mano. */
         '<div id="vt-extra-wrap" class="hidden">' +
-          '<div class="col-labels" style="margin-top:8px">' +
-            '<div class="col-lbl">Ancho vidrio cm</div>' +
-            '<div class="col-lbl">Alto vidrio cm</div>' +
-            '<div class="col-lbl nar">Cant.</div>' +
-          '</div>' +
-          '<div class="dim-row">' +
-            '<input type="number" inputmode="decimal" placeholder="60" min="1" id="vt-an">' +
-            '<input type="number" inputmode="decimal" placeholder="40" min="1" id="vt-al">' +
-            '<input type="number" inputmode="numeric" placeholder="1" min="1" value="1" class="nar" id="vt-ca">' +
-          '</div>' +
-          '<div class="finput-hint">Medida del vidrio, no de la puerta.</div>' +
+          '<div id="vt-auto" class="finput-hint" style="margin-top:8px"></div>' +
+          (vendorMode ?
+            '<div class="col-labels" style="margin-top:8px">' +
+              '<div class="col-lbl">Ancho vidrio cm</div>' +
+              '<div class="col-lbl">Alto vidrio cm</div>' +
+              '<div class="col-lbl nar">Cant.</div>' +
+            '</div>' +
+            '<div class="dim-row">' +
+              '<input type="number" inputmode="decimal" placeholder="auto" min="1" id="vt-an">' +
+              '<input type="number" inputmode="decimal" placeholder="auto" min="1" id="vt-al">' +
+              '<input type="number" inputmode="numeric" placeholder="1" min="1" class="nar" id="vt-ca">' +
+            '</div>' +
+            '<div class="finput-hint">Solo si hay que pisar el cálculo automático.</div>'
+          : '') +
         '</div>' +
       '</div>'
     : '') +
@@ -2631,23 +2681,104 @@ function toggleVidrioExtra() {
   wrap.classList.toggle('hidden', !(vtEl && vtEl.value));
   calcLive();
 }
-/* costo del vidrio extra: por SU PROPIA medida (no la de la puerta) y su cantidad.
-   $40.000 neto/m² -> con IVA. Igual para las 3 maderas, se suma una sola vez. */
-function vidrioExtraTotal() {
-  var vtEl = document.getElementById('vt');
-  if (!vtEl || !vtEl.value) return 0;
+/* Muestra cuánto vidrio salió del cálculo, para que el cliente vea de dónde
+   viene el recargo sin tener que medir nada. */
+function vidrioAutoRefrescar() {
+  var el = document.getElementById('vt-auto');
+  if (!el) return;
+  var v = vidrioExtraM2();
+  if (v.manual) { el.textContent = 'Medida escrita a mano: ' + v.m2.toFixed(2) + ' m².'; return; }
+  if (!(v.m2 > 0)) { el.textContent = 'Escribe las medidas de la puerta y calculamos el vidrio solos.'; return; }
+  el.textContent = 'Lleva ' + v.piezas + (v.piezas === 1 ? ' vidrio' : ' vidrios') +
+    ' — ' + v.detalle + ' · ' + v.m2.toFixed(2) + ' m² en total.';
+}
+/* ── CUÁNTO VIDRIO LLEVA CADA PUERTA (21-08-2026) ──
+   El cliente no tiene por qué medir el vidrio: sale del modelo y de la medida
+   de la puerta. El marco es el mismo del protocolo del taller —batientes,
+   pieinazo y cabezales de 18 cm desde 90 cm de ancho, 15 cm bajo eso—, así que
+   el vidrio es lo que queda al descontarlo.
+
+   Referencia dada por el usuario, puerta de 200 × 100 (batiente 18):
+     ancho libre = 100 − 36 = 64 cm  ·  paño = (200 − 3×18) / 2 = 73 cm
+     Ensenada y Valdivia  2 paños de 73 × 64   (son las que más vidrio llevan)
+     Cochamó              un paño de 73 × 64, repartido en 6 piezas
+     Entrelagos           6 tiras de 16 × 64 (7 si la puerta pasa de 210)
+     Pucón                8 vidrios de 10 × 40, medida fija */
+function batientePuerta(anchoCm) { return anchoCm >= 90 ? 18 : 15; }
+var VIDRIO_MODELOS = {
+  /* 'panos': el alto libre se reparte en div partes iguales (entre paño y paño
+     va un travesaño del ancho del batiente); n dice cuántos de esos paños son
+     vidrio. 'tiras': tiras de alto fijo a todo el ancho libre. 'fijo': medida
+     propia, no depende de la puerta. */
+  'Ensenada':   { modo:'panos', div:2, n:2 },
+  'Valdivia':   { modo:'panos', div:2, n:2 },
+  'Cochamó':    { modo:'panos', div:2, n:1, partes:6 },
+  'Entrelagos': { modo:'tiras', alto:16, n:6, nAlto:7, sobreAlto:210 },
+  'Pucón':      { modo:'fijo',  n:8, al:10, an:40 }
+};
+function vidrioPuerta(modelo, altoCm, anchoCm) {
+  var cfg = VIDRIO_MODELOS[modelo];
+  if (!cfg) return null;
+  if (cfg.modo === 'fijo') {
+    return { piezas:cfg.n, al:cfg.al, an:cfg.an, m2: cfg.n * (cfg.al/100) * (cfg.an/100) };
+  }
+  if (!(altoCm > 0) || !(anchoCm > 0)) return null;
+  var b = batientePuerta(anchoCm);
+  var anLibre = anchoCm - 2*b;
+  if (anLibre <= 0) return null;
+  if (cfg.modo === 'tiras') {
+    var n = altoCm > cfg.sobreAlto ? cfg.nAlto : cfg.n;
+    return { piezas:n, al:cfg.alto, an:anLibre, m2: n * (cfg.alto/100) * (anLibre/100) };
+  }
+  var alPano = (altoCm - (cfg.div + 1) * b) / cfg.div;
+  if (alPano <= 0) return null;
+  /* Cochamó lleva el vidrio de UN paño, pero cortado en varias piezas. No se
+     inventa la medida de cada pieza —no sabemos cómo van repartidas—: se
+     informa el paño y en cuántas se divide. El precio va por el m² del paño. */
+  return { piezas:cfg.n, al:alPano, an:anLibre, reparto:cfg.partes || 0,
+           m2: cfg.n * (alPano/100) * (anLibre/100) };
+}
+/* Suma el vidrio de todas las puertas de la cotización. */
+function vidrioAutoDatos() {
+  var m2 = 0, piezas = 0, det = [];
+  for (var i = 1; i <= nrows; i++) {
+    var moEl = document.getElementById('mo'+i), lgEl = document.getElementById('lg'+i),
+        anEl = document.getElementById('an'+i), caEl = document.getElementById('ca'+i);
+    if (!moEl || !lgEl || !anEl || !lgEl.value || !anEl.value) continue;
+    var ca = parseInt(caEl && caEl.value, 10) || 1;
+    var v = vidrioPuerta(moEl.value, parseFloat(lgEl.value), parseFloat(anEl.value));
+    if (!v) continue;
+    m2 += v.m2 * ca; piezas += (v.reparto || v.piezas) * ca;
+    det.push((v.piezas*ca) + ' de ' + Math.round(v.al) + ' × ' + Math.round(v.an) + ' cm' +
+             (v.reparto ? ' (repartido en ' + v.reparto + ' piezas)' : ''));
+  }
+  return { m2:m2, piezas:piezas, detalle: det.join(' · ') };
+}
+/* costo del vidrio extra: $40.000 neto/m² -> con IVA. Igual para las 3 maderas,
+   se suma una sola vez. El m² sale solo de la puerta; el vendedor puede pisarlo
+   escribiendo una medida a mano. */
+function vidrioExtraM2() {
   var an = parseFloat((document.getElementById('vt-an')||{}).value) || 0;
   var al = parseFloat((document.getElementById('vt-al')||{}).value) || 0;
   var ca = parseInt((document.getElementById('vt-ca')||{}).value, 10) || 1;
-  if (an <= 0 || al <= 0) return 0;
-  return (an/100) * (al/100) * 40000 * 1.19 * ca;
+  if (an > 0 && al > 0) return { m2:(an/100)*(al/100)*ca, manual:true, an:an, al:al, ca:ca };
+  var a = vidrioAutoDatos();
+  return { m2:a.m2, manual:false, piezas:a.piezas, detalle:a.detalle };
+}
+function vidrioExtraTotal() {
+  var vtEl = document.getElementById('vt');
+  if (!vtEl || !vtEl.value) return 0;
+  return vidrioExtraM2().m2 * 40000 * 1.19;
 }
 function vidrioExtraDatos() {
+  var v = vidrioExtraM2();
   return {
     tipo: (document.getElementById('vt')||{}).value || '',
-    an:   parseFloat((document.getElementById('vt-an')||{}).value) || 0,
-    al:   parseFloat((document.getElementById('vt-al')||{}).value) || 0,
-    ca:   parseInt((document.getElementById('vt-ca')||{}).value, 10) || 1
+    an: v.manual ? v.an : 0,
+    al: v.manual ? v.al : 0,
+    ca: v.manual ? v.ca : (v.piezas || 0),
+    m2: v.m2,
+    detalle: v.manual ? '' : (v.detalle || '')
   };
 }
 
@@ -2926,7 +3057,9 @@ function htmlPuerta(cli, fecha) {
   }, filas.map(function(f){ return {modelo:f.mo, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2}; }));
   var vidrioNote = (vd && vd.tipo)
     ? '<div class="info-bar">Vidrio extra incluido: <strong>'+vd.tipo+'</strong>'+
-      (vd.an>0 && vd.al>0 ? ' — '+vd.an+' × '+vd.al+' cm'+(vd.ca>1?' × '+vd.ca:'') : '')+'</div>'
+      (vd.an>0 && vd.al>0
+        ? ' — '+vd.an+' × '+vd.al+' cm'+(vd.ca>1?' × '+vd.ca:'')
+        : (vd.detalle ? ' — '+escA(vd.detalle) : ''))+'</div>'
     : '';
   return shell(PNAME[prod], cli, fecha,
     vidrioNote +
