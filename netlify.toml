@@ -1,0 +1,21 @@
+# ── Despliegue de la GESTIÓN en Netlify ───────────────────────────────────
+# Netlify publica una carpeta, no un repo. Si se le apunta a la raíz sube
+# TODO: los .sql con las políticas de RLS, CLAUDE.md con los refs de los
+# proyectos, las skills, ESTRUCTURA.md. Nada de eso es secreto en sí mismo,
+# pero junto es un mapa del stack servido en una URL pública.
+#
+# Por eso se arma un dist/ con lo único que el navegador necesita: el HTML.
+# Agregar un archivo nuevo al sitio = agregarlo acá a mano, a propósito.
+[build]
+  publish = "dist"
+  command = """
+    mkdir -p dist
+    cp index.html dist/index.html
+    printf '/*\n  X-Robots-Tag: noindex, nofollow\n  X-Frame-Options: DENY\n  Referrer-Policy: no-referrer\n' > dist/_headers
+  """
+
+# La app es una sola página; cualquier ruta cae en ella.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
