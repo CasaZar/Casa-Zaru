@@ -166,6 +166,26 @@ body {
 }
 .page { display: none; }
 .page.active { display: block; }
+/* ── Ancho de las secciones ──────────────────────────────────────────────
+   Cinco páginas (Finanzas, Pixel, Costos, Gastos y Clientes) quedaron fuera
+   de .app-body y cuelgan directo del <body>, que es un flex horizontal. Como
+   ítems sueltos sin flex-grow, su ancho lo definía el CONTENIDO: Costos, con
+   poco adentro, se encogía a ~744px y quedaba corrida a la derecha; Finanzas,
+   con una tabla de 1200px, desbordaba la ventana. De ahí que al agrandar o
+   achicar la pantalla se descuadraran.
+   En vez de mover el cierre de un <div> en un archivo de 30.000 líneas —donde
+   un tag mal contado rompe el documento entero— se las trata igual que a las
+   de adentro: ocupan el espacio restante y contienen su propio scroll. */
+body > .page.active { flex: 1 1 auto; min-width: 0; overflow-x: hidden; }
+/* El espacio de la barra de scroll se reserva siempre, en <html>, que es el
+   elemento que realmente scrollea. Si no, al pasar de una sección corta a una
+   larga aparece la barra, el contenido se corre 15px y la página "salta".
+   Ojo: ponerlo en .app-body la encoge sin motivo, porque ahí el overflow-y ya
+   está en hidden y no scrollea nada. */
+html { scrollbar-gutter: stable; }
+/* Y cuando la página activa está afuera, .app-body queda vacía: si conservara
+   su flex:1 seguiría comiéndose el ancho y empujando la página al costado. */
+body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overflow: hidden; }
 .main {
   max-width: 1400px;
   margin: 0 auto;
