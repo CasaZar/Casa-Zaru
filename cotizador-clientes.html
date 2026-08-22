@@ -1522,7 +1522,15 @@ var MESA_BASES = {
   /* Río Fuy no tiene precio de base: la base son 2 cubiertas iguales que se
      cotizan como cubierta (alto 71 cm, ancho 40 cm menos que la principal),
      más el armado. */
-  'Mesa Río Fuy': { modo:'cubiertas', altoPata:0.71, menosAncho:0.40, armado:40000 },
+  /* Río Fuy calcula sus patas como 2 cubiertas, pero esa cuenta solo crece con
+     el ANCHO, así que en las mesas angostas quedaba hasta 17% bajo el precio
+     publicado. Lleva piso por tramo de largo, igual que el resto (21-08-2026). */
+  'Mesa Río Fuy': { modo:'cubiertas', altoPata:0.71, menosAncho:0.40, armado:40000, piso:[
+    { hasta:180,  bajo:229900, medio:299900, alto:349900 },
+    { hasta:240,  bajo:269900, medio:349900, alto:439900 },
+    { hasta:300,  bajo:269900, medio:349900, alto:439900 },
+    { hasta:9999, bajo:299900, medio:379900, alto:469900 }
+  ]},
 
   /* ── LOS QUE ESTABAN SIN PRECIO (ago 2026) ──
      Salían como "a convenir" y no se le ofrecían al público. No están en la
@@ -1609,7 +1617,16 @@ function mesaBaseSugerida(modelo, largoCm, anchoCm) {
     var anchoPata = (anchoCm/100) - cfg.menosAncho;
     if (anchoPata <= 0) return null;
     var m2Patas = 2 * cfg.altoPata * anchoPata;
-    function porTier(tier){ return Math.round(m2Patas * PR.cubierta[tier] + cfg.armado); }
+    /* piso por tramo de largo: la cuenta de las patas no depende del largo, así
+       que sin esto una mesa angosta se vendía bajo el precio publicado. */
+    var pisoTr = null;
+    if (cfg.piso && largoCm > 0) {
+      for (var k = 0; k < cfg.piso.length; k++) { if (largoCm <= cfg.piso[k].hasta) { pisoTr = cfg.piso[k]; break; } }
+    }
+    function porTier(tier){
+      var v = Math.round(m2Patas * PR.cubierta[tier] + cfg.armado);
+      return (pisoTr && pisoTr[tier] > v) ? pisoTr[tier] : v;
+    }
     return { bajo:porTier('bajo'), medio:porTier('medio'), alto:porTier('alto'),
              detalle:'2 patas de '+Math.round(cfg.altoPata*100)+' × '+Math.round(anchoPata*100)+' cm + armado' };
   }
@@ -2290,7 +2307,9 @@ function mesaSugerenciaRefrescar() {
          '<button type="button" class="ms-ergo-x" onclick="ergoCerrar()" title="No mostrar esta sugerencia">✕</button>')
       : '';
   }
-  var sug = m ? mesaBaseSugerida(m, lg, 0) : null;
+  /* el ancho va de verdad, no 0: Río Fuy calcula sus patas como dos cubiertas y
+     con ancho 0 devolvía null, así que su base salía $0 (21-08-2026) */
+  var sug = m ? mesaBaseSugerida(m, lg, an) : null;
   window._mesaSug = sug;
   ['fierro','madera'].forEach(function(tipo){
     var el = document.getElementById('ms-sug-' + tipo);
@@ -2305,8 +2324,9 @@ function mesaSugerenciaRefrescar() {
 /* base sugerida del modelo elegido con el largo de la pieza 1 (o null) */
 function mesaSugerido(){
   var m = mesaModeloActual(); if (!m) return null;
-  var lgEl = document.getElementById('lg1');
-  return mesaBaseSugerida(m, parseFloat((lgEl&&lgEl.value)||0)||0, 0);
+  var lgEl = document.getElementById('lg1'), anEl = document.getElementById('an1');
+  return mesaBaseSugerida(m, parseFloat((lgEl&&lgEl.value)||0)||0,
+                             parseFloat((anEl&&anEl.value)||0)||0);
 }
 function mesaSugerenciaUsar() {
   var sug = window._mesaSug; if (!sug) return;
@@ -2646,19 +2666,22 @@ function renderDoorSub(tipo) {
            puerta. Al vendedor se le deja igual el campo para pisarlo a mano. */
         '<div id="vt-extra-wrap" class="hidden">' +
           '<div id="vt-auto" class="finput-hint" style="margin-top:8px"></div>' +
-          (vendorMode ?
+          /* Los campos van SIEMPRE en el DOM. vidrioAutoRefrescar() decide si se
+             muestran: se ocultan cuando el cálculo dio un resultado, y aparecen
+             en el granero (que no tiene fórmula) y para el vendedor. */
+          '<div id="vt-manual" class="hidden">' +
             '<div class="col-labels" style="margin-top:8px">' +
               '<div class="col-lbl">Ancho vidrio cm</div>' +
               '<div class="col-lbl">Alto vidrio cm</div>' +
               '<div class="col-lbl nar">Cant.</div>' +
             '</div>' +
             '<div class="dim-row">' +
-              '<input type="number" inputmode="decimal" placeholder="auto" min="1" id="vt-an">' +
-              '<input type="number" inputmode="decimal" placeholder="auto" min="1" id="vt-al">' +
+              '<input type="number" inputmode="decimal" placeholder="60" min="1" id="vt-an">' +
+              '<input type="number" inputmode="decimal" placeholder="40" min="1" id="vt-al">' +
               '<input type="number" inputmode="numeric" placeholder="1" min="1" class="nar" id="vt-ca">' +
             '</div>' +
-            '<div class="finput-hint">Solo si hay que pisar el cálculo automático.</div>'
-          : '') +
+            '<div class="finput-hint">Medida del vidrio, no de la puerta.</div>' +
+          '</div>' +
         '</div>' +
       '</div>'
     : '') +
@@ -2689,11 +2712,25 @@ function toggleVidrioExtra() {
 function vidrioAutoRefrescar() {
   var el = document.getElementById('vt-auto');
   if (!el) return;
+  var man = document.getElementById('vt-manual');
+  function verManual(si){ if (man) man.classList.toggle('hidden', !si); }
   var v = vidrioExtraM2();
-  if (v.manual) { el.textContent = 'Medida escrita a mano: ' + v.m2.toFixed(2) + ' m².'; return; }
-  if (!(v.m2 > 0)) { el.textContent = 'Escribe las medidas de la puerta y calculamos el vidrio solos.'; return; }
-  el.textContent = 'Lleva ' + v.piezas + (v.piezas === 1 ? ' vidrio' : ' vidrios') +
-    ' — ' + v.detalle + ' · ' + v.m2.toFixed(2) + ' m² en total.';
+  if (v.manual) {
+    el.textContent = 'Medida escrita a mano: ' + v.m2.toFixed(2) + ' m².';
+    verManual(true); return;
+  }
+  if (v.m2 > 0) {
+    el.textContent = 'Lleva ' + v.piezas + (v.piezas === 1 ? ' vidrio' : ' vidrios') +
+      ' — ' + v.detalle + ' · ' + v.m2.toFixed(2) + ' m² en total.';
+    verManual(vendorMode);   /* al cliente no se le pide medir; el vendedor puede pisarlo */
+    return;
+  }
+  /* Sin fórmula (granero) o sin medidas todavía. En el granero hay que pedir la
+     medida sí o sí: si no, el vidrio extra se cobraría $0. */
+  el.textContent = v.conFormula
+    ? 'Escribe las medidas de la puerta y calculamos el vidrio solos.'
+    : 'Escribe la medida del vidrio que quieres agregar.';
+  verManual(!v.conFormula || v.conMedidas);
 }
 /* ── CUÁNTO VIDRIO LLEVA CADA PUERTA (21-08-2026) ──
    El cliente no tiene por qué medir el vidrio: sale del modelo y de la medida
@@ -2741,13 +2778,20 @@ function vidrioPuerta(modelo, altoCm, anchoCm) {
   return { piezas:cfg.n, al:alPano, an:anLibre, reparto:cfg.partes || 0,
            m2: cfg.n * (alPano/100) * (anLibre/100) };
 }
-/* Suma el vidrio de todas las puertas de la cotización. */
+/* Suma el vidrio de todas las puertas de la cotización.
+   conFormula: si algún modelo de la cotización tiene fórmula. Las puertas
+   granero ofrecen vidrio extra pero NO están en VIDRIO_MODELOS, así que ahí
+   hay que seguir pidiendo la medida a mano o el recargo saldría $0.
+   conMedidas: si ya hay al menos una puerta con alto y ancho escritos. */
 function vidrioAutoDatos() {
-  var m2 = 0, piezas = 0, det = [];
+  var m2 = 0, piezas = 0, det = [], conFormula = false, conMedidas = false;
   for (var i = 1; i <= nrows; i++) {
     var moEl = document.getElementById('mo'+i), lgEl = document.getElementById('lg'+i),
         anEl = document.getElementById('an'+i), caEl = document.getElementById('ca'+i);
-    if (!moEl || !lgEl || !anEl || !lgEl.value || !anEl.value) continue;
+    if (!moEl) continue;
+    if (VIDRIO_MODELOS[moEl.value]) conFormula = true;
+    if (!lgEl || !anEl || !lgEl.value || !anEl.value) continue;
+    conMedidas = true;
     var ca = parseInt(caEl && caEl.value, 10) || 1;
     var v = vidrioPuerta(moEl.value, parseFloat(lgEl.value), parseFloat(anEl.value));
     if (!v) continue;
@@ -2755,7 +2799,7 @@ function vidrioAutoDatos() {
     det.push((v.piezas*ca) + ' de ' + Math.round(v.al) + ' × ' + Math.round(v.an) + ' cm' +
              (v.reparto ? ' (repartido en ' + v.reparto + ' piezas)' : ''));
   }
-  return { m2:m2, piezas:piezas, detalle: det.join(' · ') };
+  return { m2:m2, piezas:piezas, detalle: det.join(' · '), conFormula:conFormula, conMedidas:conMedidas };
 }
 /* costo del vidrio extra: $40.000 neto/m² -> con IVA. Igual para las 3 maderas,
    se suma una sola vez. El m² sale solo de la puerta; el vendedor puede pisarlo
@@ -2766,7 +2810,8 @@ function vidrioExtraM2() {
   var ca = parseInt((document.getElementById('vt-ca')||{}).value, 10) || 1;
   if (an > 0 && al > 0) return { m2:(an/100)*(al/100)*ca, manual:true, an:an, al:al, ca:ca };
   var a = vidrioAutoDatos();
-  return { m2:a.m2, manual:false, piezas:a.piezas, detalle:a.detalle };
+  return { m2:a.m2, manual:false, piezas:a.piezas, detalle:a.detalle,
+           conFormula:a.conFormula, conMedidas:a.conMedidas };
 }
 function vidrioExtraTotal() {
   var vtEl = document.getElementById('vt');
@@ -6044,9 +6089,22 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('btn-q-s1').addEventListener('click', function() { show('s1'); });
   document.getElementById('btn-q-s2').addEventListener('click', function() { show('s2'); });
   var params = new URLSearchParams(window.location.search);
-  /* cotizador de landing solo-cubiertas (?prod=cubierta): sin selector de producto, sin extras.
-     El cotizador publico general (con o sin ?src=) y el privado (?pro=zr) no cambian. */
-  cubiertaSolo = (params.get('prod') === 'cubierta');
+  /* ── ENLACE DIRECTO POR PRODUCTO (?prod=…) ──
+     Para el botón "Cotiza el tuyo" de cada landing de casazaru.cl: el link
+     abre el cotizador ya parado en ese producto, sin pasar por el selector.
+     Se aceptan singular y plural porque los links se escriben a mano.
+     ?prod=cubierta sigue siendo además el landing SIMPLIFICADO de siempre
+     (sin botón de volver y sin extras); los demás conservan "← Inicio". */
+  var PROD_ALIAS = {
+    cubierta:'cubierta', cubiertas:'cubierta',
+    repisa:'repisa', repisas:'repisa',
+    peldano:'peldano', peldanos:'peldano', 'peldaño':'peldano', 'peldaños':'peldano',
+    puerta:'puertas', puertas:'puertas',
+    mesa:'mesa', mesas:'mesa',
+    revestimiento:'revestimiento', revestimientos:'revestimiento'
+  };
+  var prodDirecto = PROD_ALIAS[(params.get('prod') || '').trim().toLowerCase()] || '';
+  cubiertaSolo = (prodDirecto === 'cubierta');
   if (cubiertaSolo) {
     document.getElementById('btn-back').classList.add('hidden');
     document.getElementById('btn-q-s1').classList.add('hidden');
@@ -6100,9 +6158,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }).catch(function(){ show('s-login'); });
   } else if (params.get('s')) {
-    loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) { if (cubiertaSolo) initProd('cubierta'); else show('s1'); } });
+    loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) { if (prodDirecto) initProd(prodDirecto); else show('s1'); } });
   } else if (!loadFromHash()) {
-    if (cubiertaSolo) initProd('cubierta'); else show('s1');
+    if (prodDirecto) initProd(prodDirecto); else show('s1');
   }
 });
 </script>
