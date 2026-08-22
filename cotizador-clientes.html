@@ -2644,7 +2644,12 @@ function rvDatos() {
 }
 
 function renderDoorSub(tipo) {
-  var hasExtra = tipo === 'granero' || tipo === 'vidrios';
+  /* Solo las puertas CON vidrio ofrecen el vidrio especial. Las granero
+     estaban incluidas y no corresponde: la ficha de la tienda las describe
+     macizas de 4 cm y no traen ningún paño que se pueda cambiar por termopanel
+     o biselado, así que la opción confundía y no tenía qué cotizar
+     (21-08-2026). Las macizas nunca la mostraron. */
+  var hasExtra = tipo === 'vidrios';
   var opts = (MODELOS[tipo]||[]).map(function(m){ return '<option>'+m+'</option>'; }).join('');
   var sub = document.getElementById('door-sub');
   if (!sub) return;
@@ -3070,7 +3075,7 @@ function htmlCubierta(cli, fecha) {
 }
 
 function htmlPuerta(cli, fecha) {
-  var hasExtra = prod==='granero'||prod==='vidrios';
+  var hasExtra = prod==='vidrios';   /* solo las puertas con vidrio, ver renderDoorSub */
   var filas=[];
   for (var i=1; i<=nrows; i++) {
     var moEl=document.getElementById('mo'+i), lgEl=document.getElementById('lg'+i), anEl=document.getElementById('an'+i), caEl=document.getElementById('ca'+i);
