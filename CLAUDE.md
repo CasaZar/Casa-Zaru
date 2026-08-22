@@ -10,12 +10,17 @@ El backend es **Supabase**, no Firebase (migrado). Tres proyectos:
 
 | Ref | Nombre en el panel | Qué tiene |
 |---|---|---|
-| `padnttpgzuotxeipjrry` | «Cotizador clientes» ⚠️ | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, y además `cotizaciones` / `cotizacion_lineas` / `quote_links` |
-| `cmxqorsyxoltrakxawro` | «cotizador-interno» | El cotizador público y el panel de seguimiento (`cotizador_valores`, `toques`, `config_seguimiento`) |
+| `padnttpgzuotxeipjrry` | «ZARU · Gestión (pedidos, finanzas, costos)» | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, y además `cotizaciones` / `cotizacion_lineas` / `quote_links` |
+| `cmxqorsyxoltrakxawro` | «ZARU · Cotizador (público y panel)» | El cotizador público y el panel de seguimiento (`cotizador_valores`, `toques`, `config_seguimiento`) |
 | `rmktkhjteghbheyrkfxs` | — | No es Casa Zaru. No tocar. |
 
-⚠️ El nombre del panel engaña: **`padnttpgzuotxeipjrry` es el de la app de Gestión**, aunque se llame
-«Cotizador clientes». Guiarse siempre por el `ref` de la URL. PostgreSQL 17.6.
+Los proyectos se renombraron el 22 ago 2026 justo para esto: antes el de la Gestión se llamaba
+«Cotizador clientes», que era al revés de lo que uno espera, y se prestaba a tocar el proyecto
+equivocado. Renombrar es seguro: el `ref`, las keys y los endpoints no cambian.
+
+**Guiarse igual por el `ref` de la URL**, que es el identificador real y no depende de cómo se
+llame el proyecto en el panel. PostgreSQL 17.6. Ambos están en la organización CasaZaru
+(`ivbgokwoajlrqmruervf`), plan Free.
 
 
 ## Alcance del módulo de gastos
