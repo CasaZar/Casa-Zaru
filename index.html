@@ -483,6 +483,17 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .seg-col-hoy .hoy-acciones { flex:1 1 100%;justify-content:flex-start;margin-top:7px; }
 .seg-col-hoy .hoy-btn { flex:0 1 auto; }
 .hoy-board { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:16px 18px;margin-bottom:18px; }
+/* ── Post-entrega ──
+   El "¿lo recibió?" va acá abajo, plegado y en gris: el pedido ya salió y el
+   cliente ya lo tiene. Arriba queda solo lo que urge, que es informar a quien
+   TODAVÍA espera. */
+.hoy-post { margin-top:14px;border-top:1px dashed var(--border-md);padding-top:10px; }
+.hoy-post-head { display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:6px 0;cursor:pointer;font-size:12px;font-weight:600;color:var(--text-3);text-align:left; }
+.hoy-post-head:hover { color:var(--wood); }
+.hoy-post-flecha { font-size:10px;width:10px;flex-shrink:0; }
+.hoy-post-cnt { margin-left:auto;background:var(--surface2);color:var(--text-3);font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px; }
+.hoy-post-body { margin-top:4px; }
+.hoy-post-body .hoy-item { opacity:.85; }
 .hoy-head { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;flex-wrap:wrap; }
 .hoy-title { font-size:14px;font-weight:700;color:var(--text); }
 .hoy-count { font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px; }
@@ -27229,7 +27240,13 @@ function restaurarTablero(){
 }
 function renderSegHoy(){
   var el=document.getElementById('seg-hoy');if(!el)return;
-  var r=avisosPendientes(),lista=r.lista;
+  var r=avisosPendientes(),todo=r.lista;
+  // El "¿lo recibió?" es POST-entrega: el pedido ya salió y el cliente ya lo
+  // tiene. Mezclado con los avisos de pedidos que todavía no despachan inflaba
+  // el contador y tapaba lo que de verdad urge, que es tener informado a quien
+  // AÚN espera su pedido. Va en su propio bloque y no suma al contador.
+  var postentrega=todo.filter(function(p){return p.avisoId==='recibido';});
+  var lista=todo.filter(function(p){return p.avisoId!=='recibido';});
   var cambios=lista.filter(function(p){return p.urgente;});
   var atrasados=lista.filter(function(p){return p.atrasado&&!p.urgente;});
   var alDia=lista.filter(function(p){return!p.atrasado&&!p.urgente;});
@@ -27238,10 +27255,12 @@ function renderSegHoy(){
   var plegado=document.getElementById('seg-split')&&document.getElementById('seg-split').classList.contains('sin-tablero');
   var btnPlegar='<button class="btn-ghost" style="font-size:11px;padding:3px 9px;margin:0" onclick="toggleTablero()" title="'+(plegado?'Mostrar el tablero':'Ocultar el tablero y dar todo el ancho a los pedidos')+'">'+(plegado?'▸':'◂')+'</button>';
   var head='<div class="hoy-head"><div class="hoy-title">📣 Hoy hay que avisar</div><div style="display:flex;align-items:center;gap:8px"><div class="hoy-count" style="'+badgeBg+'">'+lista.length+(lista.length===1?' pendiente':' pendientes')+'</div>'+btnPlegar+'</div></div>';
-  if(!lista.length){el.innerHTML=head+'<div class="hoy-sub" style="color:var(--green);font-weight:600">✓ Todo al día, no hay avisos pendientes.</div>'+pieCaducados;return;}
   function bloque(titulo,color,items){
     if(!items.length)return'';
-    return'<div class="hoy-grupo" style="color:'+color+'">'+titulo+' ('+items.length+')</div>'+items.map(function(p){
+    // Sin título no se dibuja la cabecera: el bloque post-entrega ya trae la
+    // suya con el contador, y repetirla se veía duplicado.
+    var cab=titulo?'<div class="hoy-grupo" style="color:'+color+'">'+titulo+' ('+items.length+')</div>':'';
+    return cab+items.map(function(p){
       var fin=finRecords.find(function(x){return String(x.num||'')===p.numStr;});
       var cel=fin?String(fin.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
       var wa=cel?'<a class="hoy-btn wa" target="_blank" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(p.msg)+'" onclick="marcarAviso(\''+p.numStr+'\',\''+p.avisoId+'\')">Abrir WhatsApp</a>':'<span class="hoy-sub">Sin número</span>';
@@ -27250,7 +27269,30 @@ function renderSegHoy(){
       return'<div class="hoy-item"><div class="hoy-dot" style="background:'+p.color+'"></div><div class="hoy-info"><div class="hoy-cli">#'+esc(p.numStr)+' '+esc(p.nombre)+'</div><div class="hoy-tag" style="color:'+p.color+'">'+p.tag+'</div><div class="hoy-sub">'+esc(p.sub)+'</div></div><div class="hoy-acciones">'+wa+hecho+excusa+'</div></div>';
     }).join('');
   }
-  el.innerHTML=head+bloque('Cambió la fecha de envío','#993556',cambios)+bloque('Atrasados','#993556',atrasados)+bloque('Para hoy','#4E7A1B',alDia)+pieCaducados;
+  // Post-entrega aparte, plegado por defecto: es seguimiento de cortesía, no
+  // se pierde nada si se hace mañana. Lo de arriba sí.
+  var post='';
+  if(postentrega.length){
+    var abierto=window._hoyPostAbierto?' abierto':'';
+    post='<div class="hoy-post'+abierto+'">'+
+      '<button class="hoy-post-head" onclick="togglePostEntrega()">'+
+        '<span class="hoy-post-flecha">'+(abierto?'▾':'▸')+'</span>'+
+        '<span>Ya lo recibieron · seguimiento post-entrega</span>'+
+        '<span class="hoy-post-cnt">'+postentrega.length+'</span>'+
+      '</button>'+
+      (abierto?'<div class="hoy-post-body">'+bloque('','#4E7A1B',postentrega)+'</div>':'')+
+    '</div>';
+  }
+  var cuerpo=lista.length
+    ?bloque('Cambió la fecha de envío','#993556',cambios)+bloque('Atrasados','#993556',atrasados)+bloque('Para hoy','#4E7A1B',alDia)
+    :'<div class="hoy-sub" style="color:var(--green);font-weight:600">✓ Todo al día con los pedidos por salir.</div>';
+  el.innerHTML=head+cuerpo+post+pieCaducados;
+}
+// El bloque post-entrega recuerda si quedó abierto, para no cerrarse solo cada
+// vez que se marca un aviso y se vuelve a dibujar el tablero.
+function togglePostEntrega(){
+  window._hoyPostAbierto=!window._hoyPostAbierto;
+  renderSegHoy();
 }
 // Marcar desde el tablero es exactamente lo mismo que marcar el check en la tabla.
 function marcarAviso(numStr,avisoId){
