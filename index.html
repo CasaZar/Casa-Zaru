@@ -672,6 +672,31 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .vend-btn { padding:9px 16px;min-height:42px;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s; }
 .vend-btn:hover { border-color:var(--wood); }
 .vend-btn.on { background:var(--wood);color:#fff;border-color:var(--wood); }
+/* ── Contactos pendientes del tablero ──
+   La fila entera abre WhatsApp: en el teléfono apuntarle a un botón de 11px
+   era incómodo, y esta lista existe para escribirle al cliente. */
+.cont-row { display:flex;align-items:center;gap:10px;padding:12px 8px;margin:0 -8px;border-bottom:1px solid var(--border-lt);border-radius:8px;transition:background .12s; }
+.cont-row:hover { background:var(--surface2); }
+.cont-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+.cont-info { flex:1;min-width:0; }
+.cont-nom { font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+.cont-tag { font-size:11px;font-weight:600; }
+.cont-sub { font-size:11px;color:var(--text-3); }
+.cont-semana { font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;background:var(--wood);color:#fff;padding:2px 7px;border-radius:999px;white-space:nowrap; }
+.cont-acciones { display:flex;gap:6px;flex-shrink:0; }
+.cont-wa { display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;font-size:12px;font-weight:600;padding:8px 14px;border-radius:8px;text-decoration:none;white-space:nowrap;border:none;cursor:pointer;min-height:38px; }
+.cont-wa-off { background:var(--surface2);color:var(--text-3);border:1px dashed var(--border-md); }
+.cont-done { background:none;border:1px solid var(--border-md);color:var(--text-3);font-size:12px;padding:8px 12px;border-radius:8px;cursor:pointer;white-space:nowrap;min-height:38px; }
+.cont-done:hover { border-color:var(--wood);color:var(--wood); }
+@media (max-width:768px){
+  /* En el teléfono los botones van abajo y ocupan el ancho, que es donde
+     realmente se usa esta lista. */
+  .cont-row { flex-wrap:wrap; }
+  .cont-info { flex:1 1 100%; }
+  .cont-acciones { flex:1 1 100%; }
+  .cont-wa { flex:2;justify-content:center;min-height:44px; }
+  .cont-done { flex:1;text-align:center;min-height:44px; }
+}
 /* Muestrario / devolución: se ven distinto para no confundirlos con una venta */
 .tipo-badge { display:inline-block;margin-top:3px;padding:2px 8px;border-radius:999px;font-size:9px;font-weight:700;color:#fff;letter-spacing:.04em;text-transform:uppercase; }
 .tipo-btn { background:none;border:none;cursor:pointer;font-size:12px;opacity:.35;padding:2px 4px;transition:opacity .15s; }
@@ -30997,6 +31022,17 @@ function renderMeta(){
   html+='</div>';
   metaEl.innerHTML=html;
 }
+// ¿Esta fecha cae en la semana en curso? Se toma de lunes a domingo, que es
+// como se habla en el taller ("esta semana despachamos X"), no los 7 días
+// siguientes a hoy.
+function _esEstaSemana(d){
+  if(!d||isNaN(d))return false;
+  var lun=new Date();lun.setHours(0,0,0,0);
+  var dow=(lun.getDay()+6)%7;          // 0 = lunes
+  lun.setDate(lun.getDate()-dow);
+  var dom=new Date(lun);dom.setDate(dom.getDate()+7);
+  return d>=lun&&d<dom;
+}
 function renderContactosPendientes(){
   var hoy=new Date();hoy.setHours(0,0,0,0);
   var pendientes=[];
@@ -31009,38 +31045,101 @@ function renderContactosPendientes(){
     var semana=o.semana||'';
     var fechaC=o.fecha_creacion||(fin&&(fin.fecha_creacion||fin.fecha))||'';
     var diaC=null;
-    if(fechaC){var pts=fechaC.split('/');diaC=pts.length===3?new Date(pts[2]+'-'+pts[1]+'-'+pts[0]+'T12:00:00'):new Date(fechaC+'T12:00:00');}
+    // Las fechas se guardan sin rellenar con cero ("18/8/2026"), y armar el
+    // ISO así daba "2026-8-18T12:00:00", que es Invalid Date: con la T el
+    // parser exige dos dígitos. El aviso de "confirmar producción" no salía
+    // nunca para los meses 1 al 9 — o sea, casi todo el año, en silencio.
+    if(fechaC){
+      var pts=String(fechaC).split('/');
+      diaC=pts.length===3
+        ?new Date(pts[2]+'-'+String(pts[1]).padStart(2,'0')+'-'+String(pts[0]).padStart(2,'0')+'T12:00:00')
+        :new Date(fechaC+'T12:00:00');
+    }
     if(diaC&&!isNaN(diaC)){
       var d1=Math.round((hoy-diaC)/86400000);
       if(d1>=3&&d1<=6&&!(o.contactos&&o.contactos.c1)){
         var msg1='Hola '+nombre+'! 👋 Te escribimos desde Casa Zaru para confirmarte que tu pedido #'+numStr+' ('+producto+') ya está en producción. En breve te avisamos la fecha exacta de entrega 🪵';
-        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c1',tag:'Confirmar producción',sub:'Día '+d1+' desde la compra',color:'var(--brand)',msg:msg1});
+        var _dEc1=fechaEnvioPedido(o);
+        var _dfeC1=(_dEc1&&!isNaN(_dEc1))?Math.round((_dEc1-hoy)/86400000):999;
+        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c1',tag:'Confirmar producción',sub:'Día '+d1+' desde la compra',color:'var(--brand)',msg:msg1,dfe:_dfeC1,estaSemana:(_dEc1&&!isNaN(_dEc1))?_esEstaSemana(_dEc1):false});
       }
     }
-    if(o.dia_envio){
-      var dE=new Date(o.dia_envio+'T12:00:00');
+    // fechaEnvioPedido deduce la fecha desde la semana cuando no hay día de
+    // envío cargado. Antes se leía o.dia_envio directo, así que todo pedido sin
+    // ese campo NUNCA generaba aviso de entrega ni de despacho: el cliente se
+    // quedaba sin saber, y en el tablero no aparecía nada.
+    var dE=fechaEnvioPedido(o);
+    if(dE&&!isNaN(dE)){
       var dfe=Math.round((dE-hoy)/86400000);
       var fechaEnvStr=dE.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
-      if(dfe>=5&&dfe<=8&&!(o.contactos&&o.contactos.c2)){
+      var estaSemana=_esEstaSemana(dE);
+      // Desde 3 días, no desde 5: c3 cubre 0-2 y c2 cubría 5-8, así que un
+      // pedido que despachaba en 3 o 4 días caía en el hueco y no generaba
+      // ningún aviso. Ahora las dos ventanas se tocan y no queda nadie afuera.
+      if(dfe>=3&&dfe<=8&&!(o.contactos&&o.contactos.c2)){
         var msg2='Hola '+nombre+'! 😊 Tu pedido de Casa Zaru (#'+numStr+' - '+producto+') estará listo para despacho el '+fechaEnvStr+'. Te confirmamos en cuanto salga 🚛';
-        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c2',tag:'Avisar semana de entrega',sub:'Envío en '+dfe+' días ('+fechaEnvStr+')',color:'var(--amber)',msg:msg2});
+        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c2',tag:'Avisar semana de entrega',sub:'Envío en '+dfe+' días ('+fechaEnvStr+')',color:'var(--amber)',msg:msg2,dfe:dfe,estaSemana:estaSemana});
       }
       if(dfe>=0&&dfe<=2&&!(o.contactos&&o.contactos.c3)){
         var msg3='Hola '+nombre+'! 🎉 Tu pedido de Casa Zaru (#'+numStr+') sale '+(dfe===0?'hoy':dfe===1?'mañana':'muy pronto')+' para despacho. ¡Muchas gracias por tu compra! 🪵✨';
-        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c3',tag:'Avisar despacho',sub:dfe===0?'¡HOY!':dfe===1?'Mañana':'En '+dfe+' días',color:'var(--red)',msg:msg3});
+        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c3',tag:'Avisar despacho',sub:dfe===0?'¡HOY!':dfe===1?'Mañana':'En '+dfe+' días',color:'var(--red)',msg:msg3,dfe:dfe,estaSemana:estaSemana});
       }
     }
   });
+  // Orden: lo que se despacha antes, primero. Como los avisos siguen el ciclo
+  // del pedido (confirmar producción → avisar semana → avisar despacho), y el
+  // despacho de un pedido recién ingresado está lejos, ordenar por días hasta
+  // el envío deja la lista en el orden natural del proceso y además pone
+  // arriba lo urgente. Antes salía en el orden en que estaban los pedidos.
+  pendientes.sort(function(a,b){
+    var da=(a.dfe===undefined?999:a.dfe),db=(b.dfe===undefined?999:b.dfe);
+    if(da!==db)return da-db;
+    return Number(a.numStr||0)-Number(b.numStr||0);
+  });
   var el=document.getElementById('dash-contactos'),cnt=document.getElementById('dash-contactos-count');
-  if(cnt)cnt.textContent=pendientes.length+(pendientes.length===1?' contacto':' contactos');
+  var nSemana=pendientes.filter(function(p){return p.estaSemana;}).length;
+  if(cnt)cnt.textContent=pendientes.length+(pendientes.length===1?' contacto':' contactos')+(nSemana?' · '+nSemana+' esta semana':'');
   if(!el)return;
   if(!pendientes.length){el.innerHTML='<div class="empty-dash" style="color:var(--green)">&#10003; Sin contactos pendientes</div>';return;}
   el.innerHTML=pendientes.map(function(p){
     var waUrl=p.cel?'https://wa.me/56'+p.cel+'?text='+encodeURIComponent(p.msg):'';
-    var waBtn=waUrl?'<a href="'+waUrl+'" target="_blank" onclick="marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')" style="display:inline-flex;align-items:center;gap:5px;background:#25D366;color:#fff;font-size:11px;font-weight:600;padding:5px 12px;border-radius:6px;text-decoration:none;white-space:nowrap">📲 Abrir WA</a>':'<span style="font-size:11px;color:var(--text-3)">Sin número</span>';
-    var doneBtn='<button onclick="marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')" style="background:none;border:1px solid var(--border-md);color:var(--text-3);font-size:11px;padding:5px 10px;border-radius:6px;cursor:pointer;white-space:nowrap">✓ Ya enviado</button>';
-    return'<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-lt)"><div style="width:8px;height:8px;border-radius:50%;background:'+p.color+';flex-shrink:0"></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text)">#'+p.numStr+' '+p.nombre+'</div><div style="font-size:11px;color:'+p.color+';font-weight:600">'+p.tag+'</div><div style="font-size:11px;color:var(--text-3)">'+p.sub+'</div></div><div style="display:flex;gap:6px;flex-shrink:0">'+waBtn+doneBtn+'</div></div>';
+    // Sin número no se puede escribir: en vez de dejar un cartel muerto, el
+    // botón lleva a Finanzas a cargar el celular, que es lo que hay que hacer.
+    var waBtn=waUrl
+      ?'<a class="cont-wa" href="'+waUrl+'" target="_blank" onclick="event.stopPropagation();marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')">📲 Escribir</a>'
+      :'<button class="cont-wa cont-wa-off" onclick="event.stopPropagation();irACargarCelular(\''+p.numStr+'\')" title="Este pedido no tiene celular cargado">📵 Falta celular</button>';
+    var doneBtn='<button class="cont-done" onclick="event.stopPropagation();marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')">✓ Ya enviado</button>';
+    // Toda la fila abre WhatsApp: en el teléfono apuntarle a un botón chico es
+    // incómodo, y esta lista se usa para escribirle al cliente, no para leerla.
+    var rowClick=waUrl?' onclick="window.open(\''+waUrl.replace(/'/g,"%27")+'\',\'_blank\');marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')" style="cursor:pointer"':'';
+    var badgeSemana=p.estaSemana?'<span class="cont-semana">Se envía esta semana</span>':'';
+    return'<div class="cont-row"'+rowClick+'><div class="cont-dot" style="background:'+p.color+'"></div><div class="cont-info"><div class="cont-nom">#'+p.numStr+' '+esc(p.nombre)+badgeSemana+'</div><div class="cont-tag" style="color:'+p.color+'">'+p.tag+'</div><div class="cont-sub">'+p.sub+'</div></div><div class="cont-acciones">'+waBtn+doneBtn+'</div></div>';
   }).join('');
+}
+// Sin celular no hay a quién escribirle. En vez de un cartel muerto que dice
+// "Sin número", se lleva al usuario justo al lugar donde se carga.
+function irACargarCelular(numStr){
+  var idx=finRecords.findIndex(function(r){return String(r.num||'')===String(numStr);});
+  if(idx<0){showToast('El pedido '+numStr+' no está en Finanzas');return;}
+  // El botón de la pestaña se pasa para que quede marcada; showPage sin él
+  // deja la navegación sin ninguna activa.
+  var tab=document.querySelector('.nav-tab[onclick*="\'fin\'"]');
+  showPage('fin',tab);
+  // showPage dispara loadFin(), que es asíncrono y vuelve a renderizar. Se
+  // espera a que el registro exista en el DOM antes de abrir el modal, en vez
+  // de adivinar con un timeout fijo.
+  var intentos=0;
+  (function abrir(){
+    intentos++;
+    var i2=finRecords.findIndex(function(r){return String(r.num||'')===String(numStr);});
+    if(i2>=0&&document.getElementById('modal-fin-bg')){
+      var b=document.getElementById('fin-search');if(b){b.value=numStr;renderFin();}
+      openFinModal(i2);
+      showToast('Cargá el celular de este pedido y volvé al tablero');
+      return;
+    }
+    if(intentos<20)setTimeout(abrir,150);
+  })();
 }
 async function marcarContacto(numStr,tipo){
   if(!DB_URL||!numStr)return;
