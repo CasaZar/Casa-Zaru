@@ -7,6 +7,13 @@ Thumbs.db
 .env
 .mcp.json
 
+# La llave service_role y los snapshots del analisis viven en
+# C:\Users\dell\.casazaru\ — FUERA de este repo, que es publico. Estas reglas
+# son por si alguna vez alguien mueve una copia para adentro sin pensarlo.
+config.local.ps1
+.casazaru/
+snapshots/
+
 # Planillas: este repo es PUBLICO y los Excel del negocio traen sueldos con
 # nombre y apellido, datos de clientes y movimientos bancarios. Los exports que
 # genera la app (zaru_mayor_*.xlsx, zaru_costos_*.xlsx, etc.) son lo mismo.
