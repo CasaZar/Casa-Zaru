@@ -29,15 +29,23 @@ security definer
 set search_path = public
 as $$
 declare
-  v_id bigint;
+  -- uuid, NO bigint: cotizaciones.id y cotizacion_lineas.cotizacion_id son
+  -- uuid (verificado contra la base el 24-08-2026). Con bigint la función
+  -- reventaba al crearse.
+  v_id uuid;
 begin
   if p_numero is null or p_lineas is null then return; end if;
+  -- la función es pública: si llega algo que no es un arreglo,
+  -- jsonb_array_elements lanzaría excepción. Mejor salir callado.
+  if jsonb_typeof(p_lineas) <> 'array' then return; end if;
 
-  -- la cotización más reciente con ese número
+  -- la cotización más reciente con ese número. "nulls last" a propósito: en
+  -- Postgres un ORDER BY ... DESC pone los NULL PRIMERO, así que sin eso una
+  -- fila sin fecha se llevaría las líneas.
   select c.id into v_id
   from cotizaciones c
   where c.numero = p_numero
-  order by c.fecha_creacion desc
+  order by c.fecha_creacion desc nulls last
   limit 1;
 
   if v_id is null then return; end if;
