@@ -27745,7 +27745,7 @@ async function analyzeImage(dataUrl,file,apiKey){
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,messages:[{role:'user',content:[
         {type:'image',source:{type:'base64',media_type:mt,data:base64}},
-        {type:'text',text:`Eres extractor de datos para Casa Zaru, empresa de muebles de madera chilena.\nAnaliza el pantallazo y devuelve SOLO JSON válido sin markdown:\n{"tipo":"confirmacion","pedido":{"pedido":${nextNum},"envio":"SEMANA DD MES","comprador":"NOMBRE","apellido":"APELLIDO","lineas":[{"producto":"","cantidad":1,"madera":"COIHUE","largo":0,"ancho":0,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]},"finanzas":{"valor_producto":0,"valor_envio":0,"valor_comision":0,"medio_pago":"TRANSFERENCIA","abono1":0,"abono2":0},"cliente":{"email":"","phone":"","rut":"","fn":"","ln":"","direccion":"","ct":"","st":"","country":"CL","gen":"","order_id":"${nextOrderId}","value":0,"event_time":""}}\nREGLAS: valor_producto=solo mueble (Valor: $X). valor_envio=solo envío (Envío: $X). valor_comision=0 si no dice "3% plataforma". NO uses el Total de César.`}
+        {type:'text',text:`Eres extractor de datos para Casa Zaru, empresa de muebles de madera chilena.\nAnaliza el pantallazo y devuelve SOLO JSON válido sin markdown:\n{"tipo":"confirmacion","pedido":{"pedido":${nextNum},"envio":"SEMANA DD MES","comprador":"NOMBRE","apellido":"APELLIDO","lineas":[{"producto":"","cantidad":1,"madera":"COIHUE","largo":0,"ancho":0,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]},"finanzas":{"valor_producto":0,"valor_envio":0,"valor_comision":0,"medio_pago":"TRANSFERENCIA","abono1":0,"abono2":0},"cliente":{"email":"","phone":"","rut":"","fn":"","ln":"","direccion":"","ct":"","st":"","country":"CL","gen":"","order_id":"${nextOrderId}","value":0,"event_time":""}}\nREGLAS: valor_producto=solo mueble (Valor: $X). valor_envio=solo envío (Envío: $X). valor_comision=0 si no dice "3% plataforma". NO uses el Total de César.\n\nEl pantallazo puede venir en DOS formatos:\n(A) Confirmación de WhatsApp escrita por el vendedor. Es el caso de las reglas de arriba.\n(B) Pedido de SHOPIFY (panel de administración: dice "Tienda online", "Pagado", "No preparado", muestra "Cliente" y "Dirección predeterminada" a la derecha).\n\nSI ES SHOPIFY:\n- El "#1041" de arriba es el número de SHOPIFY, NO el pedido interno. Usa igual "pedido":${nextNum} y pon el de Shopify en "orden_web":"1041".\n- Agrega "canal":"web" dentro de pedido.\n- La línea gris bajo el nombre del producto es la VARIANTE y trae la madera y las medidas: "Raulí / 100 x 46 cm" → madera:"RAULÍ", largo:100, ancho:46. El primer número es el largo. Si la variante trae solo la madera, deja largo y ancho en 0.\n- "producto" = el nombre del producto sin la variante.\n- valor_producto = el precio de la línea del producto (el de la derecha del "x 1"). valor_envio = el total de arriba MENOS la suma de los productos; si da 0 o negativo, pon 0.\n- medio_pago:"MERCADO PAGO".\n- Del bloque "Cliente": email, y de "Dirección predeterminada" el nombre completo (fn=nombre, ln=apellidos), direccion (calle y número), ct=comuna, st=región. El teléfono "+56 9 7202 4406" va como phone:"972024406" (sin +56 ni espacios).\n- La fecha "22 de agosto de 2026" va en "fecha_venta":"2026-08-22" dentro de pedido.\n- Si el nombre del cliente solo aparece en la dirección, úsalo también para comprador y apellido.`}
       ]}]})
     });
     const data=await res.json();
@@ -27762,6 +27762,16 @@ async function analyzeImage(dataUrl,file,apiKey){
     renderPrevVendedor(VENDEDOR_DEFAULT);
     renderPrevTipo('VENTA');
     renderPrevProd(pedidoData);
+    // Un pedido de Shopify ya viene con su forma de pago definida: la web
+    // cobra por Mercado Pago y Shopify se queda su 2%. Preseleccionarlo evita
+    // que se guarde como transferencia y quede el margen inflado.
+    // VA DESPUÉS de renderPrevProd: aplicarCanalPrev calcula las comisiones
+    // sobre los valores del formulario, y antes de eso todavía están vacíos.
+    if(pedidoData.canal==='web'){
+      var _c=document.getElementById('pp-canal');
+      if(_c){_c.value='WEB_SHOPIFY';aplicarCanalPrev();}
+      if(pedidoData.orden_web)showToast('Pedido web de Shopify #'+pedidoData.orden_web+' — revisá los valores');
+    }
     document.getElementById('prev').classList.add('on');
     document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
     if(parsed.cliente&&(parsed.cliente.email||parsed.cliente.phone||parsed.cliente.fn)){
@@ -27896,6 +27906,9 @@ async function confirmOrder(){
   o.vendedor=vendedorSel;
   const tipoSel=(document.getElementById('pp-tipo')||{}).value||'VENTA';
   o.tipo=tipoSel;
+  // El número de Shopify se conserva aparte del correlativo interno: sirve
+  // para cruzar con la tienda cuando hay que revisar un pedido web.
+  if(o.orden_web)o.orden_web=String(o.orden_web);
   // 1. PRODUCCIÓN
   const existProdIdx=prodOrders.findIndex(p=>String(p.pedido||'')===numStr);
   if(existProdIdx>=0)prodOrders[existProdIdx]=o;else prodOrders.push(o);
@@ -27923,7 +27936,7 @@ async function confirmOrder(){
   const docTipo=document.getElementById('pp-doc').value;
   const dirEnvio=document.getElementById('pp-dir').value.trim()||cli.direccion||'';
   const datosDoc={
-    vendedor:vendedorSel,tipo:tipoSel,
+    vendedor:vendedorSel,tipo:tipoSel,orden_web:o.orden_web||'',
     canal_pago:canalPago,descuento_pct:descPct,descuento_monto:_cv.descMonto,
     costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_cv.costos,neto_recibido:_cv.neto,
     direccion:dirEnvio,
