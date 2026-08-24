@@ -406,6 +406,18 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .dash-filters { display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px; }
 .dash-filters input, .dash-filters select { flex:1 1 110px;min-width:90px;padding:8px 9px;border:1px solid var(--bd);border-radius:8px;font-size:11.5px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
 .dash-filters .df-clear { flex:0 0 auto;background:none;border:1px solid var(--bd);border-radius:8px;padding:8px 12px;font-size:11.5px;color:var(--tm);cursor:pointer;font-family:'Jost',sans-serif; }
+/* ── buscador único del panel ── */
+.omni-row { display:flex;gap:6px;width:100%; }
+.omni-in { flex:1 1 auto;min-width:0;padding:10px 12px;border:1px solid var(--bd);border-radius:9px;font-size:13px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
+.omni-in:focus { outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(184,137,74,.14); }
+.omni-mas-btn { flex:0 0 auto;background:none;border:1px solid var(--bd);border-radius:9px;padding:8px 12px;font-size:11.5px;color:var(--tm);cursor:pointer;font-family:'Jost',sans-serif;white-space:nowrap; }
+.omni-mas-btn.on { background:var(--acd);border-color:var(--acd);color:#fff; }
+.omni-mas { display:flex;flex-wrap:wrap;gap:6px;width:100%;margin-top:6px; }
+.omni-mas input, .omni-mas select { flex:1 1 120px;min-width:95px;padding:8px 9px;border:1px solid var(--bd);border-radius:8px;font-size:11.5px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
+.omni-chips { display:flex;flex-wrap:wrap;gap:5px;width:100%; }
+.omni-chips:empty { display:none; }
+.omni-chip { background:var(--bg3);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--acd);font-weight:600; }
+.omni-clear { background:none;border:none;color:var(--tm);font-size:11px;cursor:pointer;text-decoration:underline;font-family:'Jost',sans-serif;padding:3px 4px; }
 .tbl-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
 .dash-estado { padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:10px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
 .dash-estado.ganado { background:#D1FAE5;color:#065F46;border-color:#A7F3D0; }
@@ -1121,6 +1133,9 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
     <div class="dash-main">
     <div id="dash-stats" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px"></div>
     <div id="dash-filters" class="dash-filters"></div>
+    <!-- chips propios de cada vista (bloques de Seguimiento, vendedores de
+         Actividad). Van aparte para que no pisen el buscador de arriba. -->
+    <div id="dash-subfilters" class="dash-filters"></div>
     <div class="dash-split" id="dash-split">
       <div id="dash-tbl"></div>
       <aside id="dash-detalle" aria-live="polite"></aside>
@@ -4115,8 +4130,10 @@ function renderTabs(){
 }
 function setDashView(v){
   dashView=v; renderTabs();
-  if (v==='seg') renderSegFilters();
-  else if (['elim','dormidos','actividad','backlog','manual'].indexOf(v) === -1) renderDashFilters();
+  /* el buscador va en TODAS las vistas menos el Manual, que no es una lista.
+     Seguimiento además tiene sus chips de bloque, que van en la fila de abajo. */
+  if (v !== 'manual') renderDashFilters();
+  if (v === 'seg') renderSegFilters();
   renderVistaActual();
 }
 /* Redibuja la pestaña que está abierta, sea cual sea. Antes cada punto de
@@ -4137,8 +4154,8 @@ function renderVistaActual(){
 }
 /* FASE 6: vista Backlog — las que nunca se contactaron, más reciente primero */
 function renderBacklog(){
-  document.getElementById('dash-filters').innerHTML = '';
-  var grupos = buildSegGroups().filter(function(g){
+  subFiltros('');
+  var grupos = buildSegGroups().filter(grupoPasaOmni).filter(function(g){
     if (!isPanelAdmin() && g.owner !== panelSeller.code && !(isWeb(g.lead) && !panelSeller.b2b)) return false;
     return esBacklogQ(g.lead);
   });
@@ -4176,8 +4193,8 @@ function renderBacklog(){
 }
 /* Dormidos: enviadas que se cayeron de la cola (cadencia agotada o +30 días sin gestión) */
 function renderDormidos(){
-  document.getElementById('dash-filters').innerHTML='';
-  var dorm = buildSegGroups().filter(function(g){ return dueDate(g.lead)===null; });
+  subFiltros('');
+  var dorm = buildSegGroups().filter(grupoPasaOmni).filter(function(g){ return dueDate(g.lead)===null; });
   dorm.sort(function(a,b){ return b.valor-a.valor; });
   var enJuego = dorm.reduce(function(a,g){ return a+(g.valor||0); }, 0);
   var st=document.getElementById('dash-stats'); st.style.display='grid';
@@ -4202,9 +4219,10 @@ function renderSegFilters(){
   var chips = '<button class="seg-chip'+(segBloque===''?' on':'')+'" onclick="setSegBloque(\'\')">Todos</button>'+
     segBloquesDef().map(function(b){ return '<button class="seg-chip'+(segBloque===b.o?' on':'')+'" onclick="setSegBloque(\''+b.o+'\')">'+b.t+'</button>'; }).join('')+
     '<button class="seg-chip star'+(segSoloInteresados?' on':'')+'" onclick="toggleSegInteresados()">★ Interesados</button>';
-  document.getElementById('dash-filters').innerHTML =
+  /* El buscador de arriba ya busca cliente, así que acá queda solo lo propio
+     de Seguimiento: los bloques y el orden. */
+  document.getElementById('dash-subfilters').innerHTML =
     '<div class="seg-chips">'+chips+'</div>'+
-    '<input type="text" id="f-seg-q" placeholder="Buscar cliente…" value="'+escA(segSearch)+'" oninput="segSearch=this.value;renderSeguimiento()">'+
     '<select id="f-seg-sort" onchange="segSort=this.value;renderSeguimiento()">'+
       '<option value="score"'+(segSort==='score'?' selected':'')+'>Los que van a cerrar primero</option>'+
       '<option value="valor"'+(segSort==='valor'?' selected':'')+'>Mayor monto primero</option>'+
@@ -4563,13 +4581,10 @@ function renderSeguimiento(){
      recalcular a qué bloque pertenecía. */
   var pares = [];
   function segRegistrar(g, cls){ pares.push({ g:g, cls:cls }); return segItem(g, cls); }
-  var groups = buildSegGroups();
-  if (segSearch){
-    var q = segSearch.toLowerCase();
-    groups = groups.filter(function(g){
-      return (g.lead.cliente||'').toLowerCase().indexOf(q)!==-1 || (g.lead.contacto||'').toLowerCase().indexOf(q)!==-1;
-    });
-  }
+  /* el buscador de arriba (uno solo para todo el panel) reemplazó al campo
+     "Buscar cliente" que vivía acá: filtra igual, y además por producto,
+     estado, mes y monto */
+  var groups = buildSegGroups().filter(grupoPasaOmni);
   if (segSoloInteresados) groups = groups.filter(function(g){ return !!g.lead.interesado; });
   var cmp = segComparator();
   var bloques = segBloquesDef();
@@ -5373,34 +5388,150 @@ function dashMonthOptions(){
   allRows.forEach(function(x){ if (x.fecha_creacion) set[String(x.fecha_creacion).slice(0,7)] = true; });
   return Object.keys(set).sort().reverse();
 }
-function renderDashFilters() {
+/* ── UN SOLO BUSCADOR (24-08-2026) ──
+   Antes eran ocho controles a la vista —buscar, estado, producto, mes, monto
+   desde, monto hasta, fechas y limpiar— y ocupaban dos líneas en pantalla.
+   Ahora hay UNA caja que entiende todo lo que se escriba, y los selectores
+   siguen existiendo detrás de "Más filtros" para quien prefiera hacer clic.
+   Los selectores conservan sus ids: applyDashFilters los sigue leyendo igual. */
+var OMNI = { texto:'', estado:'', producto:'', mes:'', min:NaN, max:NaN, dias:0 };
+var omniRaw = '';
+var omniAbierto = false;
+
+function omniProducto(t){
+  var k = null;
+  Object.keys(PNAME).forEach(function(p){
+    if (k) return;
+    if (p.indexOf(t) === 0 || PNAME[p].toLowerCase().indexOf(t) === 0) k = p;
+  });
+  /* alias de lo que la gente escribe de verdad */
+  if (!k) {
+    if (/^mesa/.test(t)) k = 'mesa';
+    else if (/^cubiert/.test(t)) k = 'cubierta';
+    else if (/^peldan|^peldañ/.test(t)) k = 'peldano';
+    else if (/^repis/.test(t)) k = 'repisa';
+    else if (/^revest/.test(t)) k = 'revestimiento';
+  }
+  return k;
+}
+function parseOmni(s) {
+  var o = { texto:'', estado:'', producto:'', mes:'', min:NaN, max:NaN, dias:0 }, libre = [];
+  String(s || '').split(/\s+/).forEach(function(tk){
+    if (!tk) return;
+    var t = tk.toLowerCase();
+    if (/^gana/.test(t))                  { o.estado = 'ganado';  return; }
+    if (/^perdid/.test(t))                { o.estado = 'perdida'; return; }
+    if (/^(enviad|curso|abiert)/.test(t)) { o.estado = 'enviada'; return; }
+    var d = t.match(/^(\d+)\s*d$/);
+    if (d) { o.dias = parseInt(d[1], 10); return; }
+    /* montos: >500000, <1m, >500k */
+    var m = t.match(/^([<>])\$?([\d.,]+)(k|m)?$/);
+    if (m) {
+      var v = parseFloat(m[2].replace(/[.,]/g, ''));
+      if (m[3] === 'k') v *= 1000;
+      if (m[3] === 'm') v *= 1000000;
+      if (!isNaN(v)) { if (m[1] === '>') o.min = v; else o.max = v; return; }
+    }
+    var p = omniProducto(t);
+    if (p) { o.producto = p; return; }
+    if (t.length >= 3) {
+      var mi = -1;
+      MESES_ES.forEach(function(nm, i){ if (mi < 0 && nm.toLowerCase().indexOf(t) === 0) mi = i; });
+      if (mi >= 0) {
+        /* el mes más reciente CON DATOS que calce, para no pedir también el año.
+           Si no hay ninguno se usa el año en curso: escribir "agosto" y que
+           terminara buscándose como nombre de cliente no lo espera nadie. */
+        var mm = ('0' + (mi + 1)).slice(-2), hit = null;
+        dashMonthOptions().forEach(function(ym){ if (!hit && ym.slice(5, 7) === mm) hit = ym; });
+        o.mes = hit || (new Date().getFullYear() + '-' + mm);
+        return;
+      }
+    }
+    libre.push(tk);
+  });
+  o.texto = libre.join(' ');
+  return o;
+}
+function omniSet(v) {
+  omniRaw = v;
+  OMNI = parseOmni(v);
+  dashMonth = OMNI.mes || '';
+  omniPintarChips();
+  renderVistaActual();   /* solo la lista: la caja no se vuelve a dibujar y no pierde el foco */
+}
+function omniToggle(){ omniAbierto = !omniAbierto; renderDashFilters(true); }
+function omniLimpiar(){
+  omniRaw = ''; OMNI = parseOmni(''); dashMonth = '';
+  ['f-dash-estado','f-dash-prod','f-dash-month','f-dash-min','f-dash-max','f-dash-dias'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderDashFilters(true); renderVistaActual();
+}
+function omniChipsHTML() {
+  var c = [];
+  if (OMNI.texto)    c.push('“' + escA(OMNI.texto) + '”');
+  if (OMNI.estado)   c.push(OMNI.estado === 'ganado' ? '🏆 Ganadas' : (OMNI.estado === 'perdida' ? 'Perdidas' : 'En curso'));
+  if (OMNI.producto) c.push(PNAME[OMNI.producto] || OMNI.producto);
+  if (OMNI.mes)      c.push(fmtMesLabel(OMNI.mes));
+  if (!isNaN(OMNI.min)) c.push('desde ' + fmt(OMNI.min));
+  if (!isNaN(OMNI.max)) c.push('hasta ' + fmt(OMNI.max));
+  if (OMNI.dias)     c.push('últimos ' + OMNI.dias + ' días');
+  if (!c.length) return '';
+  return c.map(function(t){ return '<span class="omni-chip">' + t + '</span>'; }).join('') +
+         '<button class="omni-clear" onclick="omniLimpiar()">Limpiar</button>';
+}
+function omniPintarChips(){
+  var el = document.getElementById('omni-chips');
+  if (el) el.innerHTML = omniChipsHTML();
+}
+function subFiltros(html){
+  var el = document.getElementById('dash-subfilters');
+  if (el) el.innerHTML = html || '';
+}
+/* Backlog y Dormidos trabajan con GRUPOS de cliente, no con filas sueltas: un
+   grupo pasa el filtro si alguna de sus cotizaciones lo pasa. Así "mesa" o
+   ">1m" funcionan igual en esas vistas que en la tabla. */
+function grupoPasaOmni(g){
+  if (!omniRaw && !OMNI.texto && !OMNI.estado && !OMNI.producto && !OMNI.mes &&
+      isNaN(OMNI.min) && isNaN(OMNI.max) && !OMNI.dias) return true;
+  return applyDashFilters(g.quotes).length > 0;
+}
+function renderDashFilters(forzar) {
+  var cont = document.getElementById('dash-filters');
+  /* si la caja ya está en pantalla no se vuelve a crear: recrearla en cada
+     tecleo le quitaría el foco al usuario a media palabra */
+  if (!forzar && document.getElementById('f-omni')) { omniPintarChips(); return; }
   var prodOpts = Object.keys(PNAME).map(function(k){ return '<option value="'+k+'">'+PNAME[k]+'</option>'; }).join('');
   var mesOpts = dashMonthOptions().map(function(ym){ return '<option value="'+ym+'"'+(dashMonth===ym?' selected':'')+'>'+fmtMesLabel(ym)+'</option>'; }).join('');
-  document.getElementById('dash-filters').innerHTML =
-    '<input type="text" id="f-dash-cli" placeholder="Buscar por nombre, N° o teléfono…" oninput="renderDash()">' +
-    '<select id="f-dash-estado" onchange="renderDash()">' +
-      '<option value="">Todos los estados</option>' +
-      '<option value="ganado">🏆 Ganadas</option>' +
-      '<option value="enviada">En curso (enviadas)</option>' +
-      '<option value="perdida">Perdidas</option>' +
-    '</select>' +
-    '<select id="f-dash-prod" onchange="renderDash()"><option value="">Todos los productos</option>'+prodOpts+'</select>' +
-    '<select id="f-dash-month" onchange="dashMonth=this.value;renderDash()"><option value="">Todos los meses</option>'+mesOpts+'</select>' +
-    '<input type="number" id="f-dash-min" placeholder="Monto desde" oninput="renderDash()">' +
-    '<input type="number" id="f-dash-max" placeholder="Monto hasta" oninput="renderDash()">' +
-    '<select id="f-dash-dias" onchange="renderDash()">' +
-      '<option value="">Todas las fechas</option>' +
-      '<option value="7">Últimos 7 días</option>' +
-      '<option value="30">Últimos 30 días</option>' +
-      '<option value="90">Últimos 90 días</option>' +
-    '</select>' +
-    '<button class="df-clear" onclick="clearDashFilters()">Limpiar</button>';
+  var avanzados =
+    '<div class="omni-mas' + (omniAbierto ? '' : ' hidden') + '" id="omni-mas">' +
+      '<select id="f-dash-estado" onchange="renderVistaActual()">' +
+        '<option value="">Todos los estados</option>' +
+        '<option value="ganado">🏆 Ganadas</option>' +
+        '<option value="enviada">En curso (enviadas)</option>' +
+        '<option value="perdida">Perdidas</option>' +
+      '</select>' +
+      '<select id="f-dash-prod" onchange="renderVistaActual()"><option value="">Todos los productos</option>'+prodOpts+'</select>' +
+      '<select id="f-dash-month" onchange="dashMonth=this.value;renderVistaActual()"><option value="">Todos los meses</option>'+mesOpts+'</select>' +
+      '<input type="number" id="f-dash-min" placeholder="Monto desde" oninput="renderVistaActual()">' +
+      '<input type="number" id="f-dash-max" placeholder="Monto hasta" oninput="renderVistaActual()">' +
+      '<select id="f-dash-dias" onchange="renderVistaActual()">' +
+        '<option value="">Todas las fechas</option>' +
+        '<option value="7">Últimos 7 días</option>' +
+        '<option value="30">Últimos 30 días</option>' +
+        '<option value="90">Últimos 90 días</option>' +
+      '</select>' +
+    '</div>';
+  cont.innerHTML =
+    '<div class="omni-row">' +
+      '<input type="text" id="f-omni" class="omni-in" value="' + escA(omniRaw) + '" oninput="omniSet(this.value)" ' +
+        'placeholder="Busca lo que sea: nombre, N°, teléfono, mesa, ganadas, agosto, &gt;500000, 30d…">' +
+      '<button class="omni-mas-btn' + (omniAbierto ? ' on' : '') + '" onclick="omniToggle()">Más filtros</button>' +
+    '</div>' +
+    avanzados +
+    '<div id="omni-chips" class="omni-chips">' + omniChipsHTML() + '</div>';
 }
-function clearDashFilters() {
-  dashMonth = '';
-  renderDashFilters();
-  renderDash();
-}
+function clearDashFilters(){ omniLimpiar(); }   /* se conserva el nombre por si queda algún onclick viejo */
 /* ¿la fila calza con lo buscado? Nombre, N° de cotización o contacto.
    El número se compara sin el "N° CL-" para poder escribir solo "0826-419". */
 function dashCoincide(x, q){
@@ -5420,13 +5551,16 @@ function dashDonde(x){
   return 'Clientes Web';
 }
 function applyDashFilters(data) {
-  var cliQ  = (document.getElementById('f-dash-cli')||{}).value || '';
-  var prodQ = (document.getElementById('f-dash-prod')||{}).value || '';
-  var minQ  = parseFloat((document.getElementById('f-dash-min')||{}).value);
-  var maxQ  = parseFloat((document.getElementById('f-dash-max')||{}).value);
-  var diasQ = parseInt((document.getElementById('f-dash-dias')||{}).value) || 0;
+  /* Manda lo que se escribió en la caja; si además se abrió "Más filtros" y se
+     eligió algo ahí, ese select gana (es un gesto más explícito). */
+  var sel = function(id){ return (document.getElementById(id)||{}).value || ''; };
+  var cliQ  = OMNI.texto;
+  var prodQ = sel('f-dash-prod')   || OMNI.producto;
+  var estQ  = sel('f-dash-estado') || OMNI.estado;
+  var minQ  = parseFloat(sel('f-dash-min')); if (isNaN(minQ)) minQ = OMNI.min;
+  var maxQ  = parseFloat(sel('f-dash-max')); if (isNaN(maxQ)) maxQ = OMNI.max;
+  var diasQ = parseInt(sel('f-dash-dias'), 10) || OMNI.dias || 0;
   var cutoff = diasQ ? Date.now() - diasQ*24*60*60*1000 : 0;
-  var estQ = (document.getElementById('f-dash-estado')||{}).value || '';
   return data.filter(function(x){
     /* buscar también por N° de cotización y por contacto: el buscador solo
        miraba el nombre, así que no había forma de encontrar una cotización
@@ -5484,8 +5618,8 @@ async function restaurarQuote(id){
   loadDash();
 }
 function renderEliminadas(){
-  document.getElementById('dash-filters').innerHTML='';
-  var elim = allRows.filter(function(x){ return x.eliminada; })
+  subFiltros('');
+  var elim = applyDashFilters(allRows.filter(function(x){ return x.eliminada; }))
     .sort(function(a,b){ return new Date(b.elim_fecha||0)-new Date(a.elim_fecha||0); });
   var st0=document.getElementById('dash-stats'); st0.style.display='grid';
   st0.innerHTML =
@@ -5531,9 +5665,9 @@ function renderActividad(){
       VENDEDORES.map(function(v){
         return '<button class="seg-chip'+(actVendedor===v.code?' on':'')+'" onclick="setActVendedor(\''+v.code+'\')">'+escA(v.nombre)+'</button>';
       }).join('');
-    document.getElementById('dash-filters').innerHTML = '<div class="seg-chips">'+chips+'</div>';
+    subFiltros('<div class="seg-chips">'+chips+'</div>');
   } else {
-    document.getElementById('dash-filters').innerHTML='';
+    subFiltros('');
   }
   var soloCode = esAdmin ? (actVendedor || null) : panelSeller.code;
   var muestraVend = !soloCode;   /* la columna Vendedor solo aporta si hay más de uno */
@@ -5737,7 +5871,8 @@ function mvMargenTramo(t) {
   return ' · margen ' + fmt(m.pesos) + ' (' + pct + ')';
 }
 function renderManual() {
-  document.getElementById('dash-filters').innerHTML = '';
+  document.getElementById('dash-filters').innerHTML = '';   /* el Manual no es una lista: no lleva buscador */
+  subFiltros('');
   var st = document.getElementById('dash-stats'); st.style.display = 'none'; st.innerHTML = '';
   var aviso = '';
   if (valoresTablaOK === false) {
@@ -5965,7 +6100,7 @@ function renderDash() {
     /* Si lo buscado NO está en esta pestaña pero sí existe en otra, decirlo.
        Antes solo salía "ninguna coincide" y quedaba la duda de si la
        cotización no existía o estaba en otro lado. */
-    var q = (document.getElementById('f-dash-cli')||{}).value || '';
+    var q = OMNI.texto;
     var fuera = q ? allRows.filter(function(x){ return dashCoincide(x, q); }) : [];
     var aviso = '';
     if (fuera.length){
