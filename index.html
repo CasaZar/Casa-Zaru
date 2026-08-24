@@ -482,6 +482,15 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .seg-col-hoy .hoy-cli { line-height:1.35; }
 .seg-col-hoy .hoy-acciones { flex:1 1 100%;justify-content:flex-start;margin-top:7px; }
 .seg-col-hoy .hoy-btn { flex:0 1 auto; }
+/* Banda de "no se guardó". Fija abajo y sin forma de cerrarla salvo recargar:
+   el dato que ves en pantalla NO está en la base, y seguir trabajando sobre él
+   es peor que la molestia de la banda. */
+#banner-sin-guardar {
+  display:none; position:fixed; left:0; right:0; bottom:0; z-index:9999;
+  background:#993556; color:#fff; padding:12px 18px; font-size:13px;
+  text-align:center; cursor:pointer; box-shadow:0 -2px 14px rgba(0,0,0,.25);
+}
+#banner-sin-guardar u { text-underline-offset:3px; }
 .hoy-board { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:16px 18px;margin-bottom:18px; }
 /* ── Post-entrega ──
    El "¿lo recibió?" va acá abajo, plegado y en gris: el pedido ya salió y el
@@ -26927,8 +26936,48 @@ async function sbJson(url,opts){
   return txt?JSON.parse(txt):null;
 }
 
-function api(path,method,data){
-  return apiSupabase(path,(method||'GET').toUpperCase(),data);
+// Las escrituras se reintentan solas antes de darse por perdidas. Un corte de
+// wifi de dos segundos alcanzaba para que un guardado se cayera, y como en 20
+// llamadas el error se descartaba con un .catch vacío, la app quedaba
+// mostrando el dato nuevo mientras la base conservaba el viejo. Se enteraba
+// uno días después, con la plata ya mal contada.
+// Solo se reintentan PUT y DELETE: en esta app son idempotentes (escriben el
+// registro completo o lo borran), así que repetirlos no duplica nada.
+const API_REINTENTOS=3;
+function _esperar(ms){return new Promise(function(r){setTimeout(r,ms);});}
+async function api(path,method,data){
+  var m=(method||'GET').toUpperCase();
+  if(m!=='PUT'&&m!=='DELETE')return apiSupabase(path,m,data);
+  var ultimo;
+  for(var i=0;i<API_REINTENTOS;i++){
+    try{ return await apiSupabase(path,m,data); }
+    catch(e){ ultimo=e; if(i<API_REINTENTOS-1)await _esperar(400*(i+1)); }
+  }
+  throw ultimo;
+}
+// Un guardado que falló después de los reintentos NO puede pasar en silencio.
+// El toast se va a los 3 segundos y uno puede no estar mirando, así que además
+// queda una banda fija hasta recargar: el dato en pantalla no está en la base
+// y hay que saberlo antes de seguir trabajando sobre él.
+var _guardadosFallidos=[];
+function _falloGuardado(queEs){
+  return function(err){
+    _guardadosFallidos.push(queEs);
+    console.error('No se pudo guardar:',queEs,err);
+    try{showToast('✗ No se guardó: '+queEs,true);}catch(e){}
+    var el=document.getElementById('banner-sin-guardar');
+    if(!el){
+      el=document.createElement('div');
+      el.id='banner-sin-guardar';
+      el.onclick=function(){location.reload();};
+      document.body.appendChild(el);
+    }
+    var n=_guardadosFallidos.length;
+    el.innerHTML='⚠️ <strong>'+n+(n===1?' cambio no se guardó':' cambios no se guardaron')+
+      '</strong> en la base — lo que ves en pantalla no está guardado. '+
+      '<u>Tocá acá para recargar</u> y ver los datos reales.';
+    el.style.display='block';
+  };
 }
 async function apiSupabase(path,method,data){
   var partes=String(path).split('/').filter(function(x){return x!=='';});
@@ -27328,7 +27377,7 @@ async function toggleCheck(numStr,cid){
   if(!o.checks)o.checks={};
   var newVal=!o.checks[cid];o.checks[cid]=newVal;renderSeg();
   pendingOps++;setSyncState('syncing');
-  try{var patch={};patch[cid]=newVal;patch.last_activity=Date.now();o.last_activity=patch.last_activity;await api('pedidos/'+numStr+'/checks','PATCH',{[cid]:newVal});if(DB_URL)api('pedidos/'+numStr+'/last_activity','PUT',patch.last_activity).catch(function(){});setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
+  try{var patch={};patch[cid]=newVal;patch.last_activity=Date.now();o.last_activity=patch.last_activity;await api('pedidos/'+numStr+'/checks','PATCH',{[cid]:newVal});if(DB_URL)api('pedidos/'+numStr+'/last_activity','PUT',patch.last_activity).catch(_falloGuardado('Actividad del pedido '+numStr));setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
   catch(e){o.checks[cid]=!newVal;renderSeg();setSyncState('offline');}finally{pendingOps--;}
 }
 function renderSegStats(){
@@ -27981,7 +28030,7 @@ async function deleteProdOrder(oi){
   if(!confirm('¿Eliminar este pedido de todas las secciones?'))return;
   const o=prodOrders[oi],numStr=String(o.pedido||'');
   if(DB_URL&&numStr){
-    await Promise.all(['produccion','pedidos','finanzas','pixel','costos'].map(col=>api(col+'/'+numStr,'DELETE').catch(()=>{})));
+    await Promise.all(['produccion','pedidos','finanzas','pixel','costos'].map(col=>api(col+'/'+numStr,'DELETE').catch(_falloGuardado('Borrado en '+col+' del pedido '+numStr))));
   }
   prodOrders.splice(oi,1);
   orders=orders.filter(x=>String(x.num||'')!==numStr);
@@ -28294,9 +28343,9 @@ async function loadFin(){
         if(!seen[ns]){seen[ns]=true;finRecords.push(r);}
         else{
           var ei=finRecords.findIndex(function(x){return String(x.num||x._fbKey||'')===ns;});
-          if(!/^[0-9]+$/.test(e[0])){api('finanzas/'+e[0],'DELETE').catch(function(){});}
+          if(!/^[0-9]+$/.test(e[0])){api('finanzas/'+e[0],'DELETE').catch(_falloGuardado('Borrado de Finanzas duplicada'));}
           else if(ei>=0&&!/^[0-9]+$/.test(finRecords[ei]._fbKey||'')){
-            api('finanzas/'+finRecords[ei]._fbKey,'DELETE').catch(function(){});finRecords[ei]=r;
+            api('finanzas/'+finRecords[ei]._fbKey,'DELETE').catch(_falloGuardado('Borrado de Finanzas duplicada'));finRecords[ei]=r;
           }
         }
       });
@@ -28309,7 +28358,7 @@ async function loadFin(){
 function finSave(numStr){
   if(!DB_URL)return;
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
-  if(r)api('finanzas/'+numStr,'PUT',r).catch(function(){});
+  if(r)api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
 }
 function finSet(numStr,field,val,inp){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
@@ -28431,7 +28480,7 @@ async function toggleFinDoc(numStr,docNum){
   var emitidaKey='doc'+docNum+'_emitida',tipoKey='doc'+docNum+'_tipo',numKey='doc'+docNum+'_num',procKey='doc'+docNum+'_procesando',emKey=numStr+'_'+docNum;
   if(r[emitidaKey]){
     if(!confirm('Este documento ya figura emitido (N° '+(r[numKey]||'—')+'). ¿Marcarlo como pendiente de nuevo?\n\nOJO: esto NO anula el documento en el SII, solo corrige el estado acá.'))return;
-    r[emitidaKey]=false;if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(function(){});renderFin();showToast('Marcado como pendiente (el documento sigue existiendo en Wasabil)');return;
+    r[emitidaKey]=false;if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));renderFin();showToast('Marcado como pendiente (el documento sigue existiendo en Wasabil)');return;
   }
   if(r[procKey])return; // ya está "Procesando" — hay que usar el botón "Verificar estado", nunca re-emitir
   // CANDADO: lo que tenemos en pantalla puede estar viejo (otro dispositivo ya
@@ -28535,7 +28584,7 @@ async function verificarFinDoc(numStr,docNum){
     var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
-    if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(function(){});
+    if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
     if(data&&data.success)showToast('✓ Confirmado — folio '+(data.folio||'?'));
     else if(data&&data.status_id===2)showToast('⏳ Sigue Procesando, probá de nuevo en un rato');
     else showToast('✗ '+((data&&(data.error||data.display_error))||'Fallido'));
@@ -28644,7 +28693,7 @@ function ciclarTipoFin(numStr){
   renderFin();renderDash&&document.getElementById('page-dash').classList.contains('active')&&renderDash();
   showToast('✓ '+numStr+' quedó como '+lbl);
 }
-function deleteFinRecord_inline(numStr){if(!confirm('¿Eliminar este registro?'))return;var idx=finRecords.findIndex(function(x){return String(x.num||'')===String(numStr);});if(idx>=0)finRecords.splice(idx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(function(){});renderFin();showToast('✓ Eliminado');}
+function deleteFinRecord_inline(numStr){if(!confirm('¿Eliminar este registro?'))return;var idx=finRecords.findIndex(function(x){return String(x.num||'')===String(numStr);});if(idx>=0)finRecords.splice(idx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Finanzas del pedido '+numStr));renderFin();showToast('✓ Eliminado');}
 // recalcFin() se eliminó el 21 ago 2026: estaba muerta (nadie la llamaba) pero
 // escribía abono_monto = total × 0,7, un abono inventado del 70%. Es el mismo
 // "abono1 fantasma" que infló los números y que la auditoría CEO hizo corregir.
@@ -28661,7 +28710,7 @@ async function syncFinFromProd(){
   if(DB_URL){
     for(var _si=0;_si<finRecords.length;_si++){
       var _sr=finRecords[_si];var _sk=String(_sr.num||'');
-      if(_sk)await api('finanzas/'+_sk,'PUT',_sr).catch(function(){});
+      if(_sk)await api('finanzas/'+_sk,'PUT',_sr).catch(_falloGuardado('Finanzas del pedido '+_sk));
     }
   }
   renderFin();showToast('✓ Finanzas: '+creados+' creados, '+actualizados+' actualizados');
@@ -28697,7 +28746,7 @@ async function saveFinRecord(){
   if(DB_URL)await api('finanzas/'+numStr,'PUT',record);
   renderFin();closeFinModal();showToast('✓ Registro guardado');
 }
-function deleteFinRecord(){if(editingFinIdx===null)return;if(!confirm('¿Eliminar?'))return;const numStr=String(finRecords[editingFinIdx].num||'');finRecords.splice(editingFinIdx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(()=>{});renderFin();closeFinModal();showToast('✓ Eliminado');}
+function deleteFinRecord(){if(editingFinIdx===null)return;if(!confirm('¿Eliminar?'))return;const numStr=String(finRecords[editingFinIdx].num||'');finRecords.splice(editingFinIdx,1);if(DB_URL&&numStr)api('finanzas/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Finanzas del pedido '+numStr));renderFin();closeFinModal();showToast('✓ Eliminado');}
 document.getElementById('modal-fin-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-fin-bg'))closeFinModal();});
 function exportFinCSV(){
   var toExport=getFilteredFin();if(!toExport.length){showToast('No hay registros');return;}
@@ -28735,7 +28784,7 @@ async function loadPixel(){
         else{
           // duplicado con clave no numérica → borrar
           var idx=pixelRecords.findIndex(x=>x.order_id===oid);
-          if(idx>=0&&!/^\d+$/.test(e[0])){api('pixel/'+e[0],'DELETE').catch(()=>{});}
+          if(idx>=0&&!/^\d+$/.test(e[0])){api('pixel/'+e[0],'DELETE').catch(_falloGuardado('Borrado de Pixel duplicado'));}
           else if(idx>=0){pixelRecords[idx]=r;}
         }
       });
@@ -28752,14 +28801,14 @@ function fmtEventTime(dt){try{var d=dt?new Date(dt):new Date();if(isNaN(d.getTim
 function renderPixelStats(){renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});var base=pixelMonthFilter==='todos'?pixelRecords:pixelRecords.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});const tot=base.length,sub=base.filter(r=>r.status==='subida').length,noSub=base.filter(r=>r.status==='nosubida').length,noKlav=base.filter(r=>r.status==='noklav').length;document.getElementById('pixel-stats').innerHTML='<div class="stat-card"><div class="stat-label">Total</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Subidas</div><div class="stat-val green">'+sub+'</div></div><div class="stat-card"><div class="stat-label">No subidas</div><div class="stat-val pink">'+noSub+'</div></div><div class="stat-card"><div class="stat-label">No Klaviyo</div><div class="stat-val amber">'+noKlav+'</div></div>';}
 function getFilteredPixel(){var q=(document.getElementById('pixel-search').value||'').toLowerCase().trim();var list=pixelRecords.slice();if(pixelMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});if(pixelFilter==='subida')list=list.filter(r=>r.status==='subida');if(pixelFilter==='nosubida')list=list.filter(r=>r.status==='nosubida');if(pixelFilter==='noklav')list=list.filter(r=>r.status==='noklav');if(q)list=list.filter(r=>(r.email||'').toLowerCase().includes(q)||(r.fn||'').toLowerCase().includes(q)||(r.ln||'').toLowerCase().includes(q)||(r.order_id||'').toLowerCase().includes(q));return list;}
 function setPixelFilter(f,btn){pixelFilter=f;document.querySelectorAll('#page-pixel .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPixel();}
-function changePixelStatus(idx,val){pixelRecords[idx].status=val;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',pixelRecords[idx]).catch(()=>{});renderPixel();showToast('✓ Estado actualizado');}
+function changePixelStatus(idx,val){pixelRecords[idx].status=val;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',pixelRecords[idx]).catch(_falloGuardado('Pixel del pedido '+numStr));renderPixel();showToast('✓ Estado actualizado');}
 function renderPixel(){
   renderPixelStats();renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});
   var list=getFilteredPixel(),tbody=document.getElementById('pixel-tbody'),empty=document.getElementById('pixel-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   tbody.innerHTML=list.map(r=>{const idx=pixelRecords.indexOf(r);const rowCls=r.status==='subida'?'px-subida':r.status==='noklav'?'px-noklav':'px-nosubida';return`<tr><td class="${rowCls}" style="font-size:11px">${r.email||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.phone||'—'}</td><td class="${rowCls}">${r.fn||'—'}</td><td class="${rowCls}">${r.ln||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.ct||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.st||'—'}</td><td class="${rowCls}">CL</td><td class="${rowCls}">${r.gen||'—'}</td><td class="${rowCls}" style="font-family:'DM Serif Display',serif;color:var(--wood)">${r.order_id||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.event_time||'—'}</td><td class="${rowCls}">${r.value||'—'}</td><td class="${rowCls}">CLP</td><td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option></select></td><td class="${rowCls}" style="display:flex;gap:4px;align-items:center"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deletePixelRecord_inline(${idx})">🗑</button></td></tr>`;}).join('');
 }
-function deletePixelRecord_inline(idx){if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(idx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(()=>{});renderPixel();showToast('✓ Eliminado');}
+function deletePixelRecord_inline(idx){if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(idx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Pixel del pedido '+numStr));renderPixel();showToast('✓ Eliminado');}
 function openPixelModal(idx){
   editingPixelIdx=(idx!==undefined)?idx:null;
   document.getElementById('pixel-modal-title').textContent=editingPixelIdx!==null?'Editar registro Pixel':'Nuevo registro Pixel';
@@ -28774,9 +28823,9 @@ function savePixelRecord(){
   const record={email:fmtEmail(document.getElementById('px-email').value),phone:fmtPhone(document.getElementById('px-phone').value),fn:fmtName(document.getElementById('px-fn').value),ln:fmtName(document.getElementById('px-ln').value),ct:fmtRegion(document.getElementById('px-ct').value),st:fmtRegion(document.getElementById('px-st').value),country:'CL',gen:document.getElementById('px-gen').value,order_id:orderId,value:Number(document.getElementById('px-value').value)||0,event_time:fmtEventTime(rawDate),medio:document.getElementById('px-medio').value,status:document.getElementById('px-status').value,fecha:todayStr};
   if(!record.email&&!record.fn){alert('Ingresa al menos email o nombre.');return;}
   if(editingPixelIdx!==null)pixelRecords[editingPixelIdx]=record;else pixelRecords.push(record);
-  if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',record).catch(()=>{});renderPixel();closePixelModal();showToast('✓ Registro guardado');
+  if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',record).catch(_falloGuardado('Pixel del pedido '+numStr));renderPixel();closePixelModal();showToast('✓ Registro guardado');
 }
-function deletePixelRecord(){if(editingPixelIdx===null)return;if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[editingPixelIdx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(editingPixelIdx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(()=>{});renderPixel();closePixelModal();showToast('✓ Eliminado');}
+function deletePixelRecord(){if(editingPixelIdx===null)return;if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[editingPixelIdx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(editingPixelIdx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Pixel del pedido '+numStr));renderPixel();closePixelModal();showToast('✓ Eliminado');}
 document.getElementById('modal-pixel-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-pixel-bg'))closePixelModal();});
 function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return r.status==='nosubida';});if(!list.length){showToast('No hay registros sin subir');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','gen':r.gen||'','event_name':'Purchase','order_id':r.order_id||'','event_time':r.event_time||fmtEventTime(''),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:4},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
 
@@ -29555,7 +29604,7 @@ function renderCost(){
   }).join('');
   list.forEach(r=>{const idx=costRecords.indexOf(r);renderCostRows(idx);renderCostSummary(idx);});
 }
-function deleteCostRecord(idx){if(!confirm('¿Eliminar registro de costos?'))return;const numStr=String(costRecords[idx].num||'');costRecords.splice(idx,1);if(DB_URL&&numStr)api('costos/'+numStr,'DELETE').catch(()=>{});renderCost();showToast('✓ Eliminado');}
+function deleteCostRecord(idx){if(!confirm('¿Eliminar registro de costos?'))return;const numStr=String(costRecords[idx].num||'');costRecords.splice(idx,1);if(DB_URL&&numStr)api('costos/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Costos del pedido '+numStr));renderCost();showToast('✓ Eliminado');}
 function toggleCostCard(idx){const body=document.getElementById('cost-body-'+idx),arrow=document.getElementById('cost-arrow-'+idx),isOpen=body.classList.contains('open');body.classList.toggle('open',!isOpen);if(arrow)arrow.textContent=isOpen?'▸':'▾';}
 function renderCostRows(idx){const r=costRecords[idx];if(!r)return;const tbody=document.getElementById('cost-rows-'+idx);if(!tbody)return;var _catPrev='';tbody.innerHTML=(r.lineas||[]).map((l,li)=>{const catSelected=CATEGORIAS_COSTO.map(c=>`<option${c===l.categoria?' selected':''}>${c}</option>`).join('');var _cat=l.categoria||'Otro',_cab='';if(_cat!==_catPrev){_catPrev=_cat;_cab='<tr class="cost-cat-head"><td colspan="7">'+esc(_cat)+'</td></tr>';}return _cab+`<tr><td data-label="Descripción"><input value="${esc(l.desc)}" onchange="updateCostRow(${idx},${li},'desc',this.value)" placeholder="Ej: Tablón Coihue 3m"></td><td data-label="Categoría"><select onchange="updateCostRow(${idx},${li},'categoria',this.value)">${catSelected}</select></td><td data-label="Cantidad"><input type="number" value="${l.qty||1}" min="0" step="0.001" onchange="updateCostRow(${idx},${li},'qty',this.value)" style="width:70px"></td><td data-label="Unidad"><input value="${esc(l.unidad||'un')}" onchange="updateCostRow(${idx},${li},'unidad',this.value)" style="width:50px" placeholder="un"></td><td data-label="Valor unit."><input type="number" value="${l.unit_val||0}" min="0" onchange="updateCostRow(${idx},${li},'unit_val',this.value)"></td><td data-label="Total línea" style="font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);text-align:right" id="cost-line-total-${idx}-${li}">${fmtCLP(l.total||0)}</td><td><button class="btn-del-row" onclick="delCostRow(${idx},${li})">🗑</button></td></tr>`;}).join('');}
 function renderCostSummary(idx){
@@ -29575,9 +29624,9 @@ function renderCostSummary(idx){
   const margenTxt=costeado?margen+'%':'—';
   el.innerHTML=`<div class="cost-sum-item"><div class="cost-sum-label">Venta bruta (con IVA)</div><div class="cost-sum-val" style="color:var(--text-muted)">${fmtCLP(bruta)}</div></div><div class="cost-sum-item"><div class="cost-sum-label">Venta neta real</div><div class="cost-sum-val verde">${fmtCLP(neta)}</div></div><div class="cost-sum-item"><div class="cost-sum-label">Total costos</div><div class="cost-sum-val naranja">${fmtCLP(totalCosto)}</div></div><div class="cost-sum-item"><div class="cost-sum-label">Ganancia</div><div class="cost-sum-val ${costeado?(ganancia>=0?'verde':'rojo'):''}">${costeado?fmtCLP(ganancia):'—'}</div></div><div class="cost-sum-item"><div class="cost-sum-label">Margen</div><div class="cost-sum-val ${mc}">${margenTxt}${barra}</div></div>${catRows}`;
 }
-function updateCostRow(idx,li,field,val){const r=costRecords[idx];if(!r||!r.lineas[li])return;r.lineas[li][field]=field==='qty'||field==='unit_val'?Number(val):val;r.lineas[li].total=Math.round((Number(r.lineas[li].qty)||0)*(Number(r.lineas[li].unit_val)||0));const totalEl=document.getElementById(`cost-line-total-${idx}-${li}`);if(totalEl)totalEl.textContent=fmtCLP(r.lineas[li].total);const numStr=String(r.num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',r).catch(()=>{});renderCostSummary(idx);renderCostStats();}
-function addCostRow(idx){if(!costRecords[idx])return;costRecords[idx].lineas=costRecords[idx].lineas||[];costRecords[idx].lineas.push({desc:'',categoria:'Insumos',qty:1,unidad:'un',unit_val:0,total:0});const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(()=>{});renderCostRows(idx);renderCostSummary(idx);}
-function delCostRow(idx,li){if(!costRecords[idx])return;costRecords[idx].lineas.splice(li,1);const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(()=>{});renderCostRows(idx);renderCostSummary(idx);renderCostStats();}
+function updateCostRow(idx,li,field,val){const r=costRecords[idx];if(!r||!r.lineas[li])return;r.lineas[li][field]=field==='qty'||field==='unit_val'?Number(val):val;r.lineas[li].total=Math.round((Number(r.lineas[li].qty)||0)*(Number(r.lineas[li].unit_val)||0));const totalEl=document.getElementById(`cost-line-total-${idx}-${li}`);if(totalEl)totalEl.textContent=fmtCLP(r.lineas[li].total);const numStr=String(r.num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',r).catch(_falloGuardado('Costos del pedido '+numStr));renderCostSummary(idx);renderCostStats();}
+function addCostRow(idx){if(!costRecords[idx])return;costRecords[idx].lineas=costRecords[idx].lineas||[];costRecords[idx].lineas.push({desc:'',categoria:'Insumos',qty:1,unidad:'un',unit_val:0,total:0});const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(_falloGuardado('Costos del pedido '+numStr));renderCostRows(idx);renderCostSummary(idx);}
+function delCostRow(idx,li){if(!costRecords[idx])return;costRecords[idx].lineas.splice(li,1);const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(_falloGuardado('Costos del pedido '+numStr));renderCostRows(idx);renderCostSummary(idx);renderCostStats();}
 function exportCostCSV(){var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});if(!base.length){showToast('No hay registros');return;}var dataRows=[];base.forEach(function(r){var totalCosto=(r.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0),venta=Number(r.venta_total)||0,ganancia=venta-totalCosto,margen=venta?Math.round(ganancia/venta*100):0;if(!(r.lineas||[]).length){dataRows.push({'N° PEDIDO':r.num||'','SEMANA':r.semana||'','CLIENTE':(r.nombre||'')+' '+(r.apellido||''),'PRODUCTO':r.producto||'','VENTA':venta,'DESCRIPCIÓN':'','CATEGORÍA':'','CANTIDAD':'','UNIDAD':'','VALOR UNIT':'','TOTAL LÍNEA':'','TOTAL COSTOS':totalCosto,'GANANCIA':ganancia,'MARGEN %':margen+'%'});}else{(r.lineas).forEach(function(l,li){dataRows.push({'N° PEDIDO':li===0?(r.num||''):'','SEMANA':li===0?(r.semana||''):'','CLIENTE':li===0?((r.nombre||'')+' '+(r.apellido||'')):'','PRODUCTO':li===0?(r.producto||''):'','VENTA':li===0?venta:'','DESCRIPCIÓN':l.desc||'','CATEGORÍA':l.categoria||'','CANTIDAD':l.qty||'','UNIDAD':l.unidad||'','VALOR UNIT':l.unit_val||'','TOTAL LÍNEA':l.total||'','TOTAL COSTOS':li===0?totalCosto:'','GANANCIA':li===0?ganancia:'','MARGEN %':li===0?margen+'%':''});});}});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:8},{wch:16},{wch:20},{wch:20},{wch:12},{wch:22},{wch:12},{wch:8},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:8}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=costMonthFilter==='todos'?'todos':costMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Costos '+label);downloadXLSX(wb,'zaru_costos_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
 
 // ── GASTOS: FACTURAS · INVENTARIO · LIBRO MAYOR ────────────────────────────
@@ -30845,7 +30894,7 @@ function logHistorial(numStr,accion){
   if(!DB_URL||!numStr)return;
   var ts=Date.now();
   var entry={accion:accion,usuario:getUsuario(),ts:ts,fecha:new Date(ts).toLocaleString('es-CL')};
-  api('historial/'+numStr+'/'+ts,'PUT',entry).catch(function(){});
+  api('historial/'+numStr+'/'+ts,'PUT',entry).catch(_falloGuardado('Historial del pedido '+numStr));
 }
 function openHistModal(numStr){
   if(!numStr){return;}
