@@ -3181,7 +3181,10 @@ function htmlMesa(cli, fecha) {
     total_bajo:  Math.round(tierRows[0].total),
     total_medio: Math.round(tierRows[1].total),
     total_alto:  Math.round(tierRows[2].total)
-  });
+  }, filas.map(function(f){
+    /* el modelo va en la línea: sin él no se puede saber cuáles se cotizan */
+    return { modelo:M.nombre || null, largo_cm:f.lg, ancho_cm:f.an, cantidad:f.ca, m2:f.m2 };
+  }));
 
   var espCub = M.espesorCubierta || vEsp;
   var detalleFierro =
@@ -3700,7 +3703,26 @@ function toastInterno(msg, ok) {
   if (!srcEmail && !vendorMode) return;
   showToast(msg, ok);
 }
-async function saveQuote(data) {
+/* ── GUARDAR LA COTIZACIÓN ──
+   `lineas` son las piezas cotizadas (modelo, medidas, m²). Se venían armando
+   en los cinco puntos de llamada desde siempre, pero la firma solo recibía
+   `data`, así que se descartaban en silencio y `cotizacion_lineas` quedó vacía
+   desde el día uno. Sin esas filas no hay forma de saber QUÉ se cotiza —solo
+   cuánto—, que es justo lo que se necesita para el análisis semanal.
+
+   Van por RPC y no por insert directo porque el insert de `cotizaciones` no
+   puede usar .select() (con RLS el público inserta pero no lee), así que acá
+   no se conoce el id recién creado. La función las resuelve por `numero`.
+   Es best-effort: si la función todavía no está creada en Supabase, la
+   cotización igual queda guardada, solo se pierde el detalle. */
+async function saveQuoteLineas(numero, lineas) {
+  if (!numero || !lineas || !lineas.length) return;
+  try {
+    var res = await sbClient.rpc('guardar_lineas', { p_numero: numero, p_lineas: lineas });
+    if (res.error) console.warn('guardar_lineas:', res.error.message);
+  } catch (e) { console.warn('guardar_lineas:', e); }
+}
+async function saveQuote(data, lineas) {
   if (fromHash) return;
   /* anti-duplicado: no insertar dos veces el mismo número en la misma sesión.
      El flag se fija ANTES del await para que clics rápidos seguidos no alcancen a duplicar. */
@@ -3714,6 +3736,7 @@ async function saveQuote(data) {
     /* sin .select(): con RLS el público solo puede insertar, no leer de vuelta la fila */
     var res = await sbClient.from('cotizaciones').insert(payload);
     if (res.error) { savedQnum = null; toastInterno('No se pudo registrar la cotización', false); console.error('saveQuote:', res.error); return; }
+    saveQuoteLineas(data.numero, lineas);   /* el detalle de piezas, aparte y sin bloquear */
     toastInterno('Cotización guardada', true);
   } catch(e) { toastInterno('No se pudo registrar la cotización', false); console.error('saveQuote:', e); }
 }

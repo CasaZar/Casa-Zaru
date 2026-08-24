@@ -1,0 +1,67 @@
+-- ══════════════════════════════════════════════════════════════
+-- Casa Zaru · Cotizador — guardar el detalle de lo cotizado
+-- Proyecto: cmxqorsyxoltrakxawro  («ZARU · Cotizador (público y panel)»)
+--
+-- CONTEXTO
+-- `cotizacion_lineas` existe desde el día uno pero está VACÍA: el código
+-- armaba las líneas y se las pasaba a saveQuote() como segundo argumento,
+-- pero la función solo recibía uno, así que se descartaban en silencio.
+-- Resultado: de cada cotización solo sabemos el producto y los tres
+-- totales. No sabemos qué medidas se piden, ni qué modelos, ni cuántos m².
+--
+-- POR QUÉ UNA FUNCIÓN Y NO UN INSERT DIRECTO
+-- El insert de `cotizaciones` no puede usar .select() (con RLS el público
+-- inserta pero no lee), así que el navegador NO conoce el id de la fila
+-- que acaba de crear y no puede llenar `cotizacion_lineas.cotizacion_id`.
+-- Esta función lo resuelve por `numero`, que sí conoce.
+--
+-- SEGURIDAD
+-- Es SECURITY DEFINER pero solo ESCRIBE, nunca devuelve datos. Un tercero
+-- con la anon key (que es pública, viaja en el navegador) podría a lo más
+-- agregar líneas a una cotización cuyo número adivine — el mismo alcance
+-- que ya tiene hoy para insertar cotizaciones. No abre ninguna lectura.
+-- ══════════════════════════════════════════════════════════════
+
+create or replace function public.guardar_lineas(p_numero text, p_lineas jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint;
+begin
+  if p_numero is null or p_lineas is null then return; end if;
+
+  -- la cotización más reciente con ese número
+  select c.id into v_id
+  from cotizaciones c
+  where c.numero = p_numero
+  order by c.fecha_creacion desc
+  limit 1;
+
+  if v_id is null then return; end if;
+
+  -- idempotente: si ya tiene líneas (doble clic, reintento), no duplica
+  if exists (select 1 from cotizacion_lineas l where l.cotizacion_id = v_id) then
+    return;
+  end if;
+
+  insert into cotizacion_lineas (cotizacion_id, modelo, largo_cm, ancho_cm, cantidad, m2)
+  select v_id,
+         nullif(e->>'modelo',''),
+         (e->>'largo_cm')::numeric,
+         (e->>'ancho_cm')::numeric,
+         coalesce((e->>'cantidad')::int, 1),
+         (e->>'m2')::numeric
+  from jsonb_array_elements(p_lineas) as e;
+end;
+$$;
+
+grant execute on function public.guardar_lineas(text, jsonb) to anon;
+
+-- ── verificación ──
+-- Cotiza algo real en el sitio y después, con una sesión del panel iniciada:
+--   select c.numero, c.producto, l.modelo, l.largo_cm, l.ancho_cm, l.cantidad, l.m2
+--   from cotizaciones c join cotizacion_lineas l on l.cotizacion_id = c.id
+--   order by c.fecha_creacion desc limit 20;
