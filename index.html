@@ -26031,6 +26031,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div id="pp-tipo-btns" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       <input type="hidden" id="pp-tipo" value="VENTA">
       <div id="pp-tipo-nota" style="font-size:11px;color:var(--text-3);width:100%;margin-top:4px"></div>
+      <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin:10px 0 2px">📣 ¿Cómo nos conoció?</div>
+      <div id="pp-canal-btns" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+      <input type="hidden" id="pp-como" value="">
     </div>
 
     <!-- Finanzas editable antes de confirmar -->
@@ -27761,6 +27764,10 @@ async function analyzeImage(dataUrl,file,apiKey){
     document.getElementById('prev-img').src=dataUrl;
     renderPrevVendedor(VENDEDOR_DEFAULT);
     renderPrevTipo('VENTA');
+    // Un pedido de Shopify llegó por la web: se propone y se puede cambiar.
+    // El resto arranca sin marcar, a propósito, para que sea una decisión y no
+    // un valor por defecto que nadie mira.
+    renderPrevCanal(pedidoData.canal==='web'?'Web':'');
     renderPrevProd(pedidoData);
     // Un pedido de Shopify ya viene con su forma de pago definida: la web
     // cobra por Mercado Pago y Shopify se queda su 2%. Preseleccionarlo evita
@@ -27949,7 +27956,7 @@ async function confirmOrder(){
     fact_ciudad:document.getElementById('pp-fact-ciudad').value.trim()
   };
   const existFin=finRecords.find(r=>String(r.num||'')===numStr);
-  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:'',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:((document.getElementById('pp-como')||{}).value||''),val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
   Object.assign(finData,datosDoc);
   const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
   if(existFinIdx>=0)finRecords[existFinIdx]=finData;else finRecords.push(finData);
@@ -27985,6 +27992,31 @@ const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','CUTEK','ACEITE','CERA','BARNI
 // "Interno" es la venta que no atribuye comisión a nadie.
 const VENDEDORES=['César','Tomás','Jose Pedro','Coté','Interno'];
 const VENDEDOR_DEFAULT='César';
+// Cómo nos conoció. Era texto libre y terminó con 23 formas de escribir 7
+// canales: "WHATSAPP ANTIGUO", "Whatsapp antiguo", "WHATAPP ANTGUO" y
+// "Whatsap antiguo" eran el mismo. Así no se puede sacar CAC ni margen por
+// canal, que es justo para lo que sirve este dato. Lista fija.
+const CANALES=['WhatsApp antiguo','Many Chat','Cotizador','Web','Instagram','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
+// Normaliza lo que ya está escrito a mano hacia la lista de arriba. Se usa
+// para leer los registros viejos sin tener que migrarlos.
+function canalCanonico(txt){
+  var s=String(txt||'').toUpperCase()
+    .replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I')
+    .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N').trim();
+  if(!s)return '';
+  // "WHATAPP ANTGUO" y "WHATSAP ANTIGUO" son errores de tipeo reales que hay
+  // en la base: se aceptan con las letras que sea.
+  if(/W?HAT?S?A?PP?.*ANT/.test(s)||/CEL.*ANTIGUO/.test(s))return 'WhatsApp antiguo';
+  if(/MANY\s*CHAT/.test(s))return s.indexOf('COTIZADOR')>=0?'Cotizador':'Many Chat';
+  if(/COTIZADOR/.test(s))return 'Cotizador';
+  if(/INSTAGRAM|INTAGRAM/.test(s))return 'Instagram';
+  if(/CANJE|INFLUENCER/.test(s))return 'Canje influencer';
+  if(/CORREO|MAIL/.test(s))return 'Correo';
+  if(/AMIGO|REFERID|RECOMEND/.test(s))return 'Referido';
+  if(/CLIENTE ANTIGUO/.test(s))return 'Cliente antiguo';
+  if(/^WEB$|SHOPIFY|TIENDA/.test(s))return 'Web';
+  return 'Otro';
+}
 // Tipo de registro. Un muestrario de $20.000 mezclado con cubiertas de
 // $250.000 destroza el ticket promedio, y una devolución contada como venta
 // infla la cantidad de pedidos. Los dos quedan en la planilla pero fuera de
@@ -28015,6 +28047,26 @@ function renderPrevVendedor(sel){
   document.getElementById('pp-vendedor').value=v;
   cont.innerHTML=VENDEDORES.map(function(n){
     return '<button type="button" class="vend-btn'+(n===v?' on':'')+'" onclick="renderPrevVendedor(\''+n.replace(/'/g,"\\'")+'\')">'+esc(n)+'</button>';
+  }).join('');
+}
+// Opciones del desplegable de canal en Finanzas. Lo ya escrito a mano se
+// muestra normalizado (36 registros de "WhatsApp antiguo" venían en 4 grafías),
+// pero el valor guardado no se toca hasta que alguien elija: no se reescriben
+// datos viejos por su cuenta.
+function _opcionesCanal(actual){
+  var canon=canalCanonico(actual);
+  var op='<option value=""'+(canon?'':' selected')+'>— sin definir —</option>';
+  op+=CANALES.map(function(c){
+    return '<option'+(c===canon?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
+  return op;
+}
+function renderPrevCanal(sel){
+  var cont=document.getElementById('pp-canal-btns');if(!cont)return;
+  var v=sel||'';
+  document.getElementById('pp-como').value=v;
+  cont.innerHTML=CANALES.map(function(n){
+    return '<button type="button" class="vend-btn'+(n===v?' on':'')+'" onclick="renderPrevCanal(\''+n.replace(/'/g,"\\'")+'\')">'+esc(n)+'</button>';
   }).join('');
 }
 function renderPrevTipo(sel){
@@ -28689,7 +28741,7 @@ function renderFin(){
     }
     const _tipoK=tipoDe(r),_tipoDef=TIPOS_REGISTRO.find(function(t){return t.k===_tipoK;})||TIPOS_REGISTRO[0];
     const _tipoBadge=_tipoK==='VENTA'?'':'<div class="tipo-badge" style="background:'+_tipoDef.color+'">'+esc(_tipoDef.label)+'</div>';
-    return`<tr class="${listo?'fin-listo':''} ${_tipoK!=='VENTA'?'fin-no-venta':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}${_tipoBadge}<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('${numStr}')">🏷️</button></td><td style="background:${bg};font-size:11px;min-width:110px"><input type="date" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:2px 4px;width:108px" value="${(function(){var f=r.fecha_creacion||r.fecha||'';if(!f)return'';var p=f.split('/');return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):f;})()}" onchange="(function(v){var p=v.split('-');var fd=parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];finSet('${numStr}','fecha_creacion',fd,null);finSet('${numStr}','fecha',fd,null);finSave('${numStr}');})(this.value)"></td><td style="background:${bg}"><input style="${ni}min-width:110px" value="${esc(r.semana)}" placeholder="SEMANA 29 JUNIO" ${iF} onchange="finSet('${numStr}','semana',this.value,null);${saveStr}"></td><td style="background:${bg}"><div style="font-weight:600;white-space:nowrap">${esc(r.nombre)} ${esc(r.apellido)}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${esc(r.celular)}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${esc(r.producto)}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:100px"><input style="${ni}" value="${esc(r.como)}" placeholder="Instagram..." ${iF} onchange="finSet('${numStr}','como',this.value,null);${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" id="fintot-${numStr}" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td>${_abonoCell('abono1',r.abono1,r.fecha_abono1)}${_abonoCell('abono2',r.abono2,r.fecha_abono2)}${_abonoCell('abono3',r.abono3,r.fecha_abono3)}<td style="background:${bg};min-width:100px"><span class="monto pend-live ${pendiente>0?'rojo':''}" style="font-size:14px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td>${_docCell(1)}${_docCell(2)}<td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span>${prodEstado?`<div style="font-size:10px;font-weight:600;color:${_peColor};margin-top:4px">🪵 ${prodEstado}</div>`:''}</td><td style="background:${bg}"><input type="checkbox" class="envio-check" style="margin-right:5px;cursor:pointer;vertical-align:middle" onchange="toggleEnvioSel('${numStr}',this.checked)"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta envío">📦</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
+    return`<tr class="${listo?'fin-listo':''} ${_tipoK!=='VENTA'?'fin-no-venta':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}${_tipoBadge}<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('${numStr}')">🏷️</button></td><td style="background:${bg};font-size:11px;min-width:110px"><input type="date" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:2px 4px;width:108px" value="${(function(){var f=r.fecha_creacion||r.fecha||'';if(!f)return'';var p=f.split('/');return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):f;})()}" onchange="(function(v){var p=v.split('-');var fd=parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];finSet('${numStr}','fecha_creacion',fd,null);finSet('${numStr}','fecha',fd,null);finSave('${numStr}');})(this.value)"></td><td style="background:${bg}"><input style="${ni}min-width:110px" value="${esc(r.semana)}" placeholder="SEMANA 29 JUNIO" ${iF} onchange="finSet('${numStr}','semana',this.value,null);${saveStr}"></td><td style="background:${bg}"><div style="font-weight:600;white-space:nowrap">${esc(r.nombre)} ${esc(r.apellido)}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${esc(r.celular)}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${esc(r.producto)}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:130px"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finSet('${numStr}','como',this.value,null);${saveStr}">${_opcionesCanal(r.como)}</select></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" id="fintot-${numStr}" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td>${_abonoCell('abono1',r.abono1,r.fecha_abono1)}${_abonoCell('abono2',r.abono2,r.fecha_abono2)}${_abonoCell('abono3',r.abono3,r.fecha_abono3)}<td style="background:${bg};min-width:100px"><span class="monto pend-live ${pendiente>0?'rojo':''}" style="font-size:14px;font-weight:${pendiente>0?'700':'400'}">${pendiente>0?fmtCLP(pendiente):'$0'}</span></td>${_docCell(1)}${_docCell(2)}<td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span>${prodEstado?`<div style="font-size:10px;font-weight:600;color:${_peColor};margin-top:4px">🪵 ${prodEstado}</div>`:''}</td><td style="background:${bg}"><input type="checkbox" class="envio-check" style="margin-right:5px;cursor:pointer;vertical-align:middle" onchange="toggleEnvioSel('${numStr}',this.checked)"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta envío">📦</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
   }).join('');
 }
 // El total es producto − descuento + envío + comisión. Antes era un campo suelto:
