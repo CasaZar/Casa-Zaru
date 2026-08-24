@@ -5,8 +5,10 @@
 # para analizar. Corre solo (tarea de Windows, lunes 08:00) y NO manda nada
 # a ninguna parte: escribe archivos locales.
 #
-# La llave service_role vive FUERA de este repo (el repo es publico), en
+# La llave secreta vive FUERA de este repo (el repo es publico), en
 # C:\Users\dell\.casazaru\config.ps1 — ver instrucciones ahi.
+# En el sistema nuevo de Supabase es una "secret key" (sb_secret_...); en los
+# proyectos antiguos era la service_role. Sirven las dos.
 #
 # Salida: C:\Users\dell\.casazaru\snapshots\AAAA-MM-DD\resumen.json
 #         (+ crudo\*.json por si hay que mirar el detalle)
@@ -16,9 +18,14 @@ $ErrorActionPreference = 'Stop'
 $INV = [Globalization.CultureInfo]::InvariantCulture
 
 $CFG = "C:\Users\dell\.casazaru\config.ps1"
-if (-not (Test-Path $CFG)) { throw "Falta $CFG. Copia config.ejemplo.ps1, pega la llave service_role y vuelve a correr." }
+if (-not (Test-Path $CFG)) { throw "Falta $CFG. Crealo con la URL y la llave secreta." }
 . $CFG
-if (-not $SB_URL -or -not $SB_KEY -or $SB_KEY -match '^PEGA') { throw "Falta la llave service_role en $CFG." }
+if (-not $SB_URL -or -not $SB_KEY -or $SB_KEY -match '^PEGA') {
+  throw "Falta pegar la llave secreta en $CFG (Project Settings > API Keys > Secret keys, la que empieza con sb_secret_)."
+}
+if ($SB_KEY -like 'sb_publishable_*') {
+  throw "Esa es la llave PUBLICA. No puede leer cotizaciones y devolveria listas vacias sin avisar. Usa la de Secret keys (sb_secret_...)."
+}
 
 $H = @{ apikey = $SB_KEY; Authorization = "Bearer $SB_KEY" }
 
