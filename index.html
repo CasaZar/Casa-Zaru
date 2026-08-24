@@ -611,6 +611,8 @@ body.rol-taller #gastos-view-inventario .btn-del { display:none !important; }
 .api-banner .save-btn { background:var(--brand); color:#0F0F0F; border:none; border-radius:var(--radius); padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
 .api-ok { background:var(--green-dim); border:1px solid rgba(45,125,50,0.2); border-radius:var(--radius); padding:8px 14px; font-size:12px; color:var(--green); display:none; align-items:center; gap:8px; margin-bottom:16px; }
 .api-ok.on { display:flex; }
+.api-cambiar { margin-left:auto;background:none;border:1px solid rgba(45,125,50,0.35);color:var(--green);font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;cursor:pointer; }
+.api-cambiar:hover { background:rgba(45,125,50,0.10); }
 .uzone { border:2px dashed var(--border-md); border-radius:var(--radius-xl); background:var(--surface); padding:36px 24px; text-align:center; cursor:pointer; position:relative; margin-bottom:16px; transition:all .2s; }
 .uzone:hover,.uzone.drag { border-color:var(--brand); background:var(--brand-dim); }
 .uzone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
@@ -25999,7 +26001,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="save-btn" onclick="saveApiKey()">Guardar</button>
     <span style="font-size:11px;color:var(--text-muted)">Solo en tu navegador</span>
   </div>
-  <div class="api-ok" id="api-ok">✓ API Key guardada — listo para analizar pantallazos</div>
+  <div class="api-ok" id="api-ok">✓ API Key guardada — listo para analizar pantallazos<button class="api-cambiar" onclick="cambiarApiKey()">Cambiar</button></div>
   <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:24px">
     <div class="stat-card"><div class="stat-label">Pedidos cargados</div><div class="stat-val wood" id="p-ped">0</div></div>
     <div class="stat-card"><div class="stat-label">Líneas producción</div><div class="stat-val" id="p-lin">0</div></div>
@@ -27694,6 +27696,37 @@ async function saveProdOrder(order){
 }
 function loadApiKey(){const k=localStorage.getItem('zaru_api_key');if(k){document.getElementById('api-key-input').value=k;document.getElementById('api-banner').classList.add('hidden');document.getElementById('api-ok').classList.add('on');}}
 function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();if(!k.startsWith('sk-')){alert('La API key debe comenzar con sk-');return;}localStorage.setItem('zaru_api_key',k);document.getElementById('api-banner').classList.add('hidden');document.getElementById('api-ok').classList.add('on');showToast('✓ API Key guardada');}
+// Al rotar la key, la vieja queda guardada en el navegador y la app sigue
+// diciendo "API Key guardada" mientras falla en cada pantallazo. Como el campo
+// se escondía apenas había una key, no había forma de reemplazarla sin borrar
+// el localStorage a mano. Este botón la vuelve a mostrar.
+// "invalid x-api-key" no le dice nada a nadie. El caso real y frecuente es
+// que se roto la key y el navegador quedó con la vieja, así que el error lo
+// nombra y abre el campo para pegar la nueva sin buscar dónde.
+function _errorAnalisis(err){
+  console.error('Análisis del pantallazo falló:',err);
+  var m=String((err&&err.message)||err||'');
+  var esKey=/x-api-key|invalid.*key|authentication|401|unauthorized|revoked/i.test(m);
+  var sinSaldo=/credit|balance|quota|insufficient|429/i.test(m);
+  if(esKey){
+    showToast('✗ La API key no es válida. ¿La rotaste? Pegá la nueva.',true);
+    cambiarApiKey();
+    return;
+  }
+  if(sinSaldo){
+    showToast('✗ Sin crédito en la API de Anthropic. Cargá saldo en platform.claude.com.',true);
+    return;
+  }
+  showToast('✗ No se pudo leer el pantallazo: '+m.slice(0,90),true);
+}
+function cambiarApiKey(){
+  var b=document.getElementById('api-banner'),i=document.getElementById('api-key-input');
+  document.getElementById('api-ok').classList.remove('on');
+  b.classList.remove('hidden');
+  if(i){i.value='';i.focus();}
+  b.scrollIntoView({behavior:'smooth',block:'center'});
+  showToast('Pegá la API key nueva y guardá');
+}
 const dz=document.getElementById('dz');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
@@ -27732,7 +27765,7 @@ async function analyzeImage(dataUrl,file,apiKey){
     if(parsed.cliente&&(parsed.cliente.email||parsed.cliente.phone||parsed.cliente.fn)){
       showToast('✓ Datos de cliente detectados — confirmar para guardar en Pixel');
     }
-  }catch(err){showToast('❌ Error: '+err.message);console.error(err);}
+  }catch(err){_errorAnalisis(err);}
   finally{document.getElementById('proc').classList.remove('on');}
 }
 async function addSecondImage(file){
@@ -27758,7 +27791,7 @@ async function addSecondImage(file){
         prodPending.lineas=[...(prodPending.lineas||[]),...nuevasLineas];renderPrevRows(prodPending.lineas);
         showToast('✓ '+nuevasLineas.length+' líneas agregadas');
       }else{showToast('No se encontraron líneas');}
-    }catch(err){showToast('❌ Error: '+err.message);}
+    }catch(err){_errorAnalisis(err);}
     finally{document.getElementById('proc2').classList.remove('on');document.getElementById('fi2').value='';}
   };
   r.readAsDataURL(file);
