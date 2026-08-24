@@ -30,12 +30,24 @@ if ($SB_KEY -like 'sb_publishable_*') {
 $H = @{ apikey = $SB_KEY; Authorization = "Bearer $SB_KEY" }
 
 # PostgREST devuelve 1000 filas por defecto: hay que paginar o se pierde data
+# Se pagina con limit/offset y NO con el encabezado Range: PowerShell 5.1
+# considera Range un encabezado protegido y tira "se debe modificar con la
+# propiedad o metodo adecuados" si se pasa por -Headers.
+# El order=id es necesario para que la paginacion sea estable entre paginas.
 function Get-Tabla([string]$tabla, [string]$select = '*') {
   $todo = @(); $desde = 0; $paso = 1000
   while ($true) {
-    $h2 = $H.Clone(); $h2['Range'] = "$desde-$($desde + $paso - 1)"
-    $url = "$SB_URL/rest/v1/$tabla" + "?select=$select"
-    $r = @(Invoke-RestMethod -Uri $url -Headers $h2 -Method Get)
+    $url = "$SB_URL/rest/v1/$tabla" + "?select=$select&order=id&limit=$paso&offset=$desde"
+    # -UserAgent explicito: PowerShell manda por defecto uno que empieza con
+    # "Mozilla/5.0" y Supabase lo toma por un navegador, rechazando la llave
+    # secreta con "Forbidden use of secret API key in browser".
+    #
+    # OJO con las dos lineas de abajo: Invoke-RestMethod emite el arreglo JSON
+    # como UN SOLO objeto, no fila por fila. Escribir @(Invoke-RestMethod ...)
+    # lo envuelve en vez de expandirlo y quedan "1 fila" con las 1000 adentro.
+    # Hay que capturarlo en una variable primero y recien ahi normalizar.
+    $resp = Invoke-RestMethod -Uri $url -Headers $H -Method Get -UserAgent 'CasaZaru-Analisis/1.0'
+    $r = @($resp)
     if ($r.Count -eq 0) { break }
     $todo += $r
     if ($r.Count -lt $paso) { break }

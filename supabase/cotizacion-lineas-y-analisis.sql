@@ -39,12 +39,17 @@ begin
   -- jsonb_array_elements lanzaría excepción. Mejor salir callado.
   if jsonb_typeof(p_lineas) <> 'array' then return; end if;
 
-  -- la cotización más reciente con ese número. "nulls last" a propósito: en
-  -- Postgres un ORDER BY ... DESC pone los NULL PRIMERO, así que sin eso una
-  -- fila sin fecha se llevaría las líneas.
+  -- OJO: `numero` NO es único. Verificado el 24-08-2026 contra la base:
+  -- "N° CL-0726-100" está repetido 152 veces. Buscar solo por número pegaría
+  -- las líneas a una cotización cualquiera de ese grupo.
+  -- Por eso se acota a los últimos 10 minutos: esta función la llama el
+  -- navegador un instante después de insertar, así que la fila recién creada
+  -- es la única candidata real. Si no hay ninguna reciente, no hace nada.
+  -- "nulls last" porque en Postgres un ORDER BY ... DESC pone los NULL PRIMERO.
   select c.id into v_id
   from cotizaciones c
   where c.numero = p_numero
+    and c.fecha_creacion >= now() - interval '10 minutes'
   order by c.fecha_creacion desc nulls last
   limit 1;
 
