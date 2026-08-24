@@ -419,6 +419,12 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .omni-chip { background:var(--bg3);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--acd);font-weight:600; }
 .omni-clear { background:none;border:none;color:var(--tm);font-size:11px;cursor:pointer;text-decoration:underline;font-family:'Jost',sans-serif;padding:3px 4px; }
 .act-dia { color:var(--tm);font-weight:400; }
+/* ── pantalla de arranque ── */
+.carga-box { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:90px 20px;min-height:50vh; }
+.carga-spin { width:34px;height:34px;border:3px solid var(--bd);border-top-color:var(--ac);border-radius:50%;animation:cargaGira .8s linear infinite; }
+@keyframes cargaGira { to { transform:rotate(360deg); } }
+.carga-txt { font-size:13px;color:var(--tm);letter-spacing:.3px; }
+@media (prefers-reduced-motion: reduce) { .carga-spin { animation:none; } }
 .tbl-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
 .dash-estado { padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:10px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
 .dash-estado.ganado { background:#D1FAE5;color:#065F46;border-color:#A7F3D0; }
@@ -955,7 +961,21 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 <body>
 
 <!-- ══ s1: DASHBOARD ══ -->
-<div id="s1">
+<!-- Pantalla de arranque. Es la ÚNICA visible al cargar: antes lo era s1, y
+     al abrir un link compartido el cliente veía parpadear el selector de
+     productos mientras se buscaba su cotización en la base. -->
+<div id="s-cargando">
+  <div class="logo-bar">
+    <div class="logotype">CASA ZARU</div>
+    <div><span class="badge">Cotizador en Línea</span></div>
+  </div>
+  <div class="carga-box">
+    <div class="carga-spin"></div>
+    <div class="carga-txt" id="carga-txt">Cargando…</div>
+  </div>
+</div>
+
+<div id="s1" class="hidden">
   <div class="logo-bar">
     <div class="logotype">CASA ZARU</div>
     <div class="tagline">Madera del sur de Chile a medida</div>
@@ -1821,12 +1841,25 @@ async function nextQ() {
 }
 
 /* ── NAVIGATION ── */
+/* true mientras se rearma una cotización compartida. Restaurarla obliga a
+   pasar por el formulario (initProd lo abre para llenarlo), y sin este freno
+   el cliente veía el formulario a medio llenar antes de su cotización. */
+var restaurando = false;
 function show(id) {
-  ['s1','s2','s2b','s3','s-dash','s-login'].forEach(function(i) {
+  if (restaurando && id !== 's3') return;
+  ['s-cargando','s1','s2','s2b','s3','s-dash','s-login'].forEach(function(i) {
     var el = document.getElementById(i); if (el) el.classList.add('hidden');
   });
   document.getElementById(id).classList.remove('hidden');
   window.scrollTo(0,0);
+}
+/* se llama pase lo que pase al terminar de restaurar: si algo falló y no
+   quedó ninguna pantalla visible, cae al inicio en vez de dejar el spinner
+   girando para siempre */
+function finRestauracion(){
+  restaurando = false;
+  var s3 = document.getElementById('s3');
+  if (s3 && s3.classList.contains('hidden')) show('s1');
 }
 
 /* ── LIVE PRICE ── */
@@ -3540,6 +3573,7 @@ async function buildShortUrl() {
 
 function restoreFromData(d) {
   fromHash = true;
+  restaurando = true;   /* tapa el formulario mientras se rellena */
   if (d.qnum) qnum = d.qnum;
   b2bDcto = parseInt(d.b2b) || 0;   /* aplica el descuento al mostrar, sin mostrar el selector */
   var espGuardado = d.esp || null;   /* espesor de peldaño del link compartido */
@@ -3635,7 +3669,10 @@ function restoreFromData(d) {
     }
   }
   rbRestaurar(d);   /* va DESPUÉS de las piezas: sus cantos cuelgan de cada fila */
-  confirmar();
+  /* confirmar() es async y termina en show('s3'): recién ahí se levanta el
+     freno, para que el cliente pase de la pantalla de carga a su cotización
+     sin ver nada intermedio */
+  Promise.resolve(confirmar()).then(finRestauracion, finRestauracion);
 }
 /* Restaura el reborde de un link compartido. Requiere que las piezas ya existan. */
 function rbRestaurar(d) {
@@ -6367,7 +6404,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }).catch(function(){ show('s-login'); });
   } else if (params.get('s')) {
-    loadFromShortCode(params.get('s')).then(function(ok) { if (!ok) { if (prodDirecto) initProd(prodDirecto); else show('s1'); } });
+    /* es un link compartido: el que espera es un cliente mirando SU cotización */
+    var ct = document.getElementById('carga-txt'); if (ct) ct.textContent = 'Abriendo tu cotización…';
+    loadFromShortCode(params.get('s')).then(function(ok) {
+      if (!ok) { restaurando = false; if (prodDirecto) initProd(prodDirecto); else show('s1'); }
+    }, function(){ restaurando = false; show('s1'); });
   } else if (!loadFromHash()) {
     if (prodDirecto) initProd(prodDirecto); else show('s1');
   }
