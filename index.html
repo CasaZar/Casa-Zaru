@@ -27706,7 +27706,9 @@ function saveApiKey(){const k=document.getElementById('api-key-input').value.tri
 function _errorAnalisis(err){
   console.error('Análisis del pantallazo falló:',err);
   var m=String((err&&err.message)||err||'');
-  var esKey=/x-api-key|invalid.*key|authentication|401|unauthorized|revoked/i.test(m);
+  // Anthropic manda "API key is invalid" — con las palabras al revés de lo que
+  // uno espera. Se cubren las dos formas y cualquier mensaje que nombre la key.
+  var esKey=/api[\s_-]?key|x-api-key|invalid.*key|key.*invalid|authentication|401|unauthorized|revoked|permission_error/i.test(m);
   var sinSaldo=/credit|balance|quota|insufficient|429/i.test(m);
   if(esKey){
     showToast('✗ La API key no es válida. ¿La rotaste? Pegá la nueva.',true);
