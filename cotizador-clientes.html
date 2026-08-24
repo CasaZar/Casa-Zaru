@@ -418,6 +418,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .omni-chips:empty { display:none; }
 .omni-chip { background:var(--bg3);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--acd);font-weight:600; }
 .omni-clear { background:none;border:none;color:var(--tm);font-size:11px;cursor:pointer;text-decoration:underline;font-family:'Jost',sans-serif;padding:3px 4px; }
+.act-dia { color:var(--tm);font-weight:400; }
 .tbl-scroll { overflow-x:auto;-webkit-overflow-scrolling:touch; }
 .dash-estado { padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:10px;font-family:'Jost',sans-serif;background:white;color:var(--tx); }
 .dash-estado.ganado { background:#D1FAE5;color:#065F46;border-color:#A7F3D0; }
@@ -4742,8 +4743,13 @@ function renderSeguimiento(){
       '<div class="hoy-pasos">'+
         '<div class="hoy-paso'+(p1Ok?' ok':'')+'" onclick="scrollToBloque(1)">'+
           '<span class="hoy-n">1</span>'+
-          '<span class="hoy-txt">'+(p1Ok ? 'Nuevos contactados ✓' : '<strong>'+b1.length+'</strong> por contactar')+
-          '<span class="hoy-sub">Escribirles el mismo día</span>'+
+          /* se muestra "hechos de total" y cuántos faltan, no solo lo que
+             queda: sin el total no se sabe si 17 pendientes es que no se
+             empezó o que ya se hizo la mitad */
+          '<span class="hoy-txt">'+(p1Ok
+              ? 'Nuevos contactados ✓ ('+b1Hechos+')'
+              : '<strong>'+b1Hechos+' de '+(b1Hechos+b1.length)+'</strong> contactados')+
+          '<span class="hoy-sub">'+(p1Ok ? 'Escribirles el mismo día' : 'Faltan '+b1.length+' — escribirles el mismo día')+'</span>'+
           '<span class="hoy-go">Ir al bloque 1 →</span></span>'+
         '</div>'+
         '<div class="hoy-paso'+(p2Ok?' ok':'')+'" onclick="scrollToBloque(2)" title="Cuentan las ballenas, las conversaciones activas y el bloque 2. No cuentan los primeros contactos (esos son el paso 1) ni el bloque 3.">'+
@@ -5655,8 +5661,32 @@ function vendedorPorEmail(mail){
   }
   return null;
 }
+/* Quién HIZO un toque. A diferencia de vendedorPorEmail(), acá NO valen ni
+   srcEmail ni legacy: 'hola@casazaru.cl' es el canal por el que entran las
+   cotizaciones de César —por eso está en su legacy— pero es TAMBIÉN la cuenta
+   con la que el admin entra al panel. Mezclar las dos cosas hacía que cada
+   toque del admin se le anotara a César: el 24-08-2026 su fila mostraba 22
+   toques del día contra 3 seguimientos hechos, y no cuadraba con nada. */
+function vendedorQueToco(mail){
+  var m = String(mail||'').trim().toLowerCase();
+  if (!m) return null;
+  for (var i=0;i<VENDEDORES.length;i++){
+    if (String(VENDEDORES[i].email||'').toLowerCase() === m) return VENDEDORES[i].code;
+  }
+  return null;
+}
 var actVendedor = '';      /* '' = todos; si no, el code del vendedor filtrado */
 function setActVendedor(code){ actVendedor = code; renderActividad(); }
+var DIAS_ES = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+/* Nombre del día de una fecha AAAA-MM-DD. Se parte a mano en vez de
+   new Date('2026-08-23') porque esa forma la interpreta como UTC y en Chile
+   devuelve el día anterior. */
+function nombreDia(iso){
+  var p = String(iso||'').split('-');
+  if (p.length < 3) return '';
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  return DIAS_ES[d.getDay()] || '';
+}
 function renderActividad(){
   var esAdmin  = isPanelAdmin();
   /* el admin puede filtrar por vendedor; un vendedor ya ve solo lo suyo */
@@ -5738,9 +5768,23 @@ function renderActividad(){
   /* Toques del día desde la bitácora: aquí manda QUIÉN lo hizo, no de quién es
      el cliente. Así el trabajo de César en un cliente web se le cuenta a él y
      el cliente sigue siendo web, que es lo que corresponde. */
+  /* mapa cotización → dueño del cliente, para poder ubicar un toque cuando
+     quien lo hizo no es un vendedor conocido */
+  var dueñoDeCoti = {};
+  Object.keys(porCli).forEach(function(k){
+    var qs = porCli[k], code = null;
+    qs.some(function(q){ var c = ownerCode(q); if (c){ code = c; return true; } return false; });
+    if (!code) code = 'web';
+    qs.forEach(function(q){ dueñoDeCoti[String(q.id)] = code; });
+  });
   TOQUES.forEach(function(t){
-    var code = vendedorPorEmail(t.hecho_por);
-    if (!code) return;                            /* lo hizo el admin u otra cuenta */
+    /* Si lo hizo un vendedor conocido se le cuenta a él, aunque el cliente sea
+       web. Si lo hizo el admin —que no es vendedor— antes se descartaba y ese
+       trabajo desaparecía del reporte: la fila "Cotizaron por la web" mostraba
+       4 hechos con 0 toques del día, que no cuadraba con nada. Ahora se le
+       cuenta al dueño del cliente, que es donde aparece el cumplimiento. */
+    var code = vendedorQueToco(t.hecho_por) || dueñoDeCoti[String(t.cotizacion_id)];
+    if (!code) return;
     if (soloCode && code !== soloCode) return;
     var f = String(t.ts||'').slice(0,10);
     if (!f || f > hoy || f < desde) return;
@@ -5777,7 +5821,9 @@ function renderActividad(){
     var celdaVend = muestraVend ? '<td>'+escA(nombre)+'</td>' : '';
     var esHoy = r.fecha === hoy;
     return '<tr'+(esHoy?' style="background:var(--bg3)"':'')+'>'+
-      '<td>'+fmtFechaCorta(r.fecha)+(esHoy?' <strong>· hoy</strong>':'')+'</td>'+celdaVend+
+      /* con el nombre del día se lee al tiro por qué un sábado o un domingo
+         tiene menos toques que un martes */
+      '<td>'+fmtFechaCorta(r.fecha)+' <span class="act-dia">· '+(esHoy?'hoy':nombreDia(r.fecha))+'</span></td>'+celdaVend+
       '<td>'+r.correspondian+'</td><td>'+r.hechos+'</td><td>'+noHechos+'</td>'+
       '<td style="color:'+pctCol+';font-weight:700">'+pct+'%</td>'+
       '<td style="font-weight:700">'+r.delDia+'</td></tr>';
