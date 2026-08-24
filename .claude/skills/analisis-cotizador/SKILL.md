@@ -70,9 +70,20 @@ De `primer_toque_horas`, `sin_tocar`, `toques_por_vendedor`, `estados`.
   cualquier otra cosa.
 - **`p90` importa tanto como la mediana**: una mediana buena con un p90 de 5 días
   significa que hay clientes olvidados aunque el promedio se vea bien.
-- **`sin_tocar.top` viene ordenado por monto.** Las de arriba con muchos días son
-  plata dejada en la mesa. Nómbralas con número y monto — son la lista de
-  llamados de esta semana.
+- **`sin_tocar` se cuenta por CLIENTE, no por cotización.** Un cliente que pidió
+  3 cotizaciones y recibió un toque en una sola está siendo atendido. Contar por
+  cotización infla el número más del doble (507 "cotizaciones" cuando eran 235
+  clientes) y además deja de ser comparable con el panel, que agrupa por
+  cliente. Si alguna vez ves un número que no cuadra con lo que el usuario ve en
+  pantalla, revisa primero esto.
+- **Usa `sin_tocar.por_edad` antes que el total.** El panel solo muestra la cola
+  del día; lo de más de 21 días vive en la pestaña **Backlog**. Decir "hay 235
+  sin tocar" cuando en pantalla se ven 5 confunde. Di cuántos son de esta semana
+  y cuántos son backlog viejo.
+- **En el top, `monto` es la suma de TODAS las cotizaciones abiertas del
+  cliente** — exagera cuando cotizó la misma pieza varias veces probando
+  medidas, que es lo normal. Para dimensionar la venta usa `monto_max`, la
+  cotización individual más grande. Menciona las dos si difieren mucho.
 - **`toques_por_vendedor`**: si un vendedor tiene 0 toques la semana, dilo sin
   rodeos pero sin acusar — puede estar de vacaciones.
 

@@ -1,4 +1,4 @@
-# ══════════════════════════════════════════════════════════════
+﻿# ══════════════════════════════════════════════════════════════
 # Casa Zaru · Snapshot semanal del Cotizador
 #
 # Baja los datos del proyecto Cotizador y deja un resumen agregado listo
@@ -134,24 +134,54 @@ $nToques = @{}
 foreach ($t in $toq) { $k = [string]$t.cotizacion_id; $nToques[$k] = [int]$nToques[$k] + 1 }
 
 $horasPrimer = @()
-$sinTocar = @()
 foreach ($c in $vivas) {
   if (-not $c._f) { continue }
   $k = [string]$c.id
-  if ($primerToque.ContainsKey($k)) {
-    if ($c._f -ge $sem1) { $horasPrimer += [math]::Round(($primerToque[$k] - $c._f).TotalHours, 1) }
-  } elseif (-not $c.estado -or $c.estado -eq 'enviada') {
-    # solo las que siguen esperando respuesta: una confirmada o perdida ya no
-    # es un llamado pendiente y solo ensucia la lista
-    $sinTocar += [pscustomobject]@{
-      numero = $c.numero; producto = $c.producto
-      monto  = [int]$c.total_bajo
-      dias   = [int]($ahora - $c._f).TotalDays
-      canal  = $c.canal; vendedor = $c.user_email; estado = $c.estado
-    }
+  if ($primerToque.ContainsKey($k) -and $c._f -ge $sem1) {
+    $horasPrimer += [math]::Round(($primerToque[$k] - $c._f).TotalHours, 1)
   }
 }
-$sinTocar = @($sinTocar | Sort-Object monto -Descending)
+
+# ── SIN TOCAR: se cuenta por CLIENTE, no por cotización ──
+# Un cliente que pidió 3 cotizaciones y recibió un toque en una sola ESTÁ
+# siendo atendido. Contando por cotización las otras 2 aparecían como
+# abandonadas y el total salía inflado más del doble (507 "cotizaciones" cuando
+# eran 235 clientes). El panel agrupa por cliente: este número tiene que poder
+# compararse con lo que muestra el panel.
+function ClaveCliente($c) {
+  if ($c.contacto) { return ($c.contacto -replace '\s|\+|-', '').ToLower() }
+  return ('n:' + $c.cliente).ToLower()
+}
+$abiertas = @($vivas | Where-Object { -not $_.estado -or $_.estado -eq 'enviada' })
+$sinTocar = @($abiertas | Group-Object { ClaveCliente $_ } | ForEach-Object {
+  if ($_.Group | Where-Object { $primerToque.ContainsKey([string]$_.id) }) { return }   # ya lo tocaron
+  $ult = ($_.Group | Where-Object { $_._f } | Sort-Object _f -Descending)[0]
+  if (-not $ult) { return }
+  [pscustomobject]@{
+    cliente      = $ult.cliente
+    cotizaciones = $_.Count
+    # monto = suma de TODAS sus cotizaciones abiertas. Exagera cuando el cliente
+    # coticé la misma pieza varias veces probando medidas, que es lo normal.
+    # monto_max = la cotización individual más grande, mejor proxy de la venta.
+    monto        = [int](($_.Group | Measure-Object total_bajo -Sum).Sum)
+    monto_max    = [int](($_.Group | Measure-Object total_bajo -Maximum).Maximum)
+    dias         = [int]($ahora - $ult._f).TotalDays
+    producto     = $ult.producto
+    vendedor     = $ult.user_email
+    ultimo_numero = $ult.numero
+  }
+} | Sort-Object monto -Descending)
+
+# por antigüedad, para saber cuánto es cola de hoy y cuánto es backlog viejo
+$tramos = @(
+  @{ n = '0 a 2 dias'; min = 0; max = 2 }, @{ n = '3 a 7 dias'; min = 3; max = 7 },
+  @{ n = '8 a 21 dias'; min = 8; max = 21 }, @{ n = 'mas de 21 dias'; min = 22; max = 999999 })
+$sinTocarPorEdad = $tramos | ForEach-Object {
+  $s = @($sinTocar | Where-Object { $_.dias -ge $_.min -and $_.dias -le $_.max })
+  $t = $_
+  $s = @($sinTocar | Where-Object { $_.dias -ge $t.min -and $_.dias -le $t.max })
+  [pscustomobject]@{ tramo = $t.n; clientes = $s.Count; monto = [int](($s | Measure-Object monto -Sum).Sum) }
+}
 
 $porVendedor = $toq | Where-Object { (AFecha $_.ts) -ge $sem1 } | Group-Object hecho_por |
   ForEach-Object { [pscustomobject]@{ vendedor = $(if ($_.Name) { $_.Name } else { '(sin registrar)' }); toques = $_.Count } } |
@@ -169,7 +199,13 @@ $resumen = [pscustomobject]@{
   canal              = @($estaSem | Group-Object canal | ForEach-Object { [pscustomobject]@{ canal = $(if ($_.Name) { $_.Name } else { '(directo)' }); veces = $_.Count } })
   estados            = @($vivas | Group-Object estado | ForEach-Object { [pscustomobject]@{ estado = $(if ($_.Name) { $_.Name } else { '(sin estado)' }); n = $_.Count } })
   primer_toque_horas = @{ mediana = (Mediana $horasPrimer); p90 = (Percentil $horasPrimer 0.9); muestra = $horasPrimer.Count }
-  sin_tocar          = @{ total = $sinTocar.Count; monto_total = [int](($sinTocar | Measure-Object monto -Sum).Sum); top = @($sinTocar | Select-Object -First 15) }
+  sin_tocar          = @{
+    unidad      = 'CLIENTES, no cotizaciones — comparable con el panel'
+    clientes    = $sinTocar.Count
+    monto_total = [int](($sinTocar | Measure-Object monto -Sum).Sum)
+    por_edad    = @($sinTocarPorEdad)
+    top         = @($sinTocar | Select-Object -First 15)
+  }
   toques_por_vendedor = @($porVendedor)
 }
 
