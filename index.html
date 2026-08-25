@@ -26418,7 +26418,8 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">
       Lo que salga de bodega se descuenta del stock y se carga como costo del pedido en su centro de costo.
-      Las líneas vienen precargadas con la receta estándar — corregí lo que realmente usaste.
+      Anotá los ítems que realmente usaste, en la unidad de cada ítem. Un consumo es de un solo tipo de
+      producto: si el pedido lleva puerta y cubierta, hacé dos.
     </div>
     <div class="search-wrap"><span class="search-icon">⌕</span>
       <input type="text" id="consumo-buscar" placeholder="Buscar pedido por número o cliente..." oninput="buscarPedidosConsumo()">
@@ -29982,21 +29983,39 @@ function cecoPorId(id){return cecos.find(function(c){return c.id===id;})||null;}
 function cecoPorCodigo(cod){return cecos.find(function(c){return c.codigo===cod;})||null;}
 function cecoGeneral(){return cecos.find(function(c){return c.tipo==='GENERAL';})||null;}
 
+// Las especies distintas que tiene un pedido, normalizadas. "PINO OREGON" y
+// "OREGON" colapsan en una sola: comparten centro de costo, asi que un pedido
+// con las dos NO es de dos maderas.
+function _especiesDePedido(numStr){
+  var out=[];
+  lineasProdDe(numStr).forEach(function(l){
+    var e=_normMad(l.madera);
+    if(!e)return;
+    if(e.indexOf('OREGON')>=0)e='OREGON';
+    if(out.indexOf(e)<0)out.push(e);
+  });
+  return out;
+}
+
 // Sugiere el CECO leyendo el pedido en Produccion, que es la fuente de verdad
 // y la unica que tiene lo necesario: la especie por linea y el check de "lleva
-// base de fierro". Reusa _dominante(), que ya resuelve el pedido con varias
-// maderas quedandose con la de mas m2.
+// base de fierro".
 //
-// Laurel, las combinadas y los pedidos sin madera caen en el general: no
-// tienen CECO propio a proposito.
+// Dos o mas maderas van al combinado de su rama (Mader2Tipo26 / Mixto2Tipo26):
+// antes se quedaban con la especie de mas m2 y le cargaban todo el consumo,
+// ensuciando el costo de esa especie. Laurel y los pedidos sin madera siguen
+// cayendo en el general: no tienen CECO propio a proposito.
 function cecoSugerido(numStr){
   var lineas=lineasProdDe(numStr);
   if(!lineas.length)return cecoGeneral();
   var conFierro=lineas.some(function(l){return !!l.fierro;});
-  var esp=_normMad(_dominante(numStr,'madera'));
-  if(!esp)return cecoGeneral();
-  // "PINO OREGON" y "OREGON" comparten centro de costo: Orego cubre las dos.
-  if(esp.indexOf('OREGON')>=0)esp='OREGON';
+  var especies=_especiesDePedido(numStr);
+  if(!especies.length)return cecoGeneral();
+  if(especies.length>1){
+    // Fallback al general si la migracion 0006 todavia no esta aplicada.
+    return cecoPorCodigo(conFierro?'Mixto2Tipo26':'Mader2Tipo26')||cecoGeneral();
+  }
+  var esp=especies[0];
   var tipo=conFierro?'MIXTO':'MADER';
   var m=cecos.find(function(c){
     return c.tipo===tipo && c.especie && _normMad(c.especie)===esp;
@@ -30009,8 +30028,15 @@ function cecoMotivo(numStr){
   var lineas=lineasProdDe(numStr);
   if(!lineas.length)return 'el pedido no tiene lineas en Produccion';
   var conFierro=lineas.some(function(l){return !!l.fierro;});
+  var fierro=conFierro?' + lleva fierro':' sin fierro';
+  var especies=_especiesDePedido(numStr);
+  // Con dos maderas se nombran las dos: el taller tiene que ver contra que
+  // esta corrigiendo si decide mandarlo al CECO de una especie sola.
+  if(especies.length>1){
+    return especies.join(' + ')+' ('+especies.length+' maderas)'+fierro;
+  }
   var mad=_dominante(numStr,'madera')||'sin madera';
-  return maderaCanonica(mad)+(conFierro?' + lleva fierro':' sin fierro');
+  return maderaCanonica(mad)+fierro;
 }
 let facturas=[],invItems=[],mayorRecords=[];
 var gastosSubtab='facturas';
@@ -30289,7 +30315,7 @@ var consPend=null;
 function abrirConsumo(){
   if(!gastosListo){showToast('La base no respondió — revisá la migración',true);return;}
   if(!invItems.length){showToast('Primero cargá el catálogo de bodega');return;}
-  consPend={numStr:'',ceco_id:null,lineas:[]};
+  consPend={numStr:'',ceco_id:null,producto:'',lineas:[]};
   document.getElementById('modal-consumo-bg').classList.add('open');
   renderConsumo();
 }
@@ -30308,12 +30334,25 @@ function elegirPedidoConsumo(numStr){
   var previo=pedidoCeco[consPend.numStr];
   var sug=previo?cecoPorId(previo):cecoSugerido(consPend.numStr);
   consPend.ceco_id=sug?sug.id:null;
-  consPend.lineas=_lineasConsumo(consPend.numStr);
+  // El tipo de producto sale de _dominante(), el mismo sugeridor que ya usa
+  // Costos en categoriaDe(). Queda editable: un consumo es de UN tipo de
+  // producto, asi que un pedido con puerta y cubierta son dos consumos.
+  consPend.producto=_dominante(consPend.numStr,'producto')||'';
+  consPend.lineas=_lineasVaciasConsumo(5);
   renderConsumo();
 }
-// Las lineas salen del mismo motor que ya usa el costeo: _lineasEstandar
-// desglosa el pedido en materiales con cantidad y unidad. El taller corrige lo
-// que realmente uso en vez de escribir desde cero.
+// El modal parte en blanco: el taller anota las tres o cuatro cosas que saco
+// de bodega en vez de corregir hacia abajo la receta completa. La receta sigue
+// disponible en un boton (traerRecetaConsumo).
+function _lineasVaciasConsumo(n){
+  var out=[];
+  for(var i=0;i<n;i++)out.push({sku:'',desc:'',cantidad:0,unidad:'',categoria:''});
+  return out;
+}
+// La receta del pedido segun el mismo motor que usa el costeo: _lineasEstandar
+// lo desglosa en materiales con cantidad y unidad. Ya no es la precarga del
+// modal —el taller anota lo que saco— pero sigue disponible en el boton, y es
+// el unico camino que convierte m2 a pulgadas al costear.
 function _lineasConsumo(numStr){
   var lp=lineasProdDe(numStr);
   if(!lp.length)return [];
@@ -30343,10 +30382,46 @@ function _skuDeLineaEstandar(l){
 }
 
 function setConsumoCeco(id){if(consPend){consPend.ceco_id=Number(id)||null;renderConsumo();}}
+function setConsumoProducto(v){if(consPend){consPend.producto=v||'';renderConsumo();}}
 function setConsumoCant(i,v){
   if(!consPend||!consPend.lineas[i])return;
   consPend.lineas[i].cantidad=_f3(String(v).replace(',','.'));
   renderConsumo();
+}
+// Al elegir el item se copia su ficha de bodega: la unidad de stock manda, y
+// es en esa unidad que el taller escribe la cantidad (pulgadas para la madera,
+// no m2). La conversion desde m2 vive en el boton de receta estandar.
+function setConsumoSku(i,sku){
+  if(!consPend||!consPend.lineas[i])return;
+  var l=consPend.lineas[i];
+  var it=invItems.find(function(x){return String(x.sku||'')===String(sku);});
+  if(!it){l.sku='';l.desc='';l.unidad='';l.categoria='';}
+  else{l.sku=it.sku;l.desc=it.descripcion||'';l.unidad=it.unidad||'';l.categoria=it.categoria||'';}
+  renderConsumo();
+}
+function agregarLineaConsumo(){
+  if(!consPend)return;
+  consPend.lineas.push({sku:'',desc:'',cantidad:0,unidad:'',categoria:''});
+  renderConsumo();
+}
+// Trae la receta estandar a pedido. Es la unica ruta que ejercita la
+// conversion m2->pulgadas de _aUnidadStock(), asi que se conserva.
+function traerRecetaConsumo(){
+  if(!consPend||!consPend.numStr)return;
+  var receta=_lineasConsumo(consPend.numStr);
+  if(!receta.length){showToast('Este pedido no tiene medidas en Producción, así que no hay receta');return;}
+  // _lineasConsumo resuelve contra el catalogo virtual, que tiene items que
+  // pueden no estar sembrados en bodega. Esos no se pueden consumir ni
+  // aparecerian en el select, asi que se dejan fuera y se dice cuantos.
+  var enBodega=receta.filter(function(l){
+    return invItems.some(function(x){return String(x.sku)===String(l.sku);});
+  });
+  var fuera=receta.length-enBodega.length;
+  if(!enBodega.length){showToast('Ninguno de los ítems de la receta está en bodega todavía');return;}
+  consPend.lineas=enBodega;
+  renderConsumo();
+  showToast(fuera?'Receta cargada — '+fuera+' ítem(s) quedaron fuera: no están en bodega'
+                 :'Receta cargada: '+enBodega.length+' ítem(s)');
 }
 function quitarLineaConsumo(i){
   if(!consPend)return;
@@ -30407,50 +30482,96 @@ function _consumoPaso2(){
     return '<option value="'+c.id+'"'+sel+'>'+esc(c.codigo)+' — '+esc(c.nombre)+'</option>';
   }).join('');
   var motivo=esc(cecoMotivo(num));
+  // Un consumo es de UN tipo de producto. Se sugiere el dominante del pedido y
+  // se dice que fue deducido, el mismo idioma de la tarjeta de Costos.
+  var pOpts='<option value="">— elegí el tipo —</option>'+CATEGORIAS_PRODUCTO.map(function(c){
+    return '<option'+(c===consPend.producto?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
   var yaCons=_consumosDe(num);
   var aviso=yaCons?'<div style="background:var(--amber-dim);color:var(--amber);padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">⚠ Este pedido ya tiene '+yaCons+' movimiento(s) de consumo. Volver a consumir descuenta stock otra vez.</div>':'';
   var filas=consPend.lineas.map(_filaConsumo).join('');
-  var vacio=consPend.lineas.length?'':'<tr><td colspan="5" style="padding:14px;color:var(--text-3)">Este pedido no tiene medidas en Producción, así que no hay receta. Agregá las líneas a mano.</td></tr>';
   return aviso+
     '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">'+
       '<div style="font-size:13px"><span style="color:var(--text-3)">Pedido</span> <strong>'+esc(num)+'</strong>'+
       ' · <button class="btn-ghost" style="font-size:11px;padding:2px 8px" onclick="elegirPedidoConsumo(\'\')">cambiar</button></div>'+
     '</div>'+
-    '<div class="form-group" style="margin-bottom:14px">'+
-      '<label>Centro de costo</label>'+
-      '<select onchange="setConsumoCeco(this.value)">'+opts+'</select>'+
-      '<div style="font-size:11px;color:var(--text-3);margin-top:4px">Sugerido por: '+motivo+'</div>'+
+    '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">'+
+      '<div class="form-group" style="flex:1 1 260px;margin-bottom:0">'+
+        '<label>Centro de costo</label>'+
+        '<select onchange="setConsumoCeco(this.value)">'+opts+'</select>'+
+        '<div style="font-size:11px;color:var(--text-3);margin-top:4px">Sugerido por: '+motivo+'</div>'+
+      '</div>'+
+      '<div class="form-group" style="flex:1 1 200px;margin-bottom:0">'+
+        '<label>Tipo de producto</label>'+
+        '<select onchange="setConsumoProducto(this.value)">'+pOpts+'</select>'+
+        '<div style="font-size:11px;color:var(--text-3);margin-top:4px">Deducido de las líneas de Producción</div>'+
+      '</div>'+
     '</div>'+
     '<div class="table-wrap"><table class="cost-table"><thead><tr>'+
       '<th style="width:38%">Ítem</th><th style="width:18%">Sale de bodega</th>'+
       '<th style="width:18%">Queda</th><th style="width:20%">Costo</th><th style="width:6%"></th>'+
-    '</tr></thead><tbody>'+(filas||vacio)+'</tbody></table></div>'+
+    '</tr></thead><tbody>'+filas+'</tbody></table></div>'+
+    '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">'+
+      '<button class="btn-ghost" style="font-size:12px" onclick="agregarLineaConsumo()">+ agregar línea</button>'+
+      '<button class="btn-ghost" style="font-size:12px" onclick="traerRecetaConsumo()">↻ traer receta estándar</button>'+
+    '</div>'+
     _consumoResumen();
 }
 
+// Solo se ofrece lo que existe como item de bodega (invItems, o sea
+// v_inventario): a diferencia de una factura —donde se puede comprar algo que
+// todavia no esta en el catalogo— aca solo se descuenta lo que hay ficha.
+function _opcionesItemConsumo(sel){
+  var porCat={},orden=[];
+  invItems.forEach(function(x){
+    var c=x.categoria||'Sin categoría';
+    if(!porCat[c]){porCat[c]=[];orden.push(c);}
+    porCat[c].push(x);
+  });
+  var html='<option value="">— elegí un ítem —</option>';
+  orden.forEach(function(c){
+    html+='<optgroup label="'+esc(c)+'">';
+    porCat[c].forEach(function(x){
+      html+='<option value="'+esc(x.sku)+'"'+(String(x.sku)===String(sel)?' selected':'')+'>'+esc(x.descripcion)+'</option>';
+    });
+    html+='</optgroup>';
+  });
+  return html;
+}
+
 function _filaConsumo(l,i){
-  var it=invItems.find(function(x){return x.sku===l.sku;});
-  var stock=it?Number(it.stock)||0:0;
-  var queda=_f3(stock-(Number(l.cantidad)||0));
-  var unit=it?(Number(it.costo_prom)||Number(it.ultimo_costo)||0):0;
-  var costo=_pesos((Number(l.cantidad)||0)*unit);
-  // Pasarse del stock no bloquea: puede que la compra no se haya cargado
-  // todavía. Se avisa y el stock queda negativo, que es la señal de que falta
-  // una factura.
-  var color=queda<0?'var(--red)':'var(--text-muted)';
-  var alerta=queda<0?' ⚠':'';
-  return '<tr><td data-label="Ítem">'+esc(l.desc)+
-      '<div style="font-size:10px;color:var(--text-3)">'+esc(l.categoria||'')+'</div></td>'+
-    '<td data-label="Sale"><input type="number" min="0" step="0.001" value="'+(l.cantidad||0)+
-      '" onchange="setConsumoCant('+i+',this.value)"> <span style="font-size:11px;color:var(--text-3)">'+esc(l.unidad)+'</span></td>'+
-    '<td data-label="Queda" style="font-size:11px;color:'+color+'">'+fmtCant(queda,l.unidad)+alerta+'</td>'+
-    '<td data-label="Costo" style="font-size:11px;text-align:right">'+fmtCLP(costo)+'</td>'+
+  var it=l.sku?invItems.find(function(x){return x.sku===l.sku;}):null;
+  var cant=Number(l.cantidad)||0;
+  var sel=_opcionesItemConsumo(l.sku);
+  // Fila todavia en blanco: sin item no hay stock ni costo que mostrar, y un
+  // "0 ⚠" ahi seria una alarma falsa.
+  var quedaTd='<td data-label="Queda"></td>',costoTd='<td data-label="Costo"></td>';
+  if(it){
+    var queda=_f3((Number(it.stock)||0)-cant);
+    var unit=Number(it.costo_prom)||Number(it.ultimo_costo)||0;
+    // Pasarse del stock no bloquea: puede que la compra no se haya cargado
+    // todavía. Se avisa y el stock queda negativo, que es la señal de que
+    // falta una factura.
+    var color=queda<0?'var(--red)':'var(--text-muted)';
+    var alerta=queda<0?' ⚠':'';
+    quedaTd='<td data-label="Queda" style="font-size:11px;color:'+color+'">'+fmtCant(queda,l.unidad)+alerta+'</td>';
+    costoTd='<td data-label="Costo" style="font-size:11px;text-align:right">'+fmtCLP(_pesos(cant*unit))+'</td>';
+  }
+  return '<tr><td data-label="Ítem"><select onchange="setConsumoSku('+i+',this.value)">'+sel+'</select>'+
+      (l.categoria?'<div style="font-size:10px;color:var(--text-3)">'+esc(l.categoria)+'</div>':'')+'</td>'+
+    '<td data-label="Sale"><input type="number" min="0" step="0.001" value="'+(cant||'')+
+      '" onchange="setConsumoCant('+i+',this.value)"> <span style="font-size:11px;color:var(--text-3)">'+esc(l.unidad||'')+'</span></td>'+
+    quedaTd+costoTd+
     '<td><button class="btn-del-row" onclick="quitarLineaConsumo('+i+')">🗑</button></td></tr>';
 }
 
 function _consumoResumen(){
-  var total=0,negativos=0;
+  var total=0,negativos=0,cuenta=0;
   consPend.lineas.forEach(function(l){
+    // Solo las lineas realmente llenas: si no, el modal recien abierto diría
+    // "5 línea(s)" cuando todavía no hay ninguna.
+    if(!l.sku||!(Number(l.cantidad)>0))return;
+    cuenta++;
     var it=invItems.find(function(x){return x.sku===l.sku;});
     var unit=it?(Number(it.costo_prom)||Number(it.ultimo_costo)||0):0;
     total+=(Number(l.cantidad)||0)*unit;
@@ -30459,7 +30580,7 @@ function _consumoResumen(){
   var aviso=negativos?'<span style="color:var(--amber)">⚠ '+negativos+' ítem(s) quedan en negativo — falta cargar la factura de compra</span>':'';
   return '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;'+
     'padding:10px 12px;background:var(--surface3);border-radius:var(--radius);margin-top:12px;font-size:12px">'+
-    '<span>'+consPend.lineas.length+' línea(s) · costo de materiales <strong>'+fmtCLP(_pesos(total))+'</strong></span>'+
+    '<span>'+cuenta+' línea(s) · costo de materiales <strong>'+fmtCLP(_pesos(total))+'</strong></span>'+
     '<span>'+aviso+'</span></div>';
 }
 
@@ -30469,22 +30590,36 @@ async function confirmarConsumo(){
   var c=consPend;if(!c)return;
   if(!c.numStr){alert('Elegí un pedido.');return;}
   if(!c.ceco_id){alert('Elegí un centro de costo.');return;}
-  var lineas=c.lineas.filter(function(l){return (Number(l.cantidad)||0)>0;});
-  if(!lineas.length){alert('No hay ninguna línea con cantidad.');return;}
+  if(!c.producto){alert('Elegí el tipo de producto. Un consumo es de uno solo: si el pedido lleva puerta y cubierta, hacé dos.');return;}
+  // Exige sku ademas de cantidad: una fila a medio llenar rompe el find de
+  // mas abajo.
+  var lineas=c.lineas.filter(function(l){return l.sku&&(Number(l.cantidad)||0)>0;});
+  if(!lineas.length){alert('No hay ninguna línea con ítem y cantidad.');return;}
   var ceco=cecoPorId(c.ceco_id);
   if(!confirm('Se van a descontar '+lineas.length+' ítem(s) de bodega y cargar su costo al pedido '+
-              c.numStr+' en '+(ceco?ceco.codigo:'?')+'.\n\nEsto no se deshace solo. ¿Seguimos?'))return;
+              c.numStr+' ('+c.producto+') en '+(ceco?ceco.codigo:'?')+'.\n\nEsto no se deshace solo. ¿Seguimos?'))return;
 
   var btn=document.getElementById('consumo-confirmar');
   btn.disabled=true;btn.textContent='Descontando...';
   var hechas=0,resumen=[];
   try{
     // El CECO del pedido queda registrado aparte: es "el centro de costo de
-    // este pedido", no solo el de estos movimientos.
-    await sbInsert('pedido_centro_costo',{pedido_num:c.numStr,centro_costo_id:c.ceco_id,
-                                          asignado_por:usuarioEmail});
-    pedidoCeco[c.numStr]=c.ceco_id;
-  }catch(e){ /* ya existía: se conserva el que estaba */ }
+    // este pedido", no solo el de estos movimientos. La tabla tiene pedido_num
+    // como primary key, o sea UNO por pedido, y con un consumo por tipo de
+    // producto un mismo pedido pasa a tener varios. El primero que se asigna
+    // manda; la fuente de verdad de cada movimiento es su fila del mayor, que
+    // lleva su propio centro_costo_id y es lo que lee v_costo_pedido.
+    var yaAsignado=pedidoCeco[c.numStr];
+    if(!yaAsignado){
+      await sbInsert('pedido_centro_costo',{pedido_num:c.numStr,centro_costo_id:c.ceco_id,
+                                            asignado_por:usuarioEmail});
+      pedidoCeco[c.numStr]=c.ceco_id;
+    }else if(yaAsignado!==c.ceco_id){
+      var viejo=cecoPorId(yaAsignado);
+      showToast('El pedido ya estaba asignado a '+(viejo?viejo.codigo:'otro CECO')+
+                ' — el movimiento va a '+(ceco?ceco.codigo:'?')+', la asignación del pedido no cambia');
+    }
+  }catch(e){ /* carrera con otro consumo: se conserva el que quedó primero */ }
 
   try{
     for(var i=0;i<lineas.length;i++){
@@ -30503,9 +30638,9 @@ async function confirmarConsumo(){
       await sbInsertMudo('mayor',{
         fecha:_aISO(todayStr), mes:extractMonthFromDate(todayStr)||currentMonthName(),
         mes_n:MESES_ES.indexOf(extractMonthFromDate(todayStr)||currentMonthName())+1,
-        descripcion:'Consumo pedido '+c.numStr,
+        descripcion:'Consumo pedido '+c.numStr+' — '+c.producto,
         cantidad:cant, unidad_id:unidadIdDe(l.unidad), inventario_id:it.id,
-        madera:(it.especie||null), producto:null,
+        madera:(it.especie||null), producto:c.producto,
         categoria_id:catIdDe(_categoriaDeItem(it)),
         centro_costo_id:c.ceco_id, pedido_num:c.numStr,
         monto:_pesos(cant*unit), grupo:'CONSUMO', origen_tipo:'consumo',
