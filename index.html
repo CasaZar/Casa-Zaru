@@ -25952,14 +25952,6 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <!-- P1 SEGUIMIENTO -->
 <div class="page" id="page-seg">
 <div class="main">
-  <div class="setup-banner" id="setup-banner" style="display:none">
-    <h3>⚙️ Primer uso — conecta la base de datos</h3>
-    <div class="setup-step">Pega la URL de tu Firebase Realtime Database:</div>
-    <div class="setup-input-row">
-      <input type="text" id="db-url-input" placeholder="https://pedidos-casa-zaru-default-rtdb.firebaseio.com">
-      <button class="btn-connect" onclick="connectFirebase()">Conectar →</button>
-    </div>
-  </div>
   <div class="seg-split" id="seg-split">
   <div class="seg-col-hoy"><div class="hoy-board" id="seg-hoy"></div></div>
   <div class="seg-col-lista">
@@ -26872,8 +26864,10 @@ function dlCSV(rows,fn){const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'te
 const WASABIL_FN_URL='https://padnttpgzuotxeipjrry.supabase.co/functions/v1/smart-action-a-wasabil-emitir';
 const WASABIL_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhZG50dHBnenVvdHhlaXBqcnJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4Nzg3MDMsImV4cCI6MjA5NzQ1NDcwM30.AKtkpG1W-J6sB_QNtyYdh3n_85U1TvTxtKyPjwJwDEs';
 
-const FIREBASE_URL_KEY='cazaru_firebase_url';
-let DB_URL=localStorage.getItem(FIREBASE_URL_KEY)||'';
+// DB_URL es la bandera de "hay backend conectado": la consultan 25 puntos
+// del archivo. Arranca vacia y arrancarApp() la pone en 'supabase' una vez
+// validada la sesion. El nombre quedo de cuando el backend era Firebase.
+let DB_URL='';
 const CHECKS=[
   {id:'word',label:'Orden Word creada',critical:true},
   {id:'produccion',label:'En producción',critical:false},
@@ -27194,14 +27188,6 @@ async function arranqueInicial(){
   if(!sesion||!sesion.access_token){mostrarLogin();return;}
   try{await refrescarSesion();}catch(e){mostrarLogin();return;}
   await arrancarApp();
-}
-function connectFirebase(){
-  var url=document.getElementById('db-url-input').value.trim().replace(/\/$/,'');
-  if(!url.startsWith('https://')){alert('La URL debe empezar con https://');return;}
-  DB_URL=url;localStorage.setItem(FIREBASE_URL_KEY,url);
-  document.getElementById('setup-banner').style.display='none';
-  document.getElementById('loading').style.display='flex';
-  init().then(()=>{if(DB_URL)initAllModules();});
 }
 function getProgress(checks){return{pct:Math.round(CRITICAL.filter(id=>checks&&checks[id]).length/CRITICAL.length*100)};}
 
