@@ -602,6 +602,11 @@ body.rol-taller #gastos-view-facturas,
 body.rol-taller #gastos-view-mayor { display:none !important; }
 /* Tampoco el botón que borra ítems del catálogo: el taller ajusta cantidades. */
 body.rol-taller #gastos-view-inventario .btn-del { display:none !important; }
+/* Ni el lápiz que edita la ficha: renombrar un ítem o cambiarle la unidad le
+   cambia el significado a los movimientos de todos, no solo a los suyos.
+   Cosmético igual que lo de arriba — el RLS deja al taller escribir en
+   inventario porque lo necesita para descontar stock al consumir. */
+body.rol-taller .btn-edit-item { display:none !important; }
 
 /* ── PRODUCCIÓN ── */
 .api-banner { background:var(--amber-dim); border:1px solid rgba(251,146,60,0.25); border-radius:var(--radius-lg); padding:12px 16px; display:flex; align-items:center; gap:10px; font-size:13px; margin-bottom:16px; flex-wrap:wrap; }
@@ -26359,7 +26364,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="table-card"><div class="table-wrap">
       <table class="fin">
         <thead><tr>
-          <th>Ítem</th><th>Categoría</th><th style="text-align:right">Stock</th><th style="text-align:right">Costo prom.</th><th style="text-align:right">Último costo</th><th style="text-align:right">Valorizado</th><th>Última compra</th>
+          <th>Ítem</th><th>Categoría</th><th style="text-align:right">Stock</th><th>Unidad</th><th style="text-align:right">Costo prom.</th><th style="text-align:right">Último costo</th><th style="text-align:right">Valorizado</th><th>Última compra</th><th></th>
         </tr></thead>
         <tbody id="inv-tbody"></tbody>
       </table>
@@ -26408,6 +26413,42 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="empty-state" id="cli-empty" style="display:none"><span class="empty-icon">👥</span>No hay clientes. Los datos se generan desde Finanzas.</div>
   </div></div>
 </div></div>
+
+<!-- MODAL FICHA DE UN ÍTEM DE BODEGA -->
+<!-- Solo los campos descriptivos. El stock se corrige por «Ajuste de
+     inventario» y los costos los mueve la factura: editarlos acá a mano sería
+     plata cambiada sin movimiento que lo respalde. -->
+<div class="modal-bg" id="modal-item-bg">
+  <div class="modal" style="width:min(560px,100%)">
+    <div class="modal-header">
+      <div class="modal-title">Ficha del ítem</div>
+      <button class="btn-close" onclick="cerrarEditarItem()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Nombre</label>
+      <input type="text" id="item-desc" placeholder="CUTEK (aceite exterior)">
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="form-group" style="flex:1 1 200px">
+        <label>Categoría</label>
+        <select id="item-cat"></select>
+      </div>
+      <div class="form-group" style="flex:1 1 160px">
+        <label>Unidad de medida</label>
+        <select id="item-unidad"></select>
+      </div>
+    </div>
+    <div id="item-aviso" style="display:none;background:var(--amber-dim);color:var(--amber);padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:12px"></div>
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:14px">
+      SKU <strong id="item-sku"></strong> — no se edita: es la llave con la que la receta estándar
+      y las facturas encuentran el ítem.
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn-ghost" onclick="cerrarEditarItem()">Cancelar</button>
+      <button class="btn-primary" id="item-guardar" onclick="guardarItem()">Guardar</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL CONSUMO DE BODEGA -->
 <div class="modal-bg" id="modal-consumo-bg">
@@ -29847,10 +29888,16 @@ const CAT_POR_CLASIFICAR='POR CLASIFICAR';
 
 // Cantidad + unidad, listo para mostrar. Nunca se muestra una sin la otra.
 function fmtCant(cant,clave){
+  return _soloCant(cant,clave)+(clave?' '+clave:'');
+}
+// Solo el numero, con los decimales que le tocan a esa unidad. Es para las
+// tablas que ponen la unidad en su PROPIA columna: la regla es que la unidad
+// se vea al lado de la cantidad, no que vayan pegadas en la misma celda.
+// Fuera de ese caso va fmtCant.
+function _soloCant(cant,clave){
   var u=unidadPorClave(clave),dec=u?u.decimales:3;
   var n=Number(cant)||0;
-  var txt=n.toLocaleString('es-CL',{minimumFractionDigits:0,maximumFractionDigits:dec});
-  return txt+(clave?' '+clave:'');
+  return n.toLocaleString('es-CL',{minimumFractionDigits:0,maximumFractionDigits:dec});
 }
 // Valor unitario con decimales: $14.761,90 por litro, no $14.762.
 function fmtUnit(v){
@@ -30193,11 +30240,13 @@ function _filaInventario(it){
   return '<tr>'+
     '<td data-label="Ítem">'+esc(it.descripcion||it.sku||'—')+'<div style="font-size:10px;color:var(--text-3)">'+esc(it.sku||'')+'</div></td>'+
     '<td data-label="Categoría">'+esc(it.categoria||'—')+'</td>'+
-    '<td data-label="Stock" style="text-align:right;color:'+colorStock+';font-weight:600">'+fmtCant(stock,it.unidad)+alerta+'</td>'+
+    '<td data-label="Stock" style="text-align:right;color:'+colorStock+';font-weight:600">'+_soloCant(stock,it.unidad)+alerta+'</td>'+
+    '<td data-label="Unidad" style="color:var(--text-muted)">'+esc(it.unidad||'—')+'</td>'+
     '<td data-label="Costo prom." style="text-align:right">'+(prom?fmtUnit(prom):'—')+'</td>'+
     '<td data-label="Último costo" style="text-align:right">'+(Number(it.ultimo_costo)?fmtUnit(it.ultimo_costo):'—')+'</td>'+
     '<td data-label="Valorizado" style="text-align:right">'+fmtCLP(it.valorizado)+'</td>'+
     '<td data-label="Última compra">'+esc(it.ultima_compra?fmtFecha(it.ultima_compra):'—')+'</td>'+
+    '<td><button class="btn-ghost btn-edit-item" style="padding:3px 7px;font-size:12px" title="Editar la ficha del ítem" onclick="abrirEditarItem(\''+esc(it.sku)+'\')">✏️</button></td>'+
     '</tr>';
 }
 function renderInvStats(){
@@ -30300,6 +30349,93 @@ async function abrirAjusteInventario(){
     await recargarGastos();
     showToast('✓ Ajustado a '+fmtCant(real,it.unidad));
   }catch(e){showToast('✗ No se pudo guardar el ajuste: '+e.message,true);}
+}
+
+
+// ── Ficha del ítem ────────────────────────────────────────────────────────
+// El lápiz de cada fila. Se editan solo los campos descriptivos: el stock lo
+// mueve el ajuste (que deja movimiento en el mayor) y los costos la factura.
+//
+// Lista cerrada y no texto libre porque _categoriaDeItem() decide con ella a
+// qué cuenta del mayor va el consumo: "Madera" y "Embalaje" tienen la suya y
+// todo lo demás cae en materiales e insumos. Un "embalaje" en minúscula lo
+// mandaría a la cuenta equivocada sin que nadie lo note.
+const CATEGORIAS_BODEGA=['Madera','Acabado','Pegado','Insumos','Embalaje','Mano de obra','Reforestación'];
+var itemPend=null;
+
+function abrirEditarItem(sku){
+  var it=invItems.find(function(x){return String(x.sku||'')===String(sku);});
+  if(!it){showToast('No encontré ese ítem en bodega',true);return;}
+  itemPend=it;
+  document.getElementById('item-desc').value=it.descripcion||'';
+  document.getElementById('item-sku').textContent=it.sku||'';
+  // La categoría que trae el ítem puede no estar en la lista (viene de una
+  // siembra vieja): se agrega para no cambiársela sin avisar al guardar.
+  var cats=CATEGORIAS_BODEGA.slice();
+  if(it.categoria&&cats.indexOf(it.categoria)<0)cats.push(it.categoria);
+  document.getElementById('item-cat').innerHTML=cats.map(function(c){
+    return '<option'+(c===it.categoria?' selected':'')+'>'+esc(c)+'</option>';
+  }).join('');
+  document.getElementById('item-unidad').innerHTML=unidadesRef.map(function(u){
+    return '<option value="'+u.id+'"'+(u.id===it.unidad_id?' selected':'')+'>'+esc(u.clave)+' — '+esc(u.plural)+'</option>';
+  }).join('');
+  document.getElementById('item-unidad').onchange=_avisoUnidadItem;
+  _avisoUnidadItem();
+  document.getElementById('modal-item-bg').classList.add('open');
+}
+function cerrarEditarItem(){
+  document.getElementById('modal-item-bg').classList.remove('open');
+  itemPend=null;
+}
+// Cambiar la unidad RENOMBRA, no convierte: la tabla `unidades` guarda cómo se
+// muestra cada una, no el factor entre ellas, y entre litro y galón hay 3,785.
+// Si hay stock o costo cargado, hay que decirlo antes de guardar.
+function _avisoUnidadItem(){
+  var el=document.getElementById('item-aviso');
+  if(!el||!itemPend)return;
+  var nueva=unidadPorId(Number(document.getElementById('item-unidad').value));
+  var vieja=unidadPorClave(itemPend.unidad);
+  var stock=Number(itemPend.stock)||0;
+  var costo=Number(itemPend.costo_prom)||Number(itemPend.ultimo_costo)||0;
+  if(!nueva||!vieja||nueva.id===vieja.id||(!stock&&!costo)){el.style.display='none';return;}
+  var partes=[];
+  if(stock)partes.push('el stock queda en '+_soloCant(stock,nueva.clave)+' '+nueva.clave+' (hoy son '+fmtCant(stock,vieja.clave)+')');
+  if(costo)partes.push('el costo pasa a '+fmtUnit(costo)+' por '+nueva.clave);
+  el.innerHTML='⚠ Cambiar la unidad no convierte las cantidades, solo les cambia el nombre: '+
+    partes.join(' y ')+'. Si lo que querés es convertir, ajustá el stock después.';
+  el.style.display='';
+}
+
+async function guardarItem(){
+  var it=itemPend;if(!it)return;
+  var desc=String(document.getElementById('item-desc').value||'').trim();
+  if(!desc){alert('El ítem necesita un nombre.');return;}
+  var cat=document.getElementById('item-cat').value;
+  var uid=Number(document.getElementById('item-unidad').value)||null;
+  if(!uid){alert('Elegí una unidad de medida.');return;}
+  var cambios={};
+  if(desc!==it.descripcion)cambios.descripcion=desc;
+  if(cat!==it.categoria)cambios.categoria=cat;
+  if(uid!==it.unidad_id)cambios.unidad_id=uid;
+  if(!Object.keys(cambios).length){cerrarEditarItem();return;}
+  if(cambios.unidad_id){
+    var nueva=unidadPorId(uid);
+    if(!confirm('La unidad pasa de '+it.unidad+' a '+(nueva?nueva.clave:'?')+
+                '.\n\nLas cantidades NO se convierten: se quedan con el mismo número y otro nombre.\n\n¿Seguimos?'))return;
+  }
+  var btn=document.getElementById('item-guardar');
+  btn.disabled=true;btn.textContent='Guardando...';
+  try{
+    cambios.actualizado_en=new Date().toISOString();
+    await sbUpdate('inventario',it.id,cambios);
+    cerrarEditarItem();
+    await recargarGastos();
+    showToast('✓ Ficha actualizada');
+  }catch(e){
+    showToast('✗ No se pudo guardar: '+e.message,true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Guardar';}
+  }
 }
 
 
