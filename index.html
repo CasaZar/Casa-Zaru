@@ -27748,7 +27748,7 @@ async function analyzeImage(dataUrl,file,apiKey){
       headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:3000,messages:[{role:'user',content:[
         {type:'image',source:{type:'base64',media_type:mt,data:base64}},
-        {type:'text',text:`Eres extractor de datos para Casa Zaru, empresa de muebles de madera chilena.\nAnaliza el pantallazo y devuelve SOLO JSON válido sin markdown:\n{"tipo":"confirmacion","pedido":{"pedido":${nextNum},"envio":"SEMANA DD MES","comprador":"NOMBRE","apellido":"APELLIDO","lineas":[{"producto":"","cantidad":1,"madera":"COIHUE","largo":0,"ancho":0,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]},"finanzas":{"valor_producto":0,"valor_envio":0,"valor_comision":0,"medio_pago":"TRANSFERENCIA","abono1":0,"abono2":0},"cliente":{"email":"","phone":"","rut":"","fn":"","ln":"","direccion":"","ct":"","st":"","country":"CL","gen":"","order_id":"${nextOrderId}","value":0,"event_time":""}}\nREGLAS: valor_producto=solo mueble (Valor: $X). valor_envio=solo envío (Envío: $X). valor_comision=0 si no dice "3% plataforma". NO uses el Total de César.\n\nEl pantallazo puede venir en DOS formatos:\n(A) Confirmación de WhatsApp escrita por el vendedor. Es el caso de las reglas de arriba.\n(B) Pedido de SHOPIFY (panel de administración: dice "Tienda online", "Pagado", "No preparado", muestra "Cliente" y "Dirección predeterminada" a la derecha).\n\nSI ES SHOPIFY:\n- El "#1041" de arriba es el número de SHOPIFY, NO el pedido interno. Usa igual "pedido":${nextNum} y pon el de Shopify en "orden_web":"1041".\n- Agrega "canal":"web" dentro de pedido.\n- La línea gris bajo el nombre del producto es la VARIANTE y trae la madera y las medidas: "Raulí / 100 x 46 cm" → madera:"RAULÍ", largo:100, ancho:46. El primer número es el largo. Si la variante trae solo la madera, deja largo y ancho en 0.\n- "producto" = el nombre del producto sin la variante.\n- valor_producto = el precio de la línea del producto (el de la derecha del "x 1"). valor_envio = el total de arriba MENOS la suma de los productos; si da 0 o negativo, pon 0.\n- medio_pago:"MERCADO PAGO".\n- Del bloque "Cliente": email, y de "Dirección predeterminada" el nombre completo (fn=nombre, ln=apellidos), direccion (calle y número), ct=comuna, st=región. El teléfono "+56 9 7202 4406" va como phone:"972024406" (sin +56 ni espacios).\n- La fecha "22 de agosto de 2026" va en "fecha_venta":"2026-08-22" dentro de pedido.\n- Si el nombre del cliente solo aparece en la dirección, úsalo también para comprador y apellido.`}
+        {type:'text',text:`Eres extractor de datos para Casa Zaru, empresa de muebles de madera chilena.\nAnaliza el pantallazo y devuelve SOLO JSON válido sin markdown:\n{"tipo":"confirmacion","pedido":{"pedido":${nextNum},"envio":"SEMANA DD MES","comprador":"NOMBRE","apellido":"APELLIDO","lineas":[{"producto":"","cantidad":1,"madera":"COIHUE","largo":0,"ancho":0,"canto":"TIPO 1","acabado":"VIT MATE","espesor":4,"observaciones":""}]},"finanzas":{"valor_producto":0,"valor_envio":0,"valor_comision":0,"medio_pago":"TRANSFERENCIA","abono1":0,"abono2":0},"cliente":{"email":"","phone":"","rut":"","fn":"","ln":"","direccion":"","ct":"","st":"","country":"CL","gen":"","order_id":"${nextOrderId}","value":0,"event_time":""},"factura":{"doc_tipo":"BOLETA","razon_social":"","rut_empresa":"","giro":"","email_factura":""}}\nREGLAS: valor_producto=solo mueble (Valor: $X). valor_envio=solo envío (Envío: $X). valor_comision=0 si no dice "3% plataforma". NO uses el Total de César.\n\nEl pantallazo puede venir en DOS formatos:\n(A) Confirmación de WhatsApp escrita por el vendedor. Es el caso de las reglas de arriba.\n(B) Pedido de SHOPIFY (panel de administración: dice "Tienda online", "Pagado", "No preparado", muestra "Cliente" y "Dirección predeterminada" a la derecha).\n\nSI ES SHOPIFY:\n- El "#1041" de arriba es el número de SHOPIFY, NO el pedido interno. Usa igual "pedido":${nextNum} y pon el de Shopify en "orden_web":"1041".\n- Agrega "canal":"web" dentro de pedido.\n- La línea gris bajo el nombre del producto es la VARIANTE y trae la madera y las medidas: "Raulí / 100 x 46 cm" → madera:"RAULÍ", largo:100, ancho:46. El primer número es el largo. Si la variante trae solo la madera, deja largo y ancho en 0.\n- "producto" = el nombre del producto sin la variante.\n- valor_producto = el precio de la línea del producto (el de la derecha del "x 1"). valor_envio = el total de arriba MENOS la suma de los productos; si da 0 o negativo, pon 0.\n- medio_pago:"MERCADO PAGO".\n- Del bloque "Cliente": email, y de "Dirección predeterminada" el nombre completo (fn=nombre, ln=apellidos), direccion (calle y número), ct=comuna, st=región. El teléfono "+56 9 7202 4406" va como phone:"972024406" (sin +56 ni espacios).\n- La fecha "22 de agosto de 2026" va en "fecha_venta":"2026-08-22" dentro de pedido.\n- Si el nombre del cliente solo aparece en la dirección, úsalo también para comprador y apellido.\n\n(C) MUESTRARIO: el mensaje empieza con la palabra "MUESTRARIO". Es un envío de muestras, NO una venta normal. Pon "tipo_registro":"MUESTRARIO" dentro de pedido. El resto de los datos (envío, facturación) se extraen igual que siempre. Si no dice el precio, deja valor_producto en 0.\n\nFACTURACIÓN — aplica a CUALQUIERA de los tres formatos:\n- Si aparece la palabra "Factura" suelta, o hay un bloque "Datos de facturación", entonces factura.doc_tipo="FACTURA". Si no, "BOLETA".\n- Del bloque "Datos de facturación" saca: razon_social (ej "Inversiones Reginheim SpA"), rut_empresa (ej "78472147-7"), giro (el texto completo con su código, ej "932909 - Otras actividades de esparcimiento y recreativas n.c.p.") y email_factura (ej "facturas@reginheim.cl").\n- OJO con los dos RUT: el que aparece bajo el nombre en "Datos de envío" es el de la PERSONA y va en cliente.rut. El "Rut Empresa" del bloque de facturación va en factura.rut_empresa. No los mezcles.\n- El correo de "Datos de envío" es el del cliente (cliente.email); el de "Datos de facturación" es para las facturas (factura.email_factura). Son distintos.\n- En "Dieciocho de septiembre 622, dpto 805-B, Temuco" la comuna es lo último ("Temuco") y el resto es la dirección.`}
       ]}]})
     });
     const data=await res.json();
@@ -27760,10 +27760,15 @@ async function analyzeImage(dataUrl,file,apiKey){
     pedidoData.fecha=todayStr;
     pedidoData._finanzas=parsed.finanzas||{valor_producto:0,valor_envio:0,valor_comision:0};
     pedidoData._cliente=parsed.cliente||{};
+    pedidoData._factura=parsed.factura||{};
     prodPending=pedidoData;
     document.getElementById('prev-img').src=dataUrl;
     renderPrevVendedor(VENDEDOR_DEFAULT);
-    renderPrevTipo('VENTA');
+    // Un muestrario se reconoce solo: el mensaje empieza con esa palabra. Se
+    // marca como tal para que no cuente como venta ni arrastre el promedio.
+    var _tipoLeido=(pedidoData.tipo_registro==='MUESTRARIO')?'MUESTRARIO':'VENTA';
+    renderPrevTipo(_tipoLeido);
+    if(_tipoLeido==='MUESTRARIO')showToast('Detecté un MUESTRARIO — no va a contar como venta');
     // Un pedido de Shopify llegó por la web: se propone y se puede cambiar.
     // El resto arranca sin marcar, a propósito, para que sea una decisión y no
     // un valor por defecto que nadie mira.
@@ -27865,12 +27870,21 @@ function renderPrevProd(o){
   // Documento y direcciones: arrancan en boleta, con lo que se haya detectado
   // del pantallazo. Se limpian en cada carga para no arrastrar la venta anterior.
   var cli=o._cliente||{};
-  document.getElementById('pp-doc').value='BOLETA';
+  // Los datos de facturación vienen leídos del pantallazo cuando el mensaje
+  // trae el bloque "Datos de facturación". Antes se forzaba BOLETA y se
+  // borraban razón social y giro aunque estuvieran a la vista, así que había
+  // que copiarlos a mano justo cuando más se equivoca uno: al emitir.
+  var fac=o._factura||{};
+  document.getElementById('pp-doc').value=(fac.doc_tipo==='FACTURA')?'FACTURA':'BOLETA';
   document.getElementById('pp-dir').value=cli.direccion||'';
   document.getElementById('pp-comuna').value=cli.ct||'';
   document.getElementById('pp-ciudad').value=cli.st||'';
-  document.getElementById('pp-rut').value=cli.rut||'';
-  ['pp-razon','pp-giro','pp-fact-dir','pp-fact-comuna','pp-fact-ciudad'].forEach(function(id){document.getElementById(id).value='';});
+  // Al emitir factura manda el RUT de la EMPRESA; el de la persona solo sirve
+  // para la boleta. Si vienen los dos, el de la empresa tiene prioridad.
+  document.getElementById('pp-rut').value=(fac.doc_tipo==='FACTURA'&&fac.rut_empresa)?fac.rut_empresa:(cli.rut||'');
+  document.getElementById('pp-razon').value=fac.razon_social||'';
+  document.getElementById('pp-giro').value=fac.giro||'';
+  ['pp-fact-dir','pp-fact-comuna','pp-fact-ciudad'].forEach(function(id){document.getElementById(id).value='';});
   toggleFacturaPrev();
   document.getElementById('pp-canal').value='TRANSFERENCIA';
   document.getElementById('pp-desc').value='';
@@ -27951,6 +27965,9 @@ async function confirmOrder(){
     ciudad:document.getElementById('pp-ciudad').value.trim(),
     razon_social:document.getElementById('pp-razon').value.trim(),
     giro:document.getElementById('pp-giro').value.trim(),
+    // El correo de facturación es distinto del correo del cliente: la factura
+    // va a contabilidad de la empresa, no a la persona que compró.
+    email_factura:((o._factura||{}).email_factura||''),
     fact_direccion:document.getElementById('pp-fact-dir').value.trim(),
     fact_comuna:document.getElementById('pp-fact-comuna').value.trim(),
     fact_ciudad:document.getElementById('pp-fact-ciudad').value.trim()
