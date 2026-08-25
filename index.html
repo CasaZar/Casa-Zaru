@@ -26348,6 +26348,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="toolbar">
       <div style="font-size:13px;color:var(--text-muted)">Bodega — el stock se mide siempre en la unidad del ítem, nunca en envases</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="abrirConsumo()">⚙ Consumir en pedido</button>
         <button class="btn-ghost" style="font-size:12px" onclick="sembrarInventario()">✨ Cargar catálogo</button>
         <button class="btn-ghost" style="font-size:12px" onclick="abrirAjusteInventario()">⚖ Ajuste de inventario</button>
       </div>
@@ -26407,6 +26408,28 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="empty-state" id="cli-empty" style="display:none"><span class="empty-icon">👥</span>No hay clientes. Los datos se generan desde Finanzas.</div>
   </div></div>
 </div></div>
+
+<!-- MODAL CONSUMO DE BODEGA -->
+<div class="modal-bg" id="modal-consumo-bg">
+  <div class="modal" style="width:min(880px,100%)">
+    <div class="modal-header">
+      <div class="modal-title">Consumir bodega en un pedido</div>
+      <button class="btn-close" onclick="cerrarConsumo()">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px">
+      Lo que salga de bodega se descuenta del stock y se carga como costo del pedido en su centro de costo.
+      Las líneas vienen precargadas con la receta estándar — corregí lo que realmente usaste.
+    </div>
+    <div class="search-wrap"><span class="search-icon">⌕</span>
+      <input type="text" id="consumo-buscar" placeholder="Buscar pedido por número o cliente..." oninput="buscarPedidosConsumo()">
+    </div>
+    <div id="consumo-cuerpo"></div>
+    <div id="consumo-pie" style="display:none;justify-content:flex-end;gap:10px;margin-top:16px">
+      <button class="btn-ghost" onclick="cerrarConsumo()">Cancelar</button>
+      <button class="btn-primary" id="consumo-confirmar" onclick="confirmarConsumo()">Descontar de bodega</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL FACTURA -->
 <div class="modal-bg" id="modal-factura-bg">
@@ -29774,6 +29797,14 @@ async function sbInsert(tabla,filaOFilas){
   if(Array.isArray(filaOFilas))return Array.isArray(r)?r:(r?[r]:[]);
   return Array.isArray(r)?r[0]:r;
 }
+// El taller NO tiene SELECT sobre `mayor`: solo puede insertar consumos. Con
+// "return=representation" PostgREST intenta leer la fila recien escrita y
+// devuelve 401 aunque el insert haya funcionado. Esta variante no pide nada de
+// vuelta, asi que la escritura del taller pasa limpia.
+async function sbInsertMudo(tabla,filaOFilas){
+  await sbJson(_rest(tabla),{method:'POST',
+    headers:{'Prefer':'return=minimal'},body:JSON.stringify(filaOFilas)});
+}
 async function sbUpdate(tabla,id,cambios){
   var r=await sbJson(_rest(tabla)+'?id=eq.'+encodeURIComponent(id),{method:'PATCH',
     headers:{'Prefer':'return=representation'},body:JSON.stringify(cambios)});
@@ -29940,6 +29971,47 @@ function gastoRealDe(m){return _pesos(m&&m.gasto_real);}
 function costoPeriodoDe(m){return _pesos(m&&m.costo_periodo);}
 
 // ── Estado del módulo ─────────────────────────────────────────────────────
+
+// ── Centros de costo ──────────────────────────────────────────────────────
+// Codigos de 12 caracteres exactos, convencion de la empresa (la base lo hace
+// cumplir con un check). MADER = producto de madera pura, MIXTO = lleva
+// fierro, GENERAL = el cajon para lo que no calza en una especie.
+var cecos=[],pedidoCeco={};   // pedidoCeco: numStr -> centro_costo_id
+
+function cecoPorId(id){return cecos.find(function(c){return c.id===id;})||null;}
+function cecoPorCodigo(cod){return cecos.find(function(c){return c.codigo===cod;})||null;}
+function cecoGeneral(){return cecos.find(function(c){return c.tipo==='GENERAL';})||null;}
+
+// Sugiere el CECO leyendo el pedido en Produccion, que es la fuente de verdad
+// y la unica que tiene lo necesario: la especie por linea y el check de "lleva
+// base de fierro". Reusa _dominante(), que ya resuelve el pedido con varias
+// maderas quedandose con la de mas m2.
+//
+// Laurel, las combinadas y los pedidos sin madera caen en el general: no
+// tienen CECO propio a proposito.
+function cecoSugerido(numStr){
+  var lineas=lineasProdDe(numStr);
+  if(!lineas.length)return cecoGeneral();
+  var conFierro=lineas.some(function(l){return !!l.fierro;});
+  var esp=_normMad(_dominante(numStr,'madera'));
+  if(!esp)return cecoGeneral();
+  // "PINO OREGON" y "OREGON" comparten centro de costo: Orego cubre las dos.
+  if(esp.indexOf('OREGON')>=0)esp='OREGON';
+  var tipo=conFierro?'MIXTO':'MADER';
+  var m=cecos.find(function(c){
+    return c.tipo===tipo && c.especie && _normMad(c.especie)===esp;
+  });
+  return m||cecoGeneral();
+}
+// Por que se sugirio ese, para mostrarlo en el modal: si el taller lo corrige,
+// que sepa contra que lo esta corrigiendo.
+function cecoMotivo(numStr){
+  var lineas=lineasProdDe(numStr);
+  if(!lineas.length)return 'el pedido no tiene lineas en Produccion';
+  var conFierro=lineas.some(function(l){return !!l.fierro;});
+  var mad=_dominante(numStr,'madera')||'sin madera';
+  return maderaCanonica(mad)+(conFierro?' + lleva fierro':' sin fierro');
+}
 let facturas=[],invItems=[],mayorRecords=[];
 var gastosSubtab='facturas';
 var mayorMonthFilter=currentMonthName();
@@ -29955,16 +30027,19 @@ async function loadGastos(){
   try{
     var refs=await Promise.all([
       sbGet('unidades','select=*&order=id'),
-      sbGet('gasto_categorias','select=*&activa=eq.true&order=orden')
+      sbGet('gasto_categorias','select=*&activa=eq.true&order=orden'),
+      sbGet('centros_costo','select=*&activo=eq.true&order=orden')
     ]);
-    unidadesRef=refs[0];categoriasRef=refs[1];
+    unidadesRef=refs[0];categoriasRef=refs[1];cecos=refs[2];
     var datos=await Promise.all([
       sbGet('v_inventario','select=*&order=categoria,descripcion'),
       soloInventario?Promise.resolve([]):sbGet('v_facturas','select=*&order=fecha.desc'),
       soloInventario?Promise.resolve([]):sbGet('v_mayor','select=*&order=fecha'),
-      soloInventario?Promise.resolve([]):sbGet('proveedores','select=*&order=nombre')
+      soloInventario?Promise.resolve([]):sbGet('proveedores','select=*&order=nombre'),
+      sbGet('pedido_centro_costo','select=*')
     ]);
     invItems=datos[0];facturas=datos[1];mayorRecords=datos[2];proveedoresRef=datos[3];
+    pedidoCeco={};(datos[4]||[]).forEach(function(p){pedidoCeco[p.pedido_num]=p.centro_costo_id;});
     gastosListo=true;
     renderGastos();
   }catch(e){
@@ -30201,6 +30276,258 @@ async function abrirAjusteInventario(){
   }catch(e){showToast('✗ No se pudo guardar el ajuste: '+e.message,true);}
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// CONSUMO DE BODEGA CONTRA UN PEDIDO
+// La caja del medio del circuito. Hasta que el taller descarga lo que uso, un
+// insumo comprado es un ACTIVO en bodega, no un costo: por eso "gasto real" y
+// "costo del periodo" daban el mismo numero. Al consumir, el costo cae al
+// mayor con su centro de costo y recien ahi el margen del pedido es real.
+// ══════════════════════════════════════════════════════════════════════════
+var consPend=null;
+
+function abrirConsumo(){
+  if(!gastosListo){showToast('La base no respondió — revisá la migración',true);return;}
+  if(!invItems.length){showToast('Primero cargá el catálogo de bodega');return;}
+  consPend={numStr:'',ceco_id:null,lineas:[]};
+  document.getElementById('modal-consumo-bg').classList.add('open');
+  renderConsumo();
+}
+function cerrarConsumo(){
+  document.getElementById('modal-consumo-bg').classList.remove('open');
+  consPend=null;
+}
+
+// Paso 1: elegir el pedido. La lista sale de Produccion, que es la fuente de
+// verdad y la unica que el taller puede leer (policy usuarios_leer).
+function buscarPedidosConsumo(){renderConsumo();}
+function elegirPedidoConsumo(numStr){
+  if(!consPend)return;
+  consPend.numStr=String(numStr);
+  // Si el pedido ya tenia CECO asignado manda ese; si no, se deduce.
+  var previo=pedidoCeco[consPend.numStr];
+  var sug=previo?cecoPorId(previo):cecoSugerido(consPend.numStr);
+  consPend.ceco_id=sug?sug.id:null;
+  consPend.lineas=_lineasConsumo(consPend.numStr);
+  renderConsumo();
+}
+// Las lineas salen del mismo motor que ya usa el costeo: _lineasEstandar
+// desglosa el pedido en materiales con cantidad y unidad. El taller corrige lo
+// que realmente uso en vez de escribir desde cero.
+function _lineasConsumo(numStr){
+  var lp=lineasProdDe(numStr);
+  if(!lp.length)return [];
+  var std=_lineasEstandar(lp,_acabadoDeLineas(lp));
+  var out=[];
+  std.forEach(function(l){
+    var sku=_skuDeLineaEstandar(l);
+    if(!sku)return;                       // desgaste, comisiones: no salen de bodega
+    var ficha=fichaSku(sku);
+    if(!ficha)return;
+    var conv=_aUnidadStock(l.qty,l.unidad,sku,1);
+    out.push({sku:sku, desc:ficha.descripcion||l.desc, cantidad:conv.cantidad,
+              unidad:conv.unidad||ficha.unidad, categoria:l.categoria});
+  });
+  return out;
+}
+// Traduce una linea del costeo al SKU de bodega. La madera se resuelve por
+// especie; el resto por la descripcion del catalogo, que es la misma en las
+// dos listas porque _lineasEstandar las genera desde INVENTARIO_ITEMS.
+function _skuDeLineaEstandar(l){
+  if(l.categoria==='Madera'){
+    var esp=_especiesEn(l.desc);
+    return esp.length===1?skuDeMadera(esp[0]):'';
+  }
+  var it=INVENTARIO_ITEMS.find(function(x){return x.desc===l.desc;});
+  return it?it.k:'';
+}
+
+function setConsumoCeco(id){if(consPend){consPend.ceco_id=Number(id)||null;renderConsumo();}}
+function setConsumoCant(i,v){
+  if(!consPend||!consPend.lineas[i])return;
+  consPend.lineas[i].cantidad=_f3(String(v).replace(',','.'));
+  renderConsumo();
+}
+function quitarLineaConsumo(i){
+  if(!consPend)return;
+  consPend.lineas.splice(i,1);
+  renderConsumo();
+}
+
+function renderConsumo(){
+  var el=document.getElementById('consumo-cuerpo');
+  if(!el||!consPend)return;
+  el.innerHTML=consPend.numStr?_consumoPaso2():_consumoPaso1();
+  var pie=document.getElementById('consumo-pie');
+  if(pie)pie.style.display=consPend.numStr?'':'none';
+}
+
+// Paso 1 — elegir pedido
+function _consumoPaso1(){
+  var q=(document.getElementById('consumo-buscar')||{}).value||'';
+  q=q.toLowerCase().trim();
+  var lista=prodOrders.filter(function(o){
+    if(!q)return true;
+    var txt=(String(o.pedido||'')+' '+(o.comprador||'')+' '+(o.apellido||'')).toLowerCase();
+    return txt.indexOf(q)>=0;
+  }).slice(-40).reverse();
+  if(!lista.length)return '<div class="empty-state"><span class="empty-icon">🔍</span>Ningún pedido calza con la búsqueda.</div>';
+  var filas=lista.map(function(o){
+    var num=esc(String(o.pedido||''));
+    var m2=m2DePedido(o.pedido);
+    var mad=maderaCanonica(_dominante(o.pedido,'madera')||'');
+    var yaCons=_consumosDe(num);
+    var badge=yaCons?'<span class="semana-badge" style="background:var(--amber-dim);color:var(--amber)">ya consumido</span>':'';
+    return '<tr style="cursor:pointer" onclick="elegirPedidoConsumo(\''+num+'\')">'+
+      '<td><strong>'+num+'</strong></td>'+
+      '<td>'+esc((o.comprador||'')+' '+(o.apellido||''))+'</td>'+
+      '<td>'+esc(mad)+'</td>'+
+      '<td style="text-align:right">'+(m2?m2.toFixed(2)+' m²':'—')+'</td>'+
+      '<td>'+badge+'</td></tr>';
+  }).join('');
+  return '<div class="table-wrap"><table class="fin"><thead><tr>'+
+    '<th>Pedido</th><th>Cliente</th><th>Madera</th><th style="text-align:right">m²</th><th></th>'+
+    '</tr></thead><tbody>'+filas+'</tbody></table></div>';
+}
+
+// ¿El pedido ya tiene consumos? El taller no puede leer el mayor, así que solo
+// el admin ve el aviso; para el taller la guarda real es el registro que queda
+// en pedido_centro_costo.
+function _consumosDe(numStr){
+  return mayorRecords.filter(function(m){
+    return m.grupo==='CONSUMO' && String(m.pedido_num||'')===String(numStr);
+  }).length;
+}
+
+// Paso 2 — centro de costo y líneas
+function _consumoPaso2(){
+  var num=consPend.numStr;
+  var opts=cecos.map(function(c){
+    var sel=c.id===consPend.ceco_id?' selected':'';
+    return '<option value="'+c.id+'"'+sel+'>'+esc(c.codigo)+' — '+esc(c.nombre)+'</option>';
+  }).join('');
+  var motivo=esc(cecoMotivo(num));
+  var yaCons=_consumosDe(num);
+  var aviso=yaCons?'<div style="background:var(--amber-dim);color:var(--amber);padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">⚠ Este pedido ya tiene '+yaCons+' movimiento(s) de consumo. Volver a consumir descuenta stock otra vez.</div>':'';
+  var filas=consPend.lineas.map(_filaConsumo).join('');
+  var vacio=consPend.lineas.length?'':'<tr><td colspan="5" style="padding:14px;color:var(--text-3)">Este pedido no tiene medidas en Producción, así que no hay receta. Agregá las líneas a mano.</td></tr>';
+  return aviso+
+    '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">'+
+      '<div style="font-size:13px"><span style="color:var(--text-3)">Pedido</span> <strong>'+esc(num)+'</strong>'+
+      ' · <button class="btn-ghost" style="font-size:11px;padding:2px 8px" onclick="elegirPedidoConsumo(\'\')">cambiar</button></div>'+
+    '</div>'+
+    '<div class="form-group" style="margin-bottom:14px">'+
+      '<label>Centro de costo</label>'+
+      '<select onchange="setConsumoCeco(this.value)">'+opts+'</select>'+
+      '<div style="font-size:11px;color:var(--text-3);margin-top:4px">Sugerido por: '+motivo+'</div>'+
+    '</div>'+
+    '<div class="table-wrap"><table class="cost-table"><thead><tr>'+
+      '<th style="width:38%">Ítem</th><th style="width:18%">Sale de bodega</th>'+
+      '<th style="width:18%">Queda</th><th style="width:20%">Costo</th><th style="width:6%"></th>'+
+    '</tr></thead><tbody>'+(filas||vacio)+'</tbody></table></div>'+
+    _consumoResumen();
+}
+
+function _filaConsumo(l,i){
+  var it=invItems.find(function(x){return x.sku===l.sku;});
+  var stock=it?Number(it.stock)||0:0;
+  var queda=_f3(stock-(Number(l.cantidad)||0));
+  var unit=it?(Number(it.costo_prom)||Number(it.ultimo_costo)||0):0;
+  var costo=_pesos((Number(l.cantidad)||0)*unit);
+  // Pasarse del stock no bloquea: puede que la compra no se haya cargado
+  // todavía. Se avisa y el stock queda negativo, que es la señal de que falta
+  // una factura.
+  var color=queda<0?'var(--red)':'var(--text-muted)';
+  var alerta=queda<0?' ⚠':'';
+  return '<tr><td data-label="Ítem">'+esc(l.desc)+
+      '<div style="font-size:10px;color:var(--text-3)">'+esc(l.categoria||'')+'</div></td>'+
+    '<td data-label="Sale"><input type="number" min="0" step="0.001" value="'+(l.cantidad||0)+
+      '" onchange="setConsumoCant('+i+',this.value)"> <span style="font-size:11px;color:var(--text-3)">'+esc(l.unidad)+'</span></td>'+
+    '<td data-label="Queda" style="font-size:11px;color:'+color+'">'+fmtCant(queda,l.unidad)+alerta+'</td>'+
+    '<td data-label="Costo" style="font-size:11px;text-align:right">'+fmtCLP(costo)+'</td>'+
+    '<td><button class="btn-del-row" onclick="quitarLineaConsumo('+i+')">🗑</button></td></tr>';
+}
+
+function _consumoResumen(){
+  var total=0,negativos=0;
+  consPend.lineas.forEach(function(l){
+    var it=invItems.find(function(x){return x.sku===l.sku;});
+    var unit=it?(Number(it.costo_prom)||Number(it.ultimo_costo)||0):0;
+    total+=(Number(l.cantidad)||0)*unit;
+    if(it&&(Number(it.stock)||0)-(Number(l.cantidad)||0)<0)negativos++;
+  });
+  var aviso=negativos?'<span style="color:var(--amber)">⚠ '+negativos+' ítem(s) quedan en negativo — falta cargar la factura de compra</span>':'';
+  return '<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;'+
+    'padding:10px 12px;background:var(--surface3);border-radius:var(--radius);margin-top:12px;font-size:12px">'+
+    '<span>'+consPend.lineas.length+' línea(s) · costo de materiales <strong>'+fmtCLP(_pesos(total))+'</strong></span>'+
+    '<span>'+aviso+'</span></div>';
+}
+
+// Confirmar: baja el stock y escribe el costo en el mayor. Es el momento en
+// que un activo de bodega se convierte en costo del pedido.
+async function confirmarConsumo(){
+  var c=consPend;if(!c)return;
+  if(!c.numStr){alert('Elegí un pedido.');return;}
+  if(!c.ceco_id){alert('Elegí un centro de costo.');return;}
+  var lineas=c.lineas.filter(function(l){return (Number(l.cantidad)||0)>0;});
+  if(!lineas.length){alert('No hay ninguna línea con cantidad.');return;}
+  var ceco=cecoPorId(c.ceco_id);
+  if(!confirm('Se van a descontar '+lineas.length+' ítem(s) de bodega y cargar su costo al pedido '+
+              c.numStr+' en '+(ceco?ceco.codigo:'?')+'.\n\nEsto no se deshace solo. ¿Seguimos?'))return;
+
+  var btn=document.getElementById('consumo-confirmar');
+  btn.disabled=true;btn.textContent='Descontando...';
+  var hechas=0,resumen=[];
+  try{
+    // El CECO del pedido queda registrado aparte: es "el centro de costo de
+    // este pedido", no solo el de estos movimientos.
+    await sbInsert('pedido_centro_costo',{pedido_num:c.numStr,centro_costo_id:c.ceco_id,
+                                          asignado_por:usuarioEmail});
+    pedidoCeco[c.numStr]=c.ceco_id;
+  }catch(e){ /* ya existía: se conserva el que estaba */ }
+
+  try{
+    for(var i=0;i<lineas.length;i++){
+      var l=lineas[i];
+      var it=invItems.find(function(x){return x.sku===l.sku;});
+      if(!it)continue;
+      var cant=Number(l.cantidad)||0;
+      var unit=Number(it.costo_prom)||Number(it.ultimo_costo)||0;
+      // Stock primero: si el mayor falla, queda bodega descontada y sin
+      // asiento, que se ve enseguida. Al revés quedaría un costo fantasma.
+      var nuevo=_f3((Number(it.stock)||0)-cant);
+      await sbUpdate('inventario',it.id,{stock:nuevo,actualizado_en:new Date().toISOString()});
+      it.stock=nuevo;
+      // sbInsertMudo y no sbInsert: el taller no tiene SELECT sobre mayor y
+      // PostgREST fallaría al intentar devolver la fila escrita.
+      await sbInsertMudo('mayor',{
+        fecha:_aISO(todayStr), mes:extractMonthFromDate(todayStr)||currentMonthName(),
+        mes_n:MESES_ES.indexOf(extractMonthFromDate(todayStr)||currentMonthName())+1,
+        descripcion:'Consumo pedido '+c.numStr,
+        cantidad:cant, unidad_id:unidadIdDe(l.unidad), inventario_id:it.id,
+        madera:(it.especie||null), producto:null,
+        categoria_id:catIdDe(_categoriaDeItem(it)),
+        centro_costo_id:c.ceco_id, pedido_num:c.numStr,
+        monto:_pesos(cant*unit), grupo:'CONSUMO', origen_tipo:'consumo',
+        nota:l.desc||null
+      });
+      hechas++;
+      resumen.push(fmtCant(cant,l.unidad)+' de '+l.desc);
+    }
+    cerrarConsumo();
+    await recargarGastos();
+    // El taller no puede leer el mayor, así que el comprobante de lo que hizo
+    // es este resumen más el stock actualizado que ya ve en la tabla.
+    showToast('✓ '+hechas+' ítem(s) descontados y cargados al pedido '+c.numStr);
+    if(resumen.length)console.log('Consumo pedido '+c.numStr+':\n  '+resumen.join('\n  '));
+  }catch(e){
+    console.error('confirmarConsumo',e);
+    await recargarGastos();
+    showToast('✗ Quedó a medias tras '+hechas+' ítem(s): '+e.message,true);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Descontar de bodega';}
+  }
+}
 // ── Vista: Libro Mayor ────────────────────────────────────────────────────
 var mayorCatFilter='todas';
 function setMayorMonth(m){mayorMonthFilter=m;renderMayor();}
