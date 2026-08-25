@@ -1,0 +1,35 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Casa Zaru",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5500"],
+      "port": 5500
+    },
+    {
+      "name": "Maqueta finanzas",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5600", "-Root", "C:\\Users\\dell\\finanzas-casa\\maqueta"],
+      "port": 5600
+    },
+    {
+      "name": "App Dinus",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5700", "-Root", "C:\\Users\\dell\\finanzas-casa\\app"],
+      "port": 5700
+    },
+    {
+      "name": "Dinus web",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5800", "-Root", "C:\\Users\\dell\\finanzas-casa\\web"],
+      "port": 5800
+    },
+    {
+      "name": "Dinus test",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5900", "-Root", "C:\\Users\\dell\\finanzas-casa\\web-test"],
+      "port": 5900
+    }
+  ]
+}
