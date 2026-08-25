@@ -5,6 +5,23 @@
 
 Ver `ESTRUCTURA.md` para el mapa completo (3 repos, 3 sitios, 3 proyectos Supabase).
 
+## Entorno de trabajo
+
+**Carpeta buena:** `C:\Users\dell\Casa Zaru - Claude`. Existe un clon viejo en
+`OneDrive\Desktop\Casa Zaru Visual\Casa-Zaru` que quedó de un enredo — no trabajar ahí.
+
+**No hay Node, npm, psql ni el CLI de Supabase en esta máquina.** No proponer `npm install`,
+`npm test` ni `supabase db push`: no van a correr. Las verificaciones son estructurales (grep,
+balance de llaves, conteo de `<th>` vs `<td>`) y contra la base por HTTP.
+
+**Probar la app:** `.claude/static-server.ps1` la sirve en `localhost:5500` (también hay perfiles en
+`.claude/launch.json`). Abrirla con `file://` funciona, pero un servidor evita bordes raros de ese origen.
+
+**Publicar:** GitHub Pages sirve `main` en https://casazar.github.io/Casa-Zaru/ — un `git push` y
+redeploya solo. ⚠️ **Pages no funciona con repos privados en el plan gratuito**: si el repo se pone
+privado, el sitio cae con 404 al instante. Hay un `netlify.toml` listo como alternativa, configurado
+para publicar **solo el HTML** y no los `.sql` ni la documentación.
+
 ## Backend: Supabase
 El backend es **Supabase**, no Firebase (migrado). Tres proyectos:
 
@@ -23,11 +40,44 @@ llame el proyecto en el panel. PostgreSQL 17.6. Ambos están en la organización
 (`ivbgokwoajlrqmruervf`), plan Free.
 
 
+### Migraciones
+Van en **`supabase/migrations/<NNNN>_<nombre>.sql`**, correlativas desde `0001`. Los ceros a la
+izquierda no son adorno: la versión se guarda como **texto**, así que sin relleno la `10` quedaría
+ordenada entre la `1` y la `2`.
+
+El registro de lo aplicado lo lleva Supabase en `supabase_migrations.schema_migrations`, que es lo
+que muestra Database → Migrations en el panel. Al aplicar a mano (SQL Editor o Management API) hay
+que **insertar la fila ahí también**, si no el panel no la ve:
+
+```sql
+insert into supabase_migrations.schema_migrations (version, name, statements)
+values ('0005', 'nombre_corto', array[$mig$ <contenido del .sql> $mig$]);
+```
+
+**No llevar una tabla de migraciones propia** — ya existe una y duplicarla es pedir que diverjan.
+
+Estado: `0001`, `0002` y `0003` aplicadas y registradas. **`0004` está escrita y sin aplicar**, y crea
+una tabla `migraciones` propia que duplica el registro nativo; conviene descartarla.
+
+Los `.sql` sueltos en `supabase/` (fuera de `migrations/`) son parches viejos ya corridos a mano y
+**no registrados**. Dejarlos ahí es deliberado: si se movieran a `migrations/`, `db push` los
+re-ejecutaría.
+
 ## Alcance del módulo de gastos
 Es el circuito **factura → bodega → costo del pedido**, para sacar el margen real por pedido.
 No es un reemplazo de `casa-zaru-gastos`: esa app es aparte, corre sobre su propio Firebase y no se
 toca. Hubo un intento de consolidar las dos (migraciones 0002 y 0003) que se revirtió a propósito.
 
+**Qué está construido:** las dos ramas de la factura (insumo / gasto directo), el insumo entra a
+bodega como activo, el gasto directo va al mayor, unidad obligatoria, cantidades decimales, madera
+en pulgadas, permisos por rol.
+
+**Qué falta:** el botón para que el taller **descuente bodega al costear un pedido**. Es la caja del
+medio del diagrama y sin ella el margen sigue siendo teórico: `_aUnidadStock()` existe y está probada,
+pero la conversión m²→pulgadas nunca se ejecuta porque solo se la llama desde el editor de facturas.
+Falta también el modal que ofrece actualizar el costo estándar cuando cambia un precio de compra.
+
+Las tablas están **vacías**: los catálogos (9 unidades, 25 categorías) sembrados, nada más.
 ## Esquema de datos
 Dos mitades, a propósito distintas.
 
@@ -53,6 +103,18 @@ recalcularlas en JS. Después de escribir, recargar con `recargarGastos()` en ve
 ## Roles
 `admin` (todo) · `vendedor` (sin Finanzas/Costos/Pixel/Gastos) · `taller` (Producción + bodega).
 La protección real es RLS en el servidor; el CSS `body.rol-*` es solo cosmético.
+
+## Skills del proyecto
+Viven en `.claude/skills/`. Invocarlas cuando el pedido calce, en vez de reconstruir el análisis a mano:
+
+| Skill | Cuándo se activa |
+|---|---|
+| `cierre-semanal` | "cierre semanal", "cómo vamos este mes", "en qué tramo está César", "qué despacha esta semana". Venta acumulada del mes, tramo de comisión y despachos. |
+| `analisis-cotizador` | "análisis del cotizador", "qué se está cotizando", "cómo va el seguimiento". Productos, medidas y ticket cotizados, más tiempo al primer toque y cotizaciones sin tocar. |
+| `gads` | Auditoría de Google Ads, Search Console, PMax, Merchant Center o Business Profile, a partir de exports CSV/Excel. **No** es para Meta ni para crear campañas. |
+
+`.claude/settings.json` bloquea todas las operaciones de **escritura** del MCP de Meta Ads (crear o
+activar campañas, editar catálogo, tocar el pixel). Lectura y análisis sí. No sacar esos `deny`.
 
 ## Reglas críticas de código
 
@@ -101,6 +163,14 @@ La factura guarda `neto`, `iva` y `total` por separado; al mayor va el neto.
 
 ## API Anthropic
 Model string: `claude-sonnet-4-6`
+
+La key **nunca va en el código**: la escribe cada usuario y vive en su `localStorage`
+(`zaru_api_key`). Hubo una embebida en `copiloto-cesar.html` que quedó siete semanas en el
+historial de un repo público — se rotó, pero en git eso no se borra. No repetirlo.
+
+Las llamadas van desde el navegador con `anthropic-dangerous-direct-browser-access`. El patrón
+correcto ya existe en otra app del stack: la key vive como variable de entorno en una función
+de servidor y nunca llega al cliente. Vale la pena migrar a eso.
 
 ## SheetJS
 `document.scripts[0]` es SheetJS embebido (~835 KB). **No tocarlo nunca.**
