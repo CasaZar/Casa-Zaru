@@ -3784,22 +3784,12 @@ function pdfNombre(){
   partes.push('Casa Zaru');
   return partes.join(' - ').replace(/[\\/:*?"<>|]/g, '') + '.pdf';
 }
-/* opciones compartidas entre la descarga real y la verificación.
-   Márgenes chicos: la cotización debe OCUPAR la hoja. Sin modo 'legacy' de
-   paginación — metía una primera hoja en blanco. */
-var PDF_ANCHO = 780;   /* px del lienzo; a escala 2 dan ~1560 px de nitidez */
-function pdfOpciones(){
-  return {
-    margin: [6, 5, 8, 5],
-    filename: pdfNombre(),
-    image: { type: 'jpeg', quality: 0.95 },
-    /* SIN windowWidth: encoge la ventana del clon y el lienzo fuera de
-       pantalla queda fuera de ella — rentaba un PDF en blanco de 3 KB */
-    html2canvas: { scale: 2, useCORS: true },
-    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },   /* en Chile se imprime carta */
-    pagebreak: { mode: ['css'], avoid: ['.ptier-block', '.ptier-row', '.specs', '.warranty', '.ptable', '.info-bar', '.iboxes', '.bankrow'] }
-  };
-}
+/* El paginador de html2pdf queda FUERA: metió una hoja en blanco con el modo
+   'legacy', y sin él siguió insertando huecos imposibles de predecir con la
+   lista de 'avoid'. La librería solo renta el canvas (eso funciona); las
+   páginas se cortan a mano en pdfPaginar() buscando filas limpias de fondo. */
+var PDF_ANCHO = 780;    /* px del lienzo; a escala 2 dan ~1560 px de nitidez */
+var PDF_MARG = { izq: 5, sup: 6, inf: 8 };   /* mm; carta = 216 × 279 */
 /* Arma el lienzo que se renta: una COPIA de la cotización a ancho fijo, fuera
    de pantalla y sin botones. Rentar #q-out directo salía en miniatura: en
    escritorio (peor aún en modo vendedor) el contenedor es mucho más ancho que
@@ -3825,6 +3815,34 @@ function pdfLienzo(){
   document.body.appendChild(envoltorio);
   return envoltorio;
 }
+/* ── PAGINACIÓN PROPIA ──
+   Corta el canvas en páginas buscando una fila de PURO FONDO cerca del borde
+   de cada página (hasta 45% hacia arriba): ahí nunca hay texto ni cajas, así
+   que ninguna se parte. Si un bloque fuera más alto que la página completa,
+   se corta donde caiga — mejor un corte feo que perder contenido. */
+function pdfPaginar(canvas, pageHpx){
+  var ctx = canvas.getContext('2d');
+  function filaLimpia(y){
+    var d = ctx.getImageData(0, y, canvas.width, 1).data;
+    for (var i = 0; i < d.length; i += 32){   /* un pixel de cada 8 */
+      /* fondo crema #FAF8F2 con tolerancia (el JPEG y el antialias lo mueven un pelo) */
+      if (Math.abs(d[i]-250) > 14 || Math.abs(d[i+1]-248) > 14 || Math.abs(d[i+2]-242) > 14) return false;
+    }
+    return true;
+  }
+  var cortes = [0], y = 0;
+  while (y + pageHpx < canvas.height){
+    var corte = y + pageHpx, mejor = -1;
+    for (var k = corte; k > corte - Math.floor(pageHpx * 0.45); k--){
+      if (filaLimpia(k)){ mejor = k; break; }
+    }
+    corte = (mejor > y + 100) ? mejor : corte;
+    cortes.push(corte);
+    y = corte;
+  }
+  cortes.push(canvas.height);
+  return cortes;
+}
 async function descargarPDF(){
   var btn = document.querySelector('.btn-pdf');
   var txt = btn ? btn.textContent : '';
@@ -3833,8 +3851,35 @@ async function descargarPDF(){
   try {
     await cargarHtml2pdf();
     lienzo = pdfLienzo();
-    /* se renta el CONTENIDO (estático), no el envoltorio posicionado */
-    await html2pdf().set(pdfOpciones()).from(lienzo.firstChild).save();
+    /* 1) el canvas: html2pdf SOLO renta (paginación apagada), sobre el
+       contenido estático — el envoltorio posicionado no aporta altura */
+    var canvas = await html2pdf()
+      .set({ html2canvas: { scale: 2, useCORS: true }, pagebreak: { mode: [] } })
+      .from(lienzo.firstChild).toCanvas().get('canvas');
+    if (!canvas.height) throw new Error('canvas vacío');
+    /* 2) un jsPDF: el bundle no lo expone, así que se le saca a un worker
+       mínimo rentando un div blanco de 2px (queda invisible en la esquina) */
+    var blanco = document.createElement('div');
+    blanco.style.cssText = 'width:2px;height:2px;background:#fff;';
+    lienzo.appendChild(blanco);
+    var pdf = await html2pdf()
+      .set({ margin: 0, jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' } })
+      .from(blanco).toPdf().get('pdf');
+    /* 3) cortar y poner cada tajada en su página, a lo ancho de la carta */
+    var anchoMm = 216 - PDF_MARG.izq * 2;
+    var altoUtilMm = 279 - PDF_MARG.sup - PDF_MARG.inf;
+    var pxPorMm = canvas.width / anchoMm;
+    var cortes = pdfPaginar(canvas, Math.floor(altoUtilMm * pxPorMm));
+    for (var p = 0; p < cortes.length - 1; p++){
+      var h = cortes[p+1] - cortes[p];
+      if (h <= 2) continue;
+      var tc = document.createElement('canvas');
+      tc.width = canvas.width; tc.height = h;
+      tc.getContext('2d').drawImage(canvas, 0, cortes[p], canvas.width, h, 0, 0, canvas.width, h);
+      if (p > 0) pdf.addPage();
+      pdf.addImage(tc.toDataURL('image/jpeg', 0.95), 'JPEG', PDF_MARG.izq, PDF_MARG.sup, anchoMm, h / pxPorMm);
+    }
+    pdf.save(pdfNombre());
   } catch(e) {
     console.error('descargarPDF:', e);
     /* respaldo: el diálogo de siempre, con el nombre de archivo puesto en el título */
