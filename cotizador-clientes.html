@@ -3879,6 +3879,19 @@ async function descargarPDF(){
       if (p > 0) pdf.addPage();
       pdf.addImage(tc.toDataURL('image/jpeg', 0.95), 'JPEG', PDF_MARG.izq, PDF_MARG.sup, anchoMm, h / pxPorMm);
     }
+    /* Pie con numeración en cada página. Además de ordenar el documento, sirve
+       de huella de versión: los PDF de las versiones con el bug de paginación
+       no la llevaban — un archivo sin "Página 1 de 2" salió de un tab con el
+       JS viejo en memoria, no de este código. */
+    var totPag = pdf.internal.getNumberOfPages();
+    pdf.setFontSize(7.5);
+    pdf.setTextColor(150);
+    for (var pg = 1; pg <= totPag; pg++){
+      pdf.setPage(pg);
+      pdf.text('Casa Zaru · cotizador.casazaru.cl', PDF_MARG.izq, 276);
+      pdf.text('Página ' + pg + ' de ' + totPag, 216 - PDF_MARG.izq, 276, { align: 'right' });
+    }
+    pdf.setProperties({ title: pdfNombre().replace(/\.pdf$/, ''), creator: 'Cotizador Casa Zaru' });
     pdf.save(pdfNombre());
   } catch(e) {
     console.error('descargarPDF:', e);
