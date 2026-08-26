@@ -4823,6 +4823,7 @@ async function doPanelLogin(){
 async function doPanelLogout(){ try{ await sbClient.auth.signOut(); }catch(e){} location.reload(); }
 
 async function loadDash() {
+  bitacFlush();   /* toques que quedaron en cola por sesión expirada (fire-and-forget) */
   document.getElementById('dash-tbl').innerHTML = '<div style="padding:20px;text-align:center;color:var(--tm)">Cargando…</div>';
   var res = await sbClient.from('cotizaciones').select('*').order('fecha_creacion',{ascending:false});
   if (res.error) { document.getElementById('dash-tbl').innerHTML='<div style="padding:20px;color:#991B1B">Error: '+res.error.message+'</div>'; return; }
@@ -5479,19 +5480,55 @@ function toqueTipo(x, n){
   if (n === 2) return 'p3';
   return 'cadencia';
 }
+/* ── COLA DE BITÁCORA (ago 2026) ──
+   La política RLS de `toques` solo acepta inserts con sesión iniciada. Cuando
+   la sesión expiraba con el panel abierto, el update de la cotización (anon)
+   igual pasaba, pero la fila de bitácora se perdía en silencio: entre el 18 y
+   el 25 de agosto se fugaron 43 toques así y `seg_etapa` dejó de cuadrar con
+   la tabla — hubo que rellenarla a mano desde seg_historial. Ahora el insert
+   que falla se encola acá y se reintenta al cargar el panel con sesión. El
+   `ts` viaja en la cola para que el toque quede fechado cuando se HIZO, no
+   cuando por fin se pudo guardar; la atribución del reintento es correcta
+   porque la cola vive en localStorage: la vacía el mismo vendedor que marcó. */
+var BITAC_KEY = 'zaru_bitacora_pend';
+function bitacLeer(){ try { var v = JSON.parse(localStorage.getItem(BITAC_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch(e){ return []; } }
+function bitacGuardar(a){ try { localStorage.setItem(BITAC_KEY, JSON.stringify(a)); } catch(e){} }
+function bitacEncolar(cid, tipo, ts){ var a = bitacLeer(); a.push({cid:cid, tipo:tipo, ts:ts}); bitacGuardar(a); }
+async function bitacFlush(){
+  var a = bitacLeer(); if (!a.length) return;
+  var sess = await sbClient.auth.getSession();
+  var quien = (sess.data && sess.data.session && sess.data.session.user.email) || null;
+  if (!quien) return;   /* sin sesión el insert volvería a rebotar en la RLS */
+  var quedan = [];
+  for (var i = 0; i < a.length; i++){
+    try {
+      var res = await sbClient.from('toques').insert({ cotizacion_id: a[i].cid, tipo: a[i].tipo, ts: a[i].ts, hecho_por: quien });
+      if (res.error) quedan.push(a[i]);
+    } catch(e) { quedan.push(a[i]); }
+  }
+  bitacGuardar(quedan);
+  if (quedan.length < a.length) showToast('Bitácora: '+(a.length-quedan.length)+' toque(s) pendientes registrados', true);
+}
 async function registrarToque(x, n){
+  var tipo = toqueTipo(x, n), ts = new Date().toISOString();
   try {
     var sess = await sbClient.auth.getSession();
     var quien = (sess.data && sess.data.session && sess.data.session.user.email) || null;
+    if (!quien) { bitacEncolar(x.id, tipo, ts); return; }   /* la RLS lo rechazaría: directo a la cola */
     var res = await sbClient.from('toques')
-      .insert({ cotizacion_id: x.id, tipo: toqueTipo(x, n), hecho_por: quien })
+      .insert({ cotizacion_id: x.id, tipo: tipo, ts: ts, hecho_por: quien })
       .select('id');
     if (!res.error && res.data && res.data[0]) x._ultimoToqueId = res.data[0].id;
-    else if (res.error) console.error('registrarToque:', res.error);
-  } catch(e) { console.error('registrarToque:', e); }
+    else if (res.error) { console.error('registrarToque:', res.error); bitacEncolar(x.id, tipo, ts); }
+  } catch(e) { console.error('registrarToque:', e); bitacEncolar(x.id, tipo, ts); }
 }
-/* deshacer: borra la fila más reciente de `toques` de esa cotización */
+/* deshacer: borra la fila más reciente de `toques` de esa cotización.
+   Si el toque aún está en la cola (se marcó sin sesión), basta sacarlo de ahí. */
 async function borrarUltimoToque(x){
+  var a = bitacLeer();
+  for (var i = a.length - 1; i >= 0; i--){
+    if (a[i].cid === x.id){ a.splice(i, 1); bitacGuardar(a); return; }
+  }
   try {
     if (x._ultimoToqueId) {
       await sbClient.from('toques').delete().eq('id', x._ultimoToqueId);
