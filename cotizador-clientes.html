@@ -388,7 +388,14 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .muest-txt { font-size: 13.5px; color: var(--tm); line-height: 1.55; margin-bottom: 7px; }
 .muest-link { display: inline-block; border: 1px solid var(--ac); border-radius: 6px; padding: 5px 14px; font-size: 12px; color: var(--ac); text-decoration: none; font-weight: 600; letter-spacing: .5px; }
 .muest-link:hover { background: var(--ac); color: white; }
-.btn-copy-link { width: 100%; margin-top: 10px; background: none; border: 1.5px solid var(--bd); border-radius: 10px; padding: 11px; font-size: 14px; font-family: 'Jost', sans-serif; color: var(--tm); cursor: pointer; letter-spacing: .5px; transition: border-color .15s, color .15s; }
+/* ── COPIAR MENSAJE: MISMO MECANISMO QUE EL BOTÓN DE PDF ──
+   Va siempre en el HTML y lo muestra el CSS: con la clase `modo-vendedor`
+   del body (sesión, resuelva cuando resuelva) o con `src-ok` (vino por el
+   link ?src= del vendedor, el flujo de siempre). Antes se decidía en JS con
+   srcEmail y desaparecía al entrar con sesión o al abrir el ?s= de un
+   cliente — la misma carrera que ya mató al botón de PDF. */
+.btn-copy-link { display: none; width: 100%; margin-top: 10px; background: none; border: 1.5px solid var(--bd); border-radius: 10px; padding: 11px; font-size: 14px; font-family: 'Jost', sans-serif; color: var(--tm); cursor: pointer; letter-spacing: .5px; transition: border-color .15s, color .15s; }
+.btn-copy-link.src-ok, body.modo-vendedor .btn-copy-link { display: block; }
 .btn-copy-link:hover { border-color: var(--ac); color: var(--ac); }
 .btn-copy-link.copied { border-color: #2D6A4F; color: #2D6A4F; }
 .dcto-tag { display: inline-block; background: #E7F0E1; color: #2D5A3D; font-weight: 700; font-size: 13px; padding: 2px 9px; border-radius: 10px; border: 1px solid #C3DAB4; vertical-align: middle; }
@@ -3750,7 +3757,7 @@ function whatsappCTA(bajo, alto, det) {
   return '<div class="wa-block">' +
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
-    (srcEmail ? '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' : '') +
+    '<button class="btn-copy-link' + (srcEmail ? ' src-ok' : '') + '" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' +
     /* Sale de una petición real (26-08-2026): una clienta pidió la cotización
        en PDF "para enviársela al arquitecto". El link compartido no le sirve a
        quien la recibe por correo o la imprime.
