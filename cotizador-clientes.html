@@ -661,10 +661,17 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .extra-row label { flex:1;cursor:pointer;display:flex;align-items:center;gap:8px; }
 .extra-price { color:var(--tm);font-size:12px;white-space:nowrap; }
 .ex-qty { width:48px;border:1px solid var(--bd);border-radius:6px;padding:4px 6px;font-size:14px;font-family:'Jost',sans-serif;text-align:center; }
-/* Botón de PDF: solo el vendedor. Usa el "Guardar como PDF" del navegador,
-   no una librería — el archivo tiene que seguir siendo autocontenido. */
-.btn-pdf { width:100%;margin-top:10px;background:none;border:1.5px solid var(--acd);border-radius:10px;padding:11px;
+/* ── BOTÓN DE PDF: SOLO EL VENDEDOR, PERO DECIDIDO EN CSS ──
+   Va siempre en el HTML y se muestra con la clase `modo-vendedor` del <body>.
+   NO se decide en JS al armar la cotización: `vendorMode` se enciende dentro
+   de getSession().then(), que es asíncrono, y al abrir el link de una
+   cotización compartida la restauración gana la carrera —la cotización ya
+   está pintada cuando la sesión se confirma— así que el botón no aparecía
+   nunca. La clase del body la pone habilitarInternos() cuando sea que
+   resuelva, y el CSS se aplica solo. El cliente no la tiene jamás. */
+.btn-pdf { display:none;width:100%;margin-top:10px;background:none;border:1.5px solid var(--acd);border-radius:10px;padding:11px;
   font-size:14px;font-family:'Jost',sans-serif;color:var(--acd);cursor:pointer;letter-spacing:.5px;transition:background .15s; }
+body.modo-vendedor .btn-pdf { display:block; }
 .btn-pdf:hover { background:var(--bg3); }
 
 @media print {
@@ -3738,10 +3745,14 @@ function whatsappCTA(bajo, alto, det) {
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
     (srcEmail ? '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' : '') +
-    /* Solo el vendedor. Sale de una petición real (26-08-2026): una clienta
-       pidió la cotización en PDF "para enviársela al arquitecto". El link
-       compartido no le sirve a quien la recibe por correo o la imprime. */
-    (vendorMode ? '<button class="btn-pdf" onclick="descargarPDF()">📄 Descargar PDF para el cliente</button>' : '') +
+    /* Sale de una petición real (26-08-2026): una clienta pidió la cotización
+       en PDF "para enviársela al arquitecto". El link compartido no le sirve a
+       quien la recibe por correo o la imprime.
+       Va siempre en el HTML: quién lo VE lo decide el CSS con la clase
+       `modo-vendedor` del body (ver .btn-pdf). Ponerlo aquí con un ternario
+       sobre vendorMode lo hacía desaparecer justo en el caso más útil —abrir
+       el link de la cotización del cliente para exportársela. */
+    '<button class="btn-pdf" onclick="descargarPDF()">📄 Descargar PDF para el cliente</button>' +
   '</div>';
 }
 /* ── PDF ──
