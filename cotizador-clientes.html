@@ -1024,7 +1024,7 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
       <!-- Solo visible con el link privado de vendedor (?pro=zr) -->
       <div class="pcard" id="pcard-mesa" data-prod="mesa">
         <div class="pcard-img" id="img-mesa"><div class="img-ph"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="2.5" y="6" width="19" height="2.6" rx=".8"/><path d="M5 8.6V19M19 8.6V19M5 13h14"/></svg></div></div>
-        <div class="pcard-body"><div class="pinfo"><div class="pname">Mesas de madera</div><div class="psub">De comedor o de centro · 19 modelos</div></div><span class="parrow">→</span></div>
+        <div class="pcard-body"><div class="pinfo"><div class="pname">Mesas de madera</div><div class="psub">De comedor o de centro · 22 modelos</div></div><span class="parrow">→</span></div>
       </div>
 
       <div class="pcard" data-prod="revestimiento">
@@ -1318,6 +1318,13 @@ var MESA_MODELOS = [
   { nombre:'Mesa y Bancas Río Maullín',    foto:'bancas-maullin',        forma:'rectangular', base:'fierro' },
   { nombre:'Mesa Río Toltén',              foto:'rio-tolten',            forma:'redonda',     base:'fierro' },
   { nombre:'Mesa Río Imperial',            foto:'rio-imperial',          forma:'redonda',     base:'fierro' },
+  /* ── LOS TRES QUE ESTABAN PUBLICADOS Y NO ESTABAN ACÁ (ago 2026) ──
+     Se vendían en casazaru.cl y el cotizador no los tenía, así que quien
+     preguntaba por ellos quedaba sin precio. Fotos directo de la tienda:
+     son las mismas y así no hay que duplicar archivos en el repo. */
+  { nombre:'Mesa Lago Maihue',             foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20260707_214704.jpg', forma:'rectangular', base:'madera' },
+  { nombre:'Mesa Lago Riñihue',            foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20260707_215155.jpg', forma:'rectangular', base:'madera' },
+  { nombre:'Mesa Río Petrohué',            foto:'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/Photoroom_20260707_090608.jpg', forma:'rectangular', base:'fierro' },
   /* ── MESAS DE CENTRO ──
      Se venden en casazaru.cl y faltaban acá. Las fotos apuntan directo a las
      de la tienda: son las mismas y así no hay que duplicar archivos ni esperar
@@ -1623,6 +1630,42 @@ var MESA_BASES = {
   'Mesa Río Bueno':             { modo:'largo', tramos:BASE_MADERA_RECT },
   'Mesa Lago Llanquihue':       { modo:'largo', tramos:BASE_MADERA_RECT },
   'Mesa Río Cochrane':          { modo:'largo', tramos:BASE_COCHRANE },
+
+  /* ── LOS TRES QUE FALTABAN ──
+     Base despejada de casazaru.cl medida por medida (publicado − cubierta) y
+     redondeada HACIA ARRIBA al x9.900 más cercano, tomando el máximo de cada
+     tramo: dentro de un tramo la base es plana, así que si se tomara el
+     promedio las medidas caras del tramo quedarían bajo el precio publicado.
+     Ojo con la forma de la tabla: acá la base BAJA con el largo, al revés que
+     en los modelos viejos. No es un error de tipeo — es lo que dice la web, que
+     a las mesas grandes les carga proporcionalmente menos estructura. El total
+     igual sube, porque los m² de cubierta mandan.
+     El tramo >300 no existe en la tienda: se deja igual al de 300. */
+  /* Maihue lleva un tramo extra en 160: su 180×90 se vende bastante más caro
+     que las tres medidas menores, y metiéndolas en el mismo tramo arrastraba a
+     la 120×80 casi 7% sobre la web. Partido en dos, ninguna pasa de 2%. */
+  'Mesa Lago Maihue': { modo:'largo', tramos:[
+    { hasta:160,  bajo:199900, medio:219900, alto:279900 },
+    { hasta:180,  bajo:219900, medio:249900, alto:309900 },
+    { hasta:240,  bajo:209900, medio:239900, alto:309900 },
+    { hasta:300,  bajo:199900, medio:219900, alto:299900 },
+    { hasta:9999, bajo:199900, medio:219900, alto:299900 }
+  ]},
+  'Mesa Lago Riñihue': { modo:'largo', tramos:[
+    { hasta:180,  bajo:289900, medio:309900, alto:339900 },
+    { hasta:240,  bajo:279900, medio:289900, alto:339900 },
+    { hasta:300,  bajo:259900, medio:269900, alto:329900 },
+    { hasta:9999, bajo:259900, medio:269900, alto:329900 }
+  ]},
+  /* Petrohué es de fierro y su Pino Oregón se vende caro para lo que cuesta su
+     madera noble: despejado, el bajo salía POR SOBRE el medio. Se emparejan
+     hacia arriba para que la tabla no baje de precio al subir de madera. */
+  'Mesa Río Petrohué': { modo:'largo', tramos:[
+    { hasta:180,  bajo:319900, medio:319900, alto:329900 },
+    { hasta:240,  bajo:299900, medio:299900, alto:319900 },
+    { hasta:300,  bajo:289900, medio:289900, alto:309900 },
+    { hasta:9999, bajo:289900, medio:289900, alto:309900 }
+  ]},
   'Mesa Río Trancura':          { modo:'largo', tramos:BASE_TRANCURA },
 
   /* Mesa y bancas: la base simple ($289.900) más el par de bancas. Las bancas
@@ -1642,10 +1685,13 @@ var MESA_BASES = {
     { hasta:100,  bajo:259900, medio:279900, alto:289900 },
     { hasta:9999, bajo:289900, medio:319900, alto:329900 }
   ]},
-  /* El conjunto son DOS mesas de centro que se venden juntas. El cotizador
-     cobra la cubierta por m², así que acá va la parte de las bases —las dos—
-     y el vendedor ingresa la cubierta de la más grande. */
-  'Mesas de Centro Río Bueno (par)': { modo:'fijo', bajo:169900, medio:189900, alto:209900, nota:'Par de bases de madera (2 mesas)' },
+  /* El conjunto son DOS mesas de centro que se venden juntas. No lleva base con
+     precio propio: las patas son paneles de madera del mismo espesor que la
+     tapa, así que se cobran por m² como una cubierta más (ancho × alto de su
+     mesa, dos por mesa). Antes era un monto fijo de $169.900 por el par y solo
+     se cobraba UNA cubierta: el conjunto salía ~$100.000 bajo el precio de
+     casazaru.cl porque la segunda mesa iba de regalo. */
+  'Mesas de Centro Río Bueno (par)': { modo:'enCubierta', nota:'2 mesas · tapas y patas por m²' },
 
   /* Base + bancas. Siguen a la base de su modelo: al pasar Calafquén y Maullín
      a tramos, el primer tramo quedó en $339.900, así que el conjunto sube de
@@ -1660,6 +1706,12 @@ function mesaBaseSugerida(modelo, largoCm, anchoCm) {
   if (!modelo) return null;
   var cfg = MESA_BASES[modelo.nombre];
   if (!cfg) return null;
+  /* 'enCubierta': el modelo no tiene base con precio propio porque su estructura
+     se fabrica del mismo material que la tapa y se cobra por m² junto con ella
+     (ver mesaParPiezas). Devuelve cero para no cobrarla dos veces, pero la
+     entrada tiene que existir igual: sin ella la tarjeta sale "a convenir" y
+     desaparece del cotizador público. */
+  if (cfg.modo === 'enCubierta') return { bajo:0, medio:0, alto:0, detalle: cfg.nota || '' };
   if (cfg.modo === 'fijo') {
     /* Recargo por mesa larga (regla de agosto 2026): sobre 240 cm de CUBIERTA
        la base sube $30.000 — simple 289.900 → 319.900, compleja 329.900 →
@@ -2459,14 +2511,25 @@ function mesaParDims() {
   var H = altoEl ? (parseFloat(altoEl.value) || PAR_ALTO_DEF) : PAR_ALTO_DEF;
   return { sup: { largo: L, ancho: A, alto: H }, inf: mesaInferior(L, A, H) };
 }
-/* m² de la mesa de abajo, que el cliente NO escribe. Sin esto el par cotizaba
-   una sola cubierta y regalaba la segunda mesa: quedaba ~$100.000 bajo el
-   precio publicado en casazaru.cl. La base fija del modelo ya cubre las dos
-   estructuras, así que acá va solo la tapa. */
-function mesaParM2() {
+/* ── LAS PIEZAS QUE EL CLIENTE NO ESCRIBE ──
+   Del par, el cliente da una sola medida: largo y ancho de la tapa de arriba.
+   Todo lo demás —la tapa de abajo y las cuatro patas— sale de ahí. Las patas
+   son paneles del ancho de su mesa por su alto, dos por mesa (una en cada
+   punta), y se cobran a precio de cubierta porque es la misma madera y el
+   mismo espesor. Sin esto el conjunto se cotizaba como una sola tapa suelta. */
+function mesaParPiezas() {
   var d = mesaParDims();
-  if (!d) return 0;
-  return (d.inf.largo / 100) * (d.inf.ancho / 100);
+  if (!d) return [];
+  return [
+    { lg:d.inf.largo, an:d.inf.ancho, ca:1, etq:'mesa de abajo' },
+    { lg:d.sup.ancho, an:d.sup.alto,  ca:2, etq:'patas de arriba' },
+    { lg:d.inf.ancho, an:d.inf.alto,  ca:2, etq:'patas de abajo' }
+  ];
+}
+function mesaParM2() {
+  return mesaParPiezas().reduce(function(a,p){
+    return a + (p.lg / 100) * (p.an / 100) * p.ca;
+  }, 0);
 }
 
 /* tarjeta de modelo tocada: fija el select oculto y marca la tarjeta.
@@ -3364,22 +3427,24 @@ function htmlMesa(cli, fecha) {
   var parD = mesaParDims();
   var esPar = !!(mesaModeloActual() && mesaModeloActual().par && parD);
   if (esPar) {
-    var m2Inf = (parD.inf.largo/100)*(parD.inf.ancho/100);
-    sumM2 += m2Inf;
-    filas.push({n:filas.length+1, lg:parD.inf.largo, an:parD.inf.ancho, ca:1, m2:m2Inf, derivada:true});
+    mesaParPiezas().forEach(function(p){
+      var m2p = (p.lg/100)*(p.an/100)*p.ca;
+      sumM2 += m2p;
+      filas.push({n:filas.length+1, lg:p.lg, an:p.an, ca:p.ca, m2:m2p, etq:p.etq});
+    });
   }
   var dimRows = filas.map(function(f){
-    var etq = f.derivada ? ' <span style="color:var(--tm);font-style:italic">(mesa de abajo)</span>' : '';
-    return '<tr><td>'+f.n+etq+'</td><td>'+f.lg+'</td><td>'+f.an+'</td><td>'+f.ca+'</td><td>'+f.m2.toFixed(2)+'</td></tr>';
+    var etq = f.etq ? ' <span style="color:var(--tm);font-style:italic">('+f.etq+')</span>' : '';
+    return '<tr><td>'+f.n+etq+'</td><td>'+_n(f.lg)+'</td><td>'+_n(f.an)+'</td><td>'+f.ca+'</td><td>'+f.m2.toFixed(2)+'</td></tr>';
   }).join('');
   var vExtrasList = vExtrasDatos();
   var vExtrasTot = vExtrasList.reduce(function(a,e){ return a+e.valor; }, 0);
   var vEsp = vEspesorFinal();
   var esMadera = M.baseTipo === 'madera';
   /* el valor de la base es POR MESA: si se cotizan 2 cubiertas, van 2 bases.
-     La fila derivada del par NO suma base: su precio de lista ya dice
-     "par de bases (2 mesas)" y contarla otra vez cobraría la estructura dos veces. */
-  var nBases = filas.reduce(function(a,f){ return a + (f.derivada ? 0 : (f.ca||1)); }, 0) || 1;
+     Las filas derivadas del par NO suman base: ese modelo no tiene base con
+     precio propio (modo 'enCubierta'), sus patas ya van cobradas por m². */
+  var nBases = filas.reduce(function(a,f){ return a + (f.etq ? 0 : (f.ca||1)); }, 0) || 1;
   /* Valor de la base: lo que escribió el vendedor manda; si no escribió nada
      (siempre en el flujo público) se usa la sugerencia del modelo. */
   var sug = mesaSugerido();
