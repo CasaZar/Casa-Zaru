@@ -3784,31 +3784,57 @@ function pdfNombre(){
   partes.push('Casa Zaru');
   return partes.join(' - ').replace(/[\\/:*?"<>|]/g, '') + '.pdf';
 }
-/* opciones compartidas entre la descarga real y la verificación */
+/* opciones compartidas entre la descarga real y la verificación.
+   Márgenes chicos: la cotización debe OCUPAR la hoja. Sin modo 'legacy' de
+   paginación — metía una primera hoja en blanco. */
+var PDF_ANCHO = 780;   /* px del lienzo; a escala 2 dan ~1560 px de nitidez */
 function pdfOpciones(){
   return {
-    margin: [10, 9, 12, 9],
+    margin: [6, 5, 8, 5],
     filename: pdfNombre(),
     image: { type: 'jpeg', quality: 0.95 },
-    /* html2canvas renta la página con media SCREEN, no print: el @media print
-       no aplica acá. Los botones se sacan del clon a mano. */
-    html2canvas: { scale: 2, useCORS: true, onclone: function(doc){
-      ['.wa-block', '.muest-block', '.btn-copy-link', '.btn-pdf', '.nota-asesor'].forEach(function(sel){
-        var lista = doc.querySelectorAll(sel);
-        for (var i = 0; i < lista.length; i++) lista[i].parentNode.removeChild(lista[i]);
-      });
-    }},
+    /* SIN windowWidth: encoge la ventana del clon y el lienzo fuera de
+       pantalla queda fuera de ella — rentaba un PDF en blanco de 3 KB */
+    html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },   /* en Chile se imprime carta */
-    pagebreak: { mode: ['css', 'legacy'], avoid: ['.ptier-block', '.ptier-row', '.specs', '.warranty', '.ptable', '.info-bar', '.iboxes', '.bankrow'] }
+    pagebreak: { mode: ['css'], avoid: ['.ptier-block', '.ptier-row', '.specs', '.warranty', '.ptable', '.info-bar', '.iboxes', '.bankrow'] }
   };
+}
+/* Arma el lienzo que se renta: una COPIA de la cotización a ancho fijo, fuera
+   de pantalla y sin botones. Rentar #q-out directo salía en miniatura: en
+   escritorio (peor aún en modo vendedor) el contenedor es mucho más ancho que
+   el contenido, html2canvas captura TODO ese ancho vacío y jsPDF lo encoge a
+   la página — la cotización quedaba de 7 cm en una hoja carta. Con el ancho
+   fijo, el contenido ES la hoja. */
+function pdfLienzo(){
+  /* DOS capas, y no es capricho: el posicionamiento va en un envoltorio y el
+     contenido queda ESTÁTICO. html2pdf clona lo que se le pasa dentro de un
+     contenedor propio, y un clon position:absolute no le aporta altura — el
+     canvas salía de 1558 × 0 px y el PDF, en blanco. El envoltorio queda
+     fuera de pantalla POR ABAJO (a la izquierda también recorta). */
+  var envoltorio = document.createElement('div');
+  envoltorio.style.cssText = 'position:absolute;left:0;top:' + (document.documentElement.scrollHeight + 200) + 'px;width:' + PDF_ANCHO + 'px;';
+  var copia = document.getElementById('q-out').cloneNode(true);
+  copia.id = '';   /* sin ids duplicados en el documento */
+  copia.style.cssText = 'position:static;width:' + PDF_ANCHO + 'px;max-width:' + PDF_ANCHO + 'px;margin:0;padding:18px 22px;background:#FAF8F2;';
+  ['.wa-block', '.muest-block', '.btn-copy-link', '.btn-pdf', '.nota-asesor'].forEach(function(sel){
+    var lista = copia.querySelectorAll(sel);
+    for (var i = 0; i < lista.length; i++) lista[i].parentNode.removeChild(lista[i]);
+  });
+  envoltorio.appendChild(copia);
+  document.body.appendChild(envoltorio);
+  return envoltorio;
 }
 async function descargarPDF(){
   var btn = document.querySelector('.btn-pdf');
   var txt = btn ? btn.textContent : '';
   if (btn) { btn.disabled = true; btn.textContent = 'Generando PDF…'; }
+  var lienzo = null;
   try {
     await cargarHtml2pdf();
-    await html2pdf().set(pdfOpciones()).from(document.getElementById('q-out')).save();
+    lienzo = pdfLienzo();
+    /* se renta el CONTENIDO (estático), no el envoltorio posicionado */
+    await html2pdf().set(pdfOpciones()).from(lienzo.firstChild).save();
   } catch(e) {
     console.error('descargarPDF:', e);
     /* respaldo: el diálogo de siempre, con el nombre de archivo puesto en el título */
@@ -3819,6 +3845,7 @@ async function descargarPDF(){
     setTimeout(restaurar, 60000);
     window.print();
   } finally {
+    if (lienzo && lienzo.parentNode) lienzo.parentNode.removeChild(lienzo);
     if (btn) { btn.disabled = false; btn.textContent = txt; }
   }
 }
