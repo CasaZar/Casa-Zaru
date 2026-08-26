@@ -3852,11 +3852,38 @@ async function descargarPDF(){
     await cargarHtml2pdf();
     lienzo = pdfLienzo();
     /* 1) el canvas: html2pdf SOLO renta (paginación apagada), sobre el
-       contenido estático — el envoltorio posicionado no aporta altura */
-    var canvas = await html2pdf()
-      .set({ html2canvas: { scale: 2, useCORS: true }, pagebreak: { mode: [] } })
-      .from(lienzo.firstChild).toCanvas().get('canvas');
-    if (!canvas.height) throw new Error('canvas vacío');
+       contenido estático — el envoltorio posicionado no aporta altura.
+       ── EL BUG DEL SCROLL (26-08-2026) ──
+       html2canvas calcula el recorte con el scroll de la página, y el botón
+       de descarga vive AL FINAL de la cotización: el usuario siempre está
+       scrolleado abajo al apretarlo. El canvas salía corrido —2042 px de
+       nada arriba, el contenido empujado al fondo y el resto cortado— y por
+       eso la página 1 llegaba en blanco. En las pruebas nunca apareció
+       porque el scroll de un test siempre está en 0. Se captura con la
+       página arriba (se devuelve el scroll al tirar) y scrollX/scrollY en 0,
+       y además se VERIFICA el resultado: si el borde superior del canvas no
+       trae contenido, es que salió corrido — un reintento y, si persiste,
+       mejor el diálogo de imprimir que un PDF en blanco. */
+    async function rentar(){
+      var sx = window.scrollX, sy = window.scrollY;
+      window.scrollTo(0, 0);
+      try {
+        return await html2pdf()
+          .set({ html2canvas: { scale: 2, useCORS: true, scrollX: 0, scrollY: 0 }, pagebreak: { mode: [] } })
+          .from(lienzo.firstChild).toCanvas().get('canvas');
+      } finally { window.scrollTo(sx, sy); }
+    }
+    function bordeConContenido(cv){
+      if (!cv.height) return false;
+      var d = cv.getContext('2d').getImageData(0, 0, cv.width, Math.min(400, cv.height)).data;
+      for (var i = 0; i < d.length; i += 64){
+        if (Math.abs(d[i]-250) > 18 || Math.abs(d[i+1]-248) > 18 || Math.abs(d[i+2]-242) > 18) return true;
+      }
+      return false;
+    }
+    var canvas = await rentar();
+    if (!bordeConContenido(canvas)) canvas = await rentar();
+    if (!bordeConContenido(canvas)) throw new Error('canvas corrido: sin contenido en el borde superior');
     /* 2) un jsPDF: el bundle no lo expone, así que se le saca a un worker
        mínimo rentando un div blanco de 2px (queda invisible en la esquina) */
     var blanco = document.createElement('div');
