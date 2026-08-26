@@ -673,6 +673,12 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
   font-size:14px;font-family:'Jost',sans-serif;color:var(--acd);cursor:pointer;letter-spacing:.5px;transition:background .15s; }
 body.modo-vendedor .btn-pdf { display:block; }
 .btn-pdf:hover { background:var(--bg3); }
+/* El diálogo se abre con el ÚLTIMO destino usado, que suele ser la impresora
+   de la oficina. Con una láser monocroma Chrome dibuja la vista previa en gris
+   y el archivo sale igual: no es que la cotización no tenga color. */
+.pdf-hint { display:none;font-size:12px;color:var(--tm);line-height:1.5;margin-top:6px;text-align:center; }
+body.modo-vendedor .pdf-hint { display:block; }
+.pdf-hint b { color:var(--acd); }
 
 @media print {
   #s1, #s2, .logo-bar { display: none !important; }
@@ -3753,6 +3759,8 @@ function whatsappCTA(bajo, alto, det) {
        sobre vendorMode lo hacía desaparecer justo en el caso más útil —abrir
        el link de la cotización del cliente para exportársela. */
     '<button class="btn-pdf" onclick="descargarPDF()">📄 Descargar PDF para el cliente</button>' +
+    '<div class="pdf-hint">En Destino elige <b>Guardar como PDF</b>. Si se ve gris, es tu impresora: ' +
+    'en <b>Más ajustes</b> marca <b>Color</b>.</div>' +
   '</div>';
 }
 /* ── PDF ──
