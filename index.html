@@ -27730,7 +27730,12 @@ document.getElementById('modal-seg-bg').addEventListener('click',e=>{if(e.target
 // Las dos últimas no son especies: COMBINADAS marca una pieza de varias maderas
 // (al costear hay que desglosar cuántos m² de cada una) y SIN MADERA cubre las
 // piezas de fierro u otro material, que no llevan costo de madera.
-const MADERAS=['COIHUE','RAULÍ','CIPRÉS','LAUREL','OREGÓN','LENGA','CASTAÑO','MAÑÍO','PINO OREGÓN','COMBINADAS','SIN MADERA'];
+const MADERAS=['COIHUE','RAULÍ','CIPRÉS','LAUREL','OREGÓN','LENGA','CASTAÑO','MAÑÍO','COMBINADAS','SIN MADERA'];
+// "PINO OREGÓN" y "OREGÓN" son la misma madera. Salían como dos filas
+// separadas en las tarjetas de la semana y en la etiqueta de compra, así que
+// la misma madera se compraba en dos partidas. Se unifican al leer, sin tocar
+// lo ya guardado en los pedidos viejos.
+const MADERAS_ALIAS={'PINO OREGON':'OREGÓN','PINO OREGÓN':'OREGÓN'};
 const MADERAS_ESPECIE=MADERAS.filter(function(m){return m!=='COMBINADAS'&&m!=='SIN MADERA';});
 let prodPending=null,prodOrders=[];
 async function loadProd(){
@@ -29089,6 +29094,10 @@ function _dominante(numStr,campo){
 function maderaCanonica(txt){
   var n=_normMad(txt);
   if(!n)return'Sin madera';
+  // Alias primero: el pino oregón es oregón, y hay que unificarlos antes de
+  // buscar, o "PINO OREGÓN" matchearía con su propia clave y seguiría aparte.
+  var al=Object.keys(MADERAS_ALIAS);
+  for(var a=0;a<al.length;a++){ if(_normMad(al[a])===n)return MADERAS_ALIAS[al[a]]; }
   var candidatas=MADERAS.concat(Object.keys(costoEstandar.maderas||{}));
   for(var i=0;i<candidatas.length;i++){
     if(_normMad(candidatas[i])===n)return candidatas[i];
@@ -29307,7 +29316,7 @@ function esCombinada(madera){
   return _especiesEn(madera).length>1;
 }
 function costoMaderaM2(madera){
-  var m=costoEstandar.maderas||{},buscada=_normMad(madera);
+  var m=costoEstandar.maderas||{},buscada=_normMad(maderaCanonica(madera));
   if(!buscada)return 0;
   var claves=Object.keys(m);
   for(var i=0;i<claves.length;i++){
