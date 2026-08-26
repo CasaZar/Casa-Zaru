@@ -661,10 +661,30 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .extra-row label { flex:1;cursor:pointer;display:flex;align-items:center;gap:8px; }
 .extra-price { color:var(--tm);font-size:12px;white-space:nowrap; }
 .ex-qty { width:48px;border:1px solid var(--bd);border-radius:6px;padding:4px 6px;font-size:14px;font-family:'Jost',sans-serif;text-align:center; }
+/* Botón de PDF: solo el vendedor. Usa el "Guardar como PDF" del navegador,
+   no una librería — el archivo tiene que seguir siendo autocontenido. */
+.btn-pdf { width:100%;margin-top:10px;background:none;border:1.5px solid var(--acd);border-radius:10px;padding:11px;
+  font-size:14px;font-family:'Jost',sans-serif;color:var(--acd);cursor:pointer;letter-spacing:.5px;transition:background .15s; }
+.btn-pdf:hover { background:var(--bg3); }
+
 @media print {
   #s1, #s2, .logo-bar { display: none !important; }
   body { background: white; }
   .coti { padding: 8px; max-width: 100%; }
+  /* ── LO QUE NO VA EN EL PDF ──
+     La cotización impresa se la reenvía el cliente a su arquitecto o a quien
+     decide, y esa persona no tiene por qué recibir botones. El de WhatsApp
+     ademas sale como un rectángulo verde vacío y el link no se puede tocar
+     en papel. La garantía y las specs sí van: son parte de la oferta. */
+  .wa-block, .muest-block, .btn-copy-link, .btn-pdf, .nota-asesor,
+  .btn-nav-sm, .cta-dock { display: none !important; }
+  /* que no se parta un bloque de precio ni una tabla a la mitad de la hoja */
+  .ptier-row, .specs, .warranty, .ptable, .info-bar { break-inside: avoid; page-break-inside: avoid; }
+  .coti-hdr { break-after: avoid; page-break-after: avoid; }
+  /* los fondos de color se van en la impresión por defecto y la tabla de
+     precios queda ilegible (texto claro sobre blanco): se fuerzan */
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 12mm; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3718,7 +3738,35 @@ function whatsappCTA(bajo, alto, det) {
     '<p class="wa-pitch">Cada pieza se fabrica a mano en el sur de Chile, con madera maciza 100% sólida. No hay moldes ni series — tu pedido es único, hecho exactamente a tu medida.</p>' +
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
     (srcEmail ? '<button class="btn-copy-link" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' : '') +
+    /* Solo el vendedor. Sale de una petición real (26-08-2026): una clienta
+       pidió la cotización en PDF "para enviársela al arquitecto". El link
+       compartido no le sirve a quien la recibe por correo o la imprime. */
+    (vendorMode ? '<button class="btn-pdf" onclick="descargarPDF()">📄 Descargar PDF para el cliente</button>' : '') +
   '</div>';
+}
+/* ── PDF ──
+   Es window.print() con el CSS de impresión afinado: el cliente elige
+   "Guardar como PDF" en el diálogo. Nada de librerías — el cotizador es un
+   archivo suelto y meterle jsPDF serían cientos de KB para algo que el
+   navegador ya sabe hacer, con mejor tipografía y texto seleccionable.
+   El título del documento se cambia un momento porque es el nombre que el
+   navegador le propone al archivo: sin esto sale "Cotizador en Línea · Casa
+   Zaru.pdf" para todos, y el arquitecto recibe cinco archivos iguales. */
+function descargarPDF(){
+  var titulo = document.title;
+  var cli = (document.getElementById('f-cli')||{}).value || '';
+  var partes = ['Cotizacion'];
+  if (qnum) partes.push(String(qnum).replace(/^N°\s*/, ''));
+  if (cli) partes.push(cli.trim());
+  partes.push('Casa Zaru');
+  document.title = partes.join(' - ').replace(/[\\/:*?"<>|]/g, '');
+  /* el título hay que devolverlo sí o sí: si el usuario cancela el diálogo,
+     onafterprint igual corre en los navegadores actuales, pero el setTimeout
+     cubre a los que no lo disparan */
+  var restaurar = function(){ document.title = titulo; window.removeEventListener('afterprint', restaurar); };
+  window.addEventListener('afterprint', restaurar);
+  setTimeout(restaurar, 60000);
+  window.print();
 }
 
 function muestrario() {
