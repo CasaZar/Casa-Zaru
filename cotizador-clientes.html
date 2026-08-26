@@ -1313,9 +1313,9 @@ var MESA_MODELOS = [
   { nombre:'Mesa Río Puelo',               foto:'rio-puelo',             forma:'redonda',     base:'madera', pulgFijas:3, pulgXm:0,   hh:7,  insumos:5000 },
   { nombre:'Mesa Lago Puyehue',            foto:'lago-puyehue',          forma:'rectangular', base:'fierro' },
   { nombre:'Mesa Lago Calafquén',          foto:'lago-calafquen',        forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa y Bancas Lago Calafquén', foto:'bancas-calafquen',      forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa y Bancas Lago Calafquén', foto:'bancas-calafquen',      forma:'rectangular', base:'fierro', soloVendedor:true },
   { nombre:'Mesa Río Maullín',             foto:'rio-maullin',           forma:'rectangular', base:'fierro' },
-  { nombre:'Mesa y Bancas Río Maullín',    foto:'bancas-maullin',        forma:'rectangular', base:'fierro' },
+  { nombre:'Mesa y Bancas Río Maullín',    foto:'bancas-maullin',        forma:'rectangular', base:'fierro', soloVendedor:true },
   { nombre:'Mesa Río Toltén',              foto:'rio-tolten',            forma:'redonda',     base:'fierro' },
   { nombre:'Mesa Río Imperial',            foto:'rio-imperial',          forma:'redonda',     base:'fierro' },
   /* ── LOS TRES QUE ESTABAN PUBLICADOS Y NO ESTABAN ACÁ (ago 2026) ──
@@ -2231,6 +2231,11 @@ function renderForm(p) {
     }).join('');
     var modeloCards = MESA_MODELOS.map(function(m, i){
       if (!vendorMode && !MESA_BASES[m.nombre]) return '';       /* sin precio de lista: no se ofrece */
+      /* Los conjuntos con bancas salen del catálogo público (ago 2026): el
+         precio incluye el par de bancas y no hay forma de decir "sin bancas"
+         ni de elegir cuántas, así que el cliente veía un total que no podía
+         ajustar. Se siguen cotizando, conversando con el vendedor. */
+      if (!vendorMode && m.soloVendedor) return '';
       var sinPrecio = !MESA_BASES[m.nombre] ? '<span class="dm-sinprecio">a convenir</span>' : '';
       /* la tarjeta se renderiza siempre y se esconde por CSS: así el índice del
          onclick sigue apuntando a MESA_MODELOS y cambiar de pestaña no obliga a
@@ -2568,10 +2573,14 @@ function mesaSugerenciaRefrescar() {
      taller. Solo tiene sentido en una mesa donde la gente se sienta alrededor:
      en un escritorio, un arrimo o una mesa de centro, hablar de "8 personas"
      es ruido. Se esconde sola según lo que se escriba en "¿Qué es?", y además
-     se puede cerrar a mano con la ✕ para cualquier caso que no adivine. */
+     se puede cerrar a mano con la ✕ para cualquier caso que no adivine.
+     SOLO PARA EL VENDEDOR (ago 2026): es una regla de taller referencial —"la
+     base iría de 176 × 76"— que al cliente le llega como una medida más que
+     no pidió y que el diseño puede cambiar. Al vendedor le sirve para saber
+     cómo se vería la mesa ANTES de venderla; al cliente le sobra. */
   var ergoEl = document.getElementById('ms-ergo');
   if (ergoEl) {
-    var e = (mesaAplicaErgo() && !ergoCerrada) ? mesaErgo(m, lg, an) : null;
+    var e = (vendorMode && mesaAplicaErgo() && !ergoCerrada) ? mesaErgo(m, lg, an) : null;
     ergoEl.innerHTML = e
       ? ('<span class="ms-ergo-txt">📐 ' + escA(e.texto) +
          ' <span style="font-weight:400;color:var(--tm)">· referencial, el diseño manda</span></span>' +
@@ -3489,11 +3498,13 @@ function htmlMesa(cli, fecha) {
       '<div class="spec"><div class="sl">Peso aprox.</div><div class="sv">'+pesoTotal+' kg</div></div>' +
     '</div>';
 
-  /* nota de ergonomía en la cotización: medidas de base y comensales de la pieza 1 */
-  /* misma regla que en el formulario: si es un escritorio o un arrimo, o el
-     vendedor cerró la sugerencia, tampoco sale en la cotización del cliente */
+  /* nota de ergonomía en la cotización: medidas de base y comensales de la pieza 1.
+     Misma regla que en el formulario: solo en el cotizador del vendedor, y
+     tampoco si es un escritorio o un arrimo o si cerró la sugerencia con la ✕.
+     En la cotización del cliente no va nunca: una medida de base referencial
+     impresa en el documento se lee como un compromiso de fabricación. */
   var ergoNota = '';
-  if (filas.length && mesaAplicaErgo() && !ergoCerrada) {
+  if (vendorMode && filas.length && mesaAplicaErgo() && !ergoCerrada) {
     var eq = mesaErgo(mesaModeloActual(), filas[0].lg, filas[0].an);
     if (eq) ergoNota = '<div class="info-bar">📐 ' + escA(eq.texto) + ' <span style="font-style:italic">(referencial)</span></div>';
   }
