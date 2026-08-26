@@ -28064,7 +28064,7 @@ const VENDEDOR_DEFAULT='César';
 // canales: "WHATSAPP ANTIGUO", "Whatsapp antiguo", "WHATAPP ANTGUO" y
 // "Whatsap antiguo" eran el mismo. Así no se puede sacar CAC ni margen por
 // canal, que es justo para lo que sirve este dato. Lista fija.
-const CANALES=['WhatsApp antiguo','Many Chat','Cotizador','Web','Instagram','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
+const CANALES=['WhatsApp antiguo','Landing B2B','Many Chat','Cotizador','Web','Instagram','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
 // Normaliza lo que ya está escrito a mano hacia la lista de arriba. Se usa
 // para leer los registros viejos sin tener que migrarlos.
 function canalCanonico(txt){
@@ -28072,9 +28072,17 @@ function canalCanonico(txt){
     .replace(/[ÁÀÂÄ]/g,'A').replace(/[ÉÈÊË]/g,'E').replace(/[ÍÌÎÏ]/g,'I')
     .replace(/[ÓÒÔÖ]/g,'O').replace(/[ÚÙÛÜ]/g,'U').replace(/Ñ/g,'N').trim();
   if(!s)return '';
+  // El orden importa: "LANDING B2B" también contiene "LANDING", así que si se
+  // evaluara al revés todo caería en WhatsApp antiguo.
+  if(/B2B/.test(s))return 'Landing B2B';
+  // Vocabulario de la planilla del usuario: "LANDING" es la gente que llega
+  // por la landing y escribe al WhatsApp antiguo — el mismo canal. Y
+  // "WHATSAPP" a secas (sin "antiguo") es Many Chat, que responde por ahí.
+  if(/^LANDING/.test(s))return 'WhatsApp antiguo';
   // "WHATAPP ANTGUO" y "WHATSAP ANTIGUO" son errores de tipeo reales que hay
   // en la base: se aceptan con las letras que sea.
   if(/W?HAT?S?A?PP?.*ANT/.test(s)||/CEL.*ANTIGUO/.test(s))return 'WhatsApp antiguo';
+  if(/^W?HAT?S?A?PP?$/.test(s))return 'Many Chat';
   if(/MANY\s*CHAT/.test(s))return s.indexOf('COTIZADOR')>=0?'Cotizador':'Many Chat';
   if(/COTIZADOR/.test(s))return 'Cotizador';
   if(/INSTAGRAM|INTAGRAM/.test(s))return 'Instagram';
