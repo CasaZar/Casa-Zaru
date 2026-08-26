@@ -754,6 +754,15 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .seg-bloque.urg { background:var(--blq-uno-bg); border-color:#FCA5A5; border-left-color:var(--blq-uno); }
 .seg-fila.f-nuevo .sf-stripe { background:var(--blq-uno); }
 .seg-sec.conv { background:var(--blq-conv-bg); color:#166534; border-left:5px solid var(--blq-conv); }
+/* ── COTIZARON HOY ── informativa, no tarea: gris y plegada, para que se
+   distinga de un bloque accionable aunque tenga tarjetas iguales adentro. */
+.seg-hoy-h { display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;
+  background:#F4F1EA;color:var(--tm);border:1px solid var(--bd);border-radius:8px;
+  padding:9px 12px;margin:10px 0 6px;font-size:13.5px;font-weight:600;letter-spacing:.3px; }
+.seg-hoy-h:hover { border-color:var(--ac);color:var(--acd); }
+.seg-hoy-ico { font-size:11px;width:10px;flex:0 0 auto; }
+.seg-hoy-h .seg-cnt { margin-left:2px; }
+.seg-hoy-monto { margin-left:auto;font-weight:700;color:var(--acd);font-size:13px; }
 .seg-fila.f-conv .sf-stripe { background:var(--blq-conv); }
 /* selector "ver como" y su cinta de aviso */
 .ver-como-sel {
@@ -4354,6 +4363,15 @@ var segSearch = '';           /* buscar cliente en seguimiento */
 var segSort = 'score';        /* score | valor | reciente | antiguo */
 var segBloque = '';           /* '' = todos los bloques | code de vendedor | 'web' */
 var segSoloInteresados = false;  /* filtro: mostrar solo los marcados con la estrella */
+/* "Cotizaron hoy" arranca plegada: es informativa, no tarea. La preferencia
+   dura lo que dure la sesión del navegador. */
+var segHoyAbierto = false;
+function segHoyToggle(){
+  segHoyAbierto = !segHoyAbierto;
+  var b = document.getElementById('seg-hoy-body'), i = document.getElementById('seg-hoy-ico');
+  if (b) b.classList.toggle('hidden', !segHoyAbierto);
+  if (i) i.textContent = segHoyAbierto ? '▾' : '▸';
+}
 var COTIS = {};
 var segPend = 0;
 
@@ -5123,12 +5141,22 @@ function renderSeguimiento(){
   var ballenas = groups.filter(function(g){ return owners[g.owner] && esBallena(g) && !dormido(g) && !pospuestoAMano(g) && horasSinToque(g) >= BALLENA_ESPERA_H; })
     .sort(function(a,b){ return montoAbierto(b)-montoAbierto(a); }).slice(0,3);
   var esBall = {}; ballenas.forEach(function(g){ esBall[g.key] = true; });
-  var b1=[], b1Viejos=[], b2=[], b3=[], conv=[], futuro=[], hoyDone=[], enJuego=0;
+  var b1=[], b1Viejos=[], b1Hoy=[], b2=[], b3=[], conv=[], futuro=[], hoyDone=[], enJuego=0;
   groups.forEach(function(g){
     if (!owners[g.owner]) return;
     if (toqueHoy(g.lead)){ hoyDone.push(g); return; }   /* ya contactado hoy: queda a la vista para anotar/deshacer */
     if (esBall[g.key]) return;                          /* ya va fija arriba */
-    if (sinPrimerContacto(g)){ (diasDe(g) > 7 ? b1Viejos : b1).push(g); return; }
+    if (sinPrimerContacto(g)){
+      /* ── EL MISMO DÍA NO SE PERSIGUE (26-08-2026) ──
+         Escribirle a alguien que cotizó hace diez minutos se lee como acoso:
+         el cliente acaba de ver su cotización en pantalla y ya tiene el link.
+         Los del día quedan a la vista en su propia sección —con su botón, por
+         si igual se quiere escribir— pero NO son tarea ni cuentan en la meta.
+         Entran al bloque 1 mañana. Se compara por fecha local, no por horas,
+         así el que cotizó anoche a las 23:00 sí entra hoy. */
+      if (fechaBaseISO(g.lead.fecha_creacion) === hoy){ b1Hoy.push(g); return; }
+      (diasDe(g) > 7 ? b1Viejos : b1).push(g); return;
+    }
     if (enConversacion(g)){ conv.push(g); return; }
     /* Marcado con ★: sale TODOS los días, sin esperar la fecha de la
        cadencia. Antes, si su próximo toque caía en 3 días, se iba a la
@@ -5142,7 +5170,7 @@ function renderSeguimiento(){
     if (d > hoy){ if (d<=lim) futuro.push(g); return; }
     if (esPrioritario(g)) b2.push(g); else b3.push(g);
   });
-  [b1,b1Viejos,b2,b3,conv,futuro,hoyDone].forEach(function(a){ a.sort(cmp); });
+  [b1,b1Viejos,b1Hoy,b2,b3,conv,futuro,hoyDone].forEach(function(a){ a.sort(cmp); });
   b1.concat(b2,b3).forEach(function(g){ enJuego += g.valor; });
   /* Progreso del día. La meta de toques cuenta TODO el seguimiento real del
      día: ballenas, conversaciones activas y bloque 2. Antes el texto decía que
@@ -5180,7 +5208,7 @@ function renderSeguimiento(){
       }).join('');
   }
   /* BLOQUE 1 — nunca se sacrifica */
-  html += bloqueH(1,'Escríbeles hoy mismo','Cotizaron y nadie les ha hablado',
+  html += bloqueH(1,'Escríbeles hoy mismo','Cotizaron antes de hoy y nadie les ha hablado',
                   (b1.length? b1.length+' por hacer' : '✓ al día'), b1.length?'urg':'ok');
   html += b1.length
     ? b1.map(function(g){ return segRegistrar(g,'nuevo'); }).join('')
@@ -5190,6 +5218,22 @@ function renderSeguimiento(){
        la cola del día no se llene con lo que ya no es de hoy */
     html += '<div class="seg-backlog" style="cursor:pointer" onclick="setDashView(\'backlog\')">'+
       '📦 <strong>'+b1Viejos.length+'</strong> sin primer contacto hace más de '+BACKLOG_DIAS+' días — están en la pestaña <strong>Backlog</strong>, para después de terminar los bloques 1 y 2 →</div>';
+  }
+  /* COTIZARON HOY — a la vista, pero no son tarea. Van plegados: el punto es
+     ver el movimiento del día sin que 17 tarjetas empujen el bloque 2 fuera
+     de la pantalla. El botón de WhatsApp sigue ahí por si hay que escribirle
+     igual (una consulta urgente, un cliente que llamó). */
+  if (b1Hoy.length){
+    var montoHoy = b1Hoy.reduce(function(a,g){ return a + (g.valor||0); }, 0);
+    html += '<div class="seg-hoy-h" onclick="segHoyToggle()">'+
+        '<span class="seg-hoy-ico" id="seg-hoy-ico">'+(segHoyAbierto?'▾':'▸')+'</span>'+
+        '🆕 Cotizaron hoy · les escribes mañana<span class="seg-cnt">'+b1Hoy.length+'</span>'+
+        '<span class="seg-hoy-monto">'+fmt(montoHoy)+'</span>'+
+      '</div>'+
+      '<div class="seg-hoy-body'+(segHoyAbierto?'':' hidden')+'" id="seg-hoy-body">'+
+        '<div class="seg-empty" style="margin:-4px 0 8px">Acaban de cotizar y ya tienen su cotización a la vista: escribirles el mismo día se lee como insistencia. Mañana entran al bloque 1. Si igual necesitas contactar a alguno, el botón está.</div>'+
+        b1Hoy.map(function(g){ return segRegistrar(g,'nuevo'); }).join('')+
+      '</div>';
   }
   /* BLOQUE 2 — hasta la meta del día */
   html += bloqueH(2,'Hazles seguimiento','Respondieron antes o cotizaron sobre '+fmt(CFG_SEG.corte),
@@ -5267,7 +5311,9 @@ function renderSeguimiento(){
           '<span class="hoy-txt">'+(p1Ok
               ? 'Nuevos contactados ✓ ('+b1Hechos+')'
               : '<strong>'+b1Hechos+' de '+(b1Hechos+b1.length)+'</strong> contactados')+
-          '<span class="hoy-sub">'+(p1Ok ? 'Escribirles el mismo día' : 'Faltan '+b1.length+' — escribirles el mismo día')+'</span>'+
+          /* ya no dice "el mismo día": los del día quedan fuera del bloque 1 a
+             propósito, y el subtítulo contradecía a la sección "Cotizaron hoy" */
+          '<span class="hoy-sub">'+(p1Ok ? 'Cotizaron antes de hoy y nadie les ha escrito' : 'Faltan '+b1.length+' — cotizaron antes de hoy')+'</span>'+
           '<span class="hoy-go">Ir al bloque 1 →</span></span>'+
         '</div>'+
         '<div class="hoy-paso'+(p2Ok?' ok':'')+'" onclick="scrollToBloque(2)" title="Cuentan las ballenas, las conversaciones activas y el bloque 2. No cuentan los primeros contactos (esos son el paso 1) ni el bloque 3.">'+
