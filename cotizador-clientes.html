@@ -4546,14 +4546,14 @@ function telBasura(telNormalizado){
 /* cómo se nombra el producto dentro del mensaje, para que suene natural */
 function prodTexto(p){
   switch(p){
-    case 'cubierta':      return { suyo:'tu cubierta',       fotos:'cubiertas',      dudas:'el espesor o el tipo de madera' };
-    case 'repisa':        return { suyo:'tu repisa',         fotos:'repisas',        dudas:'las medidas o el tipo de madera' };
-    case 'peldano':       return { suyo:'tus peldaños',      fotos:'escaleras',      dudas:'el espesor o la cantidad de peldaños' };
-    case 'granero':       return { suyo:'tu puerta granero', fotos:'puertas granero',dudas:'el modelo o las medidas' };
-    case 'maciza':        return { suyo:'tu puerta',         fotos:'puertas',        dudas:'el modelo o las medidas' };
-    case 'vidrios':       return { suyo:'tu puerta',         fotos:'puertas con vidrio', dudas:'el modelo, el vidrio o las medidas' };
-    case 'revestimiento': return { suyo:'tu revestimiento',  fotos:'revestimientos', dudas:'los metros o el tipo de madera' };
-    default:              return { suyo:'tu proyecto',       fotos:'proyectos',      dudas:'las medidas o el tipo de madera' };
+    case 'cubierta':      return { suyo:'tu cubierta',       fotos:'cubiertas',      gen:'instaladas', dudas:'el espesor o el tipo de madera' };
+    case 'repisa':        return { suyo:'tu repisa',         fotos:'repisas',        gen:'instaladas', dudas:'las medidas o el tipo de madera' };
+    case 'peldano':       return { suyo:'tus peldaños',      fotos:'escaleras',      gen:'instaladas', dudas:'el espesor o la cantidad de peldaños' };
+    case 'granero':       return { suyo:'tu puerta granero', fotos:'puertas granero',gen:'instaladas', dudas:'el modelo o las medidas' };
+    case 'maciza':        return { suyo:'tu puerta',         fotos:'puertas',        gen:'instaladas', dudas:'el modelo o las medidas' };
+    case 'vidrios':       return { suyo:'tu puerta',         fotos:'puertas con vidrio', gen:'instaladas', dudas:'el modelo, el vidrio o las medidas' };
+    case 'revestimiento': return { suyo:'tu revestimiento',  fotos:'revestimientos', gen:'instalados', dudas:'los metros o el tipo de madera' };
+    default:              return { suyo:'tu proyecto',       fotos:'proyectos',      gen:'instalados', dudas:'las medidas o el tipo de madera' };
   }
 }
 function waMsg(x){
@@ -4581,7 +4581,7 @@ function waMsg(x){
   var p4 = 'Hola '+nom+', soy César de Casa Zaru. Cotizaste '+P.suyo.replace('tu ','')+' con nosotros hace unos días ('+num+') y no alcancé a escribirte antes — disculpa la demora.\n\n¿Sigues con el proyecto en mente? Si quieres te actualizo la cotización o resuelvo cualquier duda, sin compromiso.';
   var msgs = {
     1: esBacklogQ(x) ? p4 : (esMismoDia ? p1 : p2),
-    2: 'Hola '+nom+', ¿cómo estás? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente.\n\nSi tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo. Te puedo mandar fotos de '+P.fotos+' ya instalados, por si ayudan. ¡Buena semana!',
+    2: 'Hola '+nom+', ¿cómo estás? Cortito: tu cotización de '+P.suyo.replace('tu ','')+' ('+num+') sigue vigente.\n\nSi tu proyecto se corrió de fecha, dime para cuándo y te escribo entonces. Y si ya no va, también me sirve saberlo. Te puedo mandar fotos de '+P.fotos+' ya '+P.gen+', por si ayudan. ¡Buena semana!',
     3: 'Hola '+nom+'! Por si te ayuda a decidir, te puedo enviar fotos de '+P.fotos+' que ya hemos hecho y el catálogo con las distintas maderas.\n\n¿Te las mando?',
     4: 'Hola '+nom+', ¿te gustaría avanzar con '+P.suyo+'? Recuerda que pagando por transferencia tienes un 5% de descuento sobre la cotización '+num+', y al confirmar agendamos tu fabricación (7 a 15 días hábiles).',
     5: 'Hola '+nom+'! No quiero insistirte de más. Si más adelante retomas lo de '+P.suyo+' ('+num+'), acá estoy para ayudarte y te puedo mantener el precio. Quedo atento cuando lo necesites.',
@@ -4594,7 +4594,11 @@ function waMsg(x){
   if (link) {
     /* con el link adjunto, ofrecer reenviar la cotización sobra */
     m = m.replace(/\s*¿Te la reenvío\?/g, '');
-    m += '\n\nAcá puedes revisar tu cotización' + (x.numero ? ' ' + x.numero : '') + ' cuando quieras:\n' + link;
+    /* sin repetir el número: las plantillas ya lo nombran arriba, y verlo dos
+       veces en el mismo mensaje lo hace sonar a correo automático.
+       Dice "tu cotización" y no "la" porque el toque 3 —el de las fotos— no la
+       menciona, y ahí el pronombre se quedaba sin referente. */
+    m += '\n\nAcá puedes revisar tu cotización cuando quieras:\n' + link;
   }
   return waLimpio(m);
 }
