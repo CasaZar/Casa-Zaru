@@ -4553,6 +4553,11 @@ function prodTexto(p){
     case 'maciza':        return { suyo:'tu puerta',         fotos:'puertas',        gen:'instaladas', dudas:'el modelo o las medidas' };
     case 'vidrios':       return { suyo:'tu puerta',         fotos:'puertas con vidrio', gen:'instaladas', dudas:'el modelo, el vidrio o las medidas' };
     case 'revestimiento': return { suyo:'tu revestimiento',  fotos:'revestimientos', gen:'instalados', dudas:'los metros o el tipo de madera' };
+    case 'revlibre':      return { suyo:'tu revestimiento',  fotos:'revestimientos', gen:'instalados', dudas:'los metros o el tipo de madera' };
+    /* Mesa caía al default y el mensaje decía "tu proyecto" / "fotos de
+       proyectos ya instalados" — con mesas siendo el segundo producto más
+       cotizado. Una mesa además no se instala: se entrega. */
+    case 'mesa':          return { suyo:'tu mesa',           fotos:'mesas',          gen:'entregadas', dudas:'las medidas, la madera o el tipo de base' };
     default:              return { suyo:'tu proyecto',       fotos:'proyectos',      gen:'instalados', dudas:'las medidas o el tipo de madera' };
   }
 }
