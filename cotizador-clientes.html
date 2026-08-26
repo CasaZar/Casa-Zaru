@@ -668,24 +668,17 @@ body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--tx);
 .extra-row label { flex:1;cursor:pointer;display:flex;align-items:center;gap:8px; }
 .extra-price { color:var(--tm);font-size:12px;white-space:nowrap; }
 .ex-qty { width:48px;border:1px solid var(--bd);border-radius:6px;padding:4px 6px;font-size:14px;font-family:'Jost',sans-serif;text-align:center; }
-/* ── BOTÓN DE PDF: SOLO EL VENDEDOR, PERO DECIDIDO EN CSS ──
-   Va siempre en el HTML y se muestra con la clase `modo-vendedor` del <body>.
-   NO se decide en JS al armar la cotización: `vendorMode` se enciende dentro
-   de getSession().then(), que es asíncrono, y al abrir el link de una
-   cotización compartida la restauración gana la carrera —la cotización ya
-   está pintada cuando la sesión se confirma— así que el botón no aparecía
-   nunca. La clase del body la pone habilitarInternos() cuando sea que
-   resuelva, y el CSS se aplica solo. El cliente no la tiene jamás. */
-.btn-pdf { display:none;width:100%;margin-top:10px;background:none;border:1.5px solid var(--acd);border-radius:10px;padding:11px;
+/* ── BOTÓN DE PDF: PARA TODOS ──
+   Partió solo-vendedor con window.print(), pero el diálogo de impresión se
+   abre con el último destino usado (la láser de la oficina, monocroma) y la
+   vista previa salía gris: parecía roto aunque el color estuviera. Decisión
+   del 26-08-2026: descarga DIRECTA con html2pdf (se carga recién al apretar)
+   y visible también para el cliente — el que quiere mandarle el archivo a su
+   arquitecto no tiene por qué pedirlo. */
+.btn-pdf { display:block;width:100%;margin-top:10px;background:none;border:1.5px solid var(--acd);border-radius:10px;padding:11px;
   font-size:14px;font-family:'Jost',sans-serif;color:var(--acd);cursor:pointer;letter-spacing:.5px;transition:background .15s; }
-body.modo-vendedor .btn-pdf { display:block; }
 .btn-pdf:hover { background:var(--bg3); }
-/* El diálogo se abre con el ÚLTIMO destino usado, que suele ser la impresora
-   de la oficina. Con una láser monocroma Chrome dibuja la vista previa en gris
-   y el archivo sale igual: no es que la cotización no tenga color. */
-.pdf-hint { display:none;font-size:12px;color:var(--tm);line-height:1.5;margin-top:6px;text-align:center; }
-body.modo-vendedor .pdf-hint { display:block; }
-.pdf-hint b { color:var(--acd); }
+.btn-pdf:disabled { opacity:.6;cursor:wait; }
 
 @media print {
   #s1, #s2, .logo-bar { display: none !important; }
@@ -3759,40 +3752,75 @@ function whatsappCTA(bajo, alto, det) {
     '<a class="wa-btn" href="' + url + '" target="_blank">💬 Confirmar cotización por WhatsApp →</a>' +
     '<button class="btn-copy-link' + (srcEmail ? ' src-ok' : '') + '" onclick="copyShareLink()">📋 Copiar mensaje para WhatsApp</button>' +
     /* Sale de una petición real (26-08-2026): una clienta pidió la cotización
-       en PDF "para enviársela al arquitecto". El link compartido no le sirve a
-       quien la recibe por correo o la imprime.
-       Va siempre en el HTML: quién lo VE lo decide el CSS con la clase
-       `modo-vendedor` del body (ver .btn-pdf). Ponerlo aquí con un ternario
-       sobre vendorMode lo hacía desaparecer justo en el caso más útil —abrir
-       el link de la cotización del cliente para exportársela. */
-    '<button class="btn-pdf" onclick="descargarPDF()">📄 Descargar PDF para el cliente</button>' +
-    '<div class="pdf-hint">En Destino elige <b>Guardar como PDF</b>. Si se ve gris, es tu impresora: ' +
-    'en <b>Más ajustes</b> marca <b>Color</b>.</div>' +
+       en PDF "para enviársela al arquitecto". Para todos — cliente y
+       vendedor: descarga el archivo directo, sin diálogo de impresión. */
+    '<button class="btn-pdf" onclick="descargarPDF()">📄 Descargar en PDF</button>' +
   '</div>';
 }
 /* ── PDF ──
-   Es window.print() con el CSS de impresión afinado: el cliente elige
-   "Guardar como PDF" en el diálogo. Nada de librerías — el cotizador es un
-   archivo suelto y meterle jsPDF serían cientos de KB para algo que el
-   navegador ya sabe hacer, con mejor tipografía y texto seleccionable.
-   El título del documento se cambia un momento porque es el nombre que el
-   navegador le propone al archivo: sin esto sale "Cotizador en Línea · Casa
-   Zaru.pdf" para todos, y el arquitecto recibe cinco archivos iguales. */
-function descargarPDF(){
-  var titulo = document.title;
+   Descarga DIRECTA con html2pdf (html2canvas + jsPDF): la primera versión
+   usaba window.print() para no meter librerías, pero el diálogo se abre con
+   el último destino usado —la láser de la oficina— y parecía que el botón
+   "tiraba a imprimir". La librería se carga desde el CDN recién al primer
+   click, así el cotizador no carga esos ~800 KB para el 99% que solo mira
+   precios. Si el CDN falla, se cae al diálogo de imprimir de antes, que es
+   peor pero nunca deja al usuario sin nada. */
+var HTML2PDF_URL = 'https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js';
+function cargarHtml2pdf(){
+  return new Promise(function(resolve, reject){
+    if (window.html2pdf) { resolve(); return; }
+    var s = document.createElement('script');
+    s.src = HTML2PDF_URL;
+    s.onload = function(){ resolve(); };
+    s.onerror = function(){ reject(new Error('no se pudo cargar html2pdf')); };
+    document.head.appendChild(s);
+  });
+}
+function pdfNombre(){
   var cli = (document.getElementById('f-cli')||{}).value || '';
   var partes = ['Cotizacion'];
   if (qnum) partes.push(String(qnum).replace(/^N°\s*/, ''));
   if (cli) partes.push(cli.trim());
   partes.push('Casa Zaru');
-  document.title = partes.join(' - ').replace(/[\\/:*?"<>|]/g, '');
-  /* el título hay que devolverlo sí o sí: si el usuario cancela el diálogo,
-     onafterprint igual corre en los navegadores actuales, pero el setTimeout
-     cubre a los que no lo disparan */
-  var restaurar = function(){ document.title = titulo; window.removeEventListener('afterprint', restaurar); };
-  window.addEventListener('afterprint', restaurar);
-  setTimeout(restaurar, 60000);
-  window.print();
+  return partes.join(' - ').replace(/[\\/:*?"<>|]/g, '') + '.pdf';
+}
+/* opciones compartidas entre la descarga real y la verificación */
+function pdfOpciones(){
+  return {
+    margin: [10, 9, 12, 9],
+    filename: pdfNombre(),
+    image: { type: 'jpeg', quality: 0.95 },
+    /* html2canvas renta la página con media SCREEN, no print: el @media print
+       no aplica acá. Los botones se sacan del clon a mano. */
+    html2canvas: { scale: 2, useCORS: true, onclone: function(doc){
+      ['.wa-block', '.muest-block', '.btn-copy-link', '.btn-pdf', '.nota-asesor'].forEach(function(sel){
+        var lista = doc.querySelectorAll(sel);
+        for (var i = 0; i < lista.length; i++) lista[i].parentNode.removeChild(lista[i]);
+      });
+    }},
+    jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' },   /* en Chile se imprime carta */
+    pagebreak: { mode: ['css', 'legacy'], avoid: ['.ptier-block', '.ptier-row', '.specs', '.warranty', '.ptable', '.info-bar', '.iboxes', '.bankrow'] }
+  };
+}
+async function descargarPDF(){
+  var btn = document.querySelector('.btn-pdf');
+  var txt = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Generando PDF…'; }
+  try {
+    await cargarHtml2pdf();
+    await html2pdf().set(pdfOpciones()).from(document.getElementById('q-out')).save();
+  } catch(e) {
+    console.error('descargarPDF:', e);
+    /* respaldo: el diálogo de siempre, con el nombre de archivo puesto en el título */
+    var titulo = document.title;
+    document.title = pdfNombre().replace(/\.pdf$/, '');
+    var restaurar = function(){ document.title = titulo; window.removeEventListener('afterprint', restaurar); };
+    window.addEventListener('afterprint', restaurar);
+    setTimeout(restaurar, 60000);
+    window.print();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = txt; }
+  }
 }
 
 function muestrario() {
