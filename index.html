@@ -28055,6 +28055,10 @@ async function confirmOrder(){
   prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();
   if(document.getElementById('page-dash')&&document.getElementById('page-dash').classList.contains('active'))renderDash();
+  // Con el abono cargado ya se puede armar el documento. Solo para ventas: un
+  // muestrario o una devolución no se facturan al alta. Se abre el panel de
+  // revisión, que NO emite: la emisión sigue siendo un clic aparte.
+  if(tipoSel==='VENTA'&&(Number(abono)||0)>0)setTimeout(function(){prepararDocumento(numStr);},400);
 }
 function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';}
 const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
@@ -28658,7 +28662,90 @@ function _aplicarResultadoWasabil(r,docNum,data){
     r[procKey]=false;
   }
 }
-async function toggleFinDoc(numStr,docNum){
+// ── Preparar el documento del primer abono ────────────────────────────────
+// Al confirmar la venta ya están todos los datos: monto del abono, a nombre de
+// quién, y qué se vendió. Antes había que copiarlos a mano justo antes de
+// emitir, que es donde más caro sale equivocarse. Se prellenan y se confirman.
+// Emitir sigue siendo un clic aparte y deliberado: preparar no emite nada.
+function prepararDocumento(numStr){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!r)return;
+  var abono=Number(r.abono1)||0;
+  if(abono<=0)return;                      // sin abono no hay nada que facturar
+  if(r.doc1_emitida)return;                // ya se emitió: no se vuelve a ofrecer
+  var esFactura=(r.doc1_tipo||'BOLETA')==='FACTURA';
+  // El nombre por defecto: razón social si es factura, el cliente si es boleta.
+  // Se deja editable porque a veces piden facturar a nombre de otra empresa.
+  var nombreSug=esFactura?(r.razon_social||((r.nombre||'')+' '+(r.apellido||'')).trim())
+                         :((r.nombre||'')+' '+(r.apellido||'')).trim();
+  var rutSug=r.rut||'';
+  // Los productos salen de las líneas de Producción, que es la fuente de verdad.
+  var prods=lineasProdDe(numStr).map(function(l){
+    var m=[l.producto||'',(l.largo&&l.ancho)?(l.largo+'×'+l.ancho):'' ,l.madera||''].filter(Boolean).join(' ');
+    return (Number(l.cantidad)||1)>1?((Number(l.cantidad)||1)+'× '+m):m;
+  }).filter(Boolean);
+  var detalleSug=prods.length?('Abono — '+prods.join(', ')):'Abono';
+  var st='width:100%;padding:8px 10px;border:1px solid var(--border-md);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text)';
+  var html='<div class="modal" style="max-width:520px">'+
+    '<div class="modal-header"><div class="modal-title">🧾 Documento del primer abono</div>'+
+      '<button class="btn-close" onclick="cerrarPrepDoc()">×</button></div>'+
+    '<div style="padding:0 4px 4px">'+
+      '<div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:14px">'+
+        'Está todo sugerido desde la venta. Revisalo y corregí lo que haga falta — '+
+        '<strong>preparar no emite nada</strong>, la emisión es el botón de abajo.</div>'+
+      '<div style="display:flex;flex-direction:column;gap:12px">'+
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Tipo de documento</label>'+
+          '<select id="pd-tipo" style="'+st+'">'+
+            '<option value="BOLETA"'+(esFactura?'':' selected')+'>Boleta</option>'+
+            '<option value="FACTURA"'+(esFactura?' selected':'')+'>Factura</option></select></div>'+
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Monto a facturar</label>'+
+          '<input type="number" id="pd-monto" value="'+abono+'" style="'+st+';font-size:18px;font-weight:700">'+
+          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Abono 1 de la venta. Total del pedido: '+fmtCLP(r.total)+'</div></div>'+
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">A nombre de</label>'+
+          '<input type="text" id="pd-nombre" value="'+esc(nombreSug)+'" style="'+st+'">'+
+          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Cambialo si piden facturar a otro nombre</div></div>'+
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">RUT</label>'+
+          '<input type="text" id="pd-rut" value="'+esc(rutSug)+'" style="'+st+'"></div>'+
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Detalle (productos)</label>'+
+          '<input type="text" id="pd-detalle" value="'+esc(detalleSug)+'" style="'+st+'">'+
+          (prods.length?'<div style="font-size:11px;color:var(--text-3);margin-top:3px">Sugerido desde Producción: '+esc(prods.join(', '))+'</div>':'')+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="modal-footer">'+
+      '<button class="btn-sec" onclick="cerrarPrepDoc()">Después</button>'+
+      '<button class="btn-pri" onclick="emitirDesdePrep(\''+numStr+'\')">Emitir ahora</button>'+
+    '</div></div>';
+  var bg=document.getElementById('modal-prepdoc-bg');
+  if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-prepdoc-bg';document.body.appendChild(bg);}
+  bg.innerHTML=html;bg.classList.add('open');
+}
+function cerrarPrepDoc(){var b=document.getElementById('modal-prepdoc-bg');if(b)b.classList.remove('open');}
+// Guarda lo revisado en el registro y recién ahí llama a la emisión, que sigue
+// releyendo del servidor y pidiendo la confirmación final.
+async function emitirDesdePrep(numStr){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!r)return;
+  var monto=Number(document.getElementById('pd-monto').value)||0;
+  if(monto<=0){showToast('El monto tiene que ser mayor que cero',true);return;}
+  var tipo=document.getElementById('pd-tipo').value;
+  var nombre=document.getElementById('pd-nombre').value.trim();
+  var rut=document.getElementById('pd-rut').value.trim();
+  var detalle=document.getElementById('pd-detalle').value.trim()||'Abono';
+  r.doc1_tipo=tipo;
+  r.rut=rut;
+  // Si facturan a otro nombre, ese nombre es la razón social del documento;
+  // el cliente que compró no se toca.
+  if(tipo==='FACTURA')r.razon_social=nombre;
+  await _guardarFinanzasFirme(numStr,r);
+  cerrarPrepDoc();
+  renderFin();
+  toggleFinDoc(numStr,1,{monto:monto,detalle:detalle});
+}
+// "pre" trae monto y detalle ya revisados en el panel de preparación. Cuando
+// viene, se saltan los prompt() —el dato ya se confirmó en pantalla— pero NO
+// se saltan los candados: igual se relee el estado del servidor y se pide la
+// confirmación final antes de mandar nada al SII.
+async function toggleFinDoc(numStr,docNum,pre){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
   var emitidaKey='doc'+docNum+'_emitida',tipoKey='doc'+docNum+'_tipo',numKey='doc'+docNum+'_num',procKey='doc'+docNum+'_procesando',emKey=numStr+'_'+docNum;
   if(r[emitidaKey]){
@@ -28689,11 +28776,11 @@ async function toggleFinDoc(numStr,docNum){
   }
   var nombreCliente=(r.nombre||'')+' '+(r.apellido||'');
   var montoSugerido=docNum===1?(r.abono1||r.total||0):(r.abono2||Math.max(0,(Number(r.total)||0)-(Number(r.abono1)||0)));
-  var montoStr=prompt('Monto a facturar en este documento ('+(docNum===1?'Doc 1 / Abono':'Doc 2 / Saldo')+') para el pedido '+numStr+' ('+nombreCliente.trim()+'):',String(Math.round(montoSugerido||0)));
+  var montoStr=(pre&&pre.monto!==undefined)?String(pre.monto):prompt('Monto a facturar en este documento ('+(docNum===1?'Doc 1 / Abono':'Doc 2 / Saldo')+') para el pedido '+numStr+' ('+nombreCliente.trim()+'):',String(Math.round(montoSugerido||0)));
   if(montoStr===null)return;
   var monto=Number(String(montoStr).replace(/[^\d]/g,''));
   if(!monto||monto<=0){showToast('Monto inválido — se canceló la emisión.');return;}
-  var detalle=prompt('Detalle para la boleta/factura (ej: "Abono 60%", "Saldo final", "Pago único"):',docNum===1?'Abono':'Saldo');
+  var detalle=(pre&&pre.detalle!==undefined)?String(pre.detalle):prompt('Detalle para la boleta/factura (ej: "Abono 60%", "Saldo final", "Pago único"):',docNum===1?'Abono':'Saldo');
   if(detalle===null)return;
   // El monto FACTURADO se guarda aparte del monto COBRADO: son cosas distintas
   // y antes emitir pisaba el abono, borrando el registro de lo que entró.
