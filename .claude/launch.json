@@ -8,6 +8,12 @@
       "port": 5500
     },
     {
+      "name": "Cotizador",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5550", "-Root", "C:\\Users\\dell\\Cotizador"],
+      "port": 5550
+    },
+    {
       "name": "Maqueta finanzas",
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5600", "-Root", "C:\\Users\\dell\\finanzas-casa\\maqueta"],
