@@ -37,6 +37,9 @@ archivo que no le pertenecía):
 Casa Zaru - Claude/          <- SOLO la Gestión   (Supabase padntt…)
   index.html
   copiloto-cesar.html        <- copiloto de ventas (Supabase cmxqor…)
+Casa Zaru - Claude/cotizador-clientes.html
+                             <- OJO: existe pero es un REDIRECT de 1 KB al
+                                dominio (links viejos); la app NO vive ahí
 Cotizador/                   <- SOLO el Cotizador (Supabase cmxqor…)
   index.html                 <- el que sirve el dominio
   cotizador-clientes.html    <- copia con el nombre historico (mismo hash)
