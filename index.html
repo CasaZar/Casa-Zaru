@@ -26887,6 +26887,10 @@ function esc(v){
 }
 function showToast(msg,isErr){const t=document.getElementById('toast');t.textContent=msg;t.style.background=isErr?'var(--red)':'var(--brand)';t.classList.add('on');setTimeout(()=>t.classList.remove('on'),3000);}
 function showPage(p,btn){
+  // recordar dónde está parado el usuario: al recargar se vuelve acá y no al
+  // dashboard (restaurarPagina). En localStorage y no en la URL para no
+  // ensuciar los links que se comparten.
+  try{localStorage.setItem('zaru_pagina',p);}catch(e){}
   document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el=>el.classList.remove('active'));
   document.getElementById('page-'+p).classList.add('active');
@@ -31620,6 +31624,25 @@ async function initAllModules(){
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
   restaurarTablero();
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
+  restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
+}
+// ── VOLVER A LA MISMA SECCIÓN AL RECARGAR ──
+// Recargar estando en Finanzas botaba siempre al dashboard y había que navegar
+// de vuelta. Se restaura la última sección guardada por showPage(), con dos
+// candados: la pestaña tiene que EXISTIR y estar VISIBLE para el rol actual
+// (aplicarPermisos esconde los botones) — si un vendedor tuviera 'fin' guardado
+// de una sesión de otro usuario en el mismo navegador, se queda en su inicio.
+function restaurarPagina(){
+  var p='';
+  try{p=localStorage.getItem('zaru_pagina')||'';}catch(e){}
+  if(!p||p==='dash')return;                       // el dashboard ya es el inicio
+  if(!document.getElementById('page-'+p))return;
+  var btn=null;
+  document.querySelectorAll('.nav-tab[onclick*="showPage(\''+p+'\'"]').forEach(function(b){
+    if(!btn&&b.style.display!=='none')btn=b;
+  });
+  if(!btn)return;                                 // el rol no ve esa sección
+  showPage(p,btn);
 }
 arranqueInicial();
 
