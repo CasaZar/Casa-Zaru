@@ -28679,12 +28679,17 @@ function prepararDocumento(numStr){
   var nombreSug=esFactura?(r.razon_social||((r.nombre||'')+' '+(r.apellido||'')).trim())
                          :((r.nombre||'')+' '+(r.apellido||'')).trim();
   var rutSug=r.rut||'';
-  // Los productos salen de las líneas de Producción, que es la fuente de verdad.
+  // La DESCRIPCIÓN no es el producto (26-08-2026, corrección del usuario): el
+  // documento lleva el producto APARTE (viaja como r.producto en el payload a
+  // Wasabil) y la descripción es la glosa del pago — "Abono", "Saldo final".
+  // La primera versión de este modal metía la lista de piezas dentro de la
+  // glosa: el documento salía con el producto duplicado y sin decir qué pago
+  // era. Las piezas quedan a la vista solo como referencia.
   var prods=lineasProdDe(numStr).map(function(l){
     var m=[l.producto||'',(l.largo&&l.ancho)?(l.largo+'×'+l.ancho):'' ,l.madera||''].filter(Boolean).join(' ');
     return (Number(l.cantidad)||1)>1?((Number(l.cantidad)||1)+'× '+m):m;
   }).filter(Boolean);
-  var detalleSug=prods.length?('Abono — '+prods.join(', ')):'Abono';
+  var detalleSug='Abono';
   var st='width:100%;padding:8px 10px;border:1px solid var(--border-md);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text)';
   var html='<div class="modal" style="max-width:520px">'+
     '<div class="modal-header"><div class="modal-title">🧾 Documento del primer abono</div>'+
@@ -28706,9 +28711,11 @@ function prepararDocumento(numStr){
           '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Cambialo si piden facturar a otro nombre</div></div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">RUT</label>'+
           '<input type="text" id="pd-rut" value="'+esc(rutSug)+'" style="'+st+'"></div>'+
-        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Detalle (productos)</label>'+
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Descripción (glosa del pago)</label>'+
           '<input type="text" id="pd-detalle" value="'+esc(detalleSug)+'" style="'+st+'">'+
-          (prods.length?'<div style="font-size:11px;color:var(--text-3);margin-top:3px">Sugerido desde Producción: '+esc(prods.join(', '))+'</div>':'')+'</div>'+
+          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Ej: "Abono 60%", "Saldo final". No es el producto — ese va aparte en el documento'+
+            (r.producto?': <strong>'+esc(r.producto)+'</strong>':'')+'.'+
+            (prods.length?'<br>Piezas del pedido (referencia): '+esc(prods.join(', ')):'')+'</div></div>'+
       '</div>'+
     '</div>'+
     '<div class="modal-footer">'+
