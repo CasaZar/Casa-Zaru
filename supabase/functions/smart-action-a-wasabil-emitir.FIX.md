@@ -1,47 +1,34 @@
-# FIX pendiente: la función corrompe el PDF en el camino de "Verificar estado"
+# PDFs "en blanco" en Drive — diagnóstico y arreglo (APLICADO 28-08-2026)
 
-**Síntoma** (28-08-2026): boletas/facturas que llegan a Drive "en blanco".
-Son PDFs de ~356 KB (los sanos pesan ~200 KB) llenos de `EF BF BD` — el
-carácter U+FFFD. Es la firma de **binario leído como texto**: cada byte
-inválido en UTF-8 se reemplaza por "�" y el PDF crece 1,77× y queda
-irrecuperable.
+**Síntoma**: boletas/facturas llegaban a Drive corruptas — PDFs de ~356 KB
+(los sanos ~200 KB) llenos de `EF BF BD` (U+FFFD): binario pasado por una
+decodificación de texto. Irreversible. Afectó a los pedidos 1515, 1516,
+1525, 1526 y 1535.
 
-**Patrón confirmado**: los 5 corruptos (pedidos 1515, 1516, 1525, 1526, 1535)
-son emisiones donde el SII tardó — dos documentos seguidos o confirmación
-lenta — y el PDF se subió desde el flujo de **check/estado**, no desde la
-creación. El camino de creación sube bien; el de check corrompe.
+**Causa REAL** (la primera hipótesis culpaba al download de la Edge Function
+y el código la refutó — `subirADrive` siempre usó `arrayBuffer()` y estaba
+sano): el nombre del archivo no llevaba folio, así que el **segundo documento
+de un mismo pedido** (abono y saldo, o una factura re-emitida) repetía el
+nombre del primero. El Apps Script de Drive, al encontrar que el archivo ya
+existía, tomaba su rama de "actualizar existente", **que escribe como texto**
+— y ahí se destruían los bytes. Todos los corruptos eran colisiones de
+nombre; todos los sanos eran nombres nuevos.
 
-**Dónde**: Edge Function `smart-action-a-wasabil-emitir` (proyecto
-`padnttpgzuotxeipjrry`). En la rama del `action:'check'`, donde baja el PDF
-de Wasabil antes de mandarlo en base64 al Apps Script de Drive.
+**Arreglo aplicado** (desplegado por el usuario el 28-08-2026): la función
+agrega `- Folio NNNN` al nombre en los dos caminos (creación y check), con el
+helper `nombreArchivo()`. Nombres únicos por documento → la rama enferma del
+Apps Script no vuelve a ejecutarse.
 
-**El bug y su arreglo** (el código exacto vive solo en el panel de Supabase;
-este es el patrón a buscar y su reemplazo):
+**Cómo se ve que funciona**: la próxima emisión aparece en Drive como
+`"1550. Cliente - Abono - Folio 7241.pdf"`. Chequeo de corrupción sin abrir:
+`head -c 40 archivo.pdf | od -An -tx1 | grep efbfbd` → vacío = sano.
 
-```ts
-// MAL — .text() reemplaza los bytes binarios con U+FFFD y el PDF muere
-const pdfText = await resp.text();
-const pdfBase64 = btoa(unescape(encodeURIComponent(pdfText)));
+**Pendiente opcional (segunda capa)**: si se re-verifica un documento YA
+subido, colisiona consigo mismo y esa copia se corrompe. El blindaje total es
+corregir la rama de "archivo existe" del Apps Script (script.google.com) para
+que actualice con bytes (`Utilities.newBlob`) o cree versión nueva, nunca
+`setContent` de texto. Falta que el usuario pegue ese código para corregirlo.
 
-// BIEN — bytes crudos de punta a punta
-const buf = new Uint8Array(await resp.arrayBuffer());
-let bin = '';
-for (let i = 0; i < buf.length; i += 0x8000) {
-  bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
-}
-const pdfBase64 = btoa(bin);
-```
-
-**Para aplicarlo**: Dashboard de Supabase → Edge Functions →
-`smart-action-a-wasabil-emitir` → editar la rama de check → desplegar
-**nueva versión** (editar sin desplegar no cambia nada, igual que en el
-Apps Script).
-
-**Cómo verificar futuros archivos** (sin abrirlos):
-`head -c 40 archivo.pdf | od -An -tx1 | grep efbfbd` → si aparece, corrupto.
-
-**Cómo se repararon los 5 de agosto**: los PDF de Wasabil se bajan sin auth
-desde `document_pdf_url` (URL firmada). Se buscó cada documento con el MCP de
-Wasabil por nombre del receptor, se bajaron los 9 PDFs (varios pedidos tenían
-dos documentos y solo un archivo en Drive) y se reescribieron en
+**Los 5 corruptos de agosto ya fueron reparados** re-bajando los 9 documentos
+desde Wasabil (los `document_pdf_url` se descargan sin auth) y reescribiendo
 `G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026`.
