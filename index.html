@@ -28033,7 +28033,7 @@ async function confirmOrder(){
     fact_ciudad:document.getElementById('pp-fact-ciudad').value.trim()
   };
   const existFin=finRecords.find(r=>String(r.num||'')===numStr);
-  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',como:((document.getElementById('pp-como')||{}).value||''),val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:existFin?(existFin.como||''):'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:(((document.getElementById('pp-como')||{}).value)||(existFin?(existFin.como||''):'')),fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
   Object.assign(finData,datosDoc);
   const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
   if(existFinIdx>=0)finRecords[existFinIdx]=finData;else finRecords.push(finData);
@@ -28715,11 +28715,16 @@ function prepararDocumento(numStr){
           '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Cambialo si piden facturar a otro nombre</div></div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">RUT</label>'+
           '<input type="text" id="pd-rut" value="'+esc(rutSug)+'" style="'+st+'"></div>'+
+        /* Las DOS líneas del documento SII, cada una con su campo (28-08-2026):
+           el producto es el nombre del ítem y la descripción su detalle. Editar
+           el producto acá NO toca el registro de Finanzas ni Producción: es
+           solo lo que dice el documento. */
+        '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Producto (línea del documento)</label>'+
+          '<input type="text" id="pd-producto" maxlength="80" value="'+esc(r.producto||'')+'" style="'+st+'">'+
+          (prods.length?'<div style="font-size:11px;color:var(--text-3);margin-top:3px">Piezas del pedido (referencia): '+esc(prods.join(', '))+'</div>':'')+'</div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Descripción (glosa del pago)</label>'+
           '<input type="text" id="pd-detalle" value="'+esc(detalleSug)+'" style="'+st+'">'+
-          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Ej: "Abono 60%", "Saldo final". No es el producto — ese va aparte en el documento'+
-            (r.producto?': <strong>'+esc(r.producto)+'</strong>':'')+'.'+
-            (prods.length?'<br>Piezas del pedido (referencia): '+esc(prods.join(', ')):'')+'</div></div>'+
+          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Ej: "Abono 60%", "Saldo final". Va como detalle bajo el producto.</div></div>'+
       '</div>'+
     '</div>'+
     '<div class="modal-footer">'+
@@ -28742,6 +28747,9 @@ async function emitirDesdePrep(numStr){
   var nombre=document.getElementById('pd-nombre').value.trim();
   var rut=document.getElementById('pd-rut').value.trim();
   var detalle=document.getElementById('pd-detalle').value.trim()||'Abono';
+  // el producto del DOCUMENTO puede diferir del registro (ej: facturan "mesa de
+  // reunión" lo que en Producción es "Mesa Lago Llanquihue"); no pisa r.producto
+  var prodDoc=(document.getElementById('pd-producto')||{value:''}).value.trim()||r.producto||'Producto';
   r.doc1_tipo=tipo;
   r.rut=rut;
   // Si facturan a otro nombre, ese nombre es la razón social del documento;
@@ -28750,7 +28758,7 @@ async function emitirDesdePrep(numStr){
   await _guardarFinanzasFirme(numStr,r);
   cerrarPrepDoc();
   renderFin();
-  toggleFinDoc(numStr,1,{monto:monto,detalle:detalle});
+  toggleFinDoc(numStr,1,{monto:monto,detalle:detalle,producto:prodDoc});
 }
 // "pre" trae monto y detalle ya revisados en el panel de preparación. Cuando
 // viene, se saltan los prompt() —el dato ya se confirmó en pantalla— pero NO
@@ -28803,7 +28811,7 @@ async function toggleFinDoc(numStr,docNum,pre){
   // ya quedó escrito y el próximo intento encuentra el candado puesto.
   r[procKey]=true;await _guardarFinanzasFirme(numStr,r);
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:r.producto,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     var guardado=await _guardarFinanzasFirme(numStr,r);
