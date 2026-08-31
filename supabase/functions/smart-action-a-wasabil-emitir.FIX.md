@@ -23,11 +23,16 @@ Apps Script no vuelve a ejecutarse.
 `"1550. Cliente - Abono - Folio 7241.pdf"`. Chequeo de corrupción sin abrir:
 `head -c 40 archivo.pdf | od -An -tx1 | grep efbfbd` → vacío = sano.
 
-**Pendiente opcional (segunda capa)**: si se re-verifica un documento YA
-subido, colisiona consigo mismo y esa copia se corrompe. El blindaje total es
-corregir la rama de "archivo existe" del Apps Script (script.google.com) para
-que actualice con bytes (`Utilities.newBlob`) o cree versión nueva, nunca
-`setContent` de texto. Falta que el usuario pegue ese código para corregirlo.
+**Segunda capa APLICADA (31-08-2026)**: la rama de "archivo existe" del Apps
+Script (proyecto "Proyecto sin título", cuenta hola@casazaru.cl) se corrigió
+—bota el archivo viejo con `setTrashed` y crea uno nuevo con `createFile(blob)`,
+nunca más `setContent` de texto— y se desplegó como **Versión 3** sobre la
+misma implementación activa (la URL /exec no cambió; "Wasabil" y el "Sin
+título" viejo son implementaciones archivadas, no se tocaron). Verificado de
+punta a punta subiendo un PDF DOS VECES con el mismo nombre por el /exec real:
+la segunda subida devolvió un fileId distinto (prueba de que corre la versión
+nueva) y el archivo en Drive quedó byte a byte idéntico al original. Respaldos
+del codigo original y el corregido en C:/Users/dell/.casazaru/respaldos/.
 
 **Los 5 corruptos de agosto ya fueron reparados** re-bajando los 9 documentos
 desde Wasabil (los `document_pdf_url` se descargan sin auth) y reescribiendo
