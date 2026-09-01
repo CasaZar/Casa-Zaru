@@ -26395,26 +26395,6 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div class="empty-state" id="mayor-empty" style="display:none"><span class="empty-icon">📒</span>No hay movimientos en este mes.</div>
     </div></div>
   </div>
-
-  <!-- Docs. Wasabil -->
-  <div id="gastos-view-documentos" style="display:none">
-    <div class="stats-grid" id="docs-stats"></div>
-    <div class="toolbar">
-      <div style="font-size:13px;color:var(--text-muted)">Boletas y facturas emitidas por Wasabil — muchas llegan sin glosa (detalle del pago) y hay que corregirlas acá</div>
-      <div id="docs-filtro-bar" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-    </div>
-    <div class="search-wrap"><span class="search-icon">⌕</span>
-      <input type="text" id="docs-search" placeholder="Buscar por pedido, cliente o folio..." oninput="renderDocumentosTransitorios()">
-    </div>
-    <div class="table-card"><div class="table-wrap">
-      <table class="fin">
-        <thead><tr>
-          <th>Fecha</th><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Folio</th><th style="text-align:right">Monto</th><th>Glosa</th><th>Estado</th><th></th>
-        </tr></thead>
-        <tbody id="docs-list"></tbody>
-      </table>
-    </div></div>
-  </div>
 </div></div>
 
 <!-- P6 CLIENTES -->
@@ -28865,7 +28845,7 @@ async function toggleFinDoc(numStr,docNum,pre){
   // ya quedó escrito y el próximo intento encuentra el candado puesto.
   r[procKey]=true;await _guardarFinanzasFirme(numStr,r);
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docNum:docNum,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     var guardado=await _guardarFinanzasFirme(numStr,r);
@@ -28924,7 +28904,7 @@ async function verificarFinDoc(numStr,docNum){
   }
   finEmitiendo[emKey]=true;renderFin();
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docNum:docNum,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
@@ -30261,9 +30241,8 @@ function cecoMotivo(numStr){
   var mad=_dominante(numStr,'madera')||'sin madera';
   return maderaCanonica(mad)+fierro;
 }
-let facturas=[],invItems=[],mayorRecords=[],docsTransitorios=[];
+let facturas=[],invItems=[],mayorRecords=[];
 var gastosSubtab='facturas';
-var docsFiltro='todos'; // todos | sin_glosa | con_glosa
 var mayorMonthFilter=currentMonthName();
 var factMonthFilter=currentMonthName();
 var gastosCargando=false,gastosListo=false;
@@ -30286,12 +30265,10 @@ async function loadGastos(){
       soloInventario?Promise.resolve([]):sbGet('v_facturas','select=*&order=fecha.desc'),
       soloInventario?Promise.resolve([]):sbGet('v_mayor','select=*&order=fecha'),
       soloInventario?Promise.resolve([]):sbGet('proveedores','select=*&order=nombre'),
-      sbGet('pedido_centro_costo','select=*'),
-      soloInventario?Promise.resolve([]):sbGet('documentos_transitorios','select=*&order=creado_en.desc')
+      sbGet('pedido_centro_costo','select=*')
     ]);
     invItems=datos[0];facturas=datos[1];mayorRecords=datos[2];proveedoresRef=datos[3];
     pedidoCeco={};(datos[4]||[]).forEach(function(p){pedidoCeco[p.pedido_num]=p.centro_costo_id;});
-    docsTransitorios=datos[5];
     gastosListo=true;
     renderGastos();
   }catch(e){
@@ -30310,7 +30287,7 @@ async function loadGastos(){
 async function recargarGastos(){await loadGastos();}
 
 // ── Navegación de sub-pestañas ────────────────────────────────────────────
-const GASTOS_SUBTABS=[['facturas','📄 Facturas'],['inventario','📦 Inventario'],['mayor','📒 Libro Mayor'],['documentos','🧾 Docs. Wasabil']];
+const GASTOS_SUBTABS=[['facturas','📄 Facturas'],['inventario','📦 Inventario'],['mayor','📒 Libro Mayor']];
 function setGastosSubtab(k){gastosSubtab=k;renderGastos();}
 function renderGastos(){
   var barra=document.getElementById('gastos-subtabs');
@@ -30330,7 +30307,6 @@ function renderGastos(){
   if(gastosSubtab==='facturas')renderFacturas();
   if(gastosSubtab==='inventario')renderInventario();
   if(gastosSubtab==='mayor')renderMayor();
-  if(gastosSubtab==='documentos')renderDocumentosTransitorios();
 }
 // Mensaje único para cuando la base todavía no respondió (o no está creada):
 // una tabla vacía y una tabla que no cargó se ven igual, y no son lo mismo.
@@ -30392,87 +30368,6 @@ async function borrarFactura(id){
     await recargarGastos();
     showToast('✓ Factura eliminada');
   }catch(e){showToast('✗ No se pudo eliminar: '+e.message,true);}
-}
-
-// ── Vista: Docs. Wasabil ──────────────────────────────────────────────────
-// Boletas/facturas que Wasabil emitió al vender: es ingreso, no gasto — por
-// eso vive aparte de "Facturas" (que son compras a proveedor). Hoy es solo
-// lectura + corrección de glosa; todavía no alimenta Inventario/Mayor (ver
-// nota en documentos_transitorios, migración 0007).
-function setDocsFiltro(f){docsFiltro=f;renderDocumentosTransitorios();}
-function renderDocsTransStats(){
-  var el=document.getElementById('docs-stats');if(!el)return;
-  var sinGlosa=docsTransitorios.filter(function(d){return d.glosa_estado==='sin_glosa';}).length;
-  var conGlosa=docsTransitorios.length-sinGlosa;
-  var cards=[
-    {label:'Sin glosa',val:String(sinGlosa),color:sinGlosa?'var(--red)':'var(--text-3)',hint:'Documentos emitidos en Wasabil sin detalle de pago — hay que corregirlos acá.'},
-    {label:'Con glosa',val:String(conGlosa),color:'var(--green)',hint:''},
-    {label:'Total',val:String(docsTransitorios.length),color:'var(--text-3)',hint:''}
-  ];
-  el.innerHTML=cards.map(function(c){
-    var t=c.hint?' title="'+esc(c.hint)+'"':'';
-    return '<div class="stat-card"'+t+'><div class="stat-label">'+c.label+'</div><div class="stat-val" style="color:'+c.color+'">'+c.val+'</div></div>';
-  }).join('');
-}
-function renderDocumentosTransitorios(){
-  renderDocsTransStats();
-  var el=document.getElementById('docs-list');if(!el)return;
-  var barra=document.getElementById('docs-filtro-bar');
-  if(barra){
-    var opts=[['todos','Todas'],['sin_glosa','⚠ Sin glosa'],['con_glosa','✓ Con glosa']];
-    barra.innerHTML=opts.map(function(o){
-      var on=docsFiltro===o[0]?' active':'';
-      return '<button class="filter-btn'+on+'" style="font-size:12px" onclick="setDocsFiltro(\''+o[0]+'\')">'+o[1]+'</button>';
-    }).join('');
-  }
-  var q=(document.getElementById('docs-search').value||'').toLowerCase().trim();
-  var base=docsFiltro==='todos'?docsTransitorios:docsTransitorios.filter(function(d){return d.glosa_estado===docsFiltro;});
-  var list=base.filter(function(d){
-    if(!q)return true;
-    return String(d.num_pedido||'').toLowerCase().indexOf(q)>=0||
-           String(d.cliente||'').toLowerCase().indexOf(q)>=0||
-           String(d.folio||'').toLowerCase().indexOf(q)>=0;
-  }).sort(function(a,b){return String(b.creado_en||'').localeCompare(String(a.creado_en||''));});
-  if(!list.length){
-    var txt=q?'No hay documentos que calcen con la búsqueda.':'Todavía no llegó ningún documento de Wasabil.';
-    el.innerHTML='<tr><td colspan="9">'+_avisoSinDatos('🧾',txt)+'</td></tr>';
-    return;
-  }
-  el.innerHTML=list.map(_filaDocTransitorio).join('');
-}
-function _filaDocTransitorio(d){
-  var sinGlosa=d.glosa_estado==='sin_glosa';
-  var badge=sinGlosa
-    ? '<span class="semana-badge" style="background:var(--red-dim);color:var(--red)">⚠ Sin glosa</span>'
-    : '<span class="semana-badge" style="background:var(--green-dim);color:var(--green)">✓ Con glosa</span>';
-  var glosaTxt=sinGlosa?'<span style="color:var(--red)">— falta —</span>':esc(d.glosa);
-  var pdfLink=d.pdf_url?(' <a href="'+esc(d.pdf_url)+'" target="_blank" title="Ver PDF">📄</a>'):'';
-  return '<tr'+(sinGlosa?' style="background:var(--red-dim)"':'')+'>'+
-    '<td data-label="Fecha">'+esc(fmtFecha(d.creado_en))+'</td>'+
-    '<td data-label="Pedido"><strong>'+esc(d.num_pedido||'—')+'</strong> · Doc '+esc(String(d.doc_num||''))+'</td>'+
-    '<td data-label="Cliente">'+esc(d.cliente||'—')+'</td>'+
-    '<td data-label="Tipo">'+esc(d.tipo||'—')+'</td>'+
-    '<td data-label="Folio">'+esc(d.folio||'—')+'</td>'+
-    '<td data-label="Monto" style="text-align:right">'+fmtCLP(d.monto)+'</td>'+
-    '<td data-label="Glosa">'+glosaTxt+'</td>'+
-    '<td data-label="Estado">'+badge+'</td>'+
-    '<td><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0" onclick="corregirGlosaTransitorio('+d.id+')">✏️</button>'+pdfLink+'</td>'+
-    '</tr>';
-}
-// La glosa se corrige ACÁ, no en Wasabil (decisión del 01-09-2026): esta
-// tabla es la fuente de verdad de la glosa para el panel de gastos.
-async function corregirGlosaTransitorio(id){
-  var d=docsTransitorios.find(function(x){return x.id===id;});
-  if(!d)return;
-  var g=prompt('Glosa para el pedido '+d.num_pedido+' — Doc '+d.doc_num+' ('+(d.cliente||'—')+'):',d.glosa||'');
-  if(g===null)return;
-  g=g.trim();
-  if(!g){showToast('La glosa no puede quedar vacía.',true);return;}
-  try{
-    await sbUpdate('documentos_transitorios',id,{glosa:g});
-    await recargarGastos();
-    showToast('✓ Glosa corregida');
-  }catch(e){showToast('✗ No se pudo guardar: '+e.message,true);}
 }
 
 // ── Vista: Inventario ─────────────────────────────────────────────────────

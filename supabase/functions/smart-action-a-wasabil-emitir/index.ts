@@ -1,15 +1,5 @@
-// Supabase Edge Function: wasabil-emitir (desplegada como smart-action-a-wasabil-emitir)
-// Puente entre Finanzas (Firebase) y Wasabil. No guarda el documento en sí en
-// ninguna tabla de negocio, pero además de reenviar a Wasabil y subirlo a
-// Drive, deja una copia del PDF en Supabase Storage y una fila en
-// documentos_transitorios (glosa + estado), para el panel "Docs. Wasabil"
-// del módulo de Gastos (index.html).
-//
-// Secrets requeridos además de los ya existentes (WASABIL_API_TOKEN,
-// DRIVE_UPLOAD_URL, DRIVE_UPLOAD_SECRET): ninguno nuevo — SUPABASE_URL y
-// SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase automáticamente.
-
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+// Supabase Edge Function: wasabil-emitir
+// Puente entre Finanzas (Firebase) y Wasabil. No guarda nada, solo reenvía y espera la respuesta del SII.
 
 const WASABIL_BASE = "https://api.wasabil.com/api";
 const CORS_HEADERS = {
@@ -17,12 +7,6 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-const supabase = createClient(
-  Deno.env.get("SUPABASE_URL")!,
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-);
-const DOCS_BUCKET = "documentos-sii";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -70,23 +54,7 @@ function formatearRut(rutSucio: string): string {
   return rut.slice(0, -1) + "-" + rut.slice(-1);
 }
 
-// Descarga el PDF UNA sola vez. Antes subirADrive lo bajaba internamente cada
-// vez que se la llamaba; ahora Drive y Storage reusan los mismos bytes en vez
-// de pegarle dos veces a la misma URL.
-async function descargarPdf(pdfUrl: string, token: string): Promise<Uint8Array | null> {
-  console.log("PDF: descargando de", pdfUrl);
-  const res = await fetch(pdfUrl, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) {
-    const t = await res.text();
-    console.error("PDF: fallo al descargar", res.status, t.slice(0, 300));
-    return null;
-  }
-  const buf = new Uint8Array(await res.arrayBuffer());
-  console.log("PDF: descargado, bytes =", buf.length);
-  return buf;
-}
-
-async function subirADrive(bytes: Uint8Array, filename: string): Promise<any> {
+async function subirADrive(pdfUrl: string, token: string, filename: string): Promise<any> {
   try {
     const driveUrl = Deno.env.get("DRIVE_UPLOAD_URL");
     const driveSecret = Deno.env.get("DRIVE_UPLOAD_SECRET");
@@ -94,8 +62,18 @@ async function subirADrive(bytes: Uint8Array, filename: string): Promise<any> {
       console.error("Drive: faltan DRIVE_UPLOAD_URL o DRIVE_UPLOAD_SECRET");
       return { success: false, error: "Drive no configurado" };
     }
+
+    console.log("Drive: descargando PDF de", pdfUrl);
+    const pdfRes = await fetch(pdfUrl, { headers: { Authorization: `Bearer ${token}` } });
+    if (!pdfRes.ok) {
+      const t = await pdfRes.text();
+      console.error("Drive: fallo al descargar PDF", pdfRes.status, t.slice(0, 300));
+      return { success: false, error: `No se pudo descargar el PDF (${pdfRes.status})` };
+    }
+    const buf = new Uint8Array(await pdfRes.arrayBuffer());
+    console.log("Drive: PDF descargado, bytes =", buf.length);
     let binary = "";
-    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    for (let i = 0; i < buf.length; i++) binary += String.fromCharCode(buf[i]);
     const pdfBase64 = btoa(binary);
 
     console.log("Drive: subiendo a Apps Script", driveUrl);
@@ -117,63 +95,6 @@ async function subirADrive(bytes: Uint8Array, filename: string): Promise<any> {
   }
 }
 
-// Copia del PDF en Supabase Storage, para el panel "Docs. Wasabil". Nunca
-// revienta la emisión si falla: se loguea y se sigue, igual que subirADrive.
-async function subirAStorage(bytes: Uint8Array, path: string): Promise<{ success: boolean; path?: string; error?: string }> {
-  try {
-    const { error } = await supabase.storage.from(DOCS_BUCKET).upload(path, bytes, {
-      contentType: "application/pdf",
-      upsert: true,
-    });
-    if (error) {
-      console.error("Storage: fallo al subir", error.message);
-      return { success: false, error: error.message };
-    }
-    return { success: true, path };
-  } catch (err) {
-    console.error("Storage: excepción no controlada", String(err));
-    return { success: false, error: String(err) };
-  }
-}
-
-// Deja/actualiza la fila en documentos_transitorios. glosa y monto SOLO se
-// tocan si esta llamada trae detalle/total: la acción "check" no manda
-// ninguno de los dos, y no debe borrar una glosa que alguien ya corrigió a
-// mano en el panel, ni pisar el monto con 0.
-async function registrarDocumentoTransitorio(params: {
-  numStr: string;
-  docNum: number | null | undefined;
-  tipo: string;
-  cliente: string;
-  folio: unknown;
-  uuid: unknown;
-  monto?: unknown;
-  detalle?: string;
-  storagePath?: string;
-  pdfUrl?: string;
-}): Promise<void> {
-  if (!params.docNum) {
-    console.error("documentos_transitorios: falta docNum en el payload, no se registra fila");
-    return;
-  }
-  const row: Record<string, unknown> = {
-    num_pedido: String(params.numStr),
-    doc_num: params.docNum,
-    tipo: params.tipo,
-    cliente: params.cliente || null,
-    folio: params.folio != null ? String(params.folio) : null,
-    uuid: params.uuid != null ? String(params.uuid) : null,
-    storage_path: params.storagePath || null,
-    pdf_url: params.pdfUrl || null,
-  };
-  if (params.monto) row.monto = Math.round(Number(params.monto) || 0);
-  if (params.detalle) row.glosa = params.detalle;
-  const { error } = await supabase
-    .from("documentos_transitorios")
-    .upsert(row, { onConflict: "num_pedido,doc_num" });
-  if (error) console.error("documentos_transitorios: fallo al guardar", error.message);
-}
-
 // CAMBIO 28-08: el folio va SIEMPRE en el nombre del archivo.
 // Sin él, el segundo documento de un mismo pedido (abono y saldo, o una
 // factura re-emitida) repetía el nombre, y la rama de "archivo ya existe"
@@ -183,14 +104,6 @@ async function registrarDocumentoTransitorio(params: {
 function nombreArchivo(base: string, detalle: unknown, folio: unknown): string {
   const conDetalle = detalle ? `${base} - ${detalle}` : base;
   return folio ? `${conDetalle} - Folio ${folio}` : conDetalle;
-}
-
-// Ruta del PDF dentro del bucket documentos-sii: agrupada por pedido, con
-// folio en el nombre por la misma razón de arriba — y porque upsert:true ya
-// sobrescribe seguro (escribe bytes, no texto), no hace falta más que eso
-// para que no colisione entre Doc 1 y Doc 2 del mismo pedido.
-function storagePathDe(numStr: string, docNum: number | null | undefined, folio: unknown): string {
-  return `${sanitizeFilename(String(numStr))}/doc${docNum ?? "x"}-folio-${folio ?? "pendiente"}.pdf`;
 }
 
 async function pollStatus(uuid: string, token: string, maxTries = 8): Promise<any> {
@@ -230,7 +143,7 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   const {
-    numStr, docNum, docType, total, producto, detalle,
+    numStr, docType, total, producto, detalle,
     nombre, apellido, email, rut, razon_social, giro, direccion, comuna, ciudad,
   } = body || {};
 
@@ -241,7 +154,6 @@ async function handleRequest(req: Request): Promise<Response> {
     const dc = checked?.data;
     if (!dc) return jsonResponse({ success: false, status_id: 2, uuid: body.uuid, error: "Sigue Procesando" });
     let driveCheck: any = null;
-    let storageCheck: any = null;
     const pdfCheck = pdfUrlDe(dc);
     if (dc.status_id === 3 && pdfCheck) {
       const baseCheck = docType === "FACTURA" && razon_social
@@ -249,20 +161,7 @@ async function handleRequest(req: Request): Promise<Response> {
         : `${numStr}. ${nombreCompletoCheck}`;
       // CAMBIO 28-08: folio en el nombre (antes: solo base + detalle)
       const filenameCheck = nombreArchivo(baseCheck, detalle, dc.folio);
-      const bytesCheck = await descargarPdf(pdfCheck, token);
-      if (bytesCheck) {
-        driveCheck = await subirADrive(bytesCheck, filenameCheck);
-        storageCheck = await subirAStorage(bytesCheck, storagePathDe(numStr, docNum, dc.folio));
-        await registrarDocumentoTransitorio({
-          numStr, docNum, tipo: docType, cliente: nombreCompletoCheck,
-          folio: dc.folio, uuid: dc.uuid, monto: total, detalle,
-          storagePath: storageCheck?.success ? storageCheck.path : undefined,
-          pdfUrl: pdfCheck,
-        });
-      } else {
-        driveCheck = { success: false, error: "No se pudo descargar el PDF" };
-        storageCheck = { success: false, error: "No se pudo descargar el PDF" };
-      }
+      driveCheck = await subirADrive(pdfCheck, token, filenameCheck);
     }
     return jsonResponse({
       success: dc.status_id === 3,
@@ -273,7 +172,6 @@ async function handleRequest(req: Request): Promise<Response> {
       document_xml_url: xmlUrlDe(dc),
       display_error: dc.display_error,
       drive: driveCheck,
-      storage: storageCheck,
     });
   }
 
@@ -360,7 +258,6 @@ async function handleRequest(req: Request): Promise<Response> {
 
   const d = finalJson.data;
   let drive: any = null;
-  let storage: any = null;
   const pdfUrl = pdfUrlDe(d);
   if (d.status_id === 3 && pdfUrl) {
     const baseFilename = docType === "FACTURA" && razon_social
@@ -368,20 +265,7 @@ async function handleRequest(req: Request): Promise<Response> {
       : `${numStr}. ${nombreCompleto}`;
     // CAMBIO 28-08: folio en el nombre (antes: solo base + detalle)
     const filename = nombreArchivo(baseFilename, detalle, d.folio);
-    const bytes = await descargarPdf(pdfUrl, token);
-    if (bytes) {
-      drive = await subirADrive(bytes, filename);
-      storage = await subirAStorage(bytes, storagePathDe(numStr, docNum, d.folio));
-      await registrarDocumentoTransitorio({
-        numStr, docNum, tipo: docType, cliente: nombreCompleto,
-        folio: d.folio, uuid: d.uuid, monto: total, detalle,
-        storagePath: storage?.success ? storage.path : undefined,
-        pdfUrl,
-      });
-    } else {
-      drive = { success: false, error: "No se pudo descargar el PDF" };
-      storage = { success: false, error: "No se pudo descargar el PDF" };
-    }
+    drive = await subirADrive(pdfUrl, token, filename);
   }
 
   return jsonResponse({
@@ -393,6 +277,5 @@ async function handleRequest(req: Request): Promise<Response> {
     document_xml_url: xmlUrlDe(d),
     display_error: d.display_error,
     drive,
-    storage,
   });
 }
