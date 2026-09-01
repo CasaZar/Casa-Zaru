@@ -28865,7 +28865,7 @@ async function toggleFinDoc(numStr,docNum,pre){
   // ya quedó escrito y el próximo intento encuentra el candado puesto.
   r[procKey]=true;await _guardarFinanzasFirme(numStr,r);
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docNum:docNum,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     var guardado=await _guardarFinanzasFirme(numStr,r);
@@ -28924,7 +28924,7 @@ async function verificarFinDoc(numStr,docNum){
   }
   finEmitiendo[emKey]=true;renderFin();
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docNum:docNum,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
