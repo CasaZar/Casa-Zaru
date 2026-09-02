@@ -28082,7 +28082,7 @@ const VENDEDOR_DEFAULT='César';
 // canales: "WHATSAPP ANTIGUO", "Whatsapp antiguo", "WHATAPP ANTGUO" y
 // "Whatsap antiguo" eran el mismo. Así no se puede sacar CAC ni margen por
 // canal, que es justo para lo que sirve este dato. Lista fija.
-const CANALES=['Landing','Landing B2B','Many Chat','Cotizador','Web','Instagram','WhatsApp antiguo','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
+const CANALES=['Landing','Landing B2B','Many Chat','Cotizador','Web','Instagram','Google','WhatsApp antiguo','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
 // Normaliza lo que ya está escrito a mano hacia la lista de arriba. Se usa
 // para leer los registros viejos sin tener que migrarlos.
 function canalCanonico(txt){
@@ -28106,6 +28106,11 @@ function canalCanonico(txt){
   if(/MANY\s*CHAT/.test(s))return s.indexOf('COTIZADOR')>=0?'Cotizador':'Many Chat';
   if(/COTIZADOR/.test(s))return 'Cotizador';
   if(/INSTAGRAM|INTAGRAM/.test(s))return 'Instagram';
+  // Google entra escrito de muchas formas: "GOOGLE", "GOOGLE ADS", "ADWORDS",
+  // "BUSCADOR", o "MAPS" cuando llegan por la ficha del negocio. Va ANTES de la
+  // regla de WEB porque "GOOGLE SHOPPING" contiene "SHOPPING", no "SHOPIFY",
+  // pero conviene no depender de esa diferencia de una letra.
+  if(/GOOGLE|ADWORDS|BUSCADOR|MAPS/.test(s))return 'Google';
   if(/CANJE|INFLUENCER/.test(s))return 'Canje influencer';
   if(/CORREO|MAIL/.test(s))return 'Correo';
   if(/AMIGO|REFERID|RECOMEND/.test(s))return 'Referido';
