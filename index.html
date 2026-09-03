@@ -26395,6 +26395,22 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div class="empty-state" id="mayor-empty" style="display:none"><span class="empty-icon">📒</span>No hay movimientos en este mes.</div>
     </div></div>
   </div>
+
+  <!-- Recibidos (Wasabil) — dummy de solo lectura -->
+  <div id="gastos-view-recibidos" style="display:none">
+    <div class="toolbar">
+      <div style="font-size:13px;color:var(--text-muted)">Facturas de proveedor recibidas por Wasabil, líneas aún sin clasificar en inventario o gasto</div>
+    </div>
+    <div class="table-card"><div class="table-wrap">
+      <table class="fin">
+        <thead><tr>
+          <th>Fecha</th><th>Proveedor</th><th>Folio</th><th>Ítem / Glosa</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Monto</th>
+        </tr></thead>
+        <tbody id="recibidos-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="recibidos-empty" style="display:none"><span class="empty-icon">📥</span>No hay líneas pendientes de clasificar.</div>
+    </div></div>
+  </div>
 </div></div>
 
 <!-- P6 CLIENTES -->
@@ -30246,7 +30262,7 @@ function cecoMotivo(numStr){
   var mad=_dominante(numStr,'madera')||'sin madera';
   return maderaCanonica(mad)+fierro;
 }
-let facturas=[],invItems=[],mayorRecords=[];
+let facturas=[],invItems=[],mayorRecords=[],docsRecibidos=[];
 var gastosSubtab='facturas';
 var mayorMonthFilter=currentMonthName();
 var factMonthFilter=currentMonthName();
@@ -30270,10 +30286,12 @@ async function loadGastos(){
       soloInventario?Promise.resolve([]):sbGet('v_facturas','select=*&order=fecha.desc'),
       soloInventario?Promise.resolve([]):sbGet('v_mayor','select=*&order=fecha'),
       soloInventario?Promise.resolve([]):sbGet('proveedores','select=*&order=nombre'),
-      sbGet('pedido_centro_costo','select=*')
+      sbGet('pedido_centro_costo','select=*'),
+      soloInventario?Promise.resolve([]):sbGet('v_documentos_recibidos_pendientes','select=*&order=fecha')
     ]);
     invItems=datos[0];facturas=datos[1];mayorRecords=datos[2];proveedoresRef=datos[3];
     pedidoCeco={};(datos[4]||[]).forEach(function(p){pedidoCeco[p.pedido_num]=p.centro_costo_id;});
+    docsRecibidos=datos[5];
     gastosListo=true;
     renderGastos();
   }catch(e){
@@ -30292,7 +30310,7 @@ async function loadGastos(){
 async function recargarGastos(){await loadGastos();}
 
 // ── Navegación de sub-pestañas ────────────────────────────────────────────
-const GASTOS_SUBTABS=[['facturas','📄 Facturas'],['inventario','📦 Inventario'],['mayor','📒 Libro Mayor']];
+const GASTOS_SUBTABS=[['facturas','📄 Facturas'],['inventario','📦 Inventario'],['mayor','📒 Libro Mayor'],['recibidos','📥 Recibidos']];
 function setGastosSubtab(k){gastosSubtab=k;renderGastos();}
 function renderGastos(){
   var barra=document.getElementById('gastos-subtabs');
@@ -30312,6 +30330,7 @@ function renderGastos(){
   if(gastosSubtab==='facturas')renderFacturas();
   if(gastosSubtab==='inventario')renderInventario();
   if(gastosSubtab==='mayor')renderMayor();
+  if(gastosSubtab==='recibidos')renderRecibidos();
 }
 // Mensaje único para cuando la base todavía no respondió (o no está creada):
 // una tabla vacía y una tabla que no cargó se ven igual, y no son lo mismo.
@@ -30373,6 +30392,41 @@ async function borrarFactura(id){
     await recargarGastos();
     showToast('✓ Factura eliminada');
   }catch(e){showToast('✗ No se pudo eliminar: '+e.message,true);}
+}
+
+// ── Vista: Recibidos (dummy) ─────────────────────────────────────────────
+// Cola de v_documentos_recibidos_pendientes: líneas de facturas de proveedor
+// importadas desde Wasabil que todavía no se clasifican en inventario o
+// gasto (tabla documentos_recibidos_lineas, migración 0010 — es transitoria
+// a propósito). Por ahora es solo lectura; el paso que sigue es agregar acá
+// el botón que clasifica cada línea.
+function renderRecibidos(){
+  var el=document.getElementById('recibidos-tbody');if(!el)return;
+  var empty=document.getElementById('recibidos-empty');
+  if(gastosCargando||!gastosListo||!docsRecibidos.length){
+    el.innerHTML='';
+    if(empty){
+      empty.style.display='';
+      empty.innerHTML=gastosCargando
+        ?'<span class="empty-icon">⏳</span>Cargando…'
+        :(!gastosListo
+          ?'<span class="empty-icon">⚠</span>No se pudo leer la base.'
+          :'<span class="empty-icon">📥</span>No hay líneas pendientes de clasificar.');
+    }
+    return;
+  }
+  if(empty)empty.style.display='none';
+  el.innerHTML=docsRecibidos.map(_filaRecibido).join('');
+}
+function _filaRecibido(r){
+  return '<tr>'+
+    '<td data-label="Fecha">'+esc(fmtFecha(r.fecha))+'</td>'+
+    '<td data-label="Proveedor">'+esc(r.proveedor_nombre||'—')+'<div style="font-size:10px;color:var(--text-3)">'+esc(r.proveedor_rut||'')+'</div></td>'+
+    '<td data-label="Folio">'+esc(r.folio||'—')+'</td>'+
+    '<td data-label="Ítem / Glosa">'+esc(r.item_nombre||r.glosa||'—')+'</td>'+
+    '<td data-label="Cantidad" style="text-align:right">'+(r.cantidad!=null?_soloCant(r.cantidad,null):'—')+'</td>'+
+    '<td data-label="Monto" style="text-align:right">'+fmtCLP(r.total)+'</td>'+
+    '</tr>';
 }
 
 // ── Vista: Inventario ─────────────────────────────────────────────────────
