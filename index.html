@@ -678,6 +678,12 @@ table.fin tbody td:nth-child(1){position:sticky;left:0;z-index:6;background:var(
 table.fin tbody tr { border-bottom:1px solid var(--border);transition:background .12s; }
 table.fin tbody tr:hover { background:var(--surface2); }
 table.fin tbody tr:hover td:nth-child(1) { background:var(--surface2) !important; }
+/* Recibidos no necesita la columna Fecha fija: es la única tabla del módulo
+   donde el dato que identifica la fila (proveedor + folio) va en la segunda
+   columna, así que clavar la primera no ayuda a ubicarse — solo tapa lo de
+   al lado. */
+#gastos-view-recibidos table.fin thead th:nth-child(1){position:sticky;top:0;left:auto;z-index:10;background:var(--surface2);box-shadow:none;}
+#gastos-view-recibidos table.fin tbody td:nth-child(1){position:static;left:auto;background:none;box-shadow:none;}
 table.fin tbody td { padding:9px 12px;vertical-align:middle; }
 /* El N° manda: es lo que se lee al deslizar */
 table.fin tbody td:nth-child(1) .pedido-num,
@@ -26400,6 +26406,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div id="gastos-view-recibidos" style="display:none">
     <div class="toolbar">
       <div style="font-size:13px;color:var(--text-muted)">Facturas de proveedor recibidas por Wasabil, líneas aún sin clasificar en inventario o gasto</div>
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+        <input type="checkbox" id="recibidos-sin-glosa" onchange="renderRecibidos()"> Solo sin Ítem/Glosa
+      </label>
     </div>
     <div class="table-card"><div class="table-wrap">
       <table class="fin">
@@ -30403,7 +30412,13 @@ async function borrarFactura(id){
 function renderRecibidos(){
   var el=document.getElementById('recibidos-tbody');if(!el)return;
   var empty=document.getElementById('recibidos-empty');
-  if(gastosCargando||!gastosListo||!docsRecibidos.length){
+  var chk=document.getElementById('recibidos-sin-glosa');
+  var soloSinGlosa=!!(chk&&chk.checked);
+  // tiene_glosa ya viene calculada por la vista (trata "." y vacío como sin
+  // glosa, ver migración 0010); acá solo se agrega que tampoco tenga nombre
+  // de ítem, que es lo otro que llena esta columna.
+  var list=soloSinGlosa?docsRecibidos.filter(function(r){return !r.item_nombre&&!r.tiene_glosa;}):docsRecibidos;
+  if(gastosCargando||!gastosListo||!list.length){
     el.innerHTML='';
     if(empty){
       empty.style.display='';
@@ -30411,12 +30426,14 @@ function renderRecibidos(){
         ?'<span class="empty-icon">⏳</span>Cargando…'
         :(!gastosListo
           ?'<span class="empty-icon">⚠</span>No se pudo leer la base.'
-          :'<span class="empty-icon">📥</span>No hay líneas pendientes de clasificar.');
+          :(soloSinGlosa
+            ?'<span class="empty-icon">📥</span>No hay líneas sin ítem ni glosa.'
+            :'<span class="empty-icon">📥</span>No hay líneas pendientes de clasificar.'));
     }
     return;
   }
   if(empty)empty.style.display='none';
-  el.innerHTML=docsRecibidos.map(_filaRecibido).join('');
+  el.innerHTML=list.map(_filaRecibido).join('');
 }
 function _filaRecibido(r){
   return '<tr>'+
