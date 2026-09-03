@@ -26413,7 +26413,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="table-card"><div class="table-wrap">
       <table class="fin">
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Folio</th><th>Ítem / Glosa</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Monto</th>
+          <th>Fecha</th><th>Proveedor</th><th>Folio</th><th>Ítem / Glosa</th><th style="text-align:right">Cantidad</th><th>Categoría</th><th style="text-align:right">Monto</th>
         </tr></thead>
         <tbody id="recibidos-tbody"></tbody>
       </table>
@@ -30442,6 +30442,7 @@ function _filaRecibido(r){
     '<td data-label="Folio">'+esc(r.folio||'—')+'</td>'+
     '<td data-label="Ítem / Glosa">'+esc(r.item_nombre||r.glosa||'—')+'</td>'+
     '<td data-label="Cantidad" style="text-align:right">'+(r.cantidad!=null?_soloCant(r.cantidad,null):'—')+'</td>'+
+    '<td data-label="Categoría">'+esc(CAT_POR_CLASIFICAR)+'</td>'+
     '<td data-label="Monto" style="text-align:right">'+fmtCLP(r.total)+'</td>'+
     '</tr>';
 }
