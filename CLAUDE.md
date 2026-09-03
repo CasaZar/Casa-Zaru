@@ -10,9 +10,17 @@ Ver `ESTRUCTURA.md` para el mapa completo (3 repos, 3 sitios, 3 proyectos Supaba
 **Carpeta buena:** `C:\Users\dell\Casa Zaru - Claude`. Existe un clon viejo en
 `OneDrive\Desktop\Casa Zaru Visual\Casa-Zaru` que quedó de un enredo — no trabajar ahí.
 
-**No hay Node, npm, psql ni el CLI de Supabase en esta máquina.** No proponer `npm install`,
-`npm test` ni `supabase db push`: no van a correr. Las verificaciones son estructurales (grep,
-balance de llaves, conteo de `<th>` vs `<td>`) y contra la base por HTTP.
+**Node, npm y el CLI de Supabase sí están instalados** en esta máquina — confirmado el 3 sep 2026,
+corrigiendo lo que decía antes esta sección. El CLI ya está logueado y enlazado (`supabase link`) al
+proyecto de Gestión (`padnttpgzuotxeipjrry`): `supabase db push` aplica las migraciones pendientes de
+`supabase/migrations/` y las registra solo en `schema_migrations` (no hace falta el insert manual si
+se aplica así), y `supabase db query --linked "<sql>"` sirve para consultas puntuales contra ese
+proyecto. `psql` sigue sin estar instalado.
+
+`index.html` no es un proyecto Node (no hay `package.json`), así que `npm install`/`npm test` no
+aplican — pero es porque no hay nada que instalar, no porque falte npm. Sin un entorno de browser para
+correr el archivo, las verificaciones del HTML/JS siguen siendo estructurales (grep, balance de
+llaves, conteo de `<th>` vs `<td>`) y contra la base por HTTP.
 
 **Probar la app:** `.claude/static-server.ps1` la sirve en `localhost:5500` (también hay perfiles en
 `.claude/launch.json`). Abrirla con `file://` funciona, pero un servidor evita bordes raros de ese origen.
@@ -46,8 +54,10 @@ izquierda no son adorno: la versión se guarda como **texto**, así que sin rell
 ordenada entre la `1` y la `2`.
 
 El registro de lo aplicado lo lleva Supabase en `supabase_migrations.schema_migrations`, que es lo
-que muestra Database → Migrations en el panel. Al aplicar a mano (SQL Editor o Management API) hay
-que **insertar la fila ahí también**, si no el panel no la ve:
+que muestra Database → Migrations en el panel. **Preferir `supabase db push`** (el CLI está enlazado
+al proyecto de Gestión, ver arriba): aplica los `.sql` pendientes y los registra solo. Si por algún
+motivo se aplica a mano (SQL Editor o Management API) hay que **insertar la fila ahí también**, si no
+el panel no la ve:
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
