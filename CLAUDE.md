@@ -60,10 +60,11 @@ Estado (verificado contra la base el 3 sep 2026): aplicadas y registradas `0001`
 **No existe ninguna `0004`**, ni en el repo ni en la base — el hueco es a propósito y no hay nada
 pendiente ahí.
 
-⚠️ **Hay una divergencia**: la migración **`0013 limpia_placeholder_item_nombre` está aplicada en la
-base pero no existe en el repo** (limpia el `'Detalle no disponible'` que dejó la carga piloto `0011`).
-Antes de numerar una migración nueva, **mirar `supabase_migrations.schema_migrations`, no la carpeta**:
-la carpeta se quedó corta y por eso la `0014` casi sale con el número de una que ya existía.
+⚠️ **Antes de numerar una migración nueva, hacer `git pull` y además mirar
+`supabase_migrations.schema_migrations`.** Hay más de una sesión trabajando sobre este repo a la vez:
+la `0014` casi sale numerada `0013` porque el clon local estaba atrasado y no tenía todavía la
+`0013_limpia_placeholder_item_nombre` que otra sesión ya había pusheado y aplicado. La base sabía la
+verdad y la carpeta no. El número libre es el siguiente al mayor de **ambos**.
 
 Los `.sql` sueltos en `supabase/` (fuera de `migrations/`) son parches viejos ya corridos a mano y
 **no registrados**. Dejarlos ahí es deliberado: si se movieran a `migrations/`, `db push` los
