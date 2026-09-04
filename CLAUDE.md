@@ -56,8 +56,14 @@ values ('0005', 'nombre_corto', array[$mig$ <contenido del .sql> $mig$]);
 
 **No llevar una tabla de migraciones propia** — ya existe una y duplicarla es pedir que diverjan.
 
-Estado: `0001`, `0002` y `0003` aplicadas y registradas. **`0004` está escrita y sin aplicar**, y crea
-una tabla `migraciones` propia que duplica el registro nativo; conviene descartarla.
+Estado (verificado contra la base el 3 sep 2026): aplicadas y registradas `0001`–`0003`, `0005`–`0014`.
+**No existe ninguna `0004`**, ni en el repo ni en la base — el hueco es a propósito y no hay nada
+pendiente ahí.
+
+⚠️ **Hay una divergencia**: la migración **`0013 limpia_placeholder_item_nombre` está aplicada en la
+base pero no existe en el repo** (limpia el `'Detalle no disponible'` que dejó la carga piloto `0011`).
+Antes de numerar una migración nueva, **mirar `supabase_migrations.schema_migrations`, no la carpeta**:
+la carpeta se quedó corta y por eso la `0014` casi sale con el número de una que ya existía.
 
 Los `.sql` sueltos en `supabase/` (fuera de `migrations/`) son parches viejos ya corridos a mano y
 **no registrados**. Dejarlos ahí es deliberado: si se movieran a `migrations/`, `db push` los
