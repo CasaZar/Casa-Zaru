@@ -28749,13 +28749,22 @@ function _aplicarResultadoWasabil(r,docNum,data){
 // quién, y qué se vendió. Antes había que copiarlos a mano justo antes de
 // emitir, que es donde más caro sale equivocarse. Se prellenan y se confirman.
 // Emitir sigue siendo un clic aparte y deliberado: preparar no emite nada.
-function prepararDocumento(numStr){
+// docNum 1 = abono, 2 = saldo. Antes este panel era solo del primer abono y el
+// saldo se emitía por prompt(), que preguntaba monto y glosa pero NUNCA mostraba
+// el PRODUCTO: la línea del documento se mandaba a ciegas desde r.producto y
+// recién se veía en el PDF ya emitido en el SII. Ahora los dos documentos pasan
+// por la misma revisión (07-09-2026, pedido del usuario).
+function prepararDocumento(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r)return;
-  var abono=Number(r.abono1)||0;
-  if(abono<=0)return;                      // sin abono no hay nada que facturar
-  if(r.doc1_emitida)return;                // ya se emitió: no se vuelve a ofrecer
-  var esFactura=(r.doc1_tipo||'BOLETA')==='FACTURA';
+  var dn=(Number(docNum)===2)?2:1;
+  var total=Number(r.total)||0,ab1=Number(r.abono1)||0;
+  // El saldo se calcula igual que en toggleFinDoc, para que el monto sugerido
+  // sea el mismo por los dos caminos y no aparezcan cifras distintas.
+  var abono=dn===1?(ab1||total||0):(Number(r.abono2)||Math.max(0,total-ab1));
+  if(abono<=0)return;                      // sin monto no hay nada que facturar
+  if(r['doc'+dn+'_emitida'])return;        // ya se emitió: no se vuelve a ofrecer
+  var esFactura=(r['doc'+dn+'_tipo']||r.doc1_tipo||'BOLETA')==='FACTURA';
   // El nombre por defecto: razón social si es factura, el cliente si es boleta.
   // Se deja editable porque a veces piden facturar a nombre de otra empresa.
   var nombreSug=esFactura?(r.razon_social||((r.nombre||'')+' '+(r.apellido||'')).trim())
@@ -28771,10 +28780,14 @@ function prepararDocumento(numStr){
     var m=[l.producto||'',(l.largo&&l.ancho)?(l.largo+'×'+l.ancho):'' ,l.madera||''].filter(Boolean).join(' ');
     return (Number(l.cantidad)||1)>1?((Number(l.cantidad)||1)+'× '+m):m;
   }).filter(Boolean);
-  var detalleSug='Abono';
+  var detalleSug=dn===1?'Abono':'Saldo final';
+  var tituloDoc=dn===1?'Documento del primer abono':'Documento del saldo';
+  var notaMonto=dn===1?('Abono 1 de la venta. Total del pedido: '+fmtCLP(total))
+                      :('Saldo del pedido. Total '+fmtCLP(total)+' menos abono '+fmtCLP(ab1)+
+                        (r.doc1_num?(' · el abono se facturó con el N° '+esc(r.doc1_num)):''));
   var st='width:100%;padding:8px 10px;border:1px solid var(--border-md);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text)';
   var html='<div class="modal" style="max-width:520px">'+
-    '<div class="modal-header"><div class="modal-title">🧾 Documento del primer abono</div>'+
+    '<div class="modal-header"><div class="modal-title">🧾 '+tituloDoc+'</div>'+
       '<button class="btn-close" onclick="cerrarPrepDoc()">×</button></div>'+
     '<div style="padding:0 4px 4px">'+
       '<div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:14px">'+
@@ -28787,7 +28800,7 @@ function prepararDocumento(numStr){
             '<option value="FACTURA"'+(esFactura?' selected':'')+'>Factura</option></select></div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Monto a facturar</label>'+
           '<input type="number" id="pd-monto" value="'+abono+'" style="'+st+';font-size:18px;font-weight:700">'+
-          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Abono 1 de la venta. Total del pedido: '+fmtCLP(r.total)+'</div></div>'+
+          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">'+notaMonto+'</div></div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">A nombre de</label>'+
           '<input type="text" id="pd-nombre" value="'+esc(nombreSug)+'" style="'+st+'">'+
           '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Cambialo si piden facturar a otro nombre</div></div>'+
@@ -28807,28 +28820,39 @@ function prepararDocumento(numStr){
     '</div>'+
     '<div class="modal-footer">'+
       '<button class="btn-sec" onclick="cerrarPrepDoc()">Después</button>'+
-      '<button class="btn-pri" onclick="emitirDesdePrep(\''+numStr+'\')">Emitir ahora</button>'+
+      '<button class="btn-pri" onclick="emitirDesdePrep(\''+numStr+'\','+dn+')">Emitir ahora</button>'+
     '</div></div>';
   var bg=document.getElementById('modal-prepdoc-bg');
   if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-prepdoc-bg';document.body.appendChild(bg);}
   bg.innerHTML=html;bg.classList.add('open');
 }
 function cerrarPrepDoc(){var b=document.getElementById('modal-prepdoc-bg');if(b)b.classList.remove('open');}
+// Puente del botón "— Pendiente": intenta la revisión en pantalla y, sólo si no
+// se puede abrir, cae al camino de prompt(). prepararDocumento se niega cuando
+// no hay monto que facturar o el documento ya está emitido; en esos casos el
+// botón no puede quedarse mudo, porque el usuario lo apretó para emitir.
+function emitirConRevision(numStr,docNum){
+  prepararDocumento(numStr,docNum);
+  var bg=document.getElementById('modal-prepdoc-bg');
+  if(bg&&bg.classList.contains('open'))return;
+  toggleFinDoc(numStr,docNum);
+}
 // Guarda lo revisado en el registro y recién ahí llama a la emisión, que sigue
 // releyendo del servidor y pidiendo la confirmación final.
-async function emitirDesdePrep(numStr){
+async function emitirDesdePrep(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r)return;
+  var dn=(Number(docNum)===2)?2:1;
   var monto=Number(document.getElementById('pd-monto').value)||0;
   if(monto<=0){showToast('El monto tiene que ser mayor que cero',true);return;}
   var tipo=document.getElementById('pd-tipo').value;
   var nombre=document.getElementById('pd-nombre').value.trim();
   var rut=document.getElementById('pd-rut').value.trim();
-  var detalle=document.getElementById('pd-detalle').value.trim()||'Abono';
+  var detalle=document.getElementById('pd-detalle').value.trim()||(dn===1?'Abono':'Saldo final');
   // el producto del DOCUMENTO puede diferir del registro (ej: facturan "mesa de
   // reunión" lo que en Producción es "Mesa Lago Llanquihue"); no pisa r.producto
   var prodDoc=(document.getElementById('pd-producto')||{value:''}).value.trim()||r.producto||'Producto';
-  r.doc1_tipo=tipo;
+  r['doc'+dn+'_tipo']=tipo;
   r.rut=rut;
   // Si facturan a otro nombre, ese nombre es la razón social del documento;
   // el cliente que compró no se toca.
@@ -28836,7 +28860,7 @@ async function emitirDesdePrep(numStr){
   await _guardarFinanzasFirme(numStr,r);
   cerrarPrepDoc();
   renderFin();
-  toggleFinDoc(numStr,1,{monto:monto,detalle:detalle,producto:prodDoc});
+  toggleFinDoc(numStr,dn,{monto:monto,detalle:detalle,producto:prodDoc});
 }
 // "pre" trae monto y detalle ya revisados en el panel de preparación. Cuando
 // viene, se saltan los prompt() —el dato ya se confirmó en pantalla— pero NO
@@ -28978,7 +29002,11 @@ function _docControls(numStr,docNum){
   if(emitiendo)btnHtml='<button class="doc-btn" disabled style="margin-bottom:4px;opacity:0.6">⏳ Emitiendo…</button>';
   else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button>';
   else if(r[procKey])btnHtml='<button class="doc-btn" onclick="verificarFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px;background:var(--amber,#c9902a)">🔄 Verificar estado</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Ya lo verifiqué en Wasabil: marcarlo como emitido con su folio">✏️</a>';
-  else btnHtml='<button class="doc-btn pendiente" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Marcar como ya emitido, sin llamar a Wasabil (para casos donde ya se emitió afuera o en un solo documento)">✏️</a>';
+  // Va al panel de revisión, no directo a emitir: así se ve el PRODUCTO y la
+  // glosa que van a salir en el documento antes de mandarlo al SII. Si el panel
+  // no aplica (sin monto, o ya emitido) prepararDocumento no abre nada, y ahí
+  // sí cae al camino viejo de prompt(), que sigue siendo la red de seguridad.
+  else btnHtml='<button class="doc-btn pendiente" onclick="emitirConRevision(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Marcar como ya emitido, sin llamar a Wasabil (para casos donde ya se emitió afuera o en un solo documento)">✏️</a>';
   var pdfLink=r[pdfKey]?(' <a href="'+r[pdfKey]+'" target="_blank" style="font-size:10px" title="Ver PDF">📄</a>'):'';
   // Lo FACTURADO va aparte de lo cobrado: si no calzan, hay que verlo.
   var mDoc=Number(r['doc'+docNum+'_monto'])||0;
