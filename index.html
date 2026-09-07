@@ -26436,7 +26436,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
-        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th><th>Etiqueta</th>
+        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th><th>Documentos</th><th>Etiqueta</th>
       </tr></thead>
       <tbody id="cli-tbody"></tbody>
     </table>
@@ -26843,6 +26843,20 @@ function exigirSemana(obj,campoSemana,campoDia,inputId){
   return true;
 }
 function esSemanaValida(s){return /^SEMANA \d{2} [A-Z]+$/.test(String(s||''))&&MESES_ES.indexOf(String(s).split(' ')[2])>=0;}
+// En Producción el mes es el mes en que se FABRICA, no en que se vendió.
+// Antes se filtraba por o.fecha (la venta) mientras las tarjetas agrupaban por
+// semana de producción, así que una semana con pedidos vendidos en dos meses
+// distintos salía partida en dos: media semana en la pestaña de un mes y media
+// en la del otro, cada mitad con su propio "Total semana" y su porcentaje de
+// capacidad mal calculado. La semana del 07 septiembre aparecía con 4.78 m² en
+// septiembre y con 3.35 m² en agosto, cuando en realidad son 8.13 m².
+// El nombre normalizado ya trae el mes ("SEMANA 07 SEPTIEMBRE"), así que sale
+// de ahí; sólo si la semana no se puede interpretar se cae a la fecha.
+function mesDeProduccion(o){
+  var sem=normalizeSemana((o&&o.envio)||'');
+  if(esSemanaValida(sem))return sem.split(' ')[2];
+  return extractMonthFromDate((o&&o.fecha)||(o&&o.fecha_creacion));
+}
 function semanaDeFecha(iso){
   if(!iso)return'';
   var d=new Date(String(iso)+'T12:00:00');
@@ -27779,7 +27793,7 @@ async function loadProd(){
     if(raw)prodOrders=Object.entries(raw).map(e=>Object.assign({},e[1])).sort((a,b)=>Number(a.pedido||0)-Number(b.pedido||0));
     else prodOrders=[];
     renderProd();updateProdStats();
-    renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion);});
+    renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);});
   }catch(e){console.error('Error cargando producción',e);}
 }
 async function saveProdOrder(order){
@@ -28269,11 +28283,11 @@ async function deleteProdOrder(oi){
 const PROD_COLORS=['#FDFAF7','#EEE9E3'];
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
-  renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion);});
+  renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);});
   renderProdCards();
   renderMaderaDash();
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
-  var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+  var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
   // Filtros de búsqueda: semana y madera
   var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
   var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
@@ -28333,7 +28347,7 @@ function _prodFiltrados(){
   var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
   var fCliente=((document.getElementById('prod-filter-cliente')||{}).value||'').toLowerCase().trim();
   var fp=prodMonthFilter==='todos'?prodOrders.slice()
-        :prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+        :prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
   if(fSemana)fp=fp.filter(function(o){return(o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
   if(fMadera)fp=fp.filter(function(o){return(o.lineas||[]).some(function(l){return(l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
   if(fCliente)fp=fp.filter(function(o){return((o.comprador||'')+' '+(o.apellido||'')).toLowerCase().indexOf(fCliente)!==-1;});
@@ -28504,7 +28518,7 @@ async function generarEtiquetaCompra(sem){
   var a=document.createElement('a');a.href=URL.createObjectURL(buf);a.download=fname;a.click();
   showToast('Descargado: '+fname);
 }
-function updateProdStats(){var fp=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});document.getElementById('p-ped').textContent=fp.length;document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
+function updateProdStats(){var fp=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});document.getElementById('p-ped').textContent=fp.length;document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
 function exportProdCSV(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
   const rows=[['PEDIDO','ENVÍO','COMPRADOR','APELLIDO','PRODUCTO','CANTIDAD','MADERA','LARGO','ANCHO','CANTO','ACABADO','ESPESOR','OBSERVACIONES','MTRS2'].join(',')];
@@ -28514,7 +28528,7 @@ function exportProdCSV(){
 function exportProdXLSX(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
   // Aplicar los mismos filtros que renderProd
-  var list=prodMonthFilter==='todos'?prodOrders.slice():prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===prodMonthFilter;});
+  var list=prodMonthFilter==='todos'?prodOrders.slice():prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
   var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
   var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
   if(fSemana)list=list.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
@@ -28735,13 +28749,22 @@ function _aplicarResultadoWasabil(r,docNum,data){
 // quién, y qué se vendió. Antes había que copiarlos a mano justo antes de
 // emitir, que es donde más caro sale equivocarse. Se prellenan y se confirman.
 // Emitir sigue siendo un clic aparte y deliberado: preparar no emite nada.
-function prepararDocumento(numStr){
+// docNum 1 = abono, 2 = saldo. Antes este panel era solo del primer abono y el
+// saldo se emitía por prompt(), que preguntaba monto y glosa pero NUNCA mostraba
+// el PRODUCTO: la línea del documento se mandaba a ciegas desde r.producto y
+// recién se veía en el PDF ya emitido en el SII. Ahora los dos documentos pasan
+// por la misma revisión (07-09-2026, pedido del usuario).
+function prepararDocumento(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r)return;
-  var abono=Number(r.abono1)||0;
-  if(abono<=0)return;                      // sin abono no hay nada que facturar
-  if(r.doc1_emitida)return;                // ya se emitió: no se vuelve a ofrecer
-  var esFactura=(r.doc1_tipo||'BOLETA')==='FACTURA';
+  var dn=(Number(docNum)===2)?2:1;
+  var total=Number(r.total)||0,ab1=Number(r.abono1)||0;
+  // El saldo se calcula igual que en toggleFinDoc, para que el monto sugerido
+  // sea el mismo por los dos caminos y no aparezcan cifras distintas.
+  var abono=dn===1?(ab1||total||0):(Number(r.abono2)||Math.max(0,total-ab1));
+  if(abono<=0)return;                      // sin monto no hay nada que facturar
+  if(r['doc'+dn+'_emitida'])return;        // ya se emitió: no se vuelve a ofrecer
+  var esFactura=(r['doc'+dn+'_tipo']||r.doc1_tipo||'BOLETA')==='FACTURA';
   // El nombre por defecto: razón social si es factura, el cliente si es boleta.
   // Se deja editable porque a veces piden facturar a nombre de otra empresa.
   var nombreSug=esFactura?(r.razon_social||((r.nombre||'')+' '+(r.apellido||'')).trim())
@@ -28757,10 +28780,14 @@ function prepararDocumento(numStr){
     var m=[l.producto||'',(l.largo&&l.ancho)?(l.largo+'×'+l.ancho):'' ,l.madera||''].filter(Boolean).join(' ');
     return (Number(l.cantidad)||1)>1?((Number(l.cantidad)||1)+'× '+m):m;
   }).filter(Boolean);
-  var detalleSug='Abono';
+  var detalleSug=dn===1?'Abono':'Saldo final';
+  var tituloDoc=dn===1?'Documento del primer abono':'Documento del saldo';
+  var notaMonto=dn===1?('Abono 1 de la venta. Total del pedido: '+fmtCLP(total))
+                      :('Saldo del pedido. Total '+fmtCLP(total)+' menos abono '+fmtCLP(ab1)+
+                        (r.doc1_num?(' · el abono se facturó con el N° '+esc(r.doc1_num)):''));
   var st='width:100%;padding:8px 10px;border:1px solid var(--border-md);border-radius:8px;font-size:14px;background:var(--surface);color:var(--text)';
   var html='<div class="modal" style="max-width:520px">'+
-    '<div class="modal-header"><div class="modal-title">🧾 Documento del primer abono</div>'+
+    '<div class="modal-header"><div class="modal-title">🧾 '+tituloDoc+'</div>'+
       '<button class="btn-close" onclick="cerrarPrepDoc()">×</button></div>'+
     '<div style="padding:0 4px 4px">'+
       '<div style="font-size:12px;color:var(--text-3);line-height:1.6;margin-bottom:14px">'+
@@ -28773,7 +28800,7 @@ function prepararDocumento(numStr){
             '<option value="FACTURA"'+(esFactura?' selected':'')+'>Factura</option></select></div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">Monto a facturar</label>'+
           '<input type="number" id="pd-monto" value="'+abono+'" style="'+st+';font-size:18px;font-weight:700">'+
-          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Abono 1 de la venta. Total del pedido: '+fmtCLP(r.total)+'</div></div>'+
+          '<div style="font-size:11px;color:var(--text-3);margin-top:3px">'+notaMonto+'</div></div>'+
         '<div><label style="font-size:11px;font-weight:600;color:var(--text-3)">A nombre de</label>'+
           '<input type="text" id="pd-nombre" value="'+esc(nombreSug)+'" style="'+st+'">'+
           '<div style="font-size:11px;color:var(--text-3);margin-top:3px">Cambialo si piden facturar a otro nombre</div></div>'+
@@ -28793,28 +28820,39 @@ function prepararDocumento(numStr){
     '</div>'+
     '<div class="modal-footer">'+
       '<button class="btn-sec" onclick="cerrarPrepDoc()">Después</button>'+
-      '<button class="btn-pri" onclick="emitirDesdePrep(\''+numStr+'\')">Emitir ahora</button>'+
+      '<button class="btn-pri" onclick="emitirDesdePrep(\''+numStr+'\','+dn+')">Emitir ahora</button>'+
     '</div></div>';
   var bg=document.getElementById('modal-prepdoc-bg');
   if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-prepdoc-bg';document.body.appendChild(bg);}
   bg.innerHTML=html;bg.classList.add('open');
 }
 function cerrarPrepDoc(){var b=document.getElementById('modal-prepdoc-bg');if(b)b.classList.remove('open');}
+// Puente del botón "— Pendiente": intenta la revisión en pantalla y, sólo si no
+// se puede abrir, cae al camino de prompt(). prepararDocumento se niega cuando
+// no hay monto que facturar o el documento ya está emitido; en esos casos el
+// botón no puede quedarse mudo, porque el usuario lo apretó para emitir.
+function emitirConRevision(numStr,docNum){
+  prepararDocumento(numStr,docNum);
+  var bg=document.getElementById('modal-prepdoc-bg');
+  if(bg&&bg.classList.contains('open'))return;
+  toggleFinDoc(numStr,docNum);
+}
 // Guarda lo revisado en el registro y recién ahí llama a la emisión, que sigue
 // releyendo del servidor y pidiendo la confirmación final.
-async function emitirDesdePrep(numStr){
+async function emitirDesdePrep(numStr,docNum){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r)return;
+  var dn=(Number(docNum)===2)?2:1;
   var monto=Number(document.getElementById('pd-monto').value)||0;
   if(monto<=0){showToast('El monto tiene que ser mayor que cero',true);return;}
   var tipo=document.getElementById('pd-tipo').value;
   var nombre=document.getElementById('pd-nombre').value.trim();
   var rut=document.getElementById('pd-rut').value.trim();
-  var detalle=document.getElementById('pd-detalle').value.trim()||'Abono';
+  var detalle=document.getElementById('pd-detalle').value.trim()||(dn===1?'Abono':'Saldo final');
   // el producto del DOCUMENTO puede diferir del registro (ej: facturan "mesa de
   // reunión" lo que en Producción es "Mesa Lago Llanquihue"); no pisa r.producto
   var prodDoc=(document.getElementById('pd-producto')||{value:''}).value.trim()||r.producto||'Producto';
-  r.doc1_tipo=tipo;
+  r['doc'+dn+'_tipo']=tipo;
   r.rut=rut;
   // Si facturan a otro nombre, ese nombre es la razón social del documento;
   // el cliente que compró no se toca.
@@ -28822,7 +28860,90 @@ async function emitirDesdePrep(numStr){
   await _guardarFinanzasFirme(numStr,r);
   cerrarPrepDoc();
   renderFin();
-  toggleFinDoc(numStr,1,{monto:monto,detalle:detalle,producto:prodDoc});
+  toggleFinDoc(numStr,dn,{monto:monto,detalle:detalle,producto:prodDoc});
+}
+// ── Candado antiduplicado en la base ──────────────────────────────────────
+// Devuelve el id de la fila si tomó el candado, 'DUPLICADO' si ya había un
+// documento vivo para ese pedido y número, o null si no se pudo registrar.
+//
+// El orden importa y no es negociable: primero se inserta, después se emite.
+// Al revés —emitir y después anotar— el folio ya está quemado en el SII cuando
+// uno se entera del choque, que es justo lo que pasó con las boletas 7260/7261.
+async function _tomarCandadoDocumento(numStr,docNum,d){
+  try{
+    var fila=await sbInsert('gestion_documentos',{
+      num:String(numStr),doc_num:docNum,tipo:(d.tipo==='FACTURA'?'FACTURA':'BOLETA'),
+      detalle:d.detalle||null,producto:d.producto||null,monto:Math.round(Number(d.monto)||0),
+      cliente:d.cliente||null,rut:d.rut||null,email:d.email||null});
+    return (fila&&fila.id)||null;
+  }catch(e){
+    // 23505 = unique_violation. Es el candado haciendo su trabajo, no un fallo.
+    if(String(e&&e.message||'').indexOf('23505')!==-1)return 'DUPLICADO';
+    console.error('No se pudo tomar el candado de gestion_documentos',e);
+    return null;
+  }
+}
+// Con el folio de vuelta se completa la fila. Si falla, no se toca la emisión:
+// el documento ya existe en el SII y el candado ya está puesto; lo único que
+// queda incompleto es el folio, que se puede rellenar después.
+async function _cerrarCandadoDocumento(id,data){
+  if(!id)return;
+  try{
+    await sbUpdate('gestion_documentos',id,{
+      folio:(data&&data.folio)?String(data.folio):null,
+      uuid:(data&&data.uuid)||null,
+      pdf_url:(data&&data.document_pdf_url)||null,
+      fecha:new Date().toISOString().slice(0,10)});
+  }catch(e){console.error('No se pudo completar el documento '+id,e);}
+}
+// Se emitió con certeza NADA: se suelta el candado para no dejar bloqueado un
+// documento que nunca existió. Solo se llama cuando Wasabil respondió que no
+// creó el documento — nunca ante un corte de red, donde no se sabe.
+async function _soltarCandadoDocumento(id){
+  if(!id)return;
+  try{await sbDelete('gestion_documentos',id);}
+  catch(e){console.error('No se pudo soltar el candado '+id,e);}
+}
+// ── Anular un documento ───────────────────────────────────────────────────
+// Esto NO emite la nota de crédito: la NC se emite en Wasabil, y acá se registra
+// que se emitió. Se mantiene así a propósito — el botón de esta app manda
+// documentos reales al SII y no hace falta un segundo camino que también lo haga.
+//
+// Marcar `anulada` es lo que libera el cupo: el índice único es parcial
+// (where not anulada), así que con la fila anulada el pedido vuelve a admitir
+// ese documento. Es la única salida legítima; sin esto, un documento mal emitido
+// dejaría el pedido bloqueado para siempre.
+async function anularDocumento(numStr,docNum){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
+  var emitidaKey='doc'+docNum+'_emitida',numKey='doc'+docNum+'_num';
+  var id=await _documentoDePedido(numStr,docNum);
+  if(!id){showToast('No encontré ese documento registrado en la base',true);return;}
+  var nc=prompt('¿Con qué NOTA DE CRÉDITO se anuló el documento '+(r[numKey]||'')+' del pedido '+numStr+'?\n\n'+
+    'Emitila primero en Wasabil y escribí acá su número de folio. Esto no emite nada:\n'+
+    'solo registra la anulación y libera el cupo para poder emitir de nuevo.','');
+  if(nc===null)return;
+  nc=String(nc).trim();
+  if(!nc){showToast('Sin el folio de la nota de crédito no se puede registrar',true);return;}
+  var motivo=prompt('Motivo (queda guardado junto a la anulación):','Anula documento duplicado - pedido '+numStr);
+  if(motivo===null)return;
+  try{
+    await sbUpdate('gestion_documentos',id,{anulada:true,nc_folio:nc,nc_motivo:String(motivo).trim()||null});
+  }catch(e){showToast('No se pudo registrar la anulación: '+e.message,true);return;}
+  // Recién con la anulación guardada se libera el estado en pantalla.
+  r[emitidaKey]=false;r['doc'+docNum+'_procesando']=false;
+  await _guardarFinanzasFirme(numStr,r);
+  await loadDocumentos();
+  renderFin();
+  showToast('✓ Anulado con la NC '+nc+' — el documento se puede volver a emitir');
+}
+// Busca la fila viva (no anulada) de un documento. Hace falta porque "Verificar
+// estado" corre en otra pasada, cuando ya no se tiene a mano el id del candado.
+async function _documentoDePedido(numStr,docNum){
+  try{
+    var f=await sbGet('gestion_documentos','num=eq.'+encodeURIComponent(numStr)+
+      '&doc_num=eq.'+docNum+'&anulada=is.false&select=id&limit=1');
+    return (f&&f[0]&&f[0].id)||null;
+  }catch(e){console.error('No se pudo buscar el documento del pedido '+numStr,e);return null;}
 }
 // "pre" trae monto y detalle ya revisados en el panel de preparación. Cuando
 // viene, se saltan los prompt() —el dato ya se confirmó en pantalla— pero NO
@@ -28865,6 +28986,10 @@ async function toggleFinDoc(numStr,docNum,pre){
   if(!monto||monto<=0){showToast('Monto inválido — se canceló la emisión.');return;}
   var detalle=(pre&&pre.detalle!==undefined)?String(pre.detalle):prompt('Detalle para la boleta/factura (ej: "Abono 60%", "Saldo final", "Pago único"):',docNum===1?'Abono':'Saldo');
   if(detalle===null)return;
+  // El producto que va impreso en el documento. Sale del panel de revisión
+  // cuando se pasó por ahí; si no, del registro. Se calcula una sola vez para
+  // que el candado y el payload a Wasabil guarden exactamente lo mismo.
+  var productoDoc=((pre&&pre.producto)||r.producto||'Producto');
   // El monto FACTURADO se guarda aparte del monto COBRADO: son cosas distintas
   // y antes emitir pisaba el abono, borrando el registro de lo que entró.
   r['doc'+docNum+'_monto']=monto;
@@ -28874,19 +28999,53 @@ async function toggleFinDoc(numStr,docNum,pre){
   // Marca de intento: si el navegador muere entre el fetch y el guardado, esto
   // ya quedó escrito y el próximo intento encuentra el candado puesto.
   r[procKey]=true;await _guardarFinanzasFirme(numStr,r);
+  // ── El candado de verdad ────────────────────────────────────────────────
+  // La fila de gestion_documentos se toma ANTES de llamar a Wasabil. El índice
+  // único (num, doc_num) where not anulada vive en Postgres, así que no depende
+  // de que este navegador tenga cargado finRecords — que es exactamente lo que
+  // falló el 02-09-2026 y produjo las boletas 7260 y 7261 duplicadas.
+  // Insertar es tomar el candado; si ya existe, la emisión ni se intenta.
+  var docRowId=await _tomarCandadoDocumento(numStr,docNum,{
+    tipo:tipo,detalle:detalle,producto:productoDoc,monto:monto,
+    cliente:nombreCliente.trim(),rut:r.rut||null,email:r.email||null});
+  if(docRowId==='DUPLICADO'){
+    r[procKey]=false;await _guardarFinanzasFirme(numStr,r);
+    delete finEmitiendo[emKey];renderFin();
+    alert('⛔ NO se emitió nada.\n\nEl pedido '+numStr+' ya tiene registrado su Documento '+docNum+
+          ' como emitido en la base.\n\nSi de verdad hay que emitirlo de nuevo, primero hay que anular el '+
+          'anterior con nota de crédito y marcarlo como anulado acá — eso libera el cupo.');
+    return;
+  }
+  if(docRowId===null){
+    r[procKey]=false;await _guardarFinanzasFirme(numStr,r);
+    delete finEmitiendo[emKey];renderFin();
+    alert('⛔ NO se emitió nada.\n\nNo se pudo registrar el documento en la base, y sin ese registro '+
+          'no hay nada que impida emitirlo dos veces.\n\nRevisá la conexión y volvé a intentar.');
+    return;
+  }
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:productoDoc,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     var guardado=await _guardarFinanzasFirme(numStr,r);
     if(data&&data.success){
+      await _cerrarCandadoDocumento(docRowId,data);
       showToast('✓ '+tipo+' emitida — folio '+(data.folio||'?'));
       // Si el documento existe en el SII pero no logramos guardar el estado, hay
       // que decirlo fuerte: es la situación que provoca la doble emisión.
       if(!guardado)alert('⚠ OJO: la '+tipo+' SÍ se emitió (folio '+(data.folio||'?')+') pero NO se pudo guardar el estado.\n\nNO vuelvas a apretar Emitir para este documento. Revisá la conexión, recargá la página y usá "Marcar emitido manual" con ese folio.');
     }
-    else if(data&&data.status_id===2)showToast('⏳ Wasabil sigue procesando (el SII está tardando). Usá "Verificar estado" en un rato — no vuelvas a apretar Pendiente.');
-    else showToast('✗ No se pudo emitir: '+((data&&(data.error||data.display_error))||'error desconocido'));
+    else if(data&&data.status_id===2){
+      // Está en cola en el SII: el documento EXISTE. El candado se queda puesto
+      // y la fila se completa cuando "Verificar estado" traiga el folio.
+      showToast('⏳ Wasabil sigue procesando (el SII está tardando). Usá "Verificar estado" en un rato — no vuelvas a apretar Pendiente.');
+    }
+    else{
+      // Wasabil respondió que no creó nada: acá sí se sabe que no hay documento,
+      // así que se suelta el candado o el pedido queda bloqueado para siempre.
+      await _soltarCandadoDocumento(docRowId);
+      showToast('✗ No se pudo emitir: '+((data&&(data.error||data.display_error))||'error desconocido'));
+    }
   }catch(e){
     // Se cortó la red durante el envío: el documento PUDO haberse emitido igual.
     // Dejamos el candado puesto para que nadie re-emita a ciegas.
@@ -28928,6 +29087,10 @@ async function verificarFinDoc(numStr,docNum){
     // candado puesto pero no hay con qué consultar. Se libera sólo a mano.
     if(!confirm('No hay uuid para consultar (se cortó la conexión antes de que Wasabil respondiera).\n\nRevisá en Wasabil si el documento del pedido '+numStr+' existe:\n\n• Si SÍ existe → cancelá acá y usá el lápiz ✏️ para marcarlo con su folio.\n• Si NO existe → aceptá para liberarlo y poder emitir de nuevo.'))return;
     r[procKey]=false;
+    // Confirmaste que el documento NO existe en Wasabil, así que además del
+    // candado en pantalla hay que soltar el de la base: si no, el índice único
+    // seguiría bloqueando la reemisión y el botón daría "ya está emitido".
+    await _soltarCandadoDocumento(await _documentoDePedido(numStr,docNum));
     var ok=await _guardarFinanzasFirme(numStr,r);
     renderFin();showToast(ok?'Liberado — ya podés emitir':'✗ No se pudo guardar, revisá la conexión');
     return;
@@ -28938,7 +29101,12 @@ async function verificarFinDoc(numStr,docNum){
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
-    if(data&&data.success)showToast('✓ Confirmado — folio '+(data.folio||'?'));
+    if(data&&data.success){
+      // Recién acá se conoce el folio de los que quedaron en cola: se completa
+      // la fila que el candado dejó a medio llenar al emitir.
+      await _cerrarCandadoDocumento(await _documentoDePedido(numStr,docNum),data);
+      showToast('✓ Confirmado — folio '+(data.folio||'?'));
+    }
     else if(data&&data.status_id===2)showToast('⏳ Sigue Procesando, probá de nuevo en un rato');
     else showToast('✗ '+((data&&(data.error||data.display_error))||'Fallido'));
   }catch(e){
@@ -28962,9 +29130,17 @@ function _docControls(numStr,docNum){
   var btnHtml;
   var procKey='doc'+docNum+'_procesando';
   if(emitiendo)btnHtml='<button class="doc-btn" disabled style="margin-bottom:4px;opacity:0.6">⏳ Emitiendo…</button>';
-  else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button>';
+  // El enlace de anular está acá y no escondido en un menú porque es la única
+  // salida legítima cuando un documento salió mal: marcarlo pendiente ya no
+  // alcanza para reemitir, el candado de la base sigue puesto hasta que se
+  // registre la nota de crédito.
+  else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button> <a href="#" onclick="event.preventDefault();anularDocumento(\''+numStr+'\','+docNum+')" style="font-size:10px;color:var(--text-3)" title="Registrar que se anuló con nota de crédito. Libera el cupo para volver a emitir.">anular</a>';
   else if(r[procKey])btnHtml='<button class="doc-btn" onclick="verificarFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px;background:var(--amber,#c9902a)">🔄 Verificar estado</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Ya lo verifiqué en Wasabil: marcarlo como emitido con su folio">✏️</a>';
-  else btnHtml='<button class="doc-btn pendiente" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Marcar como ya emitido, sin llamar a Wasabil (para casos donde ya se emitió afuera o en un solo documento)">✏️</a>';
+  // Va al panel de revisión, no directo a emitir: así se ve el PRODUCTO y la
+  // glosa que van a salir en el documento antes de mandarlo al SII. Si el panel
+  // no aplica (sin monto, o ya emitido) prepararDocumento no abre nada, y ahí
+  // sí cae al camino viejo de prompt(), que sigue siendo la red de seguridad.
+  else btnHtml='<button class="doc-btn pendiente" onclick="emitirConRevision(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">— Pendiente</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Marcar como ya emitido, sin llamar a Wasabil (para casos donde ya se emitió afuera o en un solo documento)">✏️</a>';
   var pdfLink=r[pdfKey]?(' <a href="'+r[pdfKey]+'" target="_blank" style="font-size:10px" title="Ver PDF">📄</a>'):'';
   // Lo FACTURADO va aparte de lo cobrado: si no calzan, hay que verlo.
   var mDoc=Number(r['doc'+docNum+'_monto'])||0;
@@ -31735,6 +31911,10 @@ async function loadClientesSeguro(){
 }
 async function initAllModules(){
   await loadProd();
+  // Fuera del if de rol a propósito: los tres roles ven el historial de
+  // documentos del cliente. Es lo único de facturación que un vendedor puede
+  // leer, y la política de la tabla (es_usuario) lo permite explícitamente.
+  await loadDocumentos();
   if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
   else if(usuarioRol==='taller'){await loadGastos();}
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
@@ -31937,6 +32117,49 @@ function renderNotif(){
 }
 
 // ── TAB CLIENTES ──────────────────────────────────────────────────────────────
+// ── Documentos emitidos: boletas y facturas por cliente ───────────────────
+// Se cargan para TODOS los roles, no solo admin. Ese es justamente el punto de
+// la tabla: que un vendedor vea las boletas de sus clientes sin darle acceso a
+// Finanzas, que sigue siendo solo_admin. En gestion_documentos no hay márgenes
+// ni comisiones — solo folio, monto, producto y el link al PDF.
+var docRecords=[];
+async function loadDocumentos(){
+  if(!DB_URL)return;
+  try{docRecords=(await sbGet('gestion_documentos','select=*&order=fecha.desc.nullslast,id.desc'))||[];}
+  catch(e){console.error('No se pudieron cargar los documentos emitidos',e);docRecords=[];}
+}
+function _rutPlano(x){return String(x||'').replace(/[.\-\s]/g,'').toUpperCase();}
+// Se pegan al cliente por número de pedido y, cuando el documento no lo trae
+// (ventas de plataforma, y todo lo anterior a esta tabla), por RUT o correo.
+// Para eso la fila guarda cliente, rut y correo copiados en el momento de
+// emitir: el historial tiene que sobrevivir a que el pedido cambie después.
+function documentosDeCliente(c){
+  if(!docRecords.length)return[];
+  var peds={},mail=(c.email||'').toLowerCase().trim(),rut=_rutPlano(c.rut);
+  (c.pedidos||[]).forEach(function(n){if(n)peds[String(n)]=1;});
+  return docRecords.filter(function(d){
+    if(d.num&&peds[String(d.num)])return true;
+    if(rut&&_rutPlano(d.rut)===rut)return true;
+    if(mail&&String(d.email||'').toLowerCase().trim()===mail)return true;
+    return false;
+  });
+}
+// Una pastilla por documento. La anulada se muestra tachada en vez de
+// esconderse: que el cliente tenga una boleta anulada es información, y
+// ocultarla es cómo uno termina emitiendo la misma boleta dos veces.
+function _pastillasDocs(c){
+  var docs=documentosDeCliente(c);
+  if(!docs.length)return'<span style="font-size:11px;color:var(--text-3)">—</span>';
+  return docs.map(function(d){
+    var et=(d.tipo==='FACTURA'?'F ':'B ')+(d.folio||'s/folio');
+    var tit=[d.producto||'',d.detalle||'',d.monto?fmtCLP(d.monto):'',d.fecha||'',
+             d.num?('pedido '+d.num):''].filter(Boolean).join(' · ');
+    var base='display:inline-block;font-size:10px;padding:2px 6px;border-radius:6px;margin:1px 2px 1px 0;white-space:nowrap;';
+    if(d.anulada)return'<span style="'+base+'background:var(--surface3);color:var(--text-3);text-decoration:line-through" title="Anulada con nota de crédito '+esc(d.nc_folio||'')+'">'+esc(et)+'</span>';
+    if(!d.pdf_url)return'<span style="'+base+'background:var(--surface3);color:var(--text-2)" title="'+esc(tit)+' — sin PDF todavía">'+esc(et)+'</span>';
+    return'<a href="'+esc(d.pdf_url)+'" target="_blank" rel="noopener" style="'+base+'background:var(--green-dim);color:var(--green-text);text-decoration:none;font-weight:600" title="'+esc(tit)+'">🧾 '+esc(et)+'</a>';
+  }).join('');
+}
 function buildClienteMap(){
   var map={};
   // Solo ventas: un muestrario no convierte a alguien en cliente con pedido, y
@@ -31952,6 +32175,9 @@ function buildClienteMap(){
     if(!map[key].ultimo||fc>map[key].ultimo){map[key].ultimo=fc;map[key].ultimaSemana=r.semana||'';map[key].ultimoNum=String(r.num||'');var _pc=estadoPagoFin(r);map[key].ultimoEstado=_pc.debe?'Pendiente':(_pc.excedente?'Excedente '+_pc.txt:'✓ Pagado');}
     if(!map[key].email&&r.email)map[key].email=r.email;
     if(!map[key].celular&&r.celular)map[key].celular=r.celular;
+    // El RUT es la llave más fuerte para pegarle sus documentos al cliente:
+    // el nombre se escribe distinto cada vez y el correo a veces falta.
+    if(!map[key].rut&&r.rut)map[key].rut=r.rut;
   });
   return Object.values(map);
 }
@@ -31979,6 +32205,7 @@ function renderClientes(){
       '<td style="font-size:12px;color:var(--text-3)">'+esc(c.ultimo||'—')+'</td>'+
       '<td style="font-size:12px">'+esc(c.ultimaSemana||'—')+'</td>'+
       '<td><span style="font-size:11px;font-weight:600;color:'+(c.ultimoEstado.includes('Pendiente')?'var(--amber)':'var(--green)')+'">'+c.ultimoEstado+'</span></td>'+
+      '<td style="max-width:220px">'+_pastillasDocs(c)+'</td>'+
       '<td style="text-align:center">'+(c.ultimoNum?'<button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0;white-space:nowrap" onclick="generarEtiqueta(\''+c.ultimoNum+'\')" title="Etiqueta de envío del pedido '+c.ultimoNum+'">📦</button>':'—')+'</td></tr>';
   }).join('');
 }
@@ -32289,7 +32516,10 @@ function renderDash(){
     {label:'Cobrado '+mesLabel,val:fmtCLP(cobrMes),sub:'Saldo: '+fmtCLP(saldoMes),delta:null,color:'var(--text)',page:'fin'},
     {label:'Saldo por cobrar',val:fmtCLP(saldoMes),sub:pedMes+' pedidos activos',delta:null,color:saldoMes>0?'var(--amber)':'var(--green)',page:'fin'},
     {label:'Ticket promedio',val:fmtCLP(ticketMes),sub:'Ant: '+fmtCLP(ticketAnt),delta:delta(ticketMes,ticketAnt),color:'var(--text)',page:'fin'},
-    {label:'En producción',val:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===mesActual;}).length,sub:'pedidos este mes',delta:null,color:'var(--brand)',page:'prod'}
+    /* Cuenta por mes de FABRICACIÓN, igual que la vista de Producción: un
+       pedido vendido en agosto que se fabrica en septiembre está en producción
+       en septiembre, no en agosto. Antes miraba la fecha de venta. */
+    {label:'En producción',val:prodOrders.filter(function(o){return mesDeProduccion(o)===mesActual;}).length,sub:'pedidos este mes',delta:null,color:'var(--brand)',page:'prod'}
   ];
   var kpiEl=document.getElementById('dash-kpis');if(kpiEl)kpiEl.innerHTML=kpis.map(function(k){var dHtml=k.delta?'<span class="kpi-delta '+k.delta.cls+'">'+k.delta.txt+'</span>':'';return'<div class="kpi-card" onclick="goToPage(\''+k.page+'\')" style="cursor:pointer;transition:transform .12s" onmouseenter="this.style.transform=\'translateY(-2px)\'" onmouseleave="this.style.transform=\'\'"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div>'+dHtml+'<div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
   var hoyD=new Date();hoyD.setHours(0,0,0,0);
@@ -32334,7 +32564,7 @@ function renderFinCards(){
 function renderProdCards(){
   var el=document.getElementById('prod-mobile-cards');if(!el)return;
   var mf=prodMonthFilter,fs=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase(),fm=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase();
-  var list=prodOrders.slice();if(mf!=='todos')list=list.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===mf;});if(fs)list=list.filter(function(o){return(o.envio||'').toLowerCase().indexOf(fs)!==-1;});if(fm)list=list.filter(function(o){return(o.lineas||[]).some(function(l){return(l.madera||'').toLowerCase().indexOf(fm)!==-1;});});
+  var list=prodOrders.slice();if(mf!=='todos')list=list.filter(function(o){return mesDeProduccion(o)===mf;});if(fs)list=list.filter(function(o){return(o.envio||'').toLowerCase().indexOf(fs)!==-1;});if(fm)list=list.filter(function(o){return(o.lineas||[]).some(function(l){return(l.madera||'').toLowerCase().indexOf(fm)!==-1;});});
   if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">🪵</span>Sin pedidos.</div>';return;}
   var html2='';list.forEach(function(o){var lineasHtml='';(o.lineas||[]).forEach(function(l){lineasHtml+='<div class="prod-linea"><div class="prod-linea-prod">'+esc(l.producto||'—')+'</div><div class="prod-linea-specs">'+[esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',esc(l.canto),esc(l.acabado)].filter(Boolean).join(' · ')+'</div></div>';});html2+='<div class="prod-card"><div class="prod-card-header"><div><div class="prod-card-num">#'+(o.pedido||'—')+'</div><div class="prod-card-client">'+esc(o.comprador)+' '+esc(o.apellido)+'</div><div class="prod-card-semana">'+(o.envio||'')+'</div></div></div>'+lineasHtml+'</div>';});
   el.innerHTML=html2;
