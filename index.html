@@ -26436,7 +26436,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
-        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th><th>Etiqueta</th>
+        <th>Cliente</th><th>Email</th><th>Celular</th><th>Pedidos</th><th>Total facturado</th><th>Ticket prom.</th><th>Último pedido</th><th>Semana</th><th>Estado últ.</th><th>Documentos</th><th>Etiqueta</th>
       </tr></thead>
       <tbody id="cli-tbody"></tbody>
     </table>
@@ -28904,6 +28904,38 @@ async function _soltarCandadoDocumento(id){
   try{await sbDelete('gestion_documentos',id);}
   catch(e){console.error('No se pudo soltar el candado '+id,e);}
 }
+// ── Anular un documento ───────────────────────────────────────────────────
+// Esto NO emite la nota de crédito: la NC se emite en Wasabil, y acá se registra
+// que se emitió. Se mantiene así a propósito — el botón de esta app manda
+// documentos reales al SII y no hace falta un segundo camino que también lo haga.
+//
+// Marcar `anulada` es lo que libera el cupo: el índice único es parcial
+// (where not anulada), así que con la fila anulada el pedido vuelve a admitir
+// ese documento. Es la única salida legítima; sin esto, un documento mal emitido
+// dejaría el pedido bloqueado para siempre.
+async function anularDocumento(numStr,docNum){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});if(!r)return;
+  var emitidaKey='doc'+docNum+'_emitida',numKey='doc'+docNum+'_num';
+  var id=await _documentoDePedido(numStr,docNum);
+  if(!id){showToast('No encontré ese documento registrado en la base',true);return;}
+  var nc=prompt('¿Con qué NOTA DE CRÉDITO se anuló el documento '+(r[numKey]||'')+' del pedido '+numStr+'?\n\n'+
+    'Emitila primero en Wasabil y escribí acá su número de folio. Esto no emite nada:\n'+
+    'solo registra la anulación y libera el cupo para poder emitir de nuevo.','');
+  if(nc===null)return;
+  nc=String(nc).trim();
+  if(!nc){showToast('Sin el folio de la nota de crédito no se puede registrar',true);return;}
+  var motivo=prompt('Motivo (queda guardado junto a la anulación):','Anula documento duplicado - pedido '+numStr);
+  if(motivo===null)return;
+  try{
+    await sbUpdate('gestion_documentos',id,{anulada:true,nc_folio:nc,nc_motivo:String(motivo).trim()||null});
+  }catch(e){showToast('No se pudo registrar la anulación: '+e.message,true);return;}
+  // Recién con la anulación guardada se libera el estado en pantalla.
+  r[emitidaKey]=false;r['doc'+docNum+'_procesando']=false;
+  await _guardarFinanzasFirme(numStr,r);
+  await loadDocumentos();
+  renderFin();
+  showToast('✓ Anulado con la NC '+nc+' — el documento se puede volver a emitir');
+}
 // Busca la fila viva (no anulada) de un documento. Hace falta porque "Verificar
 // estado" corre en otra pasada, cuando ya no se tiene a mano el id del candado.
 async function _documentoDePedido(numStr,docNum){
@@ -29098,7 +29130,11 @@ function _docControls(numStr,docNum){
   var btnHtml;
   var procKey='doc'+docNum+'_procesando';
   if(emitiendo)btnHtml='<button class="doc-btn" disabled style="margin-bottom:4px;opacity:0.6">⏳ Emitiendo…</button>';
-  else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button>';
+  // El enlace de anular está acá y no escondido en un menú porque es la única
+  // salida legítima cuando un documento salió mal: marcarlo pendiente ya no
+  // alcanza para reemitir, el candado de la base sigue puesto hasta que se
+  // registre la nota de crédito.
+  else if(r[emitidaKey])btnHtml='<button class="doc-btn emitida" onclick="toggleFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px">✓ Emitida</button> <a href="#" onclick="event.preventDefault();anularDocumento(\''+numStr+'\','+docNum+')" style="font-size:10px;color:var(--text-3)" title="Registrar que se anuló con nota de crédito. Libera el cupo para volver a emitir.">anular</a>';
   else if(r[procKey])btnHtml='<button class="doc-btn" onclick="verificarFinDoc(\''+numStr+'\','+docNum+')" style="margin-bottom:4px;background:var(--amber,#c9902a)">🔄 Verificar estado</button> <a href="#" onclick="event.preventDefault();marcarFinDocManual(\''+numStr+'\','+docNum+')" style="font-size:10px" title="Ya lo verifiqué en Wasabil: marcarlo como emitido con su folio">✏️</a>';
   // Va al panel de revisión, no directo a emitir: así se ve el PRODUCTO y la
   // glosa que van a salir en el documento antes de mandarlo al SII. Si el panel
@@ -31875,6 +31911,10 @@ async function loadClientesSeguro(){
 }
 async function initAllModules(){
   await loadProd();
+  // Fuera del if de rol a propósito: los tres roles ven el historial de
+  // documentos del cliente. Es lo único de facturación que un vendedor puede
+  // leer, y la política de la tabla (es_usuario) lo permite explícitamente.
+  await loadDocumentos();
   if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
   else if(usuarioRol==='taller'){await loadGastos();}
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
@@ -32077,6 +32117,49 @@ function renderNotif(){
 }
 
 // ── TAB CLIENTES ──────────────────────────────────────────────────────────────
+// ── Documentos emitidos: boletas y facturas por cliente ───────────────────
+// Se cargan para TODOS los roles, no solo admin. Ese es justamente el punto de
+// la tabla: que un vendedor vea las boletas de sus clientes sin darle acceso a
+// Finanzas, que sigue siendo solo_admin. En gestion_documentos no hay márgenes
+// ni comisiones — solo folio, monto, producto y el link al PDF.
+var docRecords=[];
+async function loadDocumentos(){
+  if(!DB_URL)return;
+  try{docRecords=(await sbGet('gestion_documentos','select=*&order=fecha.desc.nullslast,id.desc'))||[];}
+  catch(e){console.error('No se pudieron cargar los documentos emitidos',e);docRecords=[];}
+}
+function _rutPlano(x){return String(x||'').replace(/[.\-\s]/g,'').toUpperCase();}
+// Se pegan al cliente por número de pedido y, cuando el documento no lo trae
+// (ventas de plataforma, y todo lo anterior a esta tabla), por RUT o correo.
+// Para eso la fila guarda cliente, rut y correo copiados en el momento de
+// emitir: el historial tiene que sobrevivir a que el pedido cambie después.
+function documentosDeCliente(c){
+  if(!docRecords.length)return[];
+  var peds={},mail=(c.email||'').toLowerCase().trim(),rut=_rutPlano(c.rut);
+  (c.pedidos||[]).forEach(function(n){if(n)peds[String(n)]=1;});
+  return docRecords.filter(function(d){
+    if(d.num&&peds[String(d.num)])return true;
+    if(rut&&_rutPlano(d.rut)===rut)return true;
+    if(mail&&String(d.email||'').toLowerCase().trim()===mail)return true;
+    return false;
+  });
+}
+// Una pastilla por documento. La anulada se muestra tachada en vez de
+// esconderse: que el cliente tenga una boleta anulada es información, y
+// ocultarla es cómo uno termina emitiendo la misma boleta dos veces.
+function _pastillasDocs(c){
+  var docs=documentosDeCliente(c);
+  if(!docs.length)return'<span style="font-size:11px;color:var(--text-3)">—</span>';
+  return docs.map(function(d){
+    var et=(d.tipo==='FACTURA'?'F ':'B ')+(d.folio||'s/folio');
+    var tit=[d.producto||'',d.detalle||'',d.monto?fmtCLP(d.monto):'',d.fecha||'',
+             d.num?('pedido '+d.num):''].filter(Boolean).join(' · ');
+    var base='display:inline-block;font-size:10px;padding:2px 6px;border-radius:6px;margin:1px 2px 1px 0;white-space:nowrap;';
+    if(d.anulada)return'<span style="'+base+'background:var(--surface3);color:var(--text-3);text-decoration:line-through" title="Anulada con nota de crédito '+esc(d.nc_folio||'')+'">'+esc(et)+'</span>';
+    if(!d.pdf_url)return'<span style="'+base+'background:var(--surface3);color:var(--text-2)" title="'+esc(tit)+' — sin PDF todavía">'+esc(et)+'</span>';
+    return'<a href="'+esc(d.pdf_url)+'" target="_blank" rel="noopener" style="'+base+'background:var(--green-dim);color:var(--green-text);text-decoration:none;font-weight:600" title="'+esc(tit)+'">🧾 '+esc(et)+'</a>';
+  }).join('');
+}
 function buildClienteMap(){
   var map={};
   // Solo ventas: un muestrario no convierte a alguien en cliente con pedido, y
@@ -32092,6 +32175,9 @@ function buildClienteMap(){
     if(!map[key].ultimo||fc>map[key].ultimo){map[key].ultimo=fc;map[key].ultimaSemana=r.semana||'';map[key].ultimoNum=String(r.num||'');var _pc=estadoPagoFin(r);map[key].ultimoEstado=_pc.debe?'Pendiente':(_pc.excedente?'Excedente '+_pc.txt:'✓ Pagado');}
     if(!map[key].email&&r.email)map[key].email=r.email;
     if(!map[key].celular&&r.celular)map[key].celular=r.celular;
+    // El RUT es la llave más fuerte para pegarle sus documentos al cliente:
+    // el nombre se escribe distinto cada vez y el correo a veces falta.
+    if(!map[key].rut&&r.rut)map[key].rut=r.rut;
   });
   return Object.values(map);
 }
@@ -32119,6 +32205,7 @@ function renderClientes(){
       '<td style="font-size:12px;color:var(--text-3)">'+esc(c.ultimo||'—')+'</td>'+
       '<td style="font-size:12px">'+esc(c.ultimaSemana||'—')+'</td>'+
       '<td><span style="font-size:11px;font-weight:600;color:'+(c.ultimoEstado.includes('Pendiente')?'var(--amber)':'var(--green)')+'">'+c.ultimoEstado+'</span></td>'+
+      '<td style="max-width:220px">'+_pastillasDocs(c)+'</td>'+
       '<td style="text-align:center">'+(c.ultimoNum?'<button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0;white-space:nowrap" onclick="generarEtiqueta(\''+c.ultimoNum+'\')" title="Etiqueta de envío del pedido '+c.ultimoNum+'">📦</button>':'—')+'</td></tr>';
   }).join('');
 }
