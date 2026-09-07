@@ -28862,6 +28862,57 @@ async function emitirDesdePrep(numStr,docNum){
   renderFin();
   toggleFinDoc(numStr,dn,{monto:monto,detalle:detalle,producto:prodDoc});
 }
+// ── Candado antiduplicado en la base ──────────────────────────────────────
+// Devuelve el id de la fila si tomó el candado, 'DUPLICADO' si ya había un
+// documento vivo para ese pedido y número, o null si no se pudo registrar.
+//
+// El orden importa y no es negociable: primero se inserta, después se emite.
+// Al revés —emitir y después anotar— el folio ya está quemado en el SII cuando
+// uno se entera del choque, que es justo lo que pasó con las boletas 7260/7261.
+async function _tomarCandadoDocumento(numStr,docNum,d){
+  try{
+    var fila=await sbInsert('gestion_documentos',{
+      num:String(numStr),doc_num:docNum,tipo:(d.tipo==='FACTURA'?'FACTURA':'BOLETA'),
+      detalle:d.detalle||null,producto:d.producto||null,monto:Math.round(Number(d.monto)||0),
+      cliente:d.cliente||null,rut:d.rut||null,email:d.email||null});
+    return (fila&&fila.id)||null;
+  }catch(e){
+    // 23505 = unique_violation. Es el candado haciendo su trabajo, no un fallo.
+    if(String(e&&e.message||'').indexOf('23505')!==-1)return 'DUPLICADO';
+    console.error('No se pudo tomar el candado de gestion_documentos',e);
+    return null;
+  }
+}
+// Con el folio de vuelta se completa la fila. Si falla, no se toca la emisión:
+// el documento ya existe en el SII y el candado ya está puesto; lo único que
+// queda incompleto es el folio, que se puede rellenar después.
+async function _cerrarCandadoDocumento(id,data){
+  if(!id)return;
+  try{
+    await sbUpdate('gestion_documentos',id,{
+      folio:(data&&data.folio)?String(data.folio):null,
+      uuid:(data&&data.uuid)||null,
+      pdf_url:(data&&data.document_pdf_url)||null,
+      fecha:new Date().toISOString().slice(0,10)});
+  }catch(e){console.error('No se pudo completar el documento '+id,e);}
+}
+// Se emitió con certeza NADA: se suelta el candado para no dejar bloqueado un
+// documento que nunca existió. Solo se llama cuando Wasabil respondió que no
+// creó el documento — nunca ante un corte de red, donde no se sabe.
+async function _soltarCandadoDocumento(id){
+  if(!id)return;
+  try{await sbDelete('gestion_documentos',id);}
+  catch(e){console.error('No se pudo soltar el candado '+id,e);}
+}
+// Busca la fila viva (no anulada) de un documento. Hace falta porque "Verificar
+// estado" corre en otra pasada, cuando ya no se tiene a mano el id del candado.
+async function _documentoDePedido(numStr,docNum){
+  try{
+    var f=await sbGet('gestion_documentos','num=eq.'+encodeURIComponent(numStr)+
+      '&doc_num=eq.'+docNum+'&anulada=is.false&select=id&limit=1');
+    return (f&&f[0]&&f[0].id)||null;
+  }catch(e){console.error('No se pudo buscar el documento del pedido '+numStr,e);return null;}
+}
 // "pre" trae monto y detalle ya revisados en el panel de preparación. Cuando
 // viene, se saltan los prompt() —el dato ya se confirmó en pantalla— pero NO
 // se saltan los candados: igual se relee el estado del servidor y se pide la
@@ -28903,6 +28954,10 @@ async function toggleFinDoc(numStr,docNum,pre){
   if(!monto||monto<=0){showToast('Monto inválido — se canceló la emisión.');return;}
   var detalle=(pre&&pre.detalle!==undefined)?String(pre.detalle):prompt('Detalle para la boleta/factura (ej: "Abono 60%", "Saldo final", "Pago único"):',docNum===1?'Abono':'Saldo');
   if(detalle===null)return;
+  // El producto que va impreso en el documento. Sale del panel de revisión
+  // cuando se pasó por ahí; si no, del registro. Se calcula una sola vez para
+  // que el candado y el payload a Wasabil guarden exactamente lo mismo.
+  var productoDoc=((pre&&pre.producto)||r.producto||'Producto');
   // El monto FACTURADO se guarda aparte del monto COBRADO: son cosas distintas
   // y antes emitir pisaba el abono, borrando el registro de lo que entró.
   r['doc'+docNum+'_monto']=monto;
@@ -28912,19 +28967,53 @@ async function toggleFinDoc(numStr,docNum,pre){
   // Marca de intento: si el navegador muere entre el fetch y el guardado, esto
   // ya quedó escrito y el próximo intento encuentra el candado puesto.
   r[procKey]=true;await _guardarFinanzasFirme(numStr,r);
+  // ── El candado de verdad ────────────────────────────────────────────────
+  // La fila de gestion_documentos se toma ANTES de llamar a Wasabil. El índice
+  // único (num, doc_num) where not anulada vive en Postgres, así que no depende
+  // de que este navegador tenga cargado finRecords — que es exactamente lo que
+  // falló el 02-09-2026 y produjo las boletas 7260 y 7261 duplicadas.
+  // Insertar es tomar el candado; si ya existe, la emisión ni se intenta.
+  var docRowId=await _tomarCandadoDocumento(numStr,docNum,{
+    tipo:tipo,detalle:detalle,producto:productoDoc,monto:monto,
+    cliente:nombreCliente.trim(),rut:r.rut||null,email:r.email||null});
+  if(docRowId==='DUPLICADO'){
+    r[procKey]=false;await _guardarFinanzasFirme(numStr,r);
+    delete finEmitiendo[emKey];renderFin();
+    alert('⛔ NO se emitió nada.\n\nEl pedido '+numStr+' ya tiene registrado su Documento '+docNum+
+          ' como emitido en la base.\n\nSi de verdad hay que emitirlo de nuevo, primero hay que anular el '+
+          'anterior con nota de crédito y marcarlo como anulado acá — eso libera el cupo.');
+    return;
+  }
+  if(docRowId===null){
+    r[procKey]=false;await _guardarFinanzasFirme(numStr,r);
+    delete finEmitiendo[emKey];renderFin();
+    alert('⛔ NO se emitió nada.\n\nNo se pudo registrar el documento en la base, y sin ese registro '+
+          'no hay nada que impida emitirlo dos veces.\n\nRevisá la conexión y volvé a intentar.');
+    return;
+  }
   try{
-    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:((pre&&pre.producto)||r.producto),nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
+    var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({numStr:numStr,docType:tipo,total:monto,detalle:detalle,idempotency_key:numStr+'-'+docNum,producto:productoDoc,nombre:r.nombre,apellido:r.apellido,email:r.email,rut:r.rut,razon_social:r.razon_social,giro:r.giro,direccion:(r.fact_direccion||r.direccion),comuna:(r.fact_comuna||r.comuna),ciudad:(r.fact_ciudad||r.ciudad)})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     var guardado=await _guardarFinanzasFirme(numStr,r);
     if(data&&data.success){
+      await _cerrarCandadoDocumento(docRowId,data);
       showToast('✓ '+tipo+' emitida — folio '+(data.folio||'?'));
       // Si el documento existe en el SII pero no logramos guardar el estado, hay
       // que decirlo fuerte: es la situación que provoca la doble emisión.
       if(!guardado)alert('⚠ OJO: la '+tipo+' SÍ se emitió (folio '+(data.folio||'?')+') pero NO se pudo guardar el estado.\n\nNO vuelvas a apretar Emitir para este documento. Revisá la conexión, recargá la página y usá "Marcar emitido manual" con ese folio.');
     }
-    else if(data&&data.status_id===2)showToast('⏳ Wasabil sigue procesando (el SII está tardando). Usá "Verificar estado" en un rato — no vuelvas a apretar Pendiente.');
-    else showToast('✗ No se pudo emitir: '+((data&&(data.error||data.display_error))||'error desconocido'));
+    else if(data&&data.status_id===2){
+      // Está en cola en el SII: el documento EXISTE. El candado se queda puesto
+      // y la fila se completa cuando "Verificar estado" traiga el folio.
+      showToast('⏳ Wasabil sigue procesando (el SII está tardando). Usá "Verificar estado" en un rato — no vuelvas a apretar Pendiente.');
+    }
+    else{
+      // Wasabil respondió que no creó nada: acá sí se sabe que no hay documento,
+      // así que se suelta el candado o el pedido queda bloqueado para siempre.
+      await _soltarCandadoDocumento(docRowId);
+      showToast('✗ No se pudo emitir: '+((data&&(data.error||data.display_error))||'error desconocido'));
+    }
   }catch(e){
     // Se cortó la red durante el envío: el documento PUDO haberse emitido igual.
     // Dejamos el candado puesto para que nadie re-emita a ciegas.
@@ -28966,6 +29055,10 @@ async function verificarFinDoc(numStr,docNum){
     // candado puesto pero no hay con qué consultar. Se libera sólo a mano.
     if(!confirm('No hay uuid para consultar (se cortó la conexión antes de que Wasabil respondiera).\n\nRevisá en Wasabil si el documento del pedido '+numStr+' existe:\n\n• Si SÍ existe → cancelá acá y usá el lápiz ✏️ para marcarlo con su folio.\n• Si NO existe → aceptá para liberarlo y poder emitir de nuevo.'))return;
     r[procKey]=false;
+    // Confirmaste que el documento NO existe en Wasabil, así que además del
+    // candado en pantalla hay que soltar el de la base: si no, el índice único
+    // seguiría bloqueando la reemisión y el botón daría "ya está emitido".
+    await _soltarCandadoDocumento(await _documentoDePedido(numStr,docNum));
     var ok=await _guardarFinanzasFirme(numStr,r);
     renderFin();showToast(ok?'Liberado — ya podés emitir':'✗ No se pudo guardar, revisá la conexión');
     return;
@@ -28976,7 +29069,12 @@ async function verificarFinDoc(numStr,docNum){
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
     if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
-    if(data&&data.success)showToast('✓ Confirmado — folio '+(data.folio||'?'));
+    if(data&&data.success){
+      // Recién acá se conoce el folio de los que quedaron en cola: se completa
+      // la fila que el candado dejó a medio llenar al emitir.
+      await _cerrarCandadoDocumento(await _documentoDePedido(numStr,docNum),data);
+      showToast('✓ Confirmado — folio '+(data.folio||'?'));
+    }
     else if(data&&data.status_id===2)showToast('⏳ Sigue Procesando, probá de nuevo en un rato');
     else showToast('✗ '+((data&&(data.error||data.display_error))||'Fallido'));
   }catch(e){
@@ -32331,7 +32429,10 @@ function renderDash(){
     {label:'Cobrado '+mesLabel,val:fmtCLP(cobrMes),sub:'Saldo: '+fmtCLP(saldoMes),delta:null,color:'var(--text)',page:'fin'},
     {label:'Saldo por cobrar',val:fmtCLP(saldoMes),sub:pedMes+' pedidos activos',delta:null,color:saldoMes>0?'var(--amber)':'var(--green)',page:'fin'},
     {label:'Ticket promedio',val:fmtCLP(ticketMes),sub:'Ant: '+fmtCLP(ticketAnt),delta:delta(ticketMes,ticketAnt),color:'var(--text)',page:'fin'},
-    {label:'En producción',val:prodOrders.filter(function(o){return extractMonthFromDate(o.fecha||o.fecha_creacion)===mesActual;}).length,sub:'pedidos este mes',delta:null,color:'var(--brand)',page:'prod'}
+    /* Cuenta por mes de FABRICACIÓN, igual que la vista de Producción: un
+       pedido vendido en agosto que se fabrica en septiembre está en producción
+       en septiembre, no en agosto. Antes miraba la fecha de venta. */
+    {label:'En producción',val:prodOrders.filter(function(o){return mesDeProduccion(o)===mesActual;}).length,sub:'pedidos este mes',delta:null,color:'var(--brand)',page:'prod'}
   ];
   var kpiEl=document.getElementById('dash-kpis');if(kpiEl)kpiEl.innerHTML=kpis.map(function(k){var dHtml=k.delta?'<span class="kpi-delta '+k.delta.cls+'">'+k.delta.txt+'</span>':'';return'<div class="kpi-card" onclick="goToPage(\''+k.page+'\')" style="cursor:pointer;transition:transform .12s" onmouseenter="this.style.transform=\'translateY(-2px)\'" onmouseleave="this.style.transform=\'\'"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div>'+dHtml+'<div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
   var hoyD=new Date();hoyD.setHours(0,0,0,0);
