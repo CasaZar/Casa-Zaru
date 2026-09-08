@@ -27810,6 +27810,41 @@ function saveApiKey(){const k=document.getElementById('api-key-input').value.tri
 // "invalid x-api-key" no le dice nada a nadie. El caso real y frecuente es
 // que se roto la key y el navegador quedó con la vieja, así que el error lo
 // nombra y abre el campo para pegar la nueva sin buscar dónde.
+// El prompt pide "SOLO JSON", pero el modelo a veces antepone una frase
+// ("Analizando el pantallazo...") o la envuelve en explicaciones. Exigir que la
+// respuesta empiece en '{' hacía que una lectura correcta se perdiera entera con
+// un error críptico: «Unexpected token 'A', "Analizando"... is not valid JSON».
+//
+// Se recorta el primer objeto BALANCEADO en vez de cortar hasta el último '}'
+// del texto: si el modelo agrega un comentario con llaves después del JSON, el
+// corte ingenuo se lo llevaría y volvería a romper. Las llaves dentro de
+// strings no cuentan, y se respetan los escapes.
+function _recortarJSON(t){
+  var s=String(t==null?'':t).replace(/```json|```/g,'').trim();
+  var i=s.indexOf('{');
+  if(i<0)return s;                       // sin JSON: que falle con el texto real
+  var prof=0,enTexto=false,esc=false;
+  for(var j=i;j<s.length;j++){
+    var c=s.charAt(j);
+    if(esc){esc=false;continue;}
+    if(c==='\\'){esc=true;continue;}
+    if(c==='"'){enTexto=!enTexto;continue;}
+    if(enTexto)continue;
+    if(c==='{')prof++;
+    else if(c==='}'&&--prof===0)return s.slice(i,j+1);
+  }
+  return s.slice(i);                     // quedó abierto: se devuelve lo que hay
+}
+// Parseo tolerante, con el mismo saneo que ya se hacía (NaN y undefined que el
+// modelo escribe a veces como literales y no son JSON válido).
+function _parsearRespuestaIA(txt){
+  var limpio=_recortarJSON(txt).replace(/:\s*NaN/g,':0').replace(/:\s*undefined/g,':null');
+  try{return JSON.parse(limpio);}
+  catch(e){
+    // Que el error diga qué contestó el modelo, no en qué carácter tropezó.
+    throw new Error('El modelo no devolvió JSON. Contestó: '+String(txt||'').slice(0,120));
+  }
+}
 function _errorAnalisis(err){
   console.error('Análisis del pantallazo falló:',err);
   var m=String((err&&err.message)||err||'');
@@ -27858,7 +27893,7 @@ async function analyzeImage(dataUrl,file,apiKey){
     const data=await res.json();
     if(data.error)throw new Error(data.error.message);
     const txt=data.content.map(i=>i.text||'').join('');
-    const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim().replace(/:\s*NaN/g,':0').replace(/:\s*undefined/g,':null'));
+    const parsed=_parsearRespuestaIA(txt);
     const pedidoData=parsed.pedido||parsed;
     if(!pedidoData.pedido||isNaN(pedidoData.pedido))pedidoData.pedido=nextNum;
     pedidoData.fecha=todayStr;
@@ -27912,8 +27947,12 @@ async function addSecondImage(file){
         ]}]})
       });
       const data=await res.json();
-      const txt=data.content.map(i=>i.text||'').join('');
-      const parsed=JSON.parse(txt.replace(/```json|```/g,'').trim());
+      // Mismo candado que en el primer pantallazo: sin esto, un error de la API
+      // deja data.content undefined y el fallo sale como "Cannot read
+      // properties of undefined", que no dice nada de la key ni del crédito.
+      if(data.error)throw new Error(data.error.message);
+      const txt=(data.content||[]).map(i=>i.text||'').join('');
+      const parsed=_parsearRespuestaIA(txt);
       const nuevasLineas=parsed.lineas||[];
       if(nuevasLineas.length){
         prodPending.lineas=[...(prodPending.lineas||[]),...nuevasLineas];renderPrevRows(prodPending.lineas);
