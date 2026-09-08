@@ -28083,7 +28083,25 @@ async function confirmOrder(){
   if(existFinIdx>=0)finRecords[existFinIdx]=finData;else finRecords.push(finData);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',finData);
   // 4. PIXEL
-  if(cli&&(cli.email||cli.phone||cli.fn)){
+  // Una compra hecha EN el sitio ya disparó el pixel de Meta en el navegador
+  // del cliente. Subirla también desde acá hace que Meta cuente la misma compra
+  // dos veces: infla la atribución y las campañas se optimizan contra un número
+  // que no existe. Las de WhatsApp sí van — esas Meta no las ve de otra forma,
+  // y para eso existe esta planilla.
+  const esWeb=esVentaWeb({orden_web:o.orden_web,canal_pago:canalPago,vendedor:vendedorSel});
+  if(esWeb){
+    // Si ya había una fila de esta venta —se subió antes de esta regla, o el
+    // canal se corrigió a web después— se saca, porque dejarla ES el duplicado
+    // que se quiere evitar. Se avisa: nunca en silencio.
+    const yaEnPixel=pixelRecords.findIndex(r=>r.order_id==='WTSP'+numStr);
+    if(yaEnPixel>=0){
+      pixelRecords.splice(yaEnPixel,1);
+      if(DB_URL)await api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado del Pixel del pedido '+numStr));
+      showToast('Venta web: se quitó del Pixel — el sitio ya la reportó a Meta');
+    }
+    else showToast('Venta web — no va al Pixel: el sitio ya la reportó a Meta');
+  }
+  else if(cli&&(cli.email||cli.phone||cli.fn)){
     const orderId='WTSP'+numStr;
     const pixelData={email:fmtEmail(cli.email),phone:fmtPhone(cli.phone),fn:fmtName(cli.fn||o.comprador||''),ln:fmtName(cli.ln||o.apellido||''),ct:fmtRegion(cli.ct||''),st:fmtRegion(cli.st||''),country:'CL',gen:cli.gen||'',order_id:orderId,value:cli.value||total||0,event_time:fmtEventTime(cli.event_time),status:'nosubida',fecha:o.fecha_creacion};
     const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
@@ -28178,6 +28196,21 @@ function tipoDe(r){return (r&&r.tipo)||'VENTA';}
 // Única fuente de verdad para "¿esto cuenta como venta?". Todo cálculo de
 // facturación, conteo de pedidos o ticket promedio tiene que pasar por acá.
 function esVenta(r){return tipoDe(r)==='VENTA';}
+// ¿La compra se hizo EN el sitio? Tres señales, cualquiera basta:
+//   orden_web            — número de pedido de Shopify, lo detecta el pantallazo
+//   canal_pago WEB_SHOPIFY — cobrada por la web (Shopify + Mercado Pago)
+//   vendedor "Web"       — marcado a mano
+//
+// NO se usa `como`: ese campo es cómo LLEGÓ el cliente, no dónde compró. Alguien
+// que encontró la web y después cerró por WhatsApp tiene como='Web', y esa venta
+// SÍ tiene que ir al Pixel — es justamente la que Meta no puede ver sola.
+function esVentaWeb(d){
+  if(!d)return false;
+  if(String(d.orden_web||'').trim())return true;
+  if(String(d.canal_pago||'').trim().toUpperCase()==='WEB_SHOPIFY')return true;
+  if(String(d.vendedor||'').trim().toLowerCase()==='web')return true;
+  return false;
+}
 function soloVentas(lista){return (lista||[]).filter(esVenta);}
 // Botones en vez de <select>: se ve de una quién quedó marcado, sin desplegar.
 // En el teléfono son además un blanco cómodo para el dedo.
