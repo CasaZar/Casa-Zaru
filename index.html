@@ -26413,7 +26413,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="table-card"><div class="table-wrap">
       <table class="fin">
         <thead><tr>
-          <th>Fecha</th><th>Proveedor</th><th>Folio</th><th>Ítem / Glosa</th><th style="text-align:right">Cantidad</th><th>Categoría</th><th style="text-align:right">Monto</th>
+          <th>Fecha</th><th>Proveedor</th><th>Folio</th><th>Ítem / Glosa</th><th style="text-align:right">Cantidad</th><th>Categoría</th><th style="text-align:right">Monto</th><th></th>
         </tr></thead>
         <tbody id="recibidos-tbody"></tbody>
       </table>
@@ -26557,6 +26557,41 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn-ghost" onclick="cerrarFacturaModal()">Cancelar</button>
       <button class="btn-primary" id="fact-guardar" onclick="guardarFactura()">Guardar factura</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECLASIFICAR LÍNEA DE RECIBIDOS -->
+<div class="modal-bg" id="modal-reclas-bg">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-header">
+      <div class="modal-title">Reclasificar línea</div>
+      <button class="btn-close" onclick="cerrarReclasificar()">×</button>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px" id="reclas-doc"></div>
+    <div class="form-group">
+      <label>Glosa</label>
+      <input type="text" id="reclas-glosa" placeholder="Descripción de lo que se compró" oninput="_avisoReconciliaReclasificar()">
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <div class="form-group" style="flex:1 1 140px">
+        <label>Cantidad</label>
+        <input type="number" step="0.001" id="reclas-cantidad" oninput="_avisoReconciliaReclasificar()">
+      </div>
+      <div class="form-group" style="flex:1 1 160px">
+        <label>Unidad de medida</label>
+        <select id="reclas-unidad" onchange="_avisoReconciliaReclasificar()"></select>
+      </div>
+      <div class="form-group" style="flex:1 1 140px">
+        <label>Precio unitario</label>
+        <input type="number" step="0.01" id="reclas-precio" oninput="_avisoReconciliaReclasificar()">
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text-3);margin-bottom:10px" id="reclas-original"></div>
+    <div id="reclas-aviso" style="display:none;background:var(--amber-dim);color:var(--amber);padding:9px 12px;border-radius:8px;font-size:12px;margin-bottom:14px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:10px">
+      <button class="btn-ghost" onclick="cerrarReclasificar()">Cancelar</button>
+      <button class="btn-primary" onclick="guardarReclasificacion()">Guardar</button>
     </div>
   </div>
 </div>
@@ -30651,12 +30686,13 @@ async function borrarFactura(id){
   }catch(e){showToast('✗ No se pudo eliminar: '+e.message,true);}
 }
 
-// ── Vista: Recibidos (dummy) ─────────────────────────────────────────────
+// ── Vista: Recibidos ──────────────────────────────────────────────────────
 // Cola de v_documentos_recibidos_pendientes: líneas de facturas de proveedor
 // importadas desde Wasabil que todavía no se clasifican en inventario o
 // gasto (tabla documentos_recibidos_lineas, migración 0010 — es transitoria
-// a propósito). Por ahora es solo lectura; el paso que sigue es agregar acá
-// el botón que clasifica cada línea.
+// a propósito). El botón "Reclasificar" (migración 0016) corrige glosa,
+// cantidad, unidad y precio — NO asigna tipo INVENTARIO/GASTO todavía, eso
+// sigue siendo una etapa posterior.
 function renderRecibidos(){
   var el=document.getElementById('recibidos-tbody');if(!el)return;
   var empty=document.getElementById('recibidos-empty');
@@ -30684,15 +30720,102 @@ function renderRecibidos(){
   el.innerHTML=list.map(_filaRecibido).join('');
 }
 function _filaRecibido(r){
+  // fmtCant, no _soloCant: acá la cantidad no tiene columna de unidad propia,
+  // así que la unidad va pegada al número (regla de CLAUDE.md: ninguna
+  // cantidad se muestra sin su unidad al lado).
+  var editada=r.editado_en?' <span class="semana-badge" style="background:var(--green-dim);color:var(--green)">Corregida</span>':'';
+  var accion=(usuarioRol==='admin')
+    ?'<button class="btn-edit" style="padding:4px 8px;font-size:11px;margin:0" onclick="abrirReclasificar('+r.linea_id+')">✎ Reclasificar</button>'
+    :'';
   return '<tr>'+
     '<td data-label="Fecha">'+esc(fmtFecha(r.fecha))+'</td>'+
     '<td data-label="Proveedor">'+esc(r.proveedor_nombre||'—')+'<div style="font-size:10px;color:var(--text-3)">'+esc(r.proveedor_rut||'')+'</div></td>'+
     '<td data-label="Folio">'+esc(r.folio||'—')+'</td>'+
-    '<td data-label="Ítem / Glosa">'+esc(r.item_nombre||r.glosa||'—')+'</td>'+
-    '<td data-label="Cantidad" style="text-align:right">'+(r.cantidad!=null?_soloCant(r.cantidad,null):'—')+'</td>'+
+    '<td data-label="Ítem / Glosa">'+esc(r.item_nombre||r.glosa||'—')+editada+'</td>'+
+    '<td data-label="Cantidad" style="text-align:right">'+(r.cantidad!=null?fmtCant(r.cantidad,r.unidad):'—')+'</td>'+
     '<td data-label="Categoría">'+esc(CAT_POR_CLASIFICAR)+'</td>'+
     '<td data-label="Monto" style="text-align:right">'+fmtCLP(r.total)+'</td>'+
+    '<td style="text-align:right">'+accion+'</td>'+
     '</tr>';
+}
+
+// ── Reclasificar línea de Recibidos (migración 0016) ─────────────────────
+// Corrige los 4 campos que llegan mal desde Wasabil en boletas sin detalle
+// de línea: glosa, cantidad, unidad y precio unitario. NO toca subtotal/iva/
+// total (eso es el monto real del documento tributario) ni asigna tipo
+// INVENTARIO/GASTO — solo deja la línea con datos utilizables para cuando
+// llegue esa etapa.
+var reclasPend=null;
+function abrirReclasificar(lineaId){
+  var r=docsRecibidos.find(function(x){return x.linea_id===lineaId;});
+  if(!r){showToast('No encontré esa línea',true);return;}
+  reclasPend=r;
+  document.getElementById('reclas-doc').textContent=
+    (r.proveedor_nombre||'—')+' · folio '+(r.folio||'—')+' · '+fmtFecha(r.fecha);
+  document.getElementById('reclas-glosa').value=r.glosa||r.item_nombre||'';
+  document.getElementById('reclas-cantidad').value=r.cantidad!=null?r.cantidad:'';
+  document.getElementById('reclas-precio').value=r.precio_unit!=null?r.precio_unit:'';
+  document.getElementById('reclas-unidad').innerHTML='<option value="">— sin unidad —</option>'+
+    unidadesRef.map(function(u){
+      return '<option value="'+u.id+'"'+(u.id===r.unidad_id?' selected':'')+'>'+esc(u.clave)+' — '+esc(u.plural)+'</option>';
+    }).join('');
+  // Lo que Wasabil trajo originalmente, si es distinto de lo que hay ahora
+  // (columnas *_original de la migración 0016, nunca se editan).
+  var orig=[];
+  if(r.glosa_original&&r.glosa_original!==r.glosa)orig.push('glosa: "'+r.glosa_original+'"');
+  else if(r.item_nombre_original&&!r.glosa)orig.push('ítem: "'+r.item_nombre_original+'"');
+  if(r.cantidad_original!=null&&Number(r.cantidad_original)!==Number(r.cantidad||0))orig.push('cantidad: '+r.cantidad_original);
+  if(r.precio_unit_original!=null&&Number(r.precio_unit_original)!==Number(r.precio_unit||0))orig.push('precio: '+fmtCLP(r.precio_unit_original));
+  document.getElementById('reclas-original').innerHTML=orig.length?esc('Wasabil trajo — '+orig.join(', ')):'';
+  document.getElementById('reclas-aviso').style.display='none';
+  document.getElementById('modal-reclas-bg').classList.add('open');
+  _avisoReconciliaReclasificar();
+}
+function cerrarReclasificar(){
+  document.getElementById('modal-reclas-bg').classList.remove('open');
+  reclasPend=null;
+}
+// Aviso, no bloqueo: subtotal es el monto real del documento tributario y no
+// se toca acá. Tolerancia de $50 o 1% para no gritar por redondeo de precio
+// unitario en cantidades chicas.
+function _avisoReconciliaReclasificar(){
+  var el=document.getElementById('reclas-aviso');
+  if(!el||!reclasPend)return;
+  var cant=Number(document.getElementById('reclas-cantidad').value);
+  var precio=Number(document.getElementById('reclas-precio').value);
+  var subtotal=Number(reclasPend.subtotal)||0;
+  if(!cant||!precio||!subtotal){el.style.display='none';return;}
+  var calc=cant*precio;
+  var dif=Math.abs(calc-subtotal);
+  if(dif<=50||dif<=subtotal*0.01){el.style.display='none';return;}
+  el.style.display='';
+  el.textContent='⚠ Cantidad × precio unitario da '+fmtCLP(Math.round(calc))+
+    ', pero el documento registra '+fmtCLP(subtotal)+' de subtotal. Se puede guardar igual — el monto del documento no se modifica.';
+}
+async function guardarReclasificacion(){
+  var r=reclasPend;if(!r)return;
+  var glosa=String(document.getElementById('reclas-glosa').value||'').trim();
+  var cantRaw=document.getElementById('reclas-cantidad').value;
+  var precioRaw=document.getElementById('reclas-precio').value;
+  var uidRaw=document.getElementById('reclas-unidad').value;
+  var uid=uidRaw?Number(uidRaw):null;
+  var cant=cantRaw===''?null:_f3(cantRaw);
+  var precio=precioRaw===''?null:_f2(precioRaw);
+  // Mismo criterio que el constraint cantidad_con_unidad de la base (0016):
+  // ninguna cantidad se guarda sin su unidad.
+  if(cant!=null&&!uid){alert('Si hay cantidad, hay que elegir una unidad de medida.');return;}
+  var cambios={};
+  if(glosa!==(r.glosa||''))cambios.glosa=glosa||null;
+  if(cant!==(r.cantidad!=null?_f3(r.cantidad):null))cambios.cantidad=cant;
+  if(precio!==(r.precio_unit!=null?_f2(r.precio_unit):null))cambios.precio_unit=precio;
+  if(uid!==(r.unidad_id||null))cambios.unidad_id=uid;
+  if(!Object.keys(cambios).length){cerrarReclasificar();return;}
+  try{
+    await sbUpdate('documentos_recibidos_lineas',r.linea_id,cambios);
+    await recargarGastos();
+    cerrarReclasificar();
+    showToast('✓ Línea reclasificada');
+  }catch(e){showToast('✗ No se pudo guardar: '+e.message,true);}
 }
 
 // ── Vista: Inventario ─────────────────────────────────────────────────────
