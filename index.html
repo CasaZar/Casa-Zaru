@@ -32662,27 +32662,46 @@ function renderCaja(){
     // días" salía como 8.
     env.setHours(0,0,0,0);
     var dias=Math.round((env-hoy)/86400000);
-    if(dias<0)vencidos.push({num:numStr,nombre:((f.nombre||'')+' '+(f.apellido||'')).trim(),monto:pend,dias:-dias});
+    // La fecha de envío es la PLANIFICADA. Si el pedido se atrasó, esa fecha
+    // pasa igual y el saldo aparecía como vencido aunque la pieza nunca salió:
+    // plata que figura como cobrable sin que exista nada que cobrar todavía.
+    // El check "comprobante enviado" es la señal de que el pedido de verdad se
+    // despachó, así que separa un cobro exigible de un atraso de taller.
+    if(dias<0)vencidos.push({num:numStr,nombre:((f.nombre||'')+' '+(f.apellido||'')).trim(),monto:pend,dias:-dias,comp:!!(o&&o.checks&&o.checks.comprobante)});
     else if(dias<=7){estaSem+=pend;nEsta++;}
     else if(dias<=14){proxSem+=pend;nProx++;}
     else despues+=pend;
   });
   vencidos.sort(function(a,b){return b.monto-a.monto;});
-  var totalVencido=vencidos.reduce(function(s,v){return s+v.monto;},0);
+  // Dos grupos que NO significan lo mismo, y por eso no se suman juntos:
+  //   exigibles — el comprobante salió, el cliente lo tiene y no ha pagado.
+  //   enEspera  — la fecha pasó pero nadie confirmó el envío: primero hay que
+  //               averiguar si el pedido salió, no salir a cobrarlo.
+  var exigibles=vencidos.filter(function(v){return v.comp;});
+  var enEspera =vencidos.filter(function(v){return !v.comp;});
+  var totalVencido=exigibles.reduce(function(s,v){return s+v.monto;},0);
+  var totalEspera =enEspera.reduce(function(s,v){return s+v.monto;},0);
   function bloque(lbl,val,sub,color){
     return '<div style="flex:1;min-width:130px"><div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.03em;font-weight:600">'+lbl+'</div><div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:'+color+';line-height:1.2">'+fmtCLP(val)+'</div><div style="font-size:11px;color:var(--text-3)">'+sub+'</div></div>';
   }
-  var lista='';
-  if(vencidos.length){
-    lista='<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:12px;font-weight:700;color:#993556;margin-bottom:8px">Ya debió entrar — '+vencidos.length+(vencidos.length===1?' pedido':' pedidos')+'</div>'+
-      vencidos.slice(0,6).map(function(v){
-        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--border);font-size:12px"><div style="min-width:0"><span style="font-weight:700;color:var(--brand-hi)">#'+esc(v.num)+'</span> <span style="color:var(--text)">'+esc(v.nombre)+'</span><div style="font-size:10px;color:#993556">enviado hace '+v.dias+(v.dias===1?' día':' días')+'</div></div><div style="font-family:\'DM Serif Display\',serif;font-size:14px;color:#993556;white-space:nowrap">'+fmtCLP(v.monto)+'</div></div>';
+  // Una sola función para los dos grupos: cambia el color y el pie de cada fila,
+  // no la estructura. El grupo en espera va apagado a propósito — está para
+  // mirarlo, no para salir a cobrarlo.
+  function seccionVencidos(items,titulo,color,pie){
+    if(!items.length)return'';
+    return '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:12px;font-weight:700;color:'+color+';margin-bottom:8px">'+titulo+' — '+items.length+(items.length===1?' pedido':' pedidos')+'</div>'+
+      items.slice(0,6).map(function(v){
+        return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--border);font-size:12px"><div style="min-width:0"><span style="font-weight:700;color:var(--brand-hi)">#'+esc(v.num)+'</span> <span style="color:var(--text)">'+esc(v.nombre)+'</span><div style="font-size:10px;color:'+color+'">'+pie+' hace '+v.dias+(v.dias===1?' día':' días')+'</div></div><div style="font-family:\'DM Serif Display\',serif;font-size:14px;color:'+color+';white-space:nowrap">'+fmtCLP(v.monto)+'</div></div>';
       }).join('')+
-      (vencidos.length>6?'<div style="font-size:11px;color:var(--text-3);padding-top:6px">y '+(vencidos.length-6)+' más…</div>':'')+'</div>';
+      (items.length>6?'<div style="font-size:11px;color:var(--text-3);padding-top:6px">y '+(items.length-6)+' más…</div>':'')+'</div>';
   }
+  var lista=
+    seccionVencidos(exigibles,'Ya debió entrar','#993556','comprobante enviado')+
+    seccionVencidos(enEspera,'Sin comprobante enviado — ¿salió el pedido?','var(--text-3)','fecha de envío pasó');
   el.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="font-size:14px;font-weight:700;color:var(--text)">💵 Caja — saldos por cobrar</div><div style="font-size:11px;color:var(--text-3)">según la fecha de envío de cada pedido</div></div>'+
     '<div style="display:flex;flex-wrap:wrap;gap:16px">'+
-      bloque('Vencido sin cobrar',totalVencido,vencidos.length+(vencidos.length===1?' pedido':' pedidos'),totalVencido>0?'#993556':'var(--green)')+
+      bloque('Vencido sin cobrar',totalVencido,exigibles.length+(exigibles.length===1?' pedido':' pedidos')+' · con comprobante',totalVencido>0?'#993556':'var(--green)')+
+      bloque('Sin comprobante aún',totalEspera,enEspera.length+(enEspera.length===1?' pedido':' pedidos')+' · ¿atrasados?','var(--text-3)')+
       bloque('Entra esta semana',estaSem,nEsta+(nEsta===1?' pedido':' pedidos'),'var(--green)')+
       bloque('Entra la próxima',proxSem,nProx+(nProx===1?' pedido':' pedidos'),'var(--text)')+
       bloque('Más adelante',despues,'sin fecha cercana','var(--text-3)')+
