@@ -169,5 +169,4 @@ cambiarlo en el Manual.
    login.
 2. `finanzas-casa` no tiene git ni respaldo de ningún tipo.
 3. Rotar la key de Anthropic y la `service_role` de Supabase.
-4. `supabase-cotizador/rls-por-vendedor.sql` escrito y sin correr (proyecto del cotizador: hoy
-   cualquier login puede leer y editar todo por API directa).
+4. ✅ `supabase-cotizador/rls-por-vendedor.sql` — **ya estaba aplicado** (verificado 15-09-2026 simulando cada cuenta: admin ve 1.527, César 1.463, Jepe 64, una cuenta desconocida 0). ⚠️ Queda un hueco aparte: `cotizacion_lineas` tiene la policy `auth_full_lineas` (ALL, `true`) — cualquier login lee y edita las líneas de todas las cotizaciones.
