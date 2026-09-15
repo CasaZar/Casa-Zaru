@@ -19,6 +19,11 @@ como uno esperaría.
 **Se trabaja siempre en `Casa Zaru - Claude`.** Las otras dos carpetas son
 destino, no origen.
 
+**El SQL de cada proyecto vive en su propia carpeta** (desde el 15-09-2026):
+`supabase/` es de **Gestión** y `supabase-cotizador/` es del **Cotizador**. Cada
+archivo suelto empieza con un candado que falla si se corre en el proyecto
+equivocado. Ver `CLAUDE.md` → Migraciones.
+
 ---
 
 ## 2. ⚠️ Trampa n°1 — los `index.html` son dos apps distintas
@@ -64,6 +69,10 @@ Tablas de cada uno:
 - **padntt…** (gestión): `gestion_pedidos`, `gestion_produccion`,
   `gestion_finanzas`, `gestion_costos`, `gestion_pixel`, `gestion_clientes`,
   `gestion_historial`, `gestion_usuarios`
+  - ⚠️ También tiene `cotizaciones`, `cotizacion_lineas` (vacías) y `quote_links`
+    (35 filas del 25-26 jun): **restos muertos** de antes de separar. Nada los usa.
+    Por eso el candado de los SQL del cotizador pregunta por `gestion_pedidos` y no
+    por `cotizaciones`.
 
 ---
 
@@ -160,5 +169,5 @@ cambiarlo en el Manual.
    login.
 2. `finanzas-casa` no tiene git ni respaldo de ningún tipo.
 3. Rotar la key de Anthropic y la `service_role` de Supabase.
-4. `rls-por-vendedor.sql` escrito y sin correr (proyecto del cotizador: hoy
+4. `supabase-cotizador/rls-por-vendedor.sql` escrito y sin correr (proyecto del cotizador: hoy
    cualquier login puede leer y editar todo por API directa).

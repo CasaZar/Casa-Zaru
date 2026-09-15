@@ -10,6 +10,11 @@ Ver `ESTRUCTURA.md` para el mapa completo (3 repos, 3 sitios, 3 proyectos Supaba
 **Carpeta buena:** `C:\Users\dell\Casa Zaru - Claude`. Existe un clon viejo en
 `OneDrive\Desktop\Casa Zaru Visual\Casa-Zaru` que quedó de un enredo — no trabajar ahí.
 
+⚠️ **Verificar antes de confiar en el párrafo siguiente:** el 15-09-2026 no se encontró `supabase`
+ni `node` en el PATH ni en las rutas habituales (nodejs, npm global, scoop, winget), y todo lo de
+Supabase hubo que hacerlo por el panel. Correr `Get-Command supabase` primero; si no aparece, el
+camino es el SQL Editor del panel.
+
 **Node, npm y el CLI de Supabase sí están instalados** en esta máquina — confirmado el 3 sep 2026,
 corrigiendo lo que decía antes esta sección. El CLI ya está logueado y enlazado (`supabase link`) al
 proyecto de Gestión (`padnttpgzuotxeipjrry`): `supabase db push` aplica las migraciones pendientes de
@@ -35,7 +40,7 @@ El backend es **Supabase**, no Firebase (migrado). Tres proyectos:
 
 | Ref | Nombre en el panel | Qué tiene |
 |---|---|---|
-| `padnttpgzuotxeipjrry` | «ZARU · Gestión (pedidos, finanzas, costos)» | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, y además `cotizaciones` / `cotizacion_lineas` / `quote_links` |
+| `padnttpgzuotxeipjrry` | «ZARU · Gestión (pedidos, finanzas, costos)» | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, Recibidos, centros de costo. ⚠️ Tiene además `cotizaciones` / `cotizacion_lineas` (vacías) y `quote_links` (35 filas del 25-26 jun) que son **restos muertos** de antes de separar los proyectos: nada lee ni escribe ahí. Las cotizaciones reales están en el proyecto del Cotizador. |
 | `cmxqorsyxoltrakxawro` | «ZARU · Cotizador (público y panel)» | El cotizador público y el panel de seguimiento (`cotizador_valores`, `toques`, `config_seguimiento`) |
 | `rmktkhjteghbheyrkfxs` | — | No es Casa Zaru. No tocar. |
 
@@ -76,9 +81,22 @@ la `0014` casi sale numerada `0013` porque el clon local estaba atrasado y no te
 `0013_limpia_placeholder_item_nombre` que otra sesión ya había pusheado y aplicado. La base sabía la
 verdad y la carpeta no. El número libre es el siguiente al mayor de **ambos**.
 
-Los `.sql` sueltos en `supabase/` (fuera de `migrations/`) son parches viejos ya corridos a mano y
-**no registrados**. Dejarlos ahí es deliberado: si se movieran a `migrations/`, `db push` los
-re-ejecutaría.
+Los `.sql` sueltos (fuera de `migrations/`) son parches corridos a mano y **no registrados**.
+Dejarlos fuera de `migrations/` es deliberado: si se movieran ahí, `db push` los re-ejecutaría.
+
+**Cada proyecto tiene su carpeta, y no se mezclan** (separado el 15-09-2026):
+
+| Carpeta | Proyecto | Qué va |
+|---|---|---|
+| `supabase/` (y `supabase/migrations/`) | Gestión `padnttpgzuotxeipjrry` | migraciones y parches de Gestión |
+| `supabase-cotizador/` | Cotizador `cmxqorsyxoltrakxawro` | todo el SQL del cotizador público y del panel |
+
+**Todo `.sql` suelto empieza con un CANDADO DE PROYECTO**: un `do $candado$` que falla si se pega en
+el SQL Editor equivocado, y como Postgres corre el script entero en una sola transacción, no se
+aplica nada. No borrarlo, y copiarlo en todo archivo nuevo. El del Cotizador revisa que **no**
+exista `gestion_pedidos` (no alcanza con pedir `cotizaciones`: Gestión tiene una vacía y un
+`alter` pasaría ahí sin error). Un archivo nunca debe tener bloques para los dos proyectos: se parte
+en dos, uno por carpeta (así se hizo con `brief-matinal-acceso.sql`).
 
 ## Alcance del módulo de gastos
 Es el circuito **factura → bodega → costo del pedido**, para sacar el margen real por pedido.

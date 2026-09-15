@@ -1,25 +1,28 @@
--- ══════════════════════════════════════════════════════════════
--- Casa Zaru · Acceso acotado para el brief matinal automático
---
--- Problema: el brief matinal corre como un agente en la nube sin sesión
--- de usuario — solo tiene la API key pública (anon), la misma que ya
--- viaja en el navegador. Las tablas de GESTIÓN y de Cotizaciones exigen
--- sesión autenticada (RLS), así que el anon key NO puede leerlas directo
--- (correcto y deseado — no lo cambiamos). En vez de eso, exponemos dos
--- funciones muy angostas (SECURITY DEFINER) que devuelven SOLO los
--- campos mínimos que el brief necesita — nada de Finanzas, Costos, ni
--- datos de pago.
---
--- Hay que correr DOS bloques en DOS proyectos Supabase distintos:
---   • BLOQUE A → proyecto GESTIÓN (el que usa index.html)
---   • BLOQUE B → proyecto Cotizador Interno (el que usa
---     cotizador-clientes.html — atención al nombre cruzado, ver
---     CLAUDE.md / memoria del proyecto)
--- ══════════════════════════════════════════════════════════════
-
+-- ── CANDADO DE PROYECTO (no borrar) ──────────────────────────────────────
+-- Este archivo es de GESTIÓN (padnttpgzuotxeipjrry). Si se pega en el SQL
+-- Editor de otro proyecto, este bloque falla primero y Postgres descarta el
+-- resto del script: no se aplica nada.
+do $candado$
+begin
+  if to_regclass('public.gestion_pedidos') is null then
+    raise exception 'PROYECTO EQUIVOCADO: este SQL es de GESTIÓN (padnttpgzuotxeipjrry) y aquí no existe gestion_pedidos. No se aplicó nada.';
+  end if;
+end
+$candado$;
+-- ─────────────────────────────────────────────────────────────────────────
 
 -- ══════════════════════════════════════════════════════════════
--- BLOQUE A — proyecto GESTIÓN
+-- Casa Zaru · Acceso acotado para el brief matinal — mitad GESTIÓN
+--
+-- Este archivo era uno solo con dos bloques para dos proyectos distintos
+-- (15-09-2026 se partió): correrlo entero en cualquiera de los dos fallaba a
+-- medias. La otra mitad, la del Cotizador, está en
+-- supabase-cotizador/brief-matinal-acceso.sql.
+--
+-- El brief matinal corre como agente en la nube sin sesión: solo tiene la API
+-- key pública (anon), que por RLS no puede leer las tablas. Se exponen
+-- funciones angostas (SECURITY DEFINER) con los campos mínimos; nada de
+-- Finanzas, Costos ni datos de pago.
 -- ══════════════════════════════════════════════════════════════
 
 -- ── PASO A1: diagnóstico — columnas reales de gestion_ventas ──
@@ -83,41 +86,3 @@ grant execute on function public.brief_pedidos_sin_semana() to anon;
 --         = date_trunc('month', now());
 -- $$;
 -- grant execute on function public.brief_venta_mes_whatsapp() to anon;
-
-
--- ══════════════════════════════════════════════════════════════
--- BLOQUE B — proyecto Cotizador Interno (cotizador-clientes.html)
--- ══════════════════════════════════════════════════════════════
-
--- cotizaciones es una tabla relacional normal (no jsonb), columnas
--- confirmadas por el código del panel: id, cliente, estado, total_alto,
--- fecha_creacion, eliminada.
-
--- ── PASO B1: función angosta — radar de seguimientos ──
--- Solo expone lo mínimo para que el brief calcule antigüedad y detecte
--- ballenas (monto alto): cliente, total_alto, fecha_creacion. Nada de
--- teléfono, email, ni historial de conversación.
-create or replace function public.brief_seguimientos_radar()
-returns table(cliente text, total_alto numeric, fecha_creacion timestamptz)
-language sql
-security definer
-set search_path = public
-as $$
-  select c.cliente, c.total_alto, c.fecha_creacion
-  from cotizaciones c
-  where coalesce(c.eliminada, false) = false
-    and coalesce(c.estado, 'enviada') = 'enviada'
-  order by c.fecha_creacion asc;
-$$;
-
-grant execute on function public.brief_seguimientos_radar() to anon;
-
--- ── verificación B1 ──
---   curl "$SB_URL/rest/v1/rpc/brief_seguimientos_radar" \
---     -H "apikey: $SB_ANON" -H "Authorization: Bearer $SB_ANON"
-
--- ══════════════════════════════════════════════════════════════
--- Después de correr A2 y B1 (y confirmar que devuelven filas con el
--- anon key), avísame para actualizar la rutina del brief matinal para
--- que llame a estas funciones en vez de a las tablas directo.
--- ══════════════════════════════════════════════════════════════
