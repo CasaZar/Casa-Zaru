@@ -28700,6 +28700,7 @@ async function loadFin(){
     }else finRecords=[];
     renderFin();
     if(document.getElementById('page-dash')&&document.getElementById('page-dash').classList.contains('active'))renderDash();
+    _barrerEmisionesEnCola();   // cierra solos los documentos que quedaron en cola en el SII
   }catch(e){console.error('Error cargando finanzas',e);}
 }
 function finSave(numStr){
@@ -29145,7 +29146,8 @@ async function toggleFinDoc(numStr,docNum,pre){
     else if(data&&data.status_id===2){
       // Está en cola en el SII: el documento EXISTE. El candado se queda puesto
       // y la fila se completa cuando "Verificar estado" traiga el folio.
-      showToast('⏳ Wasabil sigue procesando (el SII está tardando). Usá "Verificar estado" en un rato — no vuelvas a apretar Pendiente.');
+      showToast('⏳ El SII está tardando. La app lo vuelve a consultar sola y avisa cuando llegue el folio — no vuelvas a apretar Pendiente.');
+      _seguirEmisionEnCola(numStr,docNum);
     }
     else{
       // Wasabil respondió que no creó nada: acá sí se sabe que no hay documento,
@@ -29202,24 +29204,87 @@ async function verificarFinDoc(numStr,docNum){
     renderFin();showToast(ok?'Liberado — ya podés emitir':'✗ No se pudo guardar, revisá la conexión');
     return;
   }
+  if(finEmitiendo[emKey])return;
+  var res=await _consultarEstadoDoc(numStr,docNum);
+  if(res.estado==='emitido')showToast('✓ Confirmado — folio '+(res.data.folio||'?'));
+  else if(res.estado==='cola')showToast('⏳ Sigue Procesando, probá de nuevo en un rato');
+  else if(res.estado==='red')showToast('✗ Error de conexión: '+res.error);
+  else if(res.estado==='fallido')showToast('✗ '+((res.data&&(res.data.error||res.data.display_error))||'Fallido'));
+}
+// Consulta a Wasabil cómo quedó un documento que salió "en cola". Es la acción
+// 'check' de la Edge Function: solo LEE el estado (y sube el PDF a Drive si ya
+// está aceptado). Nunca crea un documento, así que se puede llamar sola, sin que
+// nadie apriete nada — que es justo lo que faltaba: el 15-09 (1549/1551/1552) y
+// el 22-09 (1557/1559/1561) el SII tardó más que los ~16 s que espera la Edge
+// Function, los documentos salieron igual y la app los dejó en "procesando" con
+// el folio vacío hasta que alguien se acordara del botón.
+// Devuelve {estado:'emitido'|'cola'|'fallido'|'red'|'sin_uuid'|'ocupado', data}.
+async function _consultarEstadoDoc(numStr,docNum){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!r)return {estado:'fallido'};
+  var tipoKey='doc'+docNum+'_tipo',uuidKey='doc'+docNum+'_uuid',emKey=numStr+'_'+docNum;
+  var uuid=r[uuidKey];
+  if(!uuid)return {estado:'sin_uuid'};
+  if(finEmitiendo[emKey])return {estado:'ocupado'};
   finEmitiendo[emKey]=true;renderFin();
+  var out;
   try{
     var resp=await fetch(WASABIL_FN_URL,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+WASABIL_ANON_KEY},body:JSON.stringify({action:'check',uuid:uuid,numStr:numStr,docType:r[tipoKey]||'BOLETA',nombre:r.nombre,apellido:r.apellido,razon_social:r.razon_social})});
     var data=await resp.json();
     _aplicarResultadoWasabil(r,docNum,data);
-    if(DB_URL)await api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
+    var ok=await _guardarFinanzasFirme(numStr,r);
+    if(!ok)_falloGuardado('Finanzas del pedido '+numStr)(new Error('no se pudo guardar'));
     if(data&&data.success){
       // Recién acá se conoce el folio de los que quedaron en cola: se completa
       // la fila que el candado dejó a medio llenar al emitir.
       await _cerrarCandadoDocumento(await _documentoDePedido(numStr,docNum),data);
-      showToast('✓ Confirmado — folio '+(data.folio||'?'));
+      out={estado:'emitido',data:data};
     }
-    else if(data&&data.status_id===2)showToast('⏳ Sigue Procesando, probá de nuevo en un rato');
-    else showToast('✗ '+((data&&(data.error||data.display_error))||'Fallido'));
+    else if(data&&data.status_id===2)out={estado:'cola',data:data};
+    else out={estado:'fallido',data:data};
   }catch(e){
-    showToast('✗ Error de conexión: '+e.message);
+    out={estado:'red',error:e.message};
   }
   delete finEmitiendo[emKey];renderFin();
+  return out;
+}
+// Después de una emisión que quedó en cola, se vuelve a preguntar sola unas
+// cuantas veces. Si la pestaña se cierra antes, no pasa nada: el barrido de
+// loadFin la retoma la próxima vez que alguien abra Finanzas.
+var _SEGUIR_COLA_SEG=[20,40,60,120,300,600];
+function _seguirEmisionEnCola(numStr,docNum,intento){
+  intento=intento||0;
+  if(intento>=_SEGUIR_COLA_SEG.length)return;
+  setTimeout(async function(){
+    var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+    if(!r||!r['doc'+docNum+'_procesando'])return;   // ya se cerró por otro lado
+    var res=await _consultarEstadoDoc(numStr,docNum);
+    if(res.estado==='emitido')showToast('✓ Pedido '+numStr+': el SII aceptó el documento — folio '+(res.data.folio||'?'));
+    else if(res.estado==='cola'||res.estado==='red'||res.estado==='ocupado')_seguirEmisionEnCola(numStr,docNum,intento+1);
+    else if(res.estado==='fallido')showToast('✗ Pedido '+numStr+': Wasabil informa el documento como fallido. Revisalo en Wasabil.',true);
+  },_SEGUIR_COLA_SEG[intento]*1000);
+}
+// Al cargar Finanzas se revisan todos los documentos que quedaron "procesando"
+// con uuid. Uno por uno, no en paralelo: son pocos y no hay apuro.
+var _barriendoCola=false;
+async function _barrerEmisionesEnCola(){
+  if(_barriendoCola||!DB_URL)return;
+  _barriendoCola=true;
+  var cerrados=[];
+  try{
+    var pend=[];
+    finRecords.forEach(function(r){
+      [1,2].forEach(function(dn){
+        if(r['doc'+dn+'_procesando']&&r['doc'+dn+'_uuid']&&!r['doc'+dn+'_emitida'])pend.push([String(r.num),dn]);
+      });
+    });
+    for(var i=0;i<pend.length;i++){
+      var res=await _consultarEstadoDoc(pend[i][0],pend[i][1]);
+      if(res.estado==='emitido')cerrados.push(pend[i][0]+' (folio '+(res.data.folio||'?')+')');
+    }
+  }catch(e){console.error('Barrido de emisiones en cola',e);}
+  _barriendoCola=false;
+  if(cerrados.length)showToast('✓ Confirmados solos con Wasabil: '+cerrados.join(', '));
 }
 // Controles de emisión de un documento: botón, tipo, folio y PDF. Están acá
 // arriba y no dentro de renderFin porque la vista móvil también los necesita.
