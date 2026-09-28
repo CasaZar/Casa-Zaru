@@ -28830,6 +28830,17 @@ function calcFinPreview(){
 // $23.324 pagados de más se veía idéntico a uno pagado justo: decía "$0" y nadie
 // se enteraba de que había plata por devolver. El saldo se calcula CON SIGNO una
 // sola vez y cada vista decide cómo pintarlo.
+// Monto que se sugiere para cada documento. Hay solo dos: el 1 cubre el abono1
+// y el 2 cubre TODO lo pagado después (abono2 + abono3). Antes el doc 2 miraba
+// solo el abono2, y un saldo pagado en dos transferencias (1561 Galaz: $121.300
+// + el resto) sugería un documento por la primera nomás. Sin pagos después del
+// abono1, se sugiere el saldo pendiente.
+function _montoSugeridoDoc(r,dn){
+  var total=Number(r.total)||0,a1=Number(r.abono1)||0;
+  if(Number(dn)===1)return a1||total;
+  var despues=(Number(r.abono2)||0)+(Number(r.abono3)||0);
+  return despues||Math.max(0,total-a1);
+}
 function saldoFin(r){
   return (Number(r.total)||0)-((Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0));
 }
@@ -28918,7 +28929,7 @@ function prepararDocumento(numStr,docNum){
   var total=Number(r.total)||0,ab1=Number(r.abono1)||0;
   // El saldo se calcula igual que en toggleFinDoc, para que el monto sugerido
   // sea el mismo por los dos caminos y no aparezcan cifras distintas.
-  var abono=dn===1?(ab1||total||0):(Number(r.abono2)||Math.max(0,total-ab1));
+  var abono=_montoSugeridoDoc(r,dn);
   if(abono<=0)return;                      // sin monto no hay nada que facturar
   if(r['doc'+dn+'_emitida'])return;        // ya se emitió: no se vuelve a ofrecer
   var esFactura=(r['doc'+dn+'_tipo']||r.doc1_tipo||'BOLETA')==='FACTURA';
@@ -29136,7 +29147,7 @@ async function toggleFinDoc(numStr,docNum,pre){
     return;
   }
   var nombreCliente=(r.nombre||'')+' '+(r.apellido||'');
-  var montoSugerido=docNum===1?(r.abono1||r.total||0):(r.abono2||Math.max(0,(Number(r.total)||0)-(Number(r.abono1)||0)));
+  var montoSugerido=_montoSugeridoDoc(r,docNum);
   var montoStr=(pre&&pre.monto!==undefined)?String(pre.monto):prompt('Monto a facturar en este documento ('+(docNum===1?'Doc 1 / Abono':'Doc 2 / Saldo')+') para el pedido '+numStr+' ('+nombreCliente.trim()+'):',String(Math.round(montoSugerido||0)));
   if(montoStr===null)return;
   var monto=Number(String(montoStr).replace(/[^\d]/g,''));
