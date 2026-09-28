@@ -160,8 +160,24 @@ Reportar solo lo que no calza.
   puntuales. Si lo pide: releer cada registro del servidor (`_releerFinanzas`),
   verificar que sigue como se revisó, cambiar solo esos campos, guardar con
   `_guardarFinanzasFirme`, dejar nota con `logHistorial` y releer para confirmar.
-- **Nunca emitir** boletas/facturas: las emite el usuario desde el panel. El botón
-  de Finanzas manda documentos REALES al SII.
+- **No emitir** boletas/facturas por iniciativa propia: el botón de Finanzas manda
+  documentos REALES al SII. Si el usuario pide explícitamente que Claude emita
+  (pasó el 28-09), hacerlo desde su sesión en Chrome replicando `toggleFinDoc`
+  sin los `confirm()` (bloquean la extensión): releer del servidor → marcar
+  `docN_procesando` → `_tomarCandadoDocumento` → POST a `WASABIL_FN_URL` →
+  `_aplicarResultadoWasabil` + `_guardarFinanzasFirme` → cerrar/soltar candado
+  o `_seguirEmisionEnCola` si queda en cola. Monto con `_montoSugeridoDoc`,
+  glosa "Abono" (doc 1) / "Saldo final" (doc 2). Reglas:
+  - **De a uno por llamada**: el extractor corta a los 45 s y cada emisión
+    tarda ~15–20 s. Dejar la pestaña abierta mientras haya documentos en cola.
+  - Si una llamada se corta o la extensión se desconecta, **no reintentar a
+    ciegas**: mirar si el pedido quedó con `docN_procesando` o con fila en
+    `gestion_documentos`. Sin candado = Wasabil nunca se llamó = seguro reintentar.
+  - Antes de facturas, revisar razón social, RUT, giro y dirección del receptor.
+  - Al final, confirmar en Wasabil (`get_documents`, tipo y `today`) que el SII
+    aceptó todo y que los folios quedaron en Finanzas.
+  - Wasabil emite con `send_email: false`: al cliente no le llega el documento;
+    avisar al usuario para que lo mande.
 - **Notas de crédito** por el MCP de Wasabil: solo con un "sí" explícito para esa
   nota, con `idempotencyKey` estable (`nc-<folio>-pedido-<num>`), y sin llamadas
   en paralelo al MCP (se cae). Suele quedar "Procesando" unos minutos: consultar
