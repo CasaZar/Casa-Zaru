@@ -146,6 +146,7 @@ Viven en `.claude/skills/`. Invocarlas cuando el pedido calce, en vez de reconst
 |---|---|
 | `cierre-semanal` | "cierre semanal", "cómo vamos este mes", "en qué tramo está César", "qué despacha esta semana". Venta acumulada del mes, tramo de comisión y despachos. |
 | `analisis-cotizador` | "análisis del cotizador", "qué se está cotizando", "cómo va el seguimiento". Productos, medidas y ticket cotizados, más tiempo al primer toque y cotizaciones sin tocar. |
+| `conciliacion` | "conciliación", "qué pagos faltan marcar", "qué boletas faltan emitir", o cuando pasan la cartola BCI / export de Mercado Pago. Cruza pagos vs Finanzas vs documentos; totales aparte de Point (ferias) y Mercado Libre. Scripts en `scripts/`; los nombres personales a excluir viven en `%USERPROFILE%\.claude\conciliacion-excluir.txt` (el repo es público). |
 | `gads` | Auditoría de Google Ads, Search Console, PMax, Merchant Center o Business Profile, a partir de exports CSV/Excel. **No** es para Meta ni para crear campañas. |
 
 `.claude/settings.json` bloquea todas las operaciones de **escritura** del MCP de Meta Ads (crear o
