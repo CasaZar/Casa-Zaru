@@ -27174,9 +27174,19 @@ async function apiSupabase(path,method,data){
       return(f1&&f1.length)?f1[0].data:null;
     }
     if(method==='DELETE')return await sbJson(base+'?num=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{'Prefer':'return=minimal'}});
-    if(method==='PUT'||method==='PATCH'){
+    if(method==='PUT'){
       await sbJson(base,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({num:String(id),data:data})});
       return data;
+    }
+    // PATCH mezcla sobre lo guardado. El upsert reemplaza la columna data
+    // entera, así que mandar solo los campos cambiados sin releer borraba
+    // checks, notas, contactos, fecha_creacion, dia_envio y canal (así
+    // quedaron 1520, 1526-1528, 1543, 1549 y 1558 en Seguimiento, sep 2026).
+    if(method==='PATCH'){
+      var f2=await sbJson(base+'?select=data&num=eq.'+encodeURIComponent(id));
+      var mezcla=Object.assign({},(f2&&f2.length)?(f2[0].data||{}):{},data||{});
+      await sbJson(base,{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({num:String(id),data:mezcla})});
+      return mezcla;
     }
     return null;
   }
@@ -28386,7 +28396,6 @@ async function _guardarPiezasProd(o){
   var piezas=(o.lineas||[]).reduce(function(s,l){return s+(Number(l.cantidad)||1);},0);
   if(orders.find(function(x){return String(x.num||'')===nStr;}))
     // Por la ruta de campo, que relee el registro y cambia solo 'piezas'.
-    // OJO: api('pedidos/N','PATCH',{...}) NO mezcla — reemplaza el data entero.
     await api('pedidos/'+nStr+'/piezas','PUT',piezas).catch(_falloGuardado('Piezas del pedido '+nStr));
 }
 async function addProdLineExist(numStr){
