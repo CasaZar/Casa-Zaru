@@ -28127,8 +28127,12 @@ async function confirmOrder(){
   if(DB_URL){
     const checks={};CHECKS.forEach(c=>checks[c.id]=false);
     const existSeg=orders.find(x=>String(x.num||'')===numStr);
-    const segData={num:numStr,semana:o.envio||'',dia_envio:o.dia_envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),notas:'',checks:existSeg?existSeg.checks:checks,fecha_creacion:o.fecha_creacion,canal:o.canal||'whatsapp'};
-    await api('pedidos/'+numStr,'PUT',segData);await poll();
+    const segData={num:numStr,semana:o.envio||'',dia_envio:o.dia_envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',piezas:(o.lineas||[]).reduce((s,l)=>s+(Number(l.cantidad)||1),0),fecha_creacion:o.fecha_creacion,canal:o.canal||'whatsapp'};
+    // Si el número ya existía, PATCH: relee y mezcla, así no se pierden
+    // checks, notas, contactos, excusas ni last_activity al sobreescribir.
+    if(existSeg)await api('pedidos/'+numStr,'PATCH',segData);
+    else await api('pedidos/'+numStr,'PUT',Object.assign(segData,{notas:'',checks:checks}));
+    await poll();
   }
   // 3. FINANZAS
   const fin=o._finanzas||{},cli=o._cliente||{};
