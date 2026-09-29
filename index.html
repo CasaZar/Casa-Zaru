@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Casa Zaru — Sistema de Gestión</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -157,6 +157,8 @@ body {
   border: 1px solid rgba(245,237,227,0.25);
 }
 .nav-tab .tab-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+/* Piezas que existen solo en el celular (barra inferior, hoja "Más", buscador). */
+.m-titulo, .m-buscar, .m-buscar-cerrar, .nav-mas, .m-velo, .m-mas { display: none; }
 
 /* ── MAIN CONTENT ── */
 .app-body {
@@ -941,56 +943,101 @@ tr.fin-no-venta:hover td { opacity:1; }
     border-bottom: none;
   }
   .brand-sub { display: none; }
-  .sync-row { margin-top: 0; margin-left: 10px; }
 
-  /* ── Nav tabs — pills scroll horizontal ──
-     Las pastillas inactivas eran texto suelto sobre el fondo del header y casi
-     no se leían: no se veía que fueran botones ni cuáles había. Ahora cada una
-     tiene su propia superficie y borde, y la activa contrasta de verdad.
-     El degradado de la derecha avisa que la fila sigue. */
+  /* ── Encabezado delgado (29-09-2026) ──
+     Antes ocupaba 229 px de 812: logo, fila de pastillas, buscador, botón de
+     Excel y versión apilados. Ahora es una sola línea con la sección actual;
+     buscar se abre con la lupa y lo demás vive en "Más". */
+  .app-topbar { padding: calc(8px + env(safe-area-inset-top)) 14px 8px; min-height: 52px; }
+  .brand-logo { gap: 10px; min-width: 0; }
+  .brand-name { display: none; }
+  .m-titulo { display: block; font-size: 17px; font-weight: 700; color: #F5EDE3;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
+  .sync-row { margin-top: 0; margin-left: 10px; gap: 10px; }
+  .sync-label { display: none; }
+  .m-buscar { display: flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; border-radius: 12px; border: none; cursor: pointer;
+    background: rgba(245,237,227,0.14); color: #F5EDE3; font-size: 20px; line-height: 1; }
+  #sidebar-footer { display: none; }
+
+  /* ── Barra de secciones abajo, al alcance del pulgar ──
+     Arriba y con scroll lateral no servía: cada pastilla heredaba el
+     width:100% del menú lateral de escritorio y ocupaba la pantalla entera,
+     así que para llegar a Clientes había que deslizar 8 pantallas. Ahora
+     caben todas las del rol o, si son más de 5, 4 + "Más". */
   .nav-tabs {
-    flex-direction: row !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: 8px 12px 12px;
-    gap: 7px;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    scroll-snap-type: x proximity;
-    -webkit-mask-image: linear-gradient(to right,#000 calc(100% - 26px),transparent);
-            mask-image: linear-gradient(to right,#000 calc(100% - 26px),transparent);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
+    display: flex !important; flex-direction: row !important;
+    justify-content: space-around; align-items: stretch; gap: 2px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    background: var(--surface,#FDFAF7);
+    border-top: 1px solid var(--border-md,#E0D5C8);
+    box-shadow: 0 -4px 16px rgba(60,40,20,0.08);
+    overflow: visible;
   }
-  .nav-tabs::-webkit-scrollbar { display: none; }
   .nav-tab {
-    flex-shrink: 0;
-    padding: 9px 15px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    min-height: 40px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    scroll-snap-align: center;
-    /* Ahuecadas (más oscuras que el header) en vez de aclaradas: sobre el café
-       del header, un velo claro daba 2,9:1 de contraste y el texto se perdía.
-       Así llega a ~6:1 y además las pastillas se leen como botones. */
-    background: rgba(0,0,0,0.16);
-    border: 1px solid rgba(245,237,227,0.14);
-    color: rgba(245,237,227,0.95);
-    transition: background .18s ease, color .18s ease, border-color .18s ease;
+    flex: 1 1 0; width: auto; min-width: 0; min-height: 54px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px; padding: 6px 2px; border: none; border-radius: 14px;
+    background: none; color: var(--text-3,#9A8B7C);
+    font-size: 10.5px; font-weight: 600; text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    transition: background .15s ease, color .15s ease;
   }
-  .nav-tab.active {
-    background: var(--surface,#FDFAF7) !important;
+  .nav-tab:hover { background: none; color: var(--text-3,#9A8B7C); }
+  .nav-tab.active, .nav-tab.active:hover {
+    background: rgba(139,94,60,0.12) !important;
     color: var(--wood,#7B5B3A) !important;
-    border-color: transparent;
-    font-weight: 700;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+    border: none; box-shadow: none; font-weight: 700;
   }
-  /* El ícono se mantiene: ayuda a reconocer la sección de un vistazo y a
-     apuntar con el dedo, que era parte del problema. */
-  .nav-tab .tab-icon { display: inline; font-size: 14px; line-height: 1; }
+  .nav-tab .tab-icon { display: block; width: auto; font-size: 21px; line-height: 1; }
+  .nav-tab.nav-extra { display: none !important; }
+  .nav-mas { display: flex; }
+
+  /* ── Hoja "Más" ── */
+  /* Por encima del encabezado (z 200), que es quien contiene a la barra. */
+  .m-velo { position: fixed; inset: 0; z-index: 210; background: rgba(30,20,10,0.38); }
+  body.m-mas-open .m-velo, body.m-buscando .m-velo { display: block; }
+  .m-mas {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 220;
+    background: var(--surface,#FDFAF7); border-radius: 20px 20px 0 0;
+    padding: 8px 12px calc(14px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
+    max-height: 80vh; overflow-y: auto;
+  }
+  body.m-mas-open .m-mas { display: block; }
+  .m-mas-asa { width: 40px; height: 5px; border-radius: 3px; background: var(--border-md,#E0D5C8); margin: 2px auto 10px; }
+  .m-mas-fila {
+    display: flex; align-items: center; gap: 14px; width: 100%;
+    min-height: 54px; padding: 0 12px; border: none; border-radius: 12px;
+    background: none; color: var(--text,#2B2118); font-size: 15px; font-weight: 600;
+    font-family: 'Inter', sans-serif; text-align: left; cursor: pointer;
+  }
+  .m-mas-fila.activa { background: rgba(139,94,60,0.12); color: var(--wood,#7B5B3A); }
+  .m-mas-fila.salir { color: var(--red,#B4342A); }
+  .m-mas-ic { width: 28px; text-align: center; font-size: 20px; }
+  .m-mas-sep { height: 1px; background: var(--border,#E8DFD5); margin: 6px 4px; }
+  .m-mas-pie { font-size: 11px; color: var(--text-3,#9A8B7C); text-align: center; padding: 10px 0 2px; }
+
+  /* ── Buscador: panel arriba, resultados HACIA ABAJO ──
+     En el menú lateral los resultados se abren hacia arriba (bottom:100%),
+     que en el celular queda fuera de la pantalla. */
+  body.m-buscando .app-header { z-index: 230; }   /* el panel vive dentro del encabezado */
+  body.m-buscando #sidebar-footer {
+    display: flex; align-items: center; gap: 8px;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 180;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    background: #7B5B3A; border: none;
+  }
+  body.m-buscando #sidebar-footer .gsearch-wrap { flex: 1; margin: 0 !important; }
+  body.m-buscando #global-search { padding: 11px 12px 11px 30px !important; font-size: 16px !important; border-radius: 12px !important; }
+  body.m-buscando #global-results { top: calc(100% + 8px) !important; bottom: auto !important; max-height: 65vh !important; border-radius: 14px !important; }
+  body.m-buscando .m-buscar-cerrar { display: block; background: none; border: none; color: #F5EDE3; font-size: 15px; font-weight: 600; padding: 8px 4px; cursor: pointer; }
+  body.m-buscando .sb-export, body.m-buscando .sb-version { display: none; }
+  body.m-buscando .gsearch-item { padding: 12px 14px !important; }
+
+  /* El aviso flotante no puede quedar tapado por la barra. */
+  .toast { left: 12px; right: 12px; bottom: calc(78px + env(safe-area-inset-bottom)); text-align: center; }
 
   /* ── Documentos en la tarjeta de Finanzas ──
      Sin esto no había forma de emitir desde el teléfono. */
@@ -1026,7 +1073,7 @@ tr.fin-no-venta:hover td { opacity:1; }
 
   /* ── Main content ── */
   .app-body { min-width: 0; }
-  .main { padding: 14px 12px 90px; }
+  .main { padding: 14px 12px calc(96px + env(safe-area-inset-bottom)); }
 
   /* ── KPI dashboard — scroll horizontal en lugar de 2 cols ── */
   #dash-kpis {
@@ -25835,11 +25882,13 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="brand-logo">
       <div class="brand-icon">🪵</div>
       <div class="brand-name">Casa Zaru</div>
+      <div class="m-titulo" id="m-titulo"></div>
     </div>
     <div class="brand-sub">Sistema de gestión</div>
     <div class="sync-row">
       <span class="sync-dot" id="sync-dot"></span>
       <span class="sync-label" id="sync-label">Conectando...</span>
+      <button class="m-buscar" type="button" onclick="abrirBusquedaMovil()" aria-label="Buscar en todo">⌕</button>
     </div>
   </div>
   <div class="nav-tabs">
@@ -25853,17 +25902,21 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
   </div>
   <!-- Sidebar footer -->
-  <div style="padding:10px 8px;border-top:1px solid rgba(245,237,227,0.12)">
-    <div style="position:relative;margin-bottom:8px">
+  <div id="sidebar-footer" style="padding:10px 8px;border-top:1px solid rgba(245,237,227,0.12)">
+    <div class="gsearch-wrap" style="position:relative;margin-bottom:8px">
       <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:rgba(245,237,227,0.5);font-size:13px">⌕</span>
       <input id="global-search" type="text" placeholder="Buscar en todo..." oninput="renderGlobalSearch()"
         style="width:100%;padding:7px 8px 7px 26px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:#F5EDE3;background:rgba(245,237,227,0.1);outline:none">
       <div id="global-results" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border-md);border-radius:8px;box-shadow:var(--shadow-lg);max-height:320px;overflow-y:auto;z-index:200"></div>
     </div>
-    <button onclick="exportTodoXLSX()" style="width:100%;padding:7px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;color:rgba(245,237,227,0.7);background:rgba(245,237,227,0.08);cursor:pointer;text-align:left">↓ Exportar todo a Excel</button>
-    <div style="margin-top:8px;text-align:center;font-size:10px;color:rgba(245,237,227,0.3);font-family:'Inter',sans-serif">v2.7 · 3 ago 2026</div>
+    <button type="button" class="m-buscar-cerrar" onclick="cerrarBusquedaMovil()">Cancelar</button>
+    <button class="sb-export" onclick="exportTodoXLSX()" style="width:100%;padding:7px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;color:rgba(245,237,227,0.7);background:rgba(245,237,227,0.08);cursor:pointer;text-align:left">↓ Exportar todo a Excel</button>
+    <div class="sb-version" style="margin-top:8px;text-align:center;font-size:10px;color:rgba(245,237,227,0.3);font-family:'Inter',sans-serif">v2.7 · 3 ago 2026</div>
   </div>
 </div>
+<!-- Móvil: fondo y hoja "Más" (secciones que no caben en la barra inferior). -->
+<div id="m-velo" class="m-velo" onclick="cerrarMasMovil();cerrarBusquedaMovil()"></div>
+<div id="m-mas" class="m-mas" role="dialog" aria-label="Más secciones"></div>
 <div class="app-body">
 
 
@@ -26985,7 +27038,72 @@ function showPage(p,btn){
       Promise.all([loadFin(),loadProd()]).then(function(){renderDash();});
     } else {renderDash();}
   }
+  actualizarNavMovil();
+  if(_esMovil())window.scrollTo(0,0);
 }
+// ── Navegación en el celular (29-09-2026) ─────────────────────────────────
+// Los mismos botones .nav-tab de escritorio, puestos como barra inferior. No
+// hay una segunda lista de secciones: los permisos por rol (que esconden los
+// botones) y restaurarPagina() siguen funcionando igual. Si el rol ve más de
+// 5 secciones, las primeras 4 van en la barra y el resto en la hoja "Más".
+var NAV_ORDEN=['dash','prod','seg','fin','cli','gastos','cost','pixel'];
+function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
+function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
+function _paginaActiva(){var a=document.querySelector('.page.active');return a?a.id.replace('page-',''):'';}
+function _textoTab(b){var ic=b.querySelector('.tab-icon');return b.textContent.replace(ic?ic.textContent:'','').trim();}
+function armarNavMovil(){
+  var nav=document.querySelector('.nav-tabs');if(!nav)return;
+  var vis=NAV_ORDEN.filter(function(p){var b=_tabDe(p);return b&&b.style.display!=='none';});
+  var enBarra=vis.length<=5?vis:vis.slice(0,4);
+  var extra=vis.filter(function(p){return enBarra.indexOf(p)<0;});
+  vis.forEach(function(p){_tabDe(p).classList.toggle('nav-extra',extra.indexOf(p)>=0);});
+  var mas=document.getElementById('nav-mas');
+  if(!mas){
+    mas=document.createElement('button');
+    mas.id='nav-mas';mas.type='button';mas.className='nav-tab nav-mas';
+    mas.innerHTML='<span class="tab-icon">☰</span> Más';
+    mas.addEventListener('click',abrirMasMovil);
+    nav.appendChild(mas);
+  }
+  // Aunque no sobren secciones, "Más" queda: ahí están buscar, Excel y salir.
+  window._navExtra=extra;
+  actualizarNavMovil();
+}
+function actualizarNavMovil(){
+  var p=_paginaActiva(),b=_tabDe(p);
+  var t=document.getElementById('m-titulo');if(t)t.textContent=b?_textoTab(b):'Casa Zaru';
+  var mas=document.getElementById('nav-mas');
+  if(mas)mas.classList.toggle('active',(window._navExtra||[]).indexOf(p)>=0);
+  document.body.classList.remove('m-buscando');   // se llegó acá desde un resultado de búsqueda
+}
+function abrirMasMovil(){
+  var p=_paginaActiva();
+  var filas=(window._navExtra||[]).map(function(x){
+    var b=_tabDe(x),ic=b.querySelector('.tab-icon');
+    return'<button type="button" class="m-mas-fila'+(x===p?' activa':'')+'" onclick="irDesdeMas(\''+x+'\')">'+
+      '<span class="m-mas-ic">'+(ic?ic.textContent:'')+'</span>'+esc(_textoTab(b))+'</button>';
+  }).join('');
+  var ver=document.querySelector('#sidebar-footer .sb-version');
+  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+filas+(filas?'<div class="m-mas-sep"></div>':'')+
+    '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirBusquedaMovil()"><span class="m-mas-ic">⌕</span>Buscar en todo</button>'+
+    '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();exportTodoXLSX()"><span class="m-mas-ic">↓</span>Exportar todo a Excel</button>'+
+    '<button type="button" class="m-mas-fila salir" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()"><span class="m-mas-ic">↩</span>Cerrar sesión</button>'+
+    '<div class="m-mas-pie">'+esc(usuarioEmail||'')+(ver?' · '+esc(ver.textContent):'')+'</div>';
+  document.body.classList.add('m-mas-open');
+}
+function cerrarMasMovil(){document.body.classList.remove('m-mas-open');}
+function irDesdeMas(p){cerrarMasMovil();showPage(p,_tabDe(p));}
+function abrirBusquedaMovil(){
+  document.body.classList.add('m-buscando');
+  var i=document.getElementById('global-search');if(i)setTimeout(function(){i.focus();},30);
+}
+function cerrarBusquedaMovil(){
+  document.body.classList.remove('m-buscando');
+  var i=document.getElementById('global-search'),r=document.getElementById('global-results');
+  if(i)i.value='';if(r)r.style.display='none';
+}
+window.addEventListener('resize',function(){if(!_esMovil()){cerrarMasMovil();cerrarBusquedaMovil();}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){cerrarMasMovil();cerrarBusquedaMovil();}});
 function dlCSV(rows,fn){const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn;a.click();URL.revokeObjectURL(url);showToast('✓ CSV exportado');}
 
 // ── ESQUEMA DE DATOS ──────────────────────────────────────────────────────
@@ -32244,6 +32362,7 @@ async function initAllModules(){
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
   restaurarTablero();
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
+  armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
 }
 // ── VOLVER A LA MISMA SECCIÓN AL RECARGAR ──
