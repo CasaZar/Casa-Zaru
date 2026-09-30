@@ -28725,7 +28725,17 @@ function _prodFiltrados(){
   var todos=prodMonthFilter==='todos'||!!fSemana||!!fCliente;
   var fp=todos?prodOrders.slice()
         :prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
-  if(fSemana)fp=fp.filter(function(o){return _calza(fSemana,normalizeSemana(o.envio||'')+' '+(o.envio||'')+' '+(o.dia_envio||''));});
+  // Semana de PRODUCCIÓN, nunca el día de envío: antes "SEMANA 28 SEP" traía
+  // también los de la semana del 21, porque esos se despachan el 28-09 y el
+  // "28" calzaba con su día de envío. Si lo escrito se entiende como semana
+  // ("28 sep", "semana 28 septiembre", "28/09"), se exige esa semana exacta;
+  // si no (solo "28" o "sep"), se busca en el nombre de la semana.
+  if(fSemana){
+    var semQ=normalizeSemana(fSemana);
+    fp=esSemanaValida(semQ)
+      ?fp.filter(function(o){return normalizeSemana(o.envio||'')===semQ;})
+      :fp.filter(function(o){return _calza(fSemana,normalizeSemana(o.envio||''));});
+  }
   if(fMadera)fp=fp.filter(function(o){return(o.lineas||[]).some(function(l){return _calza(fMadera,l.madera);});});
   if(fCliente)fp=fp.filter(function(o){return _calza(fCliente,[o.pedido,o.comprador,o.apellido].join(' '));});
   // fMadera se devuelve porque además hay que descartar línea por línea: un
