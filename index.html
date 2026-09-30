@@ -26684,10 +26684,12 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="modal-header"><div class="modal-title" id="modal-title">Nuevo pedido</div><button class="btn-close" onclick="closeModal()">×</button></div>
     <div class="form-grid">
       <div class="form-group"><label>N° pedido</label><input id="f-num" type="text" placeholder="441"></div>
-      <div class="form-group"><label>Semana de envío</label><input id="f-semana" type="text" placeholder="Semana 27"></div>
+      <div class="form-group"><label>Semana de producción</label><input id="f-semana" type="text" placeholder="SEMANA 07 SEPTIEMBRE">
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:3px">El lunes en que se fabrica. El envío va la semana siguiente.</div></div>
     </div>
     <div class="form-grid">
-      <div class="form-group"><label>Día de envío</label><input id="f-dia-envio" type="date"></div>
+      <div class="form-group"><label>Día de envío</label><input id="f-dia-envio" type="date">
+        <div style="font-size:10.5px;color:var(--text-3);margin-top:3px">Se carga a mano; normalmente el lunes siguiente a la producción.</div></div>
     </div>
     <div class="form-grid">
       <div class="form-group"><label>Nombre</label><input id="f-nombre" type="text"></div>
@@ -26718,7 +26720,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="modal-header"><div class="modal-title" id="fin-modal-title">Registro financiero</div><button class="btn-close" onclick="closeFinModal()">×</button></div>
     <div class="form-grid tri">
       <div class="form-group"><label>N° venta</label><input id="fn-num" type="text" placeholder="400"></div>
-      <div class="form-group"><label>Semana envío</label><input id="fn-semana" type="text" placeholder="SEMANA 29 JUNIO"></div>
+      <div class="form-group"><label>Semana de producción</label><input id="fn-semana" type="text" placeholder="SEMANA 29 JUNIO"></div>
       <div class="form-group"><label>Fecha de venta</label><input id="fn-fecha-creacion" type="date"></div>
     </div>
     <div class="form-grid">
@@ -27702,15 +27704,49 @@ function toggleGrupoSemana(sem){
 }
 // Red de seguridad: pedidos sin semana (que se pierden del tablero) o cuya
 // semana no coincide con el lunes de su día de envío.
+// La semana de producción es SIEMPRE un lunes. normalizeSemana() corre cualquier
+// otro día al lunes ANTERIOR, así que "SEMANA 6 SEPTIEMBRE" (domingo, casi
+// seguro el lunes 7 mal tipeado) quedaba agrupada en "SEMANA 31 AGOSTO" sin que
+// nadie lo notara. Esto lee la fecha TAL COMO SE ESCRIBIÓ para poder avisarlo.
+function _fechaCrudaSemana(s){
+  var u=normalizeSemana(s)&&String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]+/g,' ');
+  if(!u)return null;
+  var mes=-1;
+  for(var i=0;i<MESES_ES.length;i++){if(new RegExp('\\b'+MESES_ES[i].slice(0,3)).test(u)){mes=i;break;}}
+  var nums=u.match(/\d{1,4}/g)||[],dia=nums.length?parseInt(nums[0],10):NaN;
+  if(mes<0&&nums.length>=2){var m2=parseInt(nums[1],10);if(m2>=1&&m2<=12)mes=m2-1;}
+  if(mes<0||!(dia>=1&&dia<=31))return null;
+  var d=new Date(new Date().getFullYear(),mes,dia,12,0,0);
+  return isNaN(d)?null:d;
+}
+// Lunes que corresponde a una fecha mal tipeada: un domingo es el lunes
+// siguiente (la semana arranca al otro día); cualquier otro, el de esa semana.
+function _lunesSugerido(d){var x=new Date(d);if(x.getDay()===0)x.setDate(x.getDate()+1);else _lunesDe(x);return _nombreSemana(x);}
+function _lunesDeSemana(sem){return _fechaCrudaSemana(sem);}
 function pedidosConSemanaRara(){
-  var sin=[],mal=[];
+  var sin=[],mal=[],noLunes=[];
   orders.forEach(function(o){
     var sem=normalizeSemana(o.semana||'');
     var calc=o.dia_envio?semanaDeFecha(o.dia_envio):'';
     if(!sem){sin.push({o:o,calc:calc});return;}
-    if(calc&&calc!==sem)mal.push({o:o,calc:calc,actual:sem});
+    if(calc&&calc!==sem){mal.push({o:o,calc:calc,actual:sem});return;}
+    var l=_fechaCrudaSemana(o.semana);
+    if(l&&l.getDay()!==1)noLunes.push({o:o,calc:_lunesSugerido(l),actual:String(o.semana).toUpperCase(),agrupada:sem,dia:l});
   });
-  return{sin:sin,mal:mal};
+  return{sin:sin,mal:mal,noLunes:noLunes};
+}
+// Corregir un solo pedido, desde su fila del aviso.
+async function arreglarSemanaUno(numStr){
+  var _r=pedidosConSemanaRara();
+  var x=_r.mal.concat(_r.noLunes,_r.sin).find(function(y){return String(y.o.num||'')===String(numStr)&&y.calc;});
+  if(!x)return;
+  var o=x.o,p=prodOrders.find(function(z){return String(z.pedido||'')===String(numStr);});
+  o.semana=x.calc;if(p)p.envio=x.calc;
+  try{
+    if(DB_URL){await api('pedidos/'+numStr,'PATCH',{num:String(numStr),semana:o.semana});if(p)await saveProdOrder(p);}
+    showToast('✓ #'+numStr+' pasó a '+x.calc);
+  }catch(e){showToast('No se pudo guardar #'+numStr+': '+e.message,true);}
+  renderSeg();renderProd();
 }
 async function arreglarSemanas(){
   var r=pedidosConSemanaRara();
@@ -27739,24 +27775,44 @@ async function arreglarSemanas(){
   renderSeg();renderProd();
   showToast(fallo?('Corregidos '+ok+', fallaron '+fallo):('✓ '+ok+' pedido(s) con su semana corregida'));
 }
+// El aviso muestra CADA pedido con qué dice y qué debería decir (29-09-2026):
+// antes solo daba los números y un "corregir todo", y no había cómo saber si lo
+// equivocado era la semana o el día de envío. Si el error es el día, la
+// corrección automática lo empeora: por eso cada fila tiene también "Editar".
+var alertaSemanaAbierta=false;
+function toggleAlertaSemana(){alertaSemanaAbierta=!alertaSemanaAbierta;renderAlertaSemana();}
 function renderAlertaSemana(){
   var el=document.getElementById('seg-alerta-semana');if(!el)return;
   var r=pedidosConSemanaRara();
-  var sinArreglo=r.sin.filter(function(x){return !x.calc;});
-  var total=r.sin.length+r.mal.length;
+  var total=r.sin.length+r.mal.length+r.noLunes.length;
   if(!total){el.innerHTML='';return;}
   var partes=[];
   if(r.sin.length)partes.push('<strong>'+r.sin.length+'</strong> sin semana de producción');
   if(r.mal.length)partes.push('<strong>'+r.mal.length+'</strong> con una semana que no calza con su día de envío');
-  var nums=r.sin.concat(r.mal).slice(0,10).map(function(x){return '#'+esc(x.o.num||'—');}).join(' · ');
+  if(r.noLunes.length)partes.push('<strong>'+r.noLunes.length+'</strong> con una semana que no empieza en lunes');
   var puedeArreglar=r.sin.filter(function(x){return x.calc;}).length+r.mal.length;
-  var btn=puedeArreglar
-    ?'<button class="btn-ghost" style="font-size:11.5px;white-space:nowrap" onclick="arreglarSemanas()">Corregir '+puedeArreglar+' automáticamente</button>':'';
-  var aviso=sinArreglo.length
-    ?'<div style="font-size:11px;color:var(--text-3);margin-top:4px">'+sinArreglo.length+' no se puede'+(sinArreglo.length===1?'':'n')+' corregir solo'+(sinArreglo.length===1?'':'s')+': les falta el día de envío. Cargalo en Producción y la semana se pone sola.</div>':'';
-  el.innerHTML='<div style="background:#FDF6E8;border:1px solid #E8D5A8;border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:12px 15px;margin-bottom:14px;display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">'+
-    '<div style="flex:1;min-width:220px"><div style="font-size:12.5px;color:var(--text)">⚠ '+partes.join(' y ')+'.</div>'+
-    '<div style="font-size:11px;color:var(--text-3);margin-top:3px">'+nums+(total>10?' …':'')+'</div>'+aviso+'</div>'+btn+'</div>';
+  function nombre(o){return esc(((o.nombre||'')+' '+(o.apellido||'')).trim());}
+  function envio(o){return o.dia_envio?fechaLarga(o.dia_envio):'<span style="color:var(--red)">sin día de envío</span>';}
+  function fila(x,tipo){
+    var n=String(x.o.num||''),que;
+    if(tipo==='sin')que='Sin semana · envío: '+envio(x.o)+(x.calc?' → le corresponde <b>'+esc(x.calc)+'</b>':'');
+    else if(tipo==='mal')que='Dice <b>'+esc(x.actual)+'</b> · envío: '+envio(x.o)+' → según el envío sería <b>'+esc(x.calc)+'</b>';
+    else que='Dice <b>'+esc(x.actual)+'</b>, que cae '+esc(x.dia.toLocaleDateString('es-CL',{weekday:'long'}))+
+      ' · hoy aparece en la '+esc(x.agrupada)+' · ¿era la <b>'+esc(x.calc)+'</b>?';
+    var usar=x.calc?'<button class="btn-ghost" style="font-size:11px;padding:4px 9px;margin:0" onclick="arreglarSemanaUno(\''+n+'\')">Usar '+esc(x.calc)+'</button>':'';
+    return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-top:1px dashed #E8D5A8">'+
+      '<div style="flex:1;min-width:220px;font-size:12px"><b>#'+esc(n)+'</b> '+nombre(x.o)+'<div style="font-size:11px;color:var(--text-3);margin-top:1px">'+que+'</div></div>'+
+      usar+'<button class="btn-ghost" style="font-size:11px;padding:4px 9px;margin:0" onclick="openModal(\''+n+'\')">Editar</button></div>';
+  }
+  var lista=alertaSemanaAbierta
+    ?'<div style="margin-top:8px">'+r.mal.map(function(x){return fila(x,'mal');}).join('')+r.noLunes.map(function(x){return fila(x,'noLunes');}).join('')+r.sin.map(function(x){return fila(x,'sin');}).join('')+
+      '<div style="font-size:11px;color:var(--text-3);margin-top:6px">"Usar…" corrige la semana según el día de envío. Si lo equivocado es el día de envío, usá "Editar".</div></div>'
+    :'';
+  var btnVer='<button class="btn-ghost" style="font-size:11.5px;white-space:nowrap;margin:0" onclick="toggleAlertaSemana()">'+(alertaSemanaAbierta?'Ocultar':'Ver cuáles')+'</button>';
+  var btnTodo=puedeArreglar&&alertaSemanaAbierta
+    ?'<button class="btn-ghost" style="font-size:11.5px;white-space:nowrap;margin:0" onclick="arreglarSemanas()">Corregir '+puedeArreglar+' según su día de envío</button>':'';
+  el.innerHTML='<div style="background:#FDF6E8;border:1px solid #E8D5A8;border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:12px 15px;margin-bottom:14px">'+
+    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:220px;font-size:12.5px;color:var(--text)">⚠ '+partes.join(' · ')+'.</div>'+btnVer+btnTodo+'</div>'+lista+'</div>';
 }
 function renderSeg(){
   var list=getFilteredOrders(),cont=document.getElementById('seg-lista'),empty=document.getElementById('seg-empty');
@@ -27929,6 +27985,20 @@ async function saveOrder(){
   var _tmp={semana:semana,dia_envio:dia_envio};
   if(!exigirSemana(_tmp,'semana','dia_envio','f-semana'))return;
   semana=_tmp.semana;
+  // La semana de producción siempre empieza un lunes. Un domingo casi siempre es
+  // el lunes siguiente mal tipeado ("6 septiembre" por "7 septiembre").
+  var _l=_lunesDeSemana(semana);
+  if(_l&&_l.getDay()!==1){
+    var _sug=_lunesSugerido(_l);
+    if(confirm('"'+semana+'" cae '+_l.toLocaleDateString('es-CL',{weekday:'long'})+', y la semana de producción siempre empieza el lunes.\n\n¿La cambio a '+_sug+'?\n\n(Cancelar = dejarla como está)')){
+      semana=_sug;document.getElementById('f-semana').value=_sug;
+    }
+  }
+  // Si hay día de envío, la semana tiene que ser la anterior a ese envío.
+  if(dia_envio){
+    var _calc=semanaDeFecha(dia_envio);
+    if(_calc&&_calc!==normalizeSemana(semana)&&!confirm('El envío del '+fechaLarga(dia_envio)+' corresponde a producir en la '+_calc+', pero el pedido dice '+semana+'.\n\n¿Guardar igual? (Cancelar para revisar)'))return;
+  }
   pendingOps++;setSyncState('syncing');
   try{
     var prev=orders.find(x=>String(x.num||'')===num)||{};
