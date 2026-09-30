@@ -29797,7 +29797,42 @@ function fmtLower(s){if(!s)return'';return String(s).trim().toLowerCase();}
 function fmtRegion(s){if(!s)return'';var v=String(s).trim().toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/\./g,'').replace(/\s+/g,' ');if(/\b(rm|r\.m|r m|metropolitana|metropolitano|metro)\b/.test(v))return'santiago';return v;}
 function fmtEmail(e){if(!e)return'';var s=String(e).trim().toLowerCase();if(s.indexOf('@')===-1||s.indexOf('.')===-1)return'';s=s.replace(/^[\s+c56\-]+/,'');return s;}
 function fmtName(n){if(!n)return'';return n.trim().toLowerCase();}
-function fmtEventTime(dt){try{var d=dt?new Date(dt):new Date();if(isNaN(d.getTime()))d=new Date();var pad=function(n){return String(n).padStart(2,'0');};return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(Math.min(d.getHours(),23))+':'+pad(Math.min(d.getMinutes(),59))+':00-04:00';}catch(e){var now=new Date();var pad=function(n){return String(n).padStart(2,'0');};return now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'T'+pad(now.getHours())+':'+pad(now.getMinutes())+':00-04:00';}}
+// Hora del evento para la planilla del Pixel, en hora de Chile y con el desfase
+// que corresponde a ESA fecha (30-09-2026). Antes iba "-04:00" fijo: desde el
+// cambio de hora de septiembre Chile está en -03:00, y en abril vuelve a -04:00.
+// Se calcula con la zona America/Santiago, así acierta en cualquier fecha y
+// aunque el navegador esté en otra zona horaria.
+function fmtEventTime(dt){
+  var d=dt?new Date(dt):new Date();
+  if(isNaN(d.getTime()))d=new Date();
+  var pad=function(n){return String(n).padStart(2,'0');};
+  try{
+    var p={};
+    new Intl.DateTimeFormat('en-US',{timeZone:'America/Santiago',year:'numeric',month:'2-digit',day:'2-digit',
+      hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'})
+      .formatToParts(d).forEach(function(x){p[x.type]=x.value;});
+    // Desfase = hora de pared en Santiago (leída como UTC) menos el instante real.
+    var pared=Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute,+p.second);
+    var off=Math.round((pared-Math.floor(d.getTime()/1000)*1000)/60000);   // -180 o -240
+    var sg=off<0?'-':'+',a=Math.abs(off);
+    return p.year+'-'+p.month+'-'+p.day+'T'+p.hour+':'+p.minute+':00'+sg+pad(Math.floor(a/60))+':'+pad(a%60);
+  }catch(e){
+    // Navegador sin zonas horarias: hora local con el desfase del propio equipo.
+    var o=-d.getTimezoneOffset(),s=o<0?'-':'+',b=Math.abs(o);
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())+':00'+s+pad(Math.floor(b/60))+':'+pad(b%60);
+  }
+}
+// Los registros guardados antes del 30-09-2026 traen "-04:00" fijo aunque la
+// venta fuera en horario de verano. La hora escrita (07:58) es la correcta; lo
+// equivocado es el desfase. Se conserva la hora y se le pone el de esa fecha.
+function eventTimeChile(s){
+  var m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2})?(?:[+-]\d{2}:?\d{2}|Z)?$/);
+  if(!m)return s?String(s):fmtEventTime('');
+  // Instante aproximado (asumiendo -04:00) solo para saber qué desfase regía ese día.
+  var aprox=new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4]+4,+m[5]));
+  var off=fmtEventTime(aprox).slice(-6);
+  return m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':00'+off;
+}
 function renderPixelStats(){renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});var base=pixelMonthFilter==='todos'?pixelRecords:pixelRecords.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});const tot=base.length,sub=base.filter(r=>r.status==='subida').length,noSub=base.filter(r=>r.status==='nosubida').length,noKlav=base.filter(r=>r.status==='noklav').length;document.getElementById('pixel-stats').innerHTML='<div class="stat-card"><div class="stat-label">Total</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Subidas</div><div class="stat-val green">'+sub+'</div></div><div class="stat-card"><div class="stat-label">No subidas</div><div class="stat-val pink">'+noSub+'</div></div><div class="stat-card"><div class="stat-label">No Klaviyo</div><div class="stat-val amber">'+noKlav+'</div></div>';}
 function getFilteredPixel(){var q=(document.getElementById('pixel-search').value||'').toLowerCase().trim();var list=pixelRecords.slice();if(pixelMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});if(pixelFilter==='subida')list=list.filter(r=>r.status==='subida');if(pixelFilter==='nosubida')list=list.filter(r=>r.status==='nosubida');if(pixelFilter==='noklav')list=list.filter(r=>r.status==='noklav');if(q)list=list.filter(r=>(r.email||'').toLowerCase().includes(q)||(r.fn||'').toLowerCase().includes(q)||(r.ln||'').toLowerCase().includes(q)||(r.order_id||'').toLowerCase().includes(q));return list;}
 function setPixelFilter(f,btn){pixelFilter=f;document.querySelectorAll('#page-pixel .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPixel();}
@@ -29806,7 +29841,7 @@ function renderPixel(){
   renderPixelStats();renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});
   var list=getFilteredPixel(),tbody=document.getElementById('pixel-tbody'),empty=document.getElementById('pixel-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
-  tbody.innerHTML=list.map(r=>{const idx=pixelRecords.indexOf(r);const rowCls=r.status==='subida'?'px-subida':r.status==='noklav'?'px-noklav':'px-nosubida';return`<tr><td class="${rowCls}" style="font-size:11px">${r.email||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.phone||'—'}</td><td class="${rowCls}">${r.fn||'—'}</td><td class="${rowCls}">${r.ln||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.ct||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.st||'—'}</td><td class="${rowCls}">CL</td><td class="${rowCls}">${r.gen||'—'}</td><td class="${rowCls}" style="font-family:'DM Serif Display',serif;color:var(--wood)">${r.order_id||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.event_time||'—'}</td><td class="${rowCls}">${r.value||'—'}</td><td class="${rowCls}">CLP</td><td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option></select></td><td class="${rowCls}" style="display:flex;gap:4px;align-items:center"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deletePixelRecord_inline(${idx})">🗑</button></td></tr>`;}).join('');
+  tbody.innerHTML=list.map(r=>{const idx=pixelRecords.indexOf(r);const rowCls=r.status==='subida'?'px-subida':r.status==='noklav'?'px-noklav':'px-nosubida';return`<tr><td class="${rowCls}" style="font-size:11px">${r.email||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.phone||'—'}</td><td class="${rowCls}">${r.fn||'—'}</td><td class="${rowCls}">${r.ln||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.ct||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.st||'—'}</td><td class="${rowCls}">CL</td><td class="${rowCls}">${r.gen||'—'}</td><td class="${rowCls}" style="font-family:'DM Serif Display',serif;color:var(--wood)">${r.order_id||'—'}</td><td class="${rowCls}" style="font-size:11px">${eventTimeChile(r.event_time)||'—'}</td><td class="${rowCls}">${r.value||'—'}</td><td class="${rowCls}">CLP</td><td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option></select></td><td class="${rowCls}" style="display:flex;gap:4px;align-items:center"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deletePixelRecord_inline(${idx})">🗑</button></td></tr>`;}).join('');
 }
 function deletePixelRecord_inline(idx){if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(idx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Pixel del pedido '+numStr));renderPixel();showToast('✓ Eliminado');}
 function openPixelModal(idx){
@@ -29827,7 +29862,7 @@ function savePixelRecord(){
 }
 function deletePixelRecord(){if(editingPixelIdx===null)return;if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[editingPixelIdx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(editingPixelIdx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Pixel del pedido '+numStr));renderPixel();closePixelModal();showToast('✓ Eliminado');}
 document.getElementById('modal-pixel-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-pixel-bg'))closePixelModal();});
-function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return r.status==='nosubida';});if(!list.length){showToast('No hay registros sin subir');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','gen':r.gen||'','event_name':'Purchase','order_id':r.order_id||'','event_time':r.event_time||fmtEventTime(''),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:4},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
+function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return r.status==='nosubida';});if(!list.length){showToast('No hay registros sin subir');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','gen':r.gen||'','event_name':'Purchase','order_id':r.order_id||'','event_time':eventTimeChile(r.event_time),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:4},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
 
 // ── COSTOS ──────────────────────────────────────────────────────────────────
 let costRecords=[];
@@ -32794,7 +32829,7 @@ function exportTodoXLSX(){
     }
     // Hoja 4: Pixel
     if(pixelRecords.length){
-      var pixRows=pixelRecords.map(function(r){return{email:r.email||'',phone:r.phone||'',fn:r.fn||'',ln:r.ln||'',ct:r.ct||'',st:r.st||'',country:'CL',gen:r.gen||'',order_id:r.order_id||'',event_time:r.event_time||'',value:r.value||0,currency:'CLP',estado:r.status||''};});
+      var pixRows=pixelRecords.map(function(r){return{email:r.email||'',phone:r.phone||'',fn:r.fn||'',ln:r.ln||'',ct:r.ct||'',st:r.st||'',country:'CL',gen:r.gen||'',order_id:r.order_id||'',event_time:r.event_time?eventTimeChile(r.event_time):'',value:r.value||0,currency:'CLP',estado:r.status||''};});
       var wsPixel=XLSX.utils.json_to_sheet(pixRows);XLSX.utils.book_append_sheet(wb,wsPixel,'Pixel');
     }
     // Hoja 5: Clientes
