@@ -24,7 +24,7 @@ $hoy = if ($Lunes) { [datetime]::ParseExact($Lunes, 'yyyy-MM-dd', $null) } else 
 $dow = [int]$hoy.DayOfWeek; $lunesActual = $hoy.AddDays(-(($dow + 6) % 7))
 $ini = $lunesActual.AddDays(-7); $fin = $lunesActual.AddDays(-1)           # semana informada
 $iniAnt = $ini.AddDays(-7); $finAnt = $ini.AddDays(-1)
-$iniMes = Get-Date -Year $fin.Year -Month $fin.Month -Day 1
+$iniMes = (Get-Date -Year $fin.Year -Month $fin.Month -Day 1).Date   # .Date: sin la hora, o se pierden las ventas del día 1
 $iniMesAnt = $iniMes.AddMonths(-1); $finMesAnt = $iniMesAnt.AddDays($fin.Day - 1)
 if ($finMesAnt.Month -ne $iniMesAnt.Month) { $finMesAnt = $iniMes.AddDays(-1) }
 
@@ -143,6 +143,76 @@ foreach ($kv in $seg.GetEnumerator()) {
   }
 }
 
+# ── Cotizador vs ventas reales ────────────────────────────────────────────
+# Lee los KPI del Pulso del Cotizador (kpis-cotizador.json) y su foto cruda,
+# y cruza cada venta real de Gestión con las cotizaciones del mismo teléfono,
+# correo o monto de cierre. Solo lectura: no toca ninguno de los dos proyectos.
+$cz = $null
+$kpiPath = Join-Path $env:USERPROFILE '.casazaru\kpis-cotizador.json'
+if (Test-Path $kpiPath) {
+  $k = [IO.File]::ReadAllText($kpiPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+  $cotPath = Join-Path $k.foto 'cotizaciones.json'
+  if (Test-Path $cotPath) {
+    # En PS 5.1 ConvertFrom-Json entrega el arreglo como UN objeto: se guarda primero y recién ahí se filtra.
+    $cotRaw = [IO.File]::ReadAllText($cotPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
+    $cot = @($cotRaw | Where-Object { -not $_.eliminada })
+    function Tel($s) { $d = ("$s" -replace '\D', ''); if ($d.Length -ge 8) { $d.Substring($d.Length - 8) } else { '' } }
+    function Mail($s) { if ("$s" -match '[\w\.\-+]+@[\w\-]+\.[\w\.\-]+') { $matches[0].ToLower() } else { '' } }
+    $idx = @{}
+    foreach ($c in $cot) {
+      $fc = ([datetime]$c.fecha_creacion).Date
+      $item = [pscustomobject]@{ f=$fc; estado=$c.estado; cliente=$c.cliente; cierre=(N $c.monto_cierre); numero=$c.numero; contacto=$c.contacto }
+      $claves = @((Tel $c.contacto), (Mail $c.contacto)); if ($item.cierre -gt 0) { $claves += 'm' + [math]::Round($item.cierre) }
+      foreach ($key in $claves | Where-Object { $_ }) { if (-not $idx[$key]) { $idx[$key] = @() }; $idx[$key] += $item }
+    }
+    $finRaw = @{}; @($j.tablas.gestion_finanzas) | ForEach-Object { $finRaw[$_.num] = $_.data }
+    function Cruce($v) {
+      $d = $finRaw[$v.num]; $m = @()
+      foreach ($key in @((Tel $d.celular), (Mail $d.email), ('m' + [math]::Round($v.total))) | Where-Object { $_ -and $_ -ne 'm0' }) { $m += @($idx[$key]) }
+      @($m | Where-Object { $_ -and $_.f -le $v.fecha.AddDays(3) -and $_.f -ge $v.fecha.AddDays(-180) } | Sort-Object f)
+    }
+    $czMeses = foreach ($q in 2, 1, 0) {   # ojo: no llamarla $meses, PowerShell no distingue mayúsculas y pisaría $MESES
+      $a = $iniMes.AddMonths(-$q); $b = if ($q -eq 0) { $fin } else { $a.AddMonths(1).AddDays(-1) }
+      $vs = EnRango $ventas $a $b
+      # @(): con un solo resultado PS 5.1 entrega un objeto suelto, sin .Count
+      $x = foreach ($v in $vs) { $m = @(Cruce $v); [pscustomobject]@{ v=$v; cotizo=($m.Count -gt 0); ganado=(@($m | Where-Object estado -eq 'ganado').Count -gt 0); dias=$(if ($m.Count) { ($v.fecha - $m[0].f).Days } else { $null }) } }
+      $conC = @($x | Where-Object cotizo); $dd = @($conC | ForEach-Object dias | Sort-Object)
+      $km = $k.conversion_por_mes | Where-Object { $_.mes -eq $a.ToString('yyyy-MM') } | Select-Object -First 1
+      [pscustomobject]@{ mes=$a; ventas=$vs.Count; monto=(Suma $vs 'total'); conCot=$conC.Count; marcadas=@($conC | Where-Object ganado).Count
+        mediana=$(if ($dd.Count) { $dd[[math]::Floor(($dd.Count - 1) / 2)] } else { $null }); detalle=$x
+        cotClientes=$(if ($km) { $km.clientes } else { $null }); cotGanados=$(if ($km) { $km.ganados } else { $null }); cotVendido=$(if ($km) { $km.vendido } else { $null }) }
+    }
+    $mesAct = $czMeses[-1]
+    # Ganadas en el cotizador este mes que no tienen venta en Gestión (ni por teléfono, correo ni monto).
+    # También por nombre y apellido: muchas ventas se cargan con otro teléfono o
+    # con un monto distinto al cotizado (se agregó envío, se ajustó una medida).
+    function NomTok($s) { @(("$s".ToLower().Normalize([Text.NormalizationForm]::FormD) -replace '[̀-ͯ]', '' -replace '[^a-z ]', ' ').Split(' ') | Where-Object { $_.Length -ge 3 }) }
+    $claveVenta = @{}; $nombresVenta = @()
+    foreach ($v in $ventas) {
+      $d = $finRaw[$v.num]; $nombresVenta += ,(NomTok $v.cliente)
+      foreach ($key in @((Tel $d.celular), (Mail $d.email), ('m' + [math]::Round($v.total)))) { if ($key -and $key -ne 'm0') { $claveVenta[$key] = 1 } }
+    }
+    function TieneVenta($c) {
+      $t = Tel $c.contacto; $ml = Mail $c.contacto; $mm = 'm' + [math]::Round((N $c.monto_cierre))
+      if (($t -and $claveVenta[$t]) -or ($ml -and $claveVenta[$ml]) -or ($mm -ne 'm0' -and $claveVenta[$mm])) { return $true }
+      $tk = NomTok $c.cliente
+      if ($tk.Count -ge 2) { foreach ($nv in $nombresVenta) { if (@($tk | Where-Object { $nv -contains $_ }).Count -ge 2) { return $true } } }
+      return $false
+    }
+    # Solo las del mes, una por cliente (el panel repite al mismo cliente en varias cotizaciones), sin cierres simbólicos.
+    $fantasmas = @($cot | Where-Object { $_.estado -eq 'ganado' -and (N $_.monto_cierre) -ge 1000 -and
+        ([datetime]$(if ($_.fecha_concretada) { $_.fecha_concretada } else { $_.fecha_creacion })).Date -ge $iniMes } |
+      Where-Object { -not (TieneVenta $_) } | Group-Object { $k2 = (Tel $_.contacto); if ($k2) { $k2 } else { "$($_.cliente)" } } |
+      ForEach-Object { $_.Group | Sort-Object { N $_.monto_cierre } -Descending | Select-Object -First 1 })
+    # Embudo de 14 días del Pulso + ventas reales de esos mismos 14 días que cotizaron
+    $v14 = EnRango $ventas $fin.AddDays(-13) $fin
+    $v14c = @($v14 | Where-Object { @(Cruce $_).Count -gt 0 })
+    $vMed = @($vMes | ForEach-Object total | Sort-Object); $ventaMed = if ($vMed.Count) { $vMed[[math]::Floor(($vMed.Count - 1) / 2)] } else { 0 }
+    $cz = [pscustomobject]@{ k=$k; meses=$czMeses; mesAct=$mesAct; fantasmas=$fantasmas; v14=$v14.Count; v14c=$v14c.Count; ventaMed=$ventaMed
+      edad=((Get-Date) - [datetime]::ParseExact($k.generado, 'yyyy-MM-dd HH:mm', $null)).TotalDays }
+  }
+}
+
 # ── HTML ──────────────────────────────────────────────────────────────────
 function Tabla($cols, $filas) {
   $h = '<table><thead><tr>' + (($cols | ForEach-Object { "<th>$_</th>" }) -join '') + '</tr></thead><tbody>'
@@ -179,6 +249,50 @@ $tDesp = $despacha | Sort-Object dia | ForEach-Object { ,@("#$($_.num)", (E $_.c
 $tMadera = $porMadera | ForEach-Object { ,@((E $_.k), $_.n, ($_.m2.ToString('N2', $cl) + ' m²')) }
 function TablaGrupo($g, $titulo) { Tabla @($titulo, 'Ventas', 'Monto', '%') ($g | ForEach-Object { $tm = Suma $vMes 'total'; ,@((E $_.k), $_.n, (Plata $_.m), $(if ($tm) { [math]::Round(100 * $_.m / $tm).ToString() + '%' } else { '' })) }) }
 $tAvisos = $AV | ForEach-Object { $l = $atrasos[$_[1]]; ,@($_[1], @($l).Count, ((@($l) | Sort-Object | ForEach-Object { "#$_" }) -join ', ')) }
+
+# Página "Cotizador vs ventas reales" (solo si están los datos del Pulso)
+$czHtml = ''
+if ($cz) {
+  $ma = $cz.mesAct; $pc = if ($ma.ventas) { [math]::Round(100 * $ma.conCot / $ma.ventas) } else { 0 }
+  $viejo = if ($cz.edad -gt 2) { "<div class=""nota"">⚠ Los datos del cotizador son del $(E $cz.k.generado): hace $([math]::Floor($cz.edad)) días. El Pulso se actualiza los lunes 09:00.</div>" } else { '' }
+  $tMeses = $cz.meses | ForEach-Object {
+    $n = $MESES[$_.mes.Month - 1]; $n = $n.Substring(0,1) + $n.Substring(1).ToLower()
+    ,@($n, $(if ($_.cotClientes -ne $null) { $_.cotClientes } else { '—' }), $(if ($_.cotGanados -ne $null) { $_.cotGanados } else { '—' }), $(if ($_.cotVendido -ne $null) { Plata $_.cotVendido } else { '—' }),
+       "<b>$($_.ventas)</b>", "<b>$(Plata $_.monto)</b>", $(if ($_.ventas) { "$($_.conCot) ($([math]::Round(100 * $_.conCot / $_.ventas))%)" } else { '—' }), "$($_.marcadas) de $($_.conCot)", $(if ($_.mediana -ne $null) { "$($_.mediana) días" } else { '—' }))
+  }
+  $sinCot = @($ma.detalle | Where-Object { -not $_.cotizo } | ForEach-Object { ,@("#$($_.v.num)", (E $_.v.cliente), (Plata $_.v.total), $(if ($_.v.web) { 'venta web' } else { 'no se encontró cotización' })) })
+  $sinMarca = @($ma.detalle | Where-Object { $_.cotizo -and -not $_.ganado } | ForEach-Object { ,@("#$($_.v.num)", (E $_.v.cliente), (Plata $_.v.total), "$($_.dias) días desde que cotizó") })
+  $tFant = @($cz.fantasmas | ForEach-Object { ,@((E $_.numero), (E $_.cliente), (Plata (N $_.monto_cierre)), ([datetime]$_.fecha_creacion).ToString('dd/MM')) })
+  $e = $cz.k.embudo_14_dias
+  $ta = $cz.k.toques_atrasados
+  $czHtml = @"
+<h2 style="break-before: page">Cotizador vs ventas reales</h2>
+<div class="sub">Cruza el Pulso del Cotizador con las ventas de Gestión por teléfono, correo o monto de cierre (hasta 180 días antes de la venta). Datos del cotizador: $(E $cz.k.generado).</div>
+$viejo
+<div class="kpis">
+  <div class="kpi"><div class="l">Ventas del mes que cotizaron</div><div class="v">$($ma.conCot) de $($ma.ventas)</div><span class="d">$pc% pasó por el cotizador</span></div>
+  <div class="kpi"><div class="l">Marcadas "ganada" en el panel</div><div class="v">$($ma.marcadas) de $($ma.conCot)</div><span class="d">el resto hay que marcarlas</span></div>
+  <div class="kpi"><div class="l">Cotización → venta</div><div class="v">$(if ($ma.mediana -ne $null) { "$($ma.mediana) días" } else { '—' })</div><span class="d">mediana, con la fecha real de venta</span></div>
+  <div class="kpi"><div class="l">Ticket</div><div class="v">$(Plata $cz.ventaMed)</div><span class="d">venta real (mediana) vs cotizado $(Plata $cz.k.ticket.cotizacion_mediana)</span></div>
+</div>
+<h2>Mes a mes: lo que dice el cotizador y lo que se vendió</h2>
+$(Tabla @('Mes','Cotizaron (clientes)','Ganadas en panel','Vendido según panel','Ventas reales','Monto real','Con cotización previa','Marcadas ganada','Cotización → venta') $tMeses)
+<h2>Embudo de los últimos 14 días, hasta la venta real</h2>
+$(Tabla @('Visitan','Eligen producto','Ponen medidas','Dejan datos','Cotizaciones','Ventas reales','Ventas que cotizaron') @(,@($e.visita, $e.producto, $e.medidas, $e.datos, $e.cotizacion, $cz.v14, $cz.v14c)))
+<div class="nota">Seguimiento pendiente según el Pulso: <b>$($ta.clientes) clientes</b> con toque atrasado por <b>$(Plata $ta.monto)</b> cotizados (César: $($ta.por_dueno.cesar.n); web: $($ta.por_dueno.web.n)). Cartera abierta: $($cz.k.cartera_abierta.clientes) clientes.</div>
+<div class="dos"><div>
+<h2>Ganadas en el panel sin venta en Gestión ($($tFant.Count))</h2>
+<div class="sub">Probablemente ventas que falta cargar.</div>
+$(Tabla @('Cotización','Cliente','Cierre','Cotizó') $tFant)
+</div><div>
+<h2>Vendidas sin marcar "ganada" ($($sinMarca.Count))</h2>
+<div class="sub">Cotizaron y compraron, pero el panel no lo sabe.</div>
+$(Tabla @('N°','Cliente','Venta','') $sinMarca)
+</div></div>
+<h2>Ventas del mes que no pasaron por el cotizador ($($sinCot.Count))</h2>
+$(Tabla @('N°','Cliente','Venta','Motivo') $sinCot)
+"@
+}
 
 $totSem = Suma $vSem 'total'; $totAnt = Suma $vAnt 'total'; $totMes = Suma $vMes 'total'; $totMesAnt = Suma $vMesAnt 'total'
 $ticket = if ($vSem.Count) { $totSem / $vSem.Count } else { 0 }
@@ -255,6 +369,7 @@ $(Tabla @('N°','Cliente','Documento','Tipo','Monto') $tDocs)
 
 <h2>Avisos al cliente atrasados</h2>
 $(Tabla @('Aviso','Pedidos','Cuáles') $tAvisos)
+$czHtml
 
 <div class="pie">Fuente: $(E $resp.Name) (respaldo de Gestión del $($resp.LastWriteTime.ToString('dd/MM/yyyy HH:mm'))). Lo marcado en la app después de esa hora no aparece. Semanas de producción nombradas por su lunes; el despacho va la semana siguiente.</div>
 </body></html>
