@@ -1250,8 +1250,25 @@ tr.fin-no-venta:hover td { opacity:1; }
   /* ── Dashboard ── */
   #dash-grid { grid-template-columns: 1fr !important; }
 
-  /* ── Producción filtros ── */
-  #prod-filter-semana, #prod-filter-madera, #prod-filter-cliente { width: 100%; }
+  /* ── Producción filtros ──
+     A lo ancho y con "cliente o N°" primero, que es lo que más se busca.
+     Antes tenían 180 px fijos: dos por fila y el tercero cortado. */
+  #prod-filtros { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; }
+  #prod-filtros > div { position: relative; min-width: 0; }
+  #prod-filtros > div:nth-child(3) { order: -1; grid-column: 1 / -1; }
+  #prod-filtros #prod-clear-filters { grid-column: 1 / -1; min-height: 40px; }
+  #prod-filter-semana, #prod-filter-madera, #prod-filter-cliente { width: 100% !important; min-height: 42px; }
+
+  /* Subir pantallazo: una fila, no media pantalla. En el teléfono no hay
+     "arrastrar" ni Ctrl+V, así que esos textos sobran. */
+  #dz { display: flex; align-items: center; gap: 12px; padding: 14px 16px; text-align: left; margin-bottom: 18px; }
+  #dz > div:nth-of-type(1) { font-size: 26px !important; margin: 0 !important; }
+  #dz > div:nth-of-type(2) { margin: 0 !important; }
+  #dz > div:nth-of-type(3), #dz > div:nth-of-type(4) { display: none; }
+
+  /* Finanzas: el buscador arriba de todo; antes quedaba bajo 8 tarjetas. */
+  #page-fin .main { display: flex; flex-direction: column; }
+  #page-fin .search-wrap { order: -1; }
 
   /* ── Prev panel ── */
   .prev-header { flex-direction: column; }
@@ -26225,7 +26242,10 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div class="proc" id="proc2" style="margin-top:8px"><div class="spin"></div><span>Analizando segundo pantallazo...</span></div>
     </div>
-  </div>
+  <!-- (29-09-2026) Acá había un </div> de más: cerraba .main antes de la lista
+       y, de rebote, sacaba de .app-body a Finanzas, Pixel, Costos, Gastos y
+       Clientes. En el celular dejaba la lista sin márgenes y el relleno de la
+       barra inferior como un hueco en medio de la página. -->
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
     <div style="font-size:18px;font-weight:700;color:var(--text);letter-spacing:-0.3px">🪵 General Producción
       <span style="font-size:12px;color:var(--text-3);font-weight:400;margin-left:8px" id="prod-date"></span>
@@ -26235,7 +26255,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button id="btn-gen-batch" class="btn-add" style="font-size:12px;display:none" onclick="generarEtiquetasBatch()">📄 Etiquetas seleccionadas (<span id="batch-count">0</span>)</button>
     </div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+  <div id="prod-filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
     <div style="position:relative">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
       <input id="prod-filter-semana" type="text" placeholder="Buscar semana..." oninput="renderProd()"
@@ -26248,7 +26268,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div style="position:relative">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
-      <input id="prod-filter-cliente" type="text" placeholder="Buscar cliente..." oninput="renderProd()"
+      <input id="prod-filter-cliente" type="text" placeholder="Buscar cliente o N°..." oninput="renderProd()"
         style="padding:7px 12px 7px 30px;border:1px solid var(--border-md);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;width:180px">
     </div>
     <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--border-md);border-radius:6px;padding:7px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
@@ -26276,11 +26296,12 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="toolbar">
     <div class="filter-group">
       <button class="filter-btn active" onclick="setFinFilter('todos',this)">Todos</button>
-      <button class="filter-btn" onclick="setFinFilter('pendiente',this)">Con pendiente</button>
+      <button class="filter-btn" onclick="setFinFilter('saldo',this)" title="Ventas con plata por cobrar">Deben saldo</button>
+      <button class="filter-btn" onclick="setFinFilter('pendiente',this)" title="Falta emitir la boleta o factura">Docs pendientes</button>
       <button class="filter-btn" onclick="setFinFilter('listo',this)">Listos</button>
     </div>
     <div style="display:flex;gap:8px">
-      <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);font-size:12px">⟳ Sincronizar</button>
+      <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);color:#fff;border-color:transparent;font-size:12px">⟳ Sincronizar</button>
       <button class="btn-ghost" style="font-size:12px" onclick="exportFinCSV()">↓ Excel</button>
       <button id="btn-envio-batch" class="btn-add" style="font-size:12px;display:none;background:var(--wood)" onclick="generarEtiquetasEnvioBatch()">📦 Etiquetas envío (<span id="envio-batch-count">0</span>)</button>
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
@@ -26288,7 +26309,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
   <div id="fin-month-bar" class="month-bar"></div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
-    <input type="text" id="fin-search" placeholder="Buscar por cliente o N° venta..." oninput="renderFin()">
+    <input type="text" id="fin-search" placeholder="Buscar cliente, N°, RUT, celular, producto..." oninput="renderFin()">
   </div>
   <div id="fin-mobile-cards" class="mobile-cards"></div>
   <div class="table-card"><div class="table-wrap">
@@ -28563,15 +28584,9 @@ function renderProd(){
   renderProdCards();
   renderMaderaDash();
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
-  var filteredProd=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
-  // Filtros de búsqueda: semana y madera
-  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
-  var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
-  var fCliente=((document.getElementById('prod-filter-cliente')||{}).value||'').toLowerCase().trim();
-  if(fSemana)filteredProd=filteredProd.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
-  if(fMadera)filteredProd=filteredProd.filter(function(o){return (o.lineas||[]).some(function(l){return (l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
-  if(fCliente)filteredProd=filteredProd.filter(function(o){return ((o.comprador||'')+' '+(o.apellido||'')).toLowerCase().indexOf(fCliente)!==-1;});
-  var hasFilter=fSemana||fMadera||fCliente;
+  // Un solo filtro para la tabla, las tarjetas del celular, la madera y el Excel.
+  var _f=_prodFiltrados(),filteredProd=_f.pedidos;
+  var hasFilter=_f.fSemana||_f.fMadera||_f.fCliente;
   var clearBtn=document.getElementById('prod-clear-filters');if(clearBtn)clearBtn.style.display=hasFilter?'block':'none';
   if(!filteredProd.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">🔍</span>Sin resultados para este filtro</td></tr>';return;}
   tbody.innerHTML=filteredProd.map((o,_oi)=>{
@@ -28620,15 +28635,29 @@ function clearProdFilters(){['prod-filter-semana','prod-filter-madera','prod-fil
 // conjunto: antes leía todos los pedidos de la semana ignorando los filtros,
 // así que con un filtro activo la tarjeta decía una cantidad y el documento
 // otra, y se terminaba comprando madera de más o de menos. Un solo lugar.
+// Búsqueda de texto de toda la app: sin tildes ni mayúsculas y por palabras
+// sueltas, en cualquier orden. "dunner" encuentra a Dünner, "manio" a MAÑÍO y
+// "14 sep" a SEMANA 14 SEPTIEMBRE. Antes se comparaba el texto tal cual y en
+// el celular, con el autocorrector, casi nada calzaba.
+function _normBusca(s){return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+function _calza(q,texto){
+  var h=_normBusca(texto);
+  return _normBusca(q).split(/\s+/).filter(Boolean).every(function(t){return h.indexOf(t)!==-1;});
+}
 function _prodFiltrados(){
-  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
-  var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
-  var fCliente=((document.getElementById('prod-filter-cliente')||{}).value||'').toLowerCase().trim();
-  var fp=prodMonthFilter==='todos'?prodOrders.slice()
+  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').trim();
+  var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').trim();
+  var fCliente=((document.getElementById('prod-filter-cliente')||{}).value||'').trim();
+  // Buscando una semana o un cliente se busca en TODOS los meses: antes la
+  // búsqueda quedaba presa del mes marcado en la barra y un pedido de agosto
+  // "no existía" estando en septiembre. La madera sí respeta el mes, porque
+  // sirve para comprar la del mes que se está mirando.
+  var todos=prodMonthFilter==='todos'||!!fSemana||!!fCliente;
+  var fp=todos?prodOrders.slice()
         :prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
-  if(fSemana)fp=fp.filter(function(o){return(o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
-  if(fMadera)fp=fp.filter(function(o){return(o.lineas||[]).some(function(l){return(l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
-  if(fCliente)fp=fp.filter(function(o){return((o.comprador||'')+' '+(o.apellido||'')).toLowerCase().indexOf(fCliente)!==-1;});
+  if(fSemana)fp=fp.filter(function(o){return _calza(fSemana,normalizeSemana(o.envio||'')+' '+(o.envio||'')+' '+(o.dia_envio||''));});
+  if(fMadera)fp=fp.filter(function(o){return(o.lineas||[]).some(function(l){return _calza(fMadera,l.madera);});});
+  if(fCliente)fp=fp.filter(function(o){return _calza(fCliente,[o.pedido,o.comprador,o.apellido].join(' '));});
   // fMadera se devuelve porque además hay que descartar línea por línea: un
   // pedido mixto pasa el filtro pero sus piezas de otra madera no van.
   return{pedidos:fp,fMadera:fMadera,fSemana:fSemana,fCliente:fCliente};
@@ -28667,7 +28696,7 @@ function renderMaderaDash(){
     var sem=normalizeSemana(o.envio)||'Sin semana';
     if(!bySemana[sem])bySemana[sem]={};
     (o.lineas||[]).forEach(function(l){
-      if(fMadera&&(l.madera||'').toLowerCase().indexOf(fMadera)===-1)return;
+      if(fMadera&&!_calza(fMadera,l.madera))return;
       // Canónica: "OREGON" y "OREGÓN" son la misma madera y tienen que sumar
       // en el mismo grupo, o se compra dos veces lo mismo por separado.
       var mad=maderaCanonica(l.madera);
@@ -28745,7 +28774,7 @@ async function generarEtiquetaCompra(sem){
   var byMad={};
   fp.forEach(function(o){
     (o.lineas||[]).forEach(function(l){
-      if(fMadera&&(l.madera||'').toLowerCase().indexOf(fMadera)===-1)return;
+      if(fMadera&&!_calza(fMadera,l.madera))return;
       // Canónica: "OREGON" y "OREGÓN" son la misma madera y tienen que sumar
       // en el mismo grupo, o se compra dos veces lo mismo por separado.
       var mad=maderaCanonica(l.madera);
@@ -28805,12 +28834,8 @@ function exportProdCSV(){
 }
 function exportProdXLSX(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
-  // Aplicar los mismos filtros que renderProd
-  var list=prodMonthFilter==='todos'?prodOrders.slice():prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
-  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase().trim();
-  var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase().trim();
-  if(fSemana)list=list.filter(function(o){return (o.envio||'').toLowerCase().indexOf(fSemana)!==-1;});
-  if(fMadera)list=list.filter(function(o){return (o.lineas||[]).some(function(l){return (l.madera||'').toLowerCase().indexOf(fMadera)!==-1;});});
+  // Los mismos filtros que la pantalla (antes el Excel ignoraba el de cliente).
+  var list=_prodFiltrados().pedidos;
   if(!list.length){showToast('No hay pedidos con los filtros actuales');return;}
   var dataRows=[];
   list.forEach(function(o){
@@ -28999,7 +29024,22 @@ function renderFinStats(){
   const docsPend=base.filter(r=>!r.doc1_emitida||!r.doc2_emitida).length;
   document.getElementById('fin-stats').innerHTML='<div class="stat-card"><div class="stat-label">Registros</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(totalVal)+'</div></div><div class="stat-card"><div class="stat-label">Solo productos</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalProd)+'</div></div><div class="stat-card"><div class="stat-label">Envíos</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalEnvio)+'</div></div><div class="stat-card"><div class="stat-label">Comisiones</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalCom)+'</div></div><div class="stat-card"><div class="stat-label">Abonos recibidos</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(abonos)+'</div></div><div class="stat-card"><div class="stat-label">Saldo pendiente</div><div class="stat-val amber" style="font-size:15px">'+fmtCLP(saldosPend)+'</div></div>'+(excedentes?'<div class="stat-card" title="Pedidos donde se abonó más que el total: hay que devolver o descontar"><div class="stat-label">Excedentes ('+nExc+')</div><div class="stat-val" style="font-size:15px;color:var(--blue)">+'+fmtCLP(excedentes)+'</div></div>':'')+'<div class="stat-card"><div class="stat-label">Docs. pend.</div><div class="stat-val '+(docsPend?'pink':'green')+'">'+docsPend+'</div></div>'+(_excluidos?'<div class="stat-card" title="Muestrarios y devoluciones: quedan registrados pero no cuentan como venta"><div class="stat-label">Fuera del cálculo</div><div class="stat-val" style="color:var(--text-3)">'+_excluidos+'</div></div>':'');
 }
-function getFilteredFin(){var q=(document.getElementById('fin-search').value||'').toLowerCase().trim();var list=finRecords.slice();if(finMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});if(finFilter==='pendiente')list=list.filter(r=>!r.doc1_emitida||!r.doc2_emitida);if(finFilter==='listo')list=list.filter(r=>r.doc1_emitida&&r.doc2_emitida);if(q)list=list.filter(r=>(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));return list;}
+// Filtro único de Finanzas: lo usan la tabla, las tarjetas del celular y el Excel.
+function getFilteredFin(){
+  var q=((document.getElementById('fin-search')||{}).value||'').trim();
+  var list=finRecords.slice();
+  // Buscando se busca en TODOS los meses (antes quedaba presa del mes de la
+  // barra: un cliente de agosto no aparecía estando en septiembre).
+  if(finMonthFilter!=='todos'&&!q)list=list.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});
+  if(finFilter==='pendiente')list=list.filter(function(r){return!r.doc1_emitida||!r.doc2_emitida;});
+  if(finFilter==='listo')list=list.filter(function(r){return r.doc1_emitida&&r.doc2_emitida;});
+  if(finFilter==='saldo')list=list.filter(function(r){return tipoDe(r)==='VENTA'&&saldoFin(r)>0;});
+  // Antes solo miraba n°, nombre y apellido por separado, y r.num a veces es
+  // número (toLowerCase reventaba). Ahora también razón social, producto,
+  // celular, correo y RUT, sin tildes y en cualquier orden.
+  if(q)list=list.filter(function(r){return _calza(q,[r.num,r.nombre,r.apellido,r.razon_social,r.producto,r.celular,r.email,r.rut,r.vendedor].join(' '));});
+  return list;
+}
 function setFinFilter(f,btn){finFilter=f;document.querySelectorAll('#page-fin .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderFin();}
 function _limpiarRut(v){return String(v||'').replace(/[^0-9kK]/g,'').toUpperCase();}
 function _rutValido(v){
@@ -33025,9 +33065,11 @@ function renderFinCards(){
 }
 function renderProdCards(){
   var el=document.getElementById('prod-mobile-cards');if(!el)return;
-  var mf=prodMonthFilter,fs=((document.getElementById('prod-filter-semana')||{}).value||'').toLowerCase(),fm=((document.getElementById('prod-filter-madera')||{}).value||'').toLowerCase();
-  var list=prodOrders.slice();if(mf!=='todos')list=list.filter(function(o){return mesDeProduccion(o)===mf;});if(fs)list=list.filter(function(o){return(o.envio||'').toLowerCase().indexOf(fs)!==-1;});if(fm)list=list.filter(function(o){return(o.lineas||[]).some(function(l){return(l.madera||'').toLowerCase().indexOf(fm)!==-1;});});
-  if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">🪵</span>Sin pedidos.</div>';return;}
+  // El mismo filtro que la tabla de escritorio. Antes esta copia no tenía el
+  // de cliente: en el celular "Buscar cliente" no hacía nada.
+  var _f=_prodFiltrados(),list=_f.pedidos;
+  var hayFiltro=_f.fSemana||_f.fMadera||_f.fCliente;
+  if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">'+(hayFiltro?'🔍':'🪵')+'</span>'+(hayFiltro?'Sin resultados para este filtro.':'Sin pedidos.')+'</div>';return;}
   var html2='';list.forEach(function(o){var lineasHtml='';(o.lineas||[]).forEach(function(l){lineasHtml+='<div class="prod-linea"><div class="prod-linea-prod">'+esc(l.producto||'—')+'</div><div class="prod-linea-specs">'+[esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',esc(l.canto),esc(l.acabado)].filter(Boolean).join(' · ')+'</div></div>';});html2+='<div class="prod-card"><div class="prod-card-header"><div><div class="prod-card-num">#'+(o.pedido||'—')+'</div><div class="prod-card-client">'+esc(o.comprador)+' '+esc(o.apellido)+'</div><div class="prod-card-semana">'+(o.envio||'')+'</div></div></div>'+lineasHtml+'</div>';});
   el.innerHTML=html2;
 }
