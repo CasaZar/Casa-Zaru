@@ -27390,7 +27390,11 @@ async function hacerLogin(){
 async function recuperarClave(){
   var em=document.getElementById('login-email').value.trim();
   if(!em){alert('Escribí tu correo primero y volvé a apretar.');return;}
-  try{await sbAuth('recover',{email:em});alert('Te mandamos un correo para reiniciar la contraseña.');}
+  // Sin redirect_to, Supabase manda al Site URL del panel, y si ese quedó sin /Casa-Zaru/
+  // el enlace del correo cae en un 404 de GitHub Pages (le pasó a César el 1-oct-2026).
+  // Si esta URL no está en la lista de Redirect URLs del panel, Supabase usa igual el Site URL.
+  var vuelta=encodeURIComponent(location.origin+location.pathname);
+  try{await sbAuth('recover?redirect_to='+vuelta,{email:em});alert('Te mandamos un correo para reiniciar la contraseña.');}
   catch(e){alert('No se pudo: '+e.message);}
 }
 async function cargarPermisos(){
