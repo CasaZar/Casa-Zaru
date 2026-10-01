@@ -1359,6 +1359,21 @@ tr.fin-no-venta:hover td { opacity:1; }
 }
 .prod-linea-prod { font-size: 13px; font-weight: 600; color: var(--text); }
 .prod-linea-specs { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+/* Acciones de las tarjetas (celular): botones de 40 px, cómodos para el dedo. */
+.prod-card-header { gap: 10px; }
+.prod-card-estado { flex-shrink: 0; min-height: 40px; padding: 6px 30px 6px 12px; border-radius: 999px; border: 1.5px solid transparent;
+  font-size: 13px !important; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; }
+.prod-card-estado.taller { background: #FDF3E1; color: #9A6412; border-color: #F0D9A8; }
+.prod-card-estado.listo { background: #EAF5E1; color: #3F6E16; border-color: #C6E2AE; }
+.prod-card-estado.entregado { background: var(--surface2); color: var(--text-3); border-color: var(--border-md); }
+.prod-card-meta { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11.5px; color: var(--text-3); margin: -2px 0 10px; }
+.prod-linea-obs { font-size: 11.5px; color: var(--text-2); margin-top: 4px; }
+.prod-linea-acc { display: flex; gap: 6px; margin-top: 8px; }
+.prod-linea-acc button { flex: 1; min-height: 40px; border: 1px solid var(--border-md); border-radius: 10px; background: var(--surface);
+  color: var(--text-2); font-size: 12.5px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; }
+.prod-linea-acc button.quitar { flex: 0 0 auto; padding: 0 12px; color: var(--red); }
+.prod-card-add { width: 100%; min-height: 44px; margin-top: 4px; border: 1.5px dashed var(--border-md); border-radius: 10px;
+  background: none; color: var(--wood); font-size: 13.5px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; }
 
 
 @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.5);}}
@@ -33185,10 +33200,112 @@ function renderProdCards(){
   var _f=_prodFiltrados(),list=_f.pedidos;
   var hayFiltro=_f.fSemana||_f.fMadera||_f.fCliente;
   if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">'+(hayFiltro?'🔍':'🪵')+'</span>'+(hayFiltro?'Sin resultados para este filtro.':'Sin pedidos.')+'</div>';return;}
-  var html2='';list.forEach(function(o){var lineasHtml='';(o.lineas||[]).forEach(function(l){lineasHtml+='<div class="prod-linea"><div class="prod-linea-prod">'+esc(l.producto||'—')+'</div><div class="prod-linea-specs">'+[esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',esc(l.canto),esc(l.acabado)].filter(Boolean).join(' · ')+'</div></div>';});html2+='<div class="prod-card"><div class="prod-card-header"><div><div class="prod-card-num">#'+(o.pedido||'—')+'</div><div class="prod-card-client">'+esc(o.comprador)+' '+esc(o.apellido)+'</div><div class="prod-card-semana">'+(o.envio||'')+'</div></div></div>'+lineasHtml+'</div>';});
+  // Con acciones (01-10-2026): antes eran solo de lectura y desde el teléfono
+  // no se podía cambiar el estado, corregir una pieza ni sacar la etiqueta.
+  // Todo se busca por N° de pedido, nunca por posición (CLAUDE.md).
+  var html2='';
+  list.forEach(function(o){
+    var n=String(o.pedido||''),nq="'"+n+"'",lineas=o.lineas||[];
+    var est=o.estado||'En taller';
+    var estCls=est==='Listo'?'listo':est==='Entregado'?'entregado':'taller';
+    var estSel='<select class="prod-card-estado '+estCls+'" onchange="prodEstadoNum('+nq+',this.value)" aria-label="Estado del pedido">'+
+      PROD_ESTADOS.map(function(e){return'<option'+(e===est?' selected':'')+'>'+e+'</option>';}).join('')+'</select>';
+    var dias=diasEnTaller(o);
+    var meta=[];
+    if(dias!==null&&est==='En taller')meta.push('<span style="color:'+(dias>14?'var(--red)':dias>7?'var(--amber)':'var(--text-3)')+'">🕒 '+dias+' días en taller</span>');
+    if(o.dia_envio)meta.push('<span>📅 Envío '+esc(new Date(o.dia_envio+'T12:00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'}))+'</span>');
+    var lineasHtml=lineas.map(function(l,li){
+      var m2=calcM2(l.largo,l.ancho,l.cantidad);
+      var specs=[(Number(l.cantidad)||1)>1?(l.cantidad+'×'):'',esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',m2>0?m2.toFixed(2)+' m²':'',esc(l.canto),esc(l.acabado),l.espesor?esc(l.espesor)+' cm esp.':'',l.fierro?'base fierro':''].filter(Boolean).join(' · ');
+      return'<div class="prod-linea">'+
+        '<div class="prod-linea-prod">'+esc(l.producto||'(sin nombre)')+'</div>'+
+        '<div class="prod-linea-specs">'+specs+'</div>'+
+        (l.observaciones?'<div class="prod-linea-obs">📝 '+esc(l.observaciones)+'</div>':'')+
+        '<div class="prod-linea-acc">'+
+          '<button type="button" onclick="abrirEditorLinea('+nq+','+li+')">✏️ Editar</button>'+
+          '<button type="button" onclick="generarEtiquetaProd(_prodIdx('+nq+'),'+li+')">📄 Etiqueta</button>'+
+          (lineas.length>1?'<button type="button" class="quitar" onclick="delProdLineExist('+nq+','+li+')">✕ Quitar</button>':'')+
+        '</div></div>';
+    }).join('');
+    html2+='<div class="prod-card">'+
+      '<div class="prod-card-header"><div style="min-width:0"><div class="prod-card-num">#'+esc(n||'—')+'</div>'+
+        '<div class="prod-card-client">'+esc(o.comprador)+' '+esc(o.apellido)+'</div>'+
+        '<div class="prod-card-semana">'+esc(normalizeSemana(o.envio)||o.envio||'')+'</div></div>'+estSel+'</div>'+
+      (meta.length?'<div class="prod-card-meta">'+meta.join('')+'</div>':'')+
+      lineasHtml+
+      '<button type="button" class="prod-card-add" onclick="agregarPiezaMovil('+nq+')">+ Agregar pieza</button>'+
+    '</div>';
+  });
   el.innerHTML=html2;
 }
 function renderMobileCards(){renderFinCards();renderProdCards();}
+// ── Acciones de las tarjetas de Producción (celular) ──────────────────────
+function prodEstadoNum(numStr,val){
+  var oi=_prodIdx(numStr);if(oi<0)return;
+  updateProdEstado(oi,val);
+  renderProdCards();
+  showToast('✓ #'+numStr+': '+val);
+}
+async function agregarPiezaMovil(numStr){
+  await addProdLineExist(numStr);
+  var o=prodOrders[_prodIdx(numStr)];
+  if(o&&o.lineas&&o.lineas.length)abrirEditorLinea(numStr,o.lineas.length-1);
+}
+// Editor de una pieza en hoja (los campos de la tabla de escritorio no caben
+// en una tarjeta). Guarda todo junto al apretar "Guardar".
+function abrirEditorLinea(numStr,li){
+  var oi=_prodIdx(numStr);if(oi<0)return;
+  var o=prodOrders[oi],l=(o.lineas||[])[li];if(!l)return;
+  function opts(lista,val){
+    var vN=_normMad(val||''),ok=lista.some(function(m){return _normMad(m)===vN;});
+    return(val&&!ok?'<option selected>'+esc(val)+'</option>':'')+
+      lista.map(function(m){return'<option'+(_normMad(m)===vN?' selected':'')+'>'+esc(m)+'</option>';}).join('');
+  }
+  var st='width:100%;padding:10px 12px;border:1px solid var(--border-md);border-radius:10px;font-size:16px;background:var(--surface);color:var(--text)';
+  function campo(lbl,html){return'<div style="display:flex;flex-direction:column;gap:4px"><label style="font-size:11px;font-weight:600;color:var(--text-3)">'+lbl+'</label>'+html+'</div>';}
+  var esMesa=categoriaProducto(l.producto)==='Cubierta mesa';
+  var html='<div class="modal" style="max-width:520px">'+
+    '<div class="modal-header"><div class="modal-title">#'+esc(numStr)+' · pieza '+(li+1)+'</div>'+
+      '<button class="btn-close" onclick="cerrarEditorLinea()">×</button></div>'+
+    '<div style="display:flex;flex-direction:column;gap:12px">'+
+      campo('Producto','<input id="el-producto" type="text" value="'+esc(l.producto||'')+'" style="'+st+'">')+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        campo('Cantidad','<input id="el-cantidad" type="number" min="1" inputmode="numeric" value="'+(l.cantidad||1)+'" style="'+st+'">')+
+        campo('Espesor (cm)','<input id="el-espesor" type="number" step="0.5" inputmode="decimal" value="'+(l.espesor||4)+'" style="'+st+'">')+
+        campo('Largo (cm)','<input id="el-largo" type="number" inputmode="decimal" value="'+(l.largo||'')+'" style="'+st+'">')+
+        campo('Ancho (cm)','<input id="el-ancho" type="number" inputmode="decimal" value="'+(l.ancho||'')+'" style="'+st+'">')+
+      '</div>'+
+      campo('Madera','<select id="el-madera" style="'+st+'">'+opts(MADERAS,l.madera)+'</select>')+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        campo('Canto','<select id="el-canto" style="'+st+'">'+opts(CANTOS_PROD,l.canto)+'</select>')+
+        campo('Acabado','<select id="el-acabado" style="'+st+'">'+opts(ACABADOS_PROD,l.acabado)+'</select>')+
+      '</div>'+
+      (esMesa?'<label style="display:flex;align-items:center;gap:10px;font-size:14px;padding:6px 0"><input id="el-fierro" type="checkbox" style="width:22px;height:22px"'+(l.fierro?' checked':'')+'> Lleva base de fierro</label>':'')+
+      campo('Observaciones','<textarea id="el-obs" rows="3" style="'+st+';resize:vertical">'+esc(l.observaciones||'')+'</textarea>')+
+    '</div>'+
+    '<div class="modal-footer"><button class="btn-sec" onclick="cerrarEditorLinea()">Cancelar</button>'+
+      '<button class="btn-pri" onclick="guardarEditorLinea(\''+esc(numStr)+'\','+li+')">Guardar</button></div></div>';
+  var bg=document.getElementById('modal-linea-bg');
+  if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-linea-bg';document.body.appendChild(bg);}
+  bg.innerHTML=html;bg.classList.add('open');
+}
+function cerrarEditorLinea(){var b=document.getElementById('modal-linea-bg');if(b)b.classList.remove('open');}
+async function guardarEditorLinea(numStr,li){
+  var oi=_prodIdx(numStr);if(oi<0)return;
+  var o=prodOrders[oi],l=(o.lineas||[])[li];if(!l)return;
+  var v=function(id){var e=document.getElementById(id);return e?e.value:'';};
+  l.producto=v('el-producto').trim();
+  l.cantidad=Number(v('el-cantidad'))||1;
+  l.espesor=v('el-espesor');
+  l.largo=v('el-largo');l.ancho=v('el-ancho');
+  l.madera=v('el-madera');l.canto=v('el-canto');l.acabado=v('el-acabado');
+  var f=document.getElementById('el-fierro');if(f)l.fierro=f.checked;
+  l.observaciones=v('el-obs').trim();
+  cerrarEditorLinea();
+  renderProd();
+  await _guardarPiezasProd(o);   // guarda Producción y las piezas de Seguimiento
+  showToast('✓ Pieza guardada (#'+numStr+')');
+}
 
 </script>
 </body>
