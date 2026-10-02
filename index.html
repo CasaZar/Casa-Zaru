@@ -26317,11 +26317,13 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div style="display:flex;gap:8px">
       <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);color:#fff;border-color:transparent;font-size:12px">⟳ Sincronizar</button>
+      <button class="btn-ghost" id="btn-boletas-web" style="font-size:12px" onclick="traerBoletasWeb(true)" title="Trae de Wasabil las boletas que Shopify emitió para las ventas web">🔎 Boletas web</button>
       <button class="btn-ghost" style="font-size:12px" onclick="exportFinCSV()">↓ Excel</button>
       <button id="btn-envio-batch" class="btn-add" style="font-size:12px;display:none;background:var(--wood)" onclick="generarEtiquetasEnvioBatch()">📦 Etiquetas envío (<span id="envio-batch-count">0</span>)</button>
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
     </div>
   </div>
+  <div id="fin-boletas-web" style="display:none;margin:0 0 12px;padding:10px 14px;border-radius:10px;background:var(--amber-dim,#FFF4E0);border:1px solid var(--amber);font-size:12px;color:var(--text)"></div>
   <div id="fin-month-bar" class="month-bar"></div>
   <div class="search-wrap"><span class="search-icon">⌕</span>
     <input type="text" id="fin-search" placeholder="Buscar cliente, N°, RUT, celular, producto..." oninput="renderFin()">
@@ -28995,6 +28997,7 @@ async function loadFin(){
     renderFin();
     if(document.getElementById('page-dash')&&document.getElementById('page-dash').classList.contains('active'))renderDash();
     _barrerEmisionesEnCola();   // cierra solos los documentos que quedaron en cola en el SII
+    traerBoletasWeb(false);     // pega las boletas que emitió Shopify (cada 10 min como máximo)
   }catch(e){console.error('Error cargando finanzas',e);}
 }
 function finSave(numStr){
@@ -29605,6 +29608,105 @@ async function _barrerEmisionesEnCola(){
   }catch(e){console.error('Barrido de emisiones en cola',e);}
   _barriendoCola=false;
   if(cerrados.length)showToast('✓ Confirmados solos con Wasabil: '+cerrados.join(', '));
+}
+// ── Boletas que emite Shopify ─────────────────────────────────────
+// Las ventas web no se boletean desde acá: Shopify emite la boleta solo al
+// pagarse la orden (integración de Wasabil) y guarda el número de orden en la
+// referencia. Esto la va a buscar y la deja en la venta y en el historial del
+// cliente, igual que si se hubiera emitido con el botón. En Wasabil solo lee.
+//
+// También avisa las boletas de Shopify que no calzan con ninguna venta: el
+// 02-10 una orden creada solo para sacar la etiqueta de Starken emitió una
+// boleta de $1,19M encima de una venta que ya tenía las suyas.
+var _bwUltima=0,_bwCorriendo=false,_bwSinVenta=[];
+function _esVentaWeb(r){return /SHOPIFY/i.test(String(r.canal_pago||''));}
+function _folioReal(x){return /^\d+$/.test(String(x==null?'':x).trim());}
+function _bwFechaMs(r){
+  var p=String(r.fecha_creacion||r.fecha||'').split('/');
+  return p.length===3?new Date(+p[2],+p[1]-1,+p[0]).getTime():0;
+}
+async function traerBoletasWeb(manual){
+  if(usuarioRol!=='admin'||_bwCorriendo||!DB_URL)return;
+  if(!manual&&Date.now()-_bwUltima<10*60*1000)return;
+  _bwCorriendo=true;_bwUltima=Date.now();
+  var btn=document.getElementById('btn-boletas-web');
+  if(btn){btn.disabled=true;btn.textContent='🔎 Buscando…';}
+  var pegadas=[];
+  try{
+    if(!docRecords.length)await loadDocumentos();
+    var desde=Date.now()-120*86400000;
+    var faltan=finRecords.filter(function(r){
+      return _esVentaWeb(r)&&!_folioReal(r.doc1_num)&&_bwFechaMs(r)>=desde;
+    }).slice(0,30);
+    var resp=await sbFetch(WASABIL_FN_URL,{method:'POST',body:JSON.stringify({action:'buscar_web',recientes:45,
+      items:faltan.map(function(r){return{num:String(r.num),orden:r.orden_web||'',nombre:((r.nombre||'')+' '+(r.apellido||'')).trim()};})})});
+    var j=await resp.json();
+    if(!resp.ok||!j||!j.success)throw new Error((j&&j.error)||('HTTP '+resp.status));
+    var res=j.resultados||[];
+    for(var i=0;i<res.length;i++){
+      if(res[i].boleta&&await _pegarBoletaWeb(res[i].num,res[i].boleta))pegadas.push(res[i].num+' → '+res[i].boleta.folio);
+    }
+    if(pegadas.length){await loadDocumentos();renderFin();}
+    // Las que siguen sin venta: ni la orden ni el folio aparecen en Finanzas,
+    // y tampoco están en el historial (ahí quedan las ya anuladas).
+    var ordenes={},folios={};
+    finRecords.forEach(function(r){
+      if(r.orden_web)ordenes[String(r.orden_web).replace(/\D/g,'')]=1;
+      [r.doc1_num,r.doc2_num].forEach(function(f){if(_folioReal(f))folios[String(f).trim()]=1;});
+    });
+    docRecords.forEach(function(d){if(d.folio)folios[String(d.folio)]=1;});
+    _bwSinVenta=(j.recientes||[]).filter(function(b){return !folios[b.folio]&&!(b.ref&&ordenes[b.ref]);});
+    renderAvisoBoletasWeb();
+    if(manual)showToast(pegadas.length?('✓ Boletas web traídas: '+pegadas.join(', ')):'Sin boletas web nuevas para traer');
+    else if(pegadas.length)showToast('✓ Boletas web traídas solas: '+pegadas.join(', '));
+  }catch(e){
+    console.error('Boletas web',e);
+    if(manual)showToast('No se pudieron buscar las boletas web: '+e.message,true);
+  }finally{
+    _bwCorriendo=false;
+    if(btn){btn.disabled=false;btn.textContent='🔎 Boletas web';}
+  }
+}
+// Deja la boleta como Doc 1 de la venta. Una venta web se paga entera de una
+// vez, así que el Doc 2 queda cubierto por la misma boleta.
+async function _pegarBoletaWeb(numStr,b){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!r||!b.folio||_folioReal(r.doc1_num))return false;
+  // Si ese folio ya está en otra venta o en el historial, no se toca: o ya se
+  // pegó, o es una boleta que se anuló aparte.
+  var usado=finRecords.some(function(x){return x!==r&&(String(x.doc1_num)===b.folio||String(x.doc2_num)===b.folio);})||
+            docRecords.some(function(d){return String(d.folio)===b.folio&&d.tipo!=='FACTURA';});
+  if(usado)return false;
+  var cambios={doc1_tipo:'BOLETA',doc1_num:Number(b.folio),doc1_emitida:true,doc1_procesando:false,
+               doc1_pdf_url:b.pdf||'',doc1_uuid:b.uuid||'',doc1_monto:b.monto||0};
+  if(!_folioReal(r.doc2_num)){cambios.doc2_tipo='BOLETA';cambios.doc2_num='Incluido en boleta '+b.folio;cambios.doc2_emitida=true;}
+  if(b.ref&&String(r.orden_web||'').replace(/\D/g,'')!==b.ref)cambios.orden_web=b.ref;
+  await api('finanzas/'+numStr,'PATCH',cambios);
+  Object.assign(r,cambios);
+  try{
+    await sbInsert('gestion_documentos',{num:String(numStr),doc_num:1,tipo:'BOLETA',
+      detalle:'Emitida por Shopify'+(b.ref?' (orden '+b.ref+')':''),
+      cliente:((r.nombre||'')+' '+(r.apellido||'')).replace(/\s+/g,' ').trim()||b.receptor||'',
+      rut:r.rut||null,email:b.email||r.email||null,folio:b.folio,uuid:b.uuid||null,monto:b.monto||0,
+      fecha:b.fecha||null,pdf_url:b.pdf||null,anulada:false,producto:r.producto||null});
+  }catch(e){console.warn('Historial: la boleta web '+b.folio+' no se agregó',e);}
+  try{logHistorial(String(numStr),'Boleta web '+b.folio+' traída de Wasabil (Shopify'+(b.ref?' orden '+b.ref:'')+')');}catch(e){}
+  return true;
+}
+function renderAvisoBoletasWeb(){
+  var el=document.getElementById('fin-boletas-web');
+  if(!el)return;
+  if(!_bwSinVenta.length){el.innerHTML='';el.style.display='none';return;}
+  var filas=_bwSinVenta.map(function(b){
+    var link=b.pdf?'<a href="'+esc(b.pdf)+'" target="_blank" rel="noopener">🧾 '+esc(b.folio)+'</a>':esc(b.folio);
+    return '<li>'+link+' · '+esc(b.receptor||'sin nombre')+' · '+fmtCLP(b.monto)+' · '+esc(b.fecha||'')+
+           (b.ref?' · orden '+esc(b.ref):'')+(b.pago?' · pago '+esc(b.pago):'')+'</li>';
+  }).join('');
+  el.style.display='block';
+  el.innerHTML='<b>⚠️ Shopify emitió '+_bwSinVenta.length+(_bwSinVenta.length===1?' boleta que no calza':' boletas que no calzan')+
+    ' con ninguna venta de la app</b><ul style="margin:6px 0 6px 18px;padding:0">'+filas+'</ul>'+
+    '<div style="font-size:11px;color:var(--text-2)">Si es una venta web nueva, cárgala desde Producción y se pega sola. '+
+    'Si la orden se creó solo para sacar el envío y la venta ya tenía boletas, hay que anularla con nota de crédito.</div>';
 }
 // Controles de emisión de un documento: botón, tipo, folio y PDF. Están acá
 // arriba y no dentro de renderFin porque la vista móvil también los necesita.
