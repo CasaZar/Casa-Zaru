@@ -144,10 +144,13 @@ async function esAdmin(req: Request): Promise<boolean> {
   }
 }
 
-async function listarDocumentos(token: string, params: Record<string, string>) {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`${WASABIL_BASE}/documents?${qs}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+// Listar es POST /documents/query con los filtros en el cuerpo (GET /documents
+// responde 405). Ver app.wasabil.com/api-docs/documents.
+async function listarDocumentos(token: string, filtros: Record<string, unknown>) {
+  const res = await fetch(`${WASABIL_BASE}/documents/query`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify({ siiDocumentTypeCodes: ["39"], ...filtros }),
   });
   const text = await res.text();
   let j: any;
@@ -191,20 +194,20 @@ async function buscarBoletasWeb(body: any, token: string) {
 
     // 1) Por número de orden de Shopify.
     if (orden) {
-      const r = await listarDocumentos(token, { search: `ref:${orden}`, per_page: "20" });
+      const r = await listarDocumentos(token, { search: `ref:${orden}`, perPage: 20 });
       if (!r.ok && !error) error = `Wasabil ${r.status}: ${r.error || ""}`;
       match = r.items.find((d) => esBoletaEmitida(d) && String(d.invoice_reference) === orden);
       if (match) via = "orden";
     }
     // 2) Hay ventas donde se anotó el folio de la boleta en vez de la orden.
     if (!match && orden) {
-      const r = await listarDocumentos(token, { search: `folio:${orden}`, per_page: "20" });
+      const r = await listarDocumentos(token, { search: `folio:${orden}`, perPage: 20 });
       match = r.items.find((d) => esBoletaEmitida(d) && esDeShopify(d) && String(d.folio) === orden);
       if (match) via = "folio";
     }
     // 3) Por nombre: solo si hay UNA boleta de Shopify a ese nombre, para no adivinar.
     if (!match && p?.nombre) {
-      const r = await listarDocumentos(token, { search: `receptor:"${String(p.nombre).replace(/"/g, "")}"`, per_page: "20" });
+      const r = await listarDocumentos(token, { search: `receptor:"${String(p.nombre).replace(/"/g, "")}"`, perPage: 20 });
       const nom = normNombre(p.nombre);
       const cand = r.items.filter((d) => esBoletaEmitida(d) && esDeShopify(d) && normNombre(d.receiver_name) === nom);
       if (cand.length === 1) { match = cand[0]; via = "nombre"; }
@@ -216,7 +219,7 @@ async function buscarBoletasWeb(body: any, token: string) {
   // ninguna venta web (p. ej. una orden creada solo para sacar el envío).
   let recientes: any[] = [];
   if (body?.recientes) {
-    const r = await listarDocumentos(token, { per_page: "100", sortBy: "lastCreated" });
+    const r = await listarDocumentos(token, { perPage: 100, sortBy: "lastCreated" });
     if (!r.ok && !error) error = `Wasabil ${r.status}: ${r.error || ""}`;
     const dias = Math.min(Number(body.recientes) || 30, 120);
     const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
