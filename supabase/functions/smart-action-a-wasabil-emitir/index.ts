@@ -119,6 +119,115 @@ async function pollStatus(uuid: string, token: string, maxTries = 8): Promise<an
   return null;
 }
 
+// ── Boletas de Shopify ──────────────────────────────────────────────
+// Shopify emite la boleta solo (integración de Wasabil) y guarda el número de
+// orden en invoice_reference. Acá se buscan para pegarlas a la venta en la app.
+//
+// La función se llama con la llave pública, así que esta rama exige además
+// una sesión de admin: si no, cualquiera con la llave leería nombres, correos
+// y PDFs de clientes. Se comprueba leyendo gestion_finanzas con el token del
+// usuario, que por RLS solo devuelve filas a un admin.
+async function esAdmin(req: Request): Promise<boolean> {
+  const auth = req.headers.get("Authorization") || "";
+  const url = Deno.env.get("SUPABASE_URL");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY");
+  if (!auth.startsWith("Bearer ") || !url || !anon) return false;
+  try {
+    const r = await fetch(`${url}/rest/v1/gestion_finanzas?select=num&limit=1`, {
+      headers: { apikey: anon, Authorization: auth },
+    });
+    if (!r.ok) return false;
+    const filas = await r.json();
+    return Array.isArray(filas) && filas.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function listarDocumentos(token: string, params: Record<string, string>) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`${WASABIL_BASE}/documents?${qs}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  const text = await res.text();
+  let j: any;
+  try {
+    j = JSON.parse(text);
+  } catch {
+    return { ok: false, status: res.status, items: [] as any[], error: text.slice(0, 200) };
+  }
+  const items = j?.data?.list?.items || j?.data?.items || (Array.isArray(j?.data) ? j.data : []);
+  return { ok: res.ok, status: res.status, items: (items || []) as any[], error: res.ok ? null : (j?.message || j?.error || null) };
+}
+
+function resumenDoc(d: any) {
+  return {
+    folio: d?.folio != null ? String(d.folio) : null,
+    uuid: d?.uuid || null,
+    fecha: d?.document_date || null,
+    monto: Math.round(Number(d?.current_ntotal ?? d?.sent_ntotal ?? 0)),
+    ref: d?.invoice_reference != null ? String(d.invoice_reference) : null,
+    receptor: d?.receiver_name || null,
+    email: d?.receiver_email || null,
+    origen: d?.origin_platform || null,
+    pago: d?.custom?.payment_gateway || null,
+    pdf: pdfUrlDe(d) || null,
+  };
+}
+
+const esBoletaEmitida = (d: any) => Number(d?.sii_document_type_id) === 39 && Number(d?.status_id) === 3;
+const esDeShopify = (d: any) => String(d?.origin_platform || "").toLowerCase() === "shopify";
+const normNombre = (s: unknown) =>
+  String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+async function buscarBoletasWeb(body: any, token: string) {
+  const pedidos: any[] = Array.isArray(body?.items) ? body.items.slice(0, 30) : [];
+  const resultados: any[] = [];
+  let error: string | null = null;
+
+  for (const p of pedidos) {
+    const orden = String(p?.orden || "").replace(/[^0-9]/g, "");
+    let match: any = null, via = "";
+
+    // 1) Por número de orden de Shopify.
+    if (orden) {
+      const r = await listarDocumentos(token, { search: `ref:${orden}`, per_page: "20" });
+      if (!r.ok && !error) error = `Wasabil ${r.status}: ${r.error || ""}`;
+      match = r.items.find((d) => esBoletaEmitida(d) && String(d.invoice_reference) === orden);
+      if (match) via = "orden";
+    }
+    // 2) Hay ventas donde se anotó el folio de la boleta en vez de la orden.
+    if (!match && orden) {
+      const r = await listarDocumentos(token, { search: `folio:${orden}`, per_page: "20" });
+      match = r.items.find((d) => esBoletaEmitida(d) && esDeShopify(d) && String(d.folio) === orden);
+      if (match) via = "folio";
+    }
+    // 3) Por nombre: solo si hay UNA boleta de Shopify a ese nombre, para no adivinar.
+    if (!match && p?.nombre) {
+      const r = await listarDocumentos(token, { search: `receptor:"${String(p.nombre).replace(/"/g, "")}"`, per_page: "20" });
+      const nom = normNombre(p.nombre);
+      const cand = r.items.filter((d) => esBoletaEmitida(d) && esDeShopify(d) && normNombre(d.receiver_name) === nom);
+      if (cand.length === 1) { match = cand[0]; via = "nombre"; }
+    }
+    resultados.push({ num: String(p?.num || ""), via, boleta: match ? resumenDoc(match) : null });
+  }
+
+  // Boletas recientes de Shopify, para que la app avise las que no calzan con
+  // ninguna venta web (p. ej. una orden creada solo para sacar el envío).
+  let recientes: any[] = [];
+  if (body?.recientes) {
+    const r = await listarDocumentos(token, { per_page: "100", sortBy: "lastCreated" });
+    if (!r.ok && !error) error = `Wasabil ${r.status}: ${r.error || ""}`;
+    const dias = Math.min(Number(body.recientes) || 30, 120);
+    const desde = new Date(Date.now() - dias * 86400000).toISOString().slice(0, 10);
+    recientes = r.items
+      .filter((d) => esBoletaEmitida(d) && esDeShopify(d) && String(d.document_date || "") >= desde)
+      .map(resumenDoc);
+  }
+
+  return { success: !error, error, resultados, recientes };
+}
+
 Deno.serve(async (req) => {
   try {
     return await handleRequest(req);
@@ -173,6 +282,15 @@ async function handleRequest(req: Request): Promise<Response> {
       display_error: dc.display_error,
       drive: driveCheck,
     });
+  }
+
+  // Búsqueda de boletas que emitió Shopify por su cuenta. Solo lectura: esta
+  // rama termina siempre en un return y nunca llega a la creación de abajo.
+  if (body?.action === "buscar_web") {
+    if (!(await esAdmin(req))) {
+      return jsonResponse({ success: false, error: "Requiere sesión de administrador" }, 403);
+    }
+    return jsonResponse(await buscarBoletasWeb(body, token));
   }
 
   if (!numStr) return jsonResponse({ success: false, error: "Falta numStr (número de pedido)" }, 400);
