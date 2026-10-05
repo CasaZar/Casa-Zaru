@@ -26121,6 +26121,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="btn-ghost" style="margin:0" onclick="abrirReporte()">📋 Pegar reporte de envíos</button>
     <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
   </div>
+  <div id="seg-month-bar" class="month-bar"></div>
   <div id="seg-alerta-semana"></div>
   <div id="seg-lista"></div>
   <div class="empty-state" id="seg-empty" style="display:none"><span class="empty-icon">📋</span>No se encontraron pedidos.</div>
@@ -26316,11 +26317,6 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
   </div>
   <div id="prod-filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
-    <div style="position:relative">
-      <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
-      <input id="prod-filter-semana" type="text" placeholder="Buscar semana..." oninput="renderProd()"
-        style="padding:7px 12px 7px 30px;border:1px solid var(--border-md);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;width:180px">
-    </div>
     <div style="position:relative">
       <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:13px">⌕</span>
       <input id="prod-filter-madera" type="text" placeholder="Buscar madera..." oninput="renderProd()"
@@ -27073,7 +27069,48 @@ function setFinMonth(m){finMonthFilter=m;renderFin();}
 function setProdMonth(m){prodMonthFilter=m;renderProd();updateProdStats();}
 function setPixelMonth(m){pixelMonthFilter=m;renderPixel();}
 function setCostMonth(m){costMonthFilter=m;renderCost();}
-function renderMonthBar(barId,records,currentFilter,setFn,getMonthFn){
+function setSegMonth(m){segMonthFilter=m;renderSeg();}
+// ── Filtro de período: mes + semana, igual en todas las secciones ─────────
+// Cada sección recuerda lo suyo (05-10-2026, pedido del usuario: misma barra
+// en todas, pero independiente). La semana es la de PRODUCCIÓN donde el
+// registro la tiene (Seguimiento, Producción, Finanzas, Costos; Pixel la toma
+// de Finanzas por el N°). En Gastos no existe, así que es la semana (lunes)
+// de la fecha del documento.
+var segMonthFilter='todos';   // Seguimiento arranca mostrando lo vigente, no un mes
+var semFiltro={seg:'',prod:'',fin:'',pixel:'',cost:'',fact:'',mayor:''};
+var PERIODO={
+  seg:  {mes:function(){return segMonthFilter;},  getMes:function(o){return extractMonth(o.semana);},                     getSem:function(o){return o.semana;}},
+  prod: {mes:function(){return prodMonthFilter;}, getMes:function(o){return mesDeProduccion(o);},                        getSem:function(o){return o.envio;}},
+  fin:  {mes:function(){return finMonthFilter;},  getMes:function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);}, getSem:function(r){return r.semana;}},
+  pixel:{mes:function(){return pixelMonthFilter;},getMes:function(r){return extractMonthFromDate(r.fecha);},             getSem:function(r){return _semanaDeFin(r.fbKey||r.num)||semanaDelDia(r.fecha);}},
+  cost: {mes:function(){return costMonthFilter;}, getMes:function(r){return extractMonthFromDate(r.fecha);},             getSem:function(r){return r.semana;}},
+  fact: {mes:function(){return factMonthFilter;}, getMes:function(r){return r.mes;},                                     getSem:function(r){return semanaDelDia(r.fecha);}},
+  mayor:{mes:function(){return mayorMonthFilter;},getMes:function(r){return r.mes;},                                     getSem:function(r){return semanaDelDia(r.fecha);}}
+};
+function enPeriodo(sec,r){
+  var p=PERIODO[sec],m=p.mes();
+  if(m!=='todos'&&p.getMes(r)!==m)return false;
+  var s=semFiltro[sec];
+  return !s||normalizeSemana(p.getSem(r)||'')===s;
+}
+function hayFiltroPeriodo(sec){return PERIODO[sec].mes()!=='todos'||!!semFiltro[sec];}
+function _semanaDeFin(num){
+  if(!num)return'';
+  var f=finRecords.find(function(x){return String(x.num||'')===String(num);});
+  return f?f.semana:'';
+}
+// Semana (lunes) del día de una fecha, sin el corrimiento de producción.
+// Acepta 2026-09-28, 28-09-2026 y 28/9/2026.
+function semanaDelDia(fecha){
+  var s=String(fecha||'').trim(),m,d=null;
+  if((m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)))d=new Date(+m[1],m[2]-1,+m[3],12);
+  else if((m=s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/)))d=new Date(+m[3],m[2]-1,+m[1],12);
+  if(!d||isNaN(d))return'';
+  return _nombreSemana(_lunesDe(d));
+}
+// sec (opcional): clave de PERIODO; con ella la barra trae además el selector
+// de semana, y elegir un mes limpia la semana elegida.
+function renderMonthBar(barId,records,currentFilter,setFn,getMonthFn,sec){
   var bar=document.getElementById(barId);if(!bar)return;
   var seen={};
   for(var i=0;i<records.length;i++){var m=getMonthFn(records[i]);if(m)seen[m]=true;}
@@ -27089,18 +27126,36 @@ function renderMonthBar(barId,records,currentFilter,setFn,getMonthFn){
   var visibles=[];
   for(var d=2;d>=0;d--){var im=(iHoy-d+12)%12;if(months.indexOf(MESES_ES[im])>=0)visibles.push(MESES_ES[im]);}
   if(currentFilter!=='todos'&&visibles.indexOf(currentFilter)<0&&months.indexOf(currentFilter)>=0)visibles.push(currentFilter);
-  var parts=[];
+  var parts=[],limpia=sec?'semFiltro.'+sec+'=\'\';':'';
   parts.push('<span class="month-label">Mes:</span>');
-  parts.push('<button class="filter-btn'+(currentFilter==='todos'?' active':'')+'" onclick="'+setFn+'(\'todos\')">Todos <span style="font-size:10px;opacity:0.7">('+records.length+')</span></button>');
+  parts.push('<button class="filter-btn'+(currentFilter==='todos'?' active':'')+'" onclick="'+limpia+setFn+'(\'todos\')">Todos <span style="font-size:10px;opacity:0.7">('+records.length+')</span></button>');
   visibles.forEach(function(mm){
-    parts.push('<button class="filter-btn'+(currentFilter===mm?' active':'')+'" onclick="'+setFn+'(\''+mm+'\')">'+nombre(mm)+' <span style="font-size:10px;opacity:0.7">('+cuenta(mm)+')</span></button>');
+    parts.push('<button class="filter-btn'+(currentFilter===mm?' active':'')+'" onclick="'+limpia+setFn+'(\''+mm+'\')">'+nombre(mm)+' <span style="font-size:10px;opacity:0.7">('+cuenta(mm)+')</span></button>');
   });
   var otros=months.filter(function(m){return visibles.indexOf(m)<0;});
   if(otros.length){
     var opts='<option value="">Otro mes…</option>'+otros.map(function(mm){
       return '<option value="'+mm+'">'+nombre(mm)+' ('+cuenta(mm)+')</option>';
     }).join('');
-    parts.push('<select class="filter-btn" style="padding-right:6px" onchange="if(this.value){'+setFn+'(this.value);}">'+opts+'</select>');
+    parts.push('<select class="filter-btn" style="padding-right:6px" onchange="if(this.value){'+limpia+setFn+'(this.value);}">'+opts+'</select>');
+  }
+  // Semana: solo las del mes elegido (o todas si es "Todos"), de la más nueva
+  // a la más vieja.
+  if(sec&&PERIODO[sec]){
+    var P=PERIODO[sec],vistas={},sems=[];
+    records.forEach(function(r){
+      if(currentFilter!=='todos'&&getMonthFn(r)!==currentFilter)return;
+      var s=normalizeSemana(P.getSem(r)||'');
+      if(s&&esSemanaValida(s)&&!vistas[s]){vistas[s]=1;sems.push(s);}
+    });
+    sems.sort(function(a,b){return ordenSemana(b)-ordenSemana(a);});
+    var actual=semFiltro[sec]||'';
+    if(actual&&!vistas[actual])sems.unshift(actual);
+    var optS='<option value="">Todas las semanas</option>'+sems.map(function(s){
+      return '<option value="'+s+'"'+(s===actual?' selected':'')+'>'+s.charAt(0)+s.slice(1).toLowerCase()+'</option>';
+    }).join('');
+    parts.push('<span class="month-label" style="margin-left:10px">Semana:</span>');
+    parts.push('<select class="filter-btn'+(actual?' active':'')+'" style="padding-right:6px" onchange="semFiltro.'+sec+'=this.value;'+setFn+'(\''+currentFilter+'\')">'+optS+'</select>');
   }
   bar.innerHTML=parts.join('');
 }
@@ -27673,7 +27728,7 @@ async function anotarExcusa(numStr,avisoId){
 }
 function getFilteredOrders(){
   var q=(document.getElementById('seg-search').value||'').toLowerCase().trim();
-  var list=orders.slice();
+  var list=orders.filter(function(o){return enPeriodo('seg',o);});
   if(q)list=list.filter(o=>(o.num||'').toLowerCase().includes(q)||(o.nombre||'').toLowerCase().includes(q)||(o.apellido||'').toLowerCase().includes(q)||(o.semana||'').toLowerCase().includes(q)||(o.producto||'').toLowerCase().includes(q));
   return list;
 }
@@ -27852,13 +27907,16 @@ function _sumarDias(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x;}
 function renderSeg(){
   var list=getFilteredOrders(),cont=document.getElementById('seg-lista'),empty=document.getElementById('seg-empty');
   renderAlertaSemana();
+  renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);},'seg');
   if(!cont)return;
   cerrarMenuAviso();
   segPend={};
   avisosPendientes().lista.forEach(function(p){(segPend[p.numStr]=segPend[p.numStr]||{})[p.avisoId]=p;});
   if(!list.length){cont.innerHTML='';empty.style.display='block';return;}
   empty.style.display='none';
-  var buscando=!!(document.getElementById('seg-search').value||'').trim();
+  // Con una búsqueda o un mes/semana elegido se muestra todo lo que calza, sin
+  // esconder semanas viejas.
+  var buscando=!!(document.getElementById('seg-search').value||'').trim()||hayFiltroPeriodo('seg');
   var hoy=new Date();hoy.setHours(12,0,0,0);
   var semEstaSemana=semanaDeFecha(_isoLocal(hoy));
   var semProxima=semanaDeFecha(_isoLocal(_sumarDias(hoy,7)));
@@ -28295,7 +28353,7 @@ async function loadProd(){
     if(raw)prodOrders=Object.entries(raw).map(e=>Object.assign({},e[1])).sort((a,b)=>Number(a.pedido||0)-Number(b.pedido||0));
     else prodOrders=[];
     renderProd();updateProdStats();
-    renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);});
+    renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   }catch(e){console.error('Error cargando producción',e);}
 }
 async function saveProdOrder(order){
@@ -28898,7 +28956,7 @@ async function deleteProdOrder(oi){
 const PROD_COLORS=['#FDFAF7','#EEE9E3'];
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
-  renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);});
+  renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   renderProdCards();
   renderMaderaDash();
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
@@ -28947,7 +29005,7 @@ function renderProd(){
 const PROD_ESTADOS=['En taller','Listo','Entregado'];
 function updateProdEstado(oi,val){var o=prodOrders[oi];if(!o)return;o.estado=val;if(DB_URL)api('produccion/'+String(o.pedido||''),'PUT',o).catch(function(){});}
 function diasEnTaller(o){var fc=o.fecha_creacion||o.fecha||'';if(!fc)return null;var d;var p=fc.split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else d=new Date(fc);if(isNaN(d.getTime()))return null;return Math.floor((Date.now()-d.getTime())/(1000*60*60*24));}
-function clearProdFilters(){['prod-filter-semana','prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
+function clearProdFilters(){semFiltro.prod='';['prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
 // Los filtros de la pantalla (mes, semana, madera, cliente) definen qué se ve
 // en las tarjetas de madera. La etiqueta de compra tiene que salir del MISMO
 // conjunto: antes leía todos los pedidos de la semana ignorando los filtros,
@@ -28963,27 +29021,17 @@ function _calza(q,texto){
   return _normBusca(q).split(/\s+/).filter(Boolean).every(function(t){return h.indexOf(t)!==-1;});
 }
 function _prodFiltrados(){
-  var fSemana=((document.getElementById('prod-filter-semana')||{}).value||'').trim();
+  // La semana sale del selector de la barra de período (el mismo de todas las
+  // secciones). Es la semana de PRODUCCIÓN, nunca la del día de envío.
+  var fSemana=semFiltro.prod||'';
   var fMadera=((document.getElementById('prod-filter-madera')||{}).value||'').trim();
   var fCliente=((document.getElementById('prod-filter-cliente')||{}).value||'').trim();
-  // Buscando una semana o un cliente se busca en TODOS los meses: antes la
-  // búsqueda quedaba presa del mes marcado en la barra y un pedido de agosto
-  // "no existía" estando en septiembre. La madera sí respeta el mes, porque
-  // sirve para comprar la del mes que se está mirando.
-  var todos=prodMonthFilter==='todos'||!!fSemana||!!fCliente;
-  var fp=todos?prodOrders.slice()
-        :prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});
-  // Semana de PRODUCCIÓN, nunca el día de envío: antes "SEMANA 28 SEP" traía
-  // también los de la semana del 21, porque esos se despachan el 28-09 y el
-  // "28" calzaba con su día de envío. Si lo escrito se entiende como semana
-  // ("28 sep", "semana 28 septiembre", "28/09"), se exige esa semana exacta;
-  // si no (solo "28" o "sep"), se busca en el nombre de la semana.
-  if(fSemana){
-    var semQ=normalizeSemana(fSemana);
-    fp=esSemanaValida(semQ)
-      ?fp.filter(function(o){return normalizeSemana(o.envio||'')===semQ;})
-      :fp.filter(function(o){return _calza(fSemana,normalizeSemana(o.envio||''));});
-  }
+  // Buscando un cliente se busca en TODOS los meses: antes la búsqueda quedaba
+  // presa del mes marcado en la barra y un pedido de agosto "no existía"
+  // estando en septiembre. La madera sí respeta el mes, porque sirve para
+  // comprar la del mes que se está mirando.
+  var fp=fCliente?prodOrders.slice():prodOrders.filter(function(o){return enPeriodo('prod',o);});
+  if(fCliente&&fSemana)fp=fp.filter(function(o){return normalizeSemana(o.envio||'')===fSemana;});
   if(fMadera)fp=fp.filter(function(o){return(o.lineas||[]).some(function(l){return _calza(fMadera,l.madera);});});
   if(fCliente)fp=fp.filter(function(o){return _calza(fCliente,[o.pedido,o.comprador,o.apellido].join(' '));});
   // fMadera se devuelve porque además hay que descartar línea por línea: un
@@ -29153,7 +29201,7 @@ async function generarEtiquetaCompra(sem){
   var a=document.createElement('a');a.href=URL.createObjectURL(buf);a.download=fname;a.click();
   showToast('Descargado: '+fname);
 }
-function updateProdStats(){var fp=prodMonthFilter==='todos'?prodOrders:prodOrders.filter(function(o){return mesDeProduccion(o)===prodMonthFilter;});document.getElementById('p-ped').textContent=fp.length;document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
+function updateProdStats(){var fp=prodOrders.filter(function(o){return enPeriodo('prod',o);});document.getElementById('p-ped').textContent=fp.length;document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
 function exportProdCSV(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
   const rows=[['PEDIDO','ENVÍO','COMPRADOR','APELLIDO','PRODUCTO','CANTIDAD','MADERA','LARGO','ANCHO','CANTO','ACABADO','ESPESOR','OBSERVACIONES','MTRS2'].join(',')];
@@ -29337,8 +29385,8 @@ function _pendCellHTML(r){
     (p.excedente?'<div class="exc-tag" title="Se abonó más que el total: hay que devolver o descontar">excedente</div>':'');
 }
 function renderFinStats(){
-  renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
-  var base=finMonthFilter==='todos'?finRecords:finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});
+  renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);},'fin');
+  var base=finRecords.filter(function(r){return enPeriodo('fin',r);});
   // Muestrarios y devoluciones quedan fuera: siguen en la lista de abajo pero
   // no ensucian facturación, conteo ni promedio.
   var _excluidos=base.length-soloVentas(base).length;
@@ -29359,7 +29407,7 @@ function getFilteredFin(){
   var list=finRecords.slice();
   // Buscando se busca en TODOS los meses (antes quedaba presa del mes de la
   // barra: un cliente de agosto no aparecía estando en septiembre).
-  if(finMonthFilter!=='todos'&&!q)list=list.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===finMonthFilter;});
+  if(!q)list=list.filter(function(r){return enPeriodo('fin',r);});
   if(finFilter==='pendiente')list=list.filter(function(r){return!r.doc1_emitida||!r.doc2_emitida;});
   if(finFilter==='listo')list=list.filter(function(r){return r.doc1_emitida&&r.doc2_emitida;});
   if(finFilter==='saldo')list=list.filter(function(r){return tipoDe(r)==='VENTA'&&saldoFin(r)>0;});
@@ -29972,7 +30020,7 @@ function _docControls(numStr,docNum){
   return btnHtml+pdfLink+mLbl+'<div style="display:flex;gap:4px;align-items:center">'+selectHtml+numInput+'</div>';
 }
 function renderFin(){
-  renderFinStats();renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});renderFinCards();
+  renderFinStats();renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);},'fin');renderFinCards();
   const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   const ni=`background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:12px;color:var(--text);width:100%;outline:none;`;
@@ -30181,12 +30229,12 @@ function eventTimeChile(s){
   var off=fmtEventTime(aprox).slice(-6);
   return m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':00'+off;
 }
-function renderPixelStats(){renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});var base=pixelMonthFilter==='todos'?pixelRecords:pixelRecords.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});const tot=base.length,sub=base.filter(r=>r.status==='subida').length,noSub=base.filter(r=>r.status==='nosubida').length,noKlav=base.filter(r=>r.status==='noklav').length;document.getElementById('pixel-stats').innerHTML='<div class="stat-card"><div class="stat-label">Total</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Subidas</div><div class="stat-val green">'+sub+'</div></div><div class="stat-card"><div class="stat-label">No subidas</div><div class="stat-val pink">'+noSub+'</div></div><div class="stat-card"><div class="stat-label">No Klaviyo</div><div class="stat-val amber">'+noKlav+'</div></div>';}
-function getFilteredPixel(){var q=(document.getElementById('pixel-search').value||'').toLowerCase().trim();var list=pixelRecords.slice();if(pixelMonthFilter!=='todos')list=list.filter(function(r){return extractMonthFromDate(r.fecha)===pixelMonthFilter;});if(pixelFilter==='subida')list=list.filter(r=>r.status==='subida');if(pixelFilter==='nosubida')list=list.filter(r=>r.status==='nosubida');if(pixelFilter==='noklav')list=list.filter(r=>r.status==='noklav');if(q)list=list.filter(r=>(r.email||'').toLowerCase().includes(q)||(r.fn||'').toLowerCase().includes(q)||(r.ln||'').toLowerCase().includes(q)||(r.order_id||'').toLowerCase().includes(q));return list;}
+function renderPixelStats(){renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);},'pixel');var base=pixelRecords.filter(function(r){return enPeriodo('pixel',r);});const tot=base.length,sub=base.filter(r=>r.status==='subida').length,noSub=base.filter(r=>r.status==='nosubida').length,noKlav=base.filter(r=>r.status==='noklav').length;document.getElementById('pixel-stats').innerHTML='<div class="stat-card"><div class="stat-label">Total</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Subidas</div><div class="stat-val green">'+sub+'</div></div><div class="stat-card"><div class="stat-label">No subidas</div><div class="stat-val pink">'+noSub+'</div></div><div class="stat-card"><div class="stat-label">No Klaviyo</div><div class="stat-val amber">'+noKlav+'</div></div>';}
+function getFilteredPixel(){var q=(document.getElementById('pixel-search').value||'').toLowerCase().trim();var list=pixelRecords.slice();list=list.filter(function(r){return enPeriodo('pixel',r);});if(pixelFilter==='subida')list=list.filter(r=>r.status==='subida');if(pixelFilter==='nosubida')list=list.filter(r=>r.status==='nosubida');if(pixelFilter==='noklav')list=list.filter(r=>r.status==='noklav');if(q)list=list.filter(r=>(r.email||'').toLowerCase().includes(q)||(r.fn||'').toLowerCase().includes(q)||(r.ln||'').toLowerCase().includes(q)||(r.order_id||'').toLowerCase().includes(q));return list;}
 function setPixelFilter(f,btn){pixelFilter=f;document.querySelectorAll('#page-pixel .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderPixel();}
 function changePixelStatus(idx,val){pixelRecords[idx].status=val;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',pixelRecords[idx]).catch(_falloGuardado('Pixel del pedido '+numStr));renderPixel();showToast('✓ Estado actualizado');}
 function renderPixel(){
-  renderPixelStats();renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);});
+  renderPixelStats();renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);},'pixel');
   var list=getFilteredPixel(),tbody=document.getElementById('pixel-tbody'),empty=document.getElementById('pixel-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   tbody.innerHTML=list.map(r=>{const idx=pixelRecords.indexOf(r);const rowCls=r.status==='subida'?'px-subida':r.status==='noklav'?'px-noklav':'px-nosubida';return`<tr><td class="${rowCls}" style="font-size:11px">${r.email||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.phone||'—'}</td><td class="${rowCls}">${r.fn||'—'}</td><td class="${rowCls}">${r.ln||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.ct||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.st||'—'}</td><td class="${rowCls}">CL</td><td class="${rowCls}" style="font-family:'DM Serif Display',serif;color:var(--wood)">${r.order_id||'—'}</td><td class="${rowCls}" style="font-size:11px">${eventTimeChile(r.event_time)||'—'}</td><td class="${rowCls}">${r.value||'—'}</td><td class="${rowCls}">CLP</td><td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option></select></td><td class="${rowCls}" style="display:flex;gap:4px;align-items:center"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deletePixelRecord_inline(${idx})">🗑</button></td></tr>`;}).join('');
@@ -30861,7 +30909,7 @@ function _setAcabadoCosteo(idx,k){
 // mirando. Sirve para ponerse al día con los meses viejos (julio, junio…),
 // donde los registros se crearon antes de que existiera la precarga.
 function _sinCostearDelMes(){
-  var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  var base=costRecords.filter(function(r){return enPeriodo('cost',r);});
   return base.filter(function(r){return !tieneCostos(r)&&_lineasEstandar(lineasProdDe(r.num)).length;});
 }
 async function precargarTodosSinCostear(){
@@ -30887,7 +30935,7 @@ var costAgrupacion='producto';
 function setCostAgrupacion(k){costAgrupacion=k;renderCostAgrupado();}
 function renderCostAgrupado(){
   var el=document.getElementById('cost-agrupado');if(!el)return;
-  var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  var base=costRecords.filter(function(r){return enPeriodo('cost',r);});
   var conCostos=base.filter(tieneCostos);
   var TABS=[['producto','Por producto'],['madera','Por madera'],['canal','Por canal']];
   var tabsHtml=TABS.map(function(t){
@@ -30941,8 +30989,8 @@ function renderCostAgrupado(){
   el.innerHTML=head+'<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px;min-width:520px"><thead>'+th+'</thead><tbody>'+cuerpo+totalRow+'</tbody></table></div>'+pie;
 }
 function renderCostStats(){
-  renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
-  var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);},'cost');
+  var base=costRecords.filter(function(r){return enPeriodo('cost',r);});
   // El margen se calcula SOLO sobre los pedidos que tienen costos cargados:
   // mezclarlos con los vacíos daba un promedio inflado y sin significado.
   var conCostos=base.filter(tieneCostos),sinCostear=base.length-conCostos.length;
@@ -30966,9 +31014,9 @@ function renderCost(){
     var n=_sinCostearDelMes().length;
     bp.style.display=n?'':'none';
     bp.textContent='✨ Precargar '+n+' sin costear';
-  }renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);});
+  }renderMonthBar('cost-month-bar',costRecords,costMonthFilter,'setCostMonth',function(r){return extractMonthFromDate(r.fecha);},'cost');
   const q=(document.getElementById('cost-search').value||'').toLowerCase().trim();
-  var costBase=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});
+  var costBase=costRecords.filter(function(r){return enPeriodo('cost',r);});
   const list=costBase.filter(r=>!q||(r.num||'').toLowerCase().includes(q)||(r.nombre||'').toLowerCase().includes(q)||(r.apellido||'').toLowerCase().includes(q));
   const container=document.getElementById('cost-list');
   if(!list.length){container.innerHTML='<div class="cost-empty"><span style="font-size:40px;display:block;margin-bottom:10px;opacity:0.3">🔧</span>Los pedidos aparecen aquí al confirmar un pantallazo</div>';return;}
@@ -31014,7 +31062,7 @@ function renderCostSummary(idx){
 function updateCostRow(idx,li,field,val){const r=costRecords[idx];if(!r||!r.lineas[li])return;r.lineas[li][field]=field==='qty'||field==='unit_val'?Number(val):val;r.lineas[li].total=Math.round((Number(r.lineas[li].qty)||0)*(Number(r.lineas[li].unit_val)||0));const totalEl=document.getElementById(`cost-line-total-${idx}-${li}`);if(totalEl)totalEl.textContent=fmtCLP(r.lineas[li].total);const numStr=String(r.num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',r).catch(_falloGuardado('Costos del pedido '+numStr));renderCostSummary(idx);renderCostStats();}
 function addCostRow(idx){if(!costRecords[idx])return;costRecords[idx].lineas=costRecords[idx].lineas||[];costRecords[idx].lineas.push({desc:'',categoria:'Insumos',qty:1,unidad:'un',unit_val:0,total:0});const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(_falloGuardado('Costos del pedido '+numStr));renderCostRows(idx);renderCostSummary(idx);}
 function delCostRow(idx,li){if(!costRecords[idx])return;costRecords[idx].lineas.splice(li,1);const numStr=String(costRecords[idx].num||'');if(DB_URL&&numStr)api('costos/'+numStr,'PUT',costRecords[idx]).catch(_falloGuardado('Costos del pedido '+numStr));renderCostRows(idx);renderCostSummary(idx);renderCostStats();}
-function exportCostCSV(){var base=costMonthFilter==='todos'?costRecords:costRecords.filter(function(r){return extractMonthFromDate(r.fecha)===costMonthFilter;});if(!base.length){showToast('No hay registros');return;}var dataRows=[];base.forEach(function(r){var totalCosto=(r.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0),venta=Number(r.venta_total)||0,ganancia=venta-totalCosto,margen=venta?Math.round(ganancia/venta*100):0;if(!(r.lineas||[]).length){dataRows.push({'N° PEDIDO':r.num||'','SEMANA':r.semana||'','CLIENTE':(r.nombre||'')+' '+(r.apellido||''),'PRODUCTO':r.producto||'','VENTA':venta,'DESCRIPCIÓN':'','CATEGORÍA':'','CANTIDAD':'','UNIDAD':'','VALOR UNIT':'','TOTAL LÍNEA':'','TOTAL COSTOS':totalCosto,'GANANCIA':ganancia,'MARGEN %':margen+'%'});}else{(r.lineas).forEach(function(l,li){dataRows.push({'N° PEDIDO':li===0?(r.num||''):'','SEMANA':li===0?(r.semana||''):'','CLIENTE':li===0?((r.nombre||'')+' '+(r.apellido||'')):'','PRODUCTO':li===0?(r.producto||''):'','VENTA':li===0?venta:'','DESCRIPCIÓN':l.desc||'','CATEGORÍA':l.categoria||'','CANTIDAD':l.qty||'','UNIDAD':l.unidad||'','VALOR UNIT':l.unit_val||'','TOTAL LÍNEA':l.total||'','TOTAL COSTOS':li===0?totalCosto:'','GANANCIA':li===0?ganancia:'','MARGEN %':li===0?margen+'%':''});});}});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:8},{wch:16},{wch:20},{wch:20},{wch:12},{wch:22},{wch:12},{wch:8},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:8}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=costMonthFilter==='todos'?'todos':costMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Costos '+label);downloadXLSX(wb,'zaru_costos_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
+function exportCostCSV(){var base=costRecords.filter(function(r){return enPeriodo('cost',r);});if(!base.length){showToast('No hay registros');return;}var dataRows=[];base.forEach(function(r){var totalCosto=(r.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0),venta=Number(r.venta_total)||0,ganancia=venta-totalCosto,margen=venta?Math.round(ganancia/venta*100):0;if(!(r.lineas||[]).length){dataRows.push({'N° PEDIDO':r.num||'','SEMANA':r.semana||'','CLIENTE':(r.nombre||'')+' '+(r.apellido||''),'PRODUCTO':r.producto||'','VENTA':venta,'DESCRIPCIÓN':'','CATEGORÍA':'','CANTIDAD':'','UNIDAD':'','VALOR UNIT':'','TOTAL LÍNEA':'','TOTAL COSTOS':totalCosto,'GANANCIA':ganancia,'MARGEN %':margen+'%'});}else{(r.lineas).forEach(function(l,li){dataRows.push({'N° PEDIDO':li===0?(r.num||''):'','SEMANA':li===0?(r.semana||''):'','CLIENTE':li===0?((r.nombre||'')+' '+(r.apellido||'')):'','PRODUCTO':li===0?(r.producto||''):'','VENTA':li===0?venta:'','DESCRIPCIÓN':l.desc||'','CATEGORÍA':l.categoria||'','CANTIDAD':l.qty||'','UNIDAD':l.unidad||'','VALOR UNIT':l.unit_val||'','TOTAL LÍNEA':l.total||'','TOTAL COSTOS':li===0?totalCosto:'','GANANCIA':li===0?ganancia:'','MARGEN %':li===0?margen+'%':''});});}});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:8},{wch:16},{wch:20},{wch:20},{wch:12},{wch:22},{wch:12},{wch:8},{wch:6},{wch:10},{wch:10},{wch:12},{wch:12},{wch:8}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=costMonthFilter==='todos'?'todos':costMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Costos '+label);downloadXLSX(wb,'zaru_costos_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
 
 // ── GASTOS: FACTURAS · INVENTARIO · LIBRO MAYOR ────────────────────────────
 // El circuito que cierra el margen real:
@@ -31385,8 +31433,8 @@ function _avisoSinDatos(icono,textoVacio){
 // ── Vista: Facturas ───────────────────────────────────────────────────────
 function renderFacturas(){
   var el=document.getElementById('fact-list');if(!el)return;
-  renderMonthBar('fact-month-bar',facturas,factMonthFilter,'setFactMonth',function(r){return r.mes;});
-  var base=factMonthFilter==='todos'?facturas:facturas.filter(function(r){return r.mes===factMonthFilter;});
+  renderMonthBar('fact-month-bar',facturas,factMonthFilter,'setFactMonth',function(r){return r.mes;},'fact');
+  var base=facturas.filter(function(r){return enPeriodo('fact',r);});
   var q=(document.getElementById('fact-search').value||'').toLowerCase().trim();
   var list=base.filter(function(r){
     if(!q)return true;
@@ -32158,14 +32206,14 @@ var mayorCatFilter='todas';
 function setMayorMonth(m){mayorMonthFilter=m;renderMayor();}
 function setMayorCat(c){mayorCatFilter=c;renderMayor();}
 function _mayorFiltrado(){
-  var base=mayorMonthFilter==='todos'?mayorRecords:mayorRecords.filter(function(r){return r.mes===mayorMonthFilter;});
+  var base=mayorRecords.filter(function(r){return enPeriodo('mayor',r);});
   if(mayorCatFilter==='sin_doc')return base.filter(function(r){return !String(r.numero_doc||'').trim();});
   if(mayorCatFilter!=='todas')base=base.filter(function(r){return r.categoria===mayorCatFilter;});
   return base;
 }
 function renderMayor(){
   var el=document.getElementById('mayor-tbody');if(!el)return;
-  renderMonthBar('mayor-month-bar',mayorRecords,mayorMonthFilter,'setMayorMonth',function(r){return r.mes;});
+  renderMonthBar('mayor-month-bar',mayorRecords,mayorMonthFilter,'setMayorMonth',function(r){return r.mes;},'mayor');
   _renderMayorFiltros();
   var list=_mayorFiltrado();
   var vacio=document.getElementById('mayor-empty');
