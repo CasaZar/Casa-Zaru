@@ -56,6 +56,12 @@ begin
   get diagnostics n = row_count;
   if n <> 1 then raise exception '1469: se esperaba 1 fila con cabecera de Marcela Paz, hubo %. No se aplicó nada.', n; end if;
 
+  -- El trigger registrar_borrado() anota cada borrado en gestion_borrados con
+  -- el correo del JWT, y desde el SQL Editor no hay sesión: caía en 'sistema',
+  -- que no existe en gestion_usuarios y rompía la FK. Se firma como la cuenta
+  -- admin solo dentro de esta transacción (is_local = true).
+  perform set_config('request.jwt.claims', '{"email":"hola@casazaru.cl"}', true);
+
   -- Solo se borran si de verdad no tienen ningún costo con monto.
   delete from gestion_costos c
    where c.num in ('cmphs3szq6', 'cmpij66dt7', 'cmpikozzy25')
