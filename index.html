@@ -506,6 +506,24 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 #seg-menu .m-sub { font-size:11.5px;color:var(--text-3);margin:2px 0 10px; }
 #seg-menu .m-acc { display:flex;flex-direction:column;gap:6px; }
 #seg-menu .m-acc > * { text-align:center; }
+/* "Sale esta semana": la lista del cuaderno de César, por día, para tachar */
+.ss-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:14px 16px;margin-bottom:14px; }
+.ss-head { display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px; }
+.ss-titulo { font-family:'DM Serif Display',serif;font-size:19px;color:var(--wood); }
+.ss-cuenta { font-size:12px;font-weight:700;border-radius:20px;padding:3px 10px;background:var(--surface2);color:var(--text-2); }
+.ss-cuenta.listo { background:var(--green-dim);color:var(--green-text); }
+.ss-dias { display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px; }
+.ss-dia-tit { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--text-3);margin-bottom:4px; }
+.ss-dia-tit.hoy { color:var(--red); }
+.ss-item { display:flex;align-items:flex-start;gap:8px;padding:7px 6px;border-radius:7px;cursor:pointer;font-size:13px;line-height:1.3; }
+.ss-item:hover { background:var(--surface2); }
+.ss-item input { width:18px;height:18px;margin:1px 0 0;flex-shrink:0;accent-color:var(--green);cursor:pointer; }
+.ss-num { font-weight:700;color:var(--wood);white-space:nowrap; }
+.ss-cli { font-weight:600;color:var(--text); }
+.ss-prod { display:block;font-size:11.5px;color:var(--text-3); }
+.ss-item.salio .ss-num,.ss-item.salio .ss-cli,.ss-item.salio .ss-prod { text-decoration:line-through;color:var(--text-3);opacity:.7; }
+.ss-item.atras:not(.salio) { background:#FCEBEB; }
+.ss-item.atras:not(.salio) .ss-prod::after { content:' · ¿salió?';color:var(--red);font-weight:700; }
 /* Reporte de envíos del lunes */
 .rep-tabla { width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px; }
 .rep-tabla th { font-size:10.5px;text-transform:uppercase;color:var(--text-3);text-align:left;padding:6px;border-bottom:1px solid var(--border-md); }
@@ -26121,6 +26139,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="btn-ghost" style="margin:0" onclick="abrirReporte()">📋 Pegar reporte de envíos</button>
     <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
   </div>
+  <div id="seg-semana"></div>
   <div id="seg-month-bar" class="month-bar"></div>
   <div id="seg-alerta-semana"></div>
   <div id="seg-lista"></div>
@@ -27908,6 +27927,7 @@ function renderSeg(){
   var list=getFilteredOrders(),cont=document.getElementById('seg-lista'),empty=document.getElementById('seg-empty');
   renderAlertaSemana();
   renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);},'seg');
+  renderSaleSemana();
   if(!cont)return;
   cerrarMenuAviso();
   segPend={};
@@ -27997,6 +28017,65 @@ function _filaSeg(o,fr,hoy){
     '<td class="l prod" title="'+esc(o.producto)+'">'+esc(o.producto)+'</td>'+
     '<td class="env">'+env+'</td>'+celdas+
     '<td><button class="seg-edit" title="Editar pedido" onclick="openModal(\''+numStr+'\')">✎</button></td></tr>';
+}
+// ── "Sale esta semana" (05-10-2026) ────────────────────────────────────────
+// César anotaba en un cuaderno lo que salía cada día y lo iba tachando. Esto es
+// esa lista: lo que se despacha esta semana, por día, y al tocarlo se tacha.
+// Tachar es marcar el pedido "Entregado" en Producción (el estado que ya usan
+// Producción y Finanzas), no un dato nuevo que pueda contradecirlos.
+function _prodDe(numStr){return prodOrders.find(function(z){return String(z.pedido||'')===String(numStr);});}
+function _medidasPedido(p){
+  if(!p||!p.lineas)return'';
+  return p.lineas.map(function(l){
+    if(!l.largo||!l.ancho)return'';
+    return(Number(l.cantidad)>1?l.cantidad+'× ':'')+l.largo+'×'+l.ancho;
+  }).filter(Boolean).join(' · ');
+}
+function renderSaleSemana(){
+  var el=document.getElementById('seg-semana');if(!el)return;
+  var hoy=new Date();hoy.setHours(12,0,0,0);
+  var lunes=_lunesDe(new Date(hoy)),domingo=_sumarDias(lunes,6);
+  var semProd=semanaDeFecha(_isoLocal(hoy));
+  var lista=orders.filter(function(o){
+    if(o.dia_envio){var d=new Date(o.dia_envio+'T12:00:00');return d>=lunes&&d<=domingo;}
+    return normalizeSemana(o.semana)===semProd;   // sin día cargado: por su semana
+  });
+  if(!lista.length){el.innerHTML='';return;}
+  var dias={};
+  lista.forEach(function(o){var k=o.dia_envio||'';(dias[k]=dias[k]||[]).push(o);});
+  var claves=Object.keys(dias).sort(function(a,b){return !a?1:!b?-1:a<b?-1:1;});
+  var hechos=0,hoyIso=_isoLocal(hoy);
+  var cols=claves.map(function(k){
+    var tit=k?fechaLarga(k).replace(/ de [a-zñ]+$/i,''):'Sin día de envío';
+    var items=dias[k].sort(function(a,b){return Number(a.num||0)-Number(b.num||0);}).map(function(o){
+      var numStr=String(o.num||''),p=_prodDe(numStr),salio=!!(p&&p.estado==='Entregado');
+      if(salio)hechos++;
+      var atras=!salio&&k&&k<hoyIso;
+      var prod=esc(o.producto||'')+(_medidasPedido(p)?' · '+esc(_medidasPedido(p)):'');
+      var nom=esc(((o.nombre||'')+' '+(o.apellido||'')).trim());
+      return '<label class="ss-item'+(salio?' salio':'')+(atras?' atras':'')+'" title="'+(p?'Tocar para marcarlo como salido':'No está en Producción: no se puede tachar')+'">'+
+        '<input type="checkbox"'+(salio?' checked':'')+(p?'':' disabled')+' onchange="marcarSalio(\''+numStr+'\',this.checked)">'+
+        '<span><span class="ss-num">#'+esc(numStr)+'</span> <span class="ss-cli">'+nom+'</span><span class="ss-prod">'+prod+'</span></span></label>';
+    }).join('');
+    return '<div><div class="ss-dia-tit'+(k===hoyIso?' hoy':'')+'">'+esc(tit)+(k===hoyIso?' · hoy':'')+'</div>'+items+'</div>';
+  }).join('');
+  var todo=hechos===lista.length;
+  el.innerHTML='<div class="ss-card"><div class="ss-head"><span class="ss-titulo">🚚 Sale esta semana</span>'+
+    '<span class="ss-cuenta'+(todo?' listo':'')+'">'+(todo?'✓ salió todo':hechos+' de '+lista.length+' salieron')+'</span></div>'+
+    '<div class="ss-dias">'+cols+'</div></div>';
+}
+async function marcarSalio(numStr,si){
+  var p=_prodDe(numStr);if(!p||!DB_URL){renderSaleSemana();return;}
+  var antes=p.estado;p.estado=si?'Entregado':'Listo';
+  renderSaleSemana();
+  try{
+    await api('produccion/'+numStr,'PUT',p);
+    logHistorial(numStr,si?'🚚 Salió (tachado en "Sale esta semana")':'🚚 Desmarcado: no salió');
+    renderProd();
+  }catch(e){
+    p.estado=antes;renderSaleSemana();
+    showToast('No se pudo guardar #'+numStr+': '+e.message,true);
+  }
 }
 // Menú del "!": lo mismo que ofrecía el tablero, pero pegado a la celda.
 function menuAviso(ev,numStr,avisoId){
@@ -28352,7 +28431,7 @@ async function loadProd(){
     const raw=await api('produccion');
     if(raw)prodOrders=Object.entries(raw).map(e=>Object.assign({},e[1])).sort((a,b)=>Number(a.pedido||0)-Number(b.pedido||0));
     else prodOrders=[];
-    renderProd();updateProdStats();
+    renderProd();updateProdStats();renderSaleSemana();
     renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   }catch(e){console.error('Error cargando producción',e);}
 }
