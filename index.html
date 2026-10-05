@@ -455,6 +455,67 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
           font-size:11.5px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;font-family:'Inter',sans-serif; }
 @media (max-width:768px){ .ped-grid { grid-template-columns:1fr; } }
 
+/* ── Seguimiento en tabla (05-10-2026) ──
+   Una fila por pedido, tipo planilla, agrupadas por semana con franjas de
+   color. Sin el tablero lateral la tabla tiene todo el ancho y los 7 checks
+   entran como círculos chicos. En el teléfono se desliza a la derecha, pero
+   el N° y el cliente quedan fijos a la izquierda. */
+.seg-top { display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px; }
+.seg-top .search-wrap { flex:1;min-width:200px;margin:0; }
+.seg-tabla-wrap { overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl); }
+.seg-tabla { width:100%;min-width:760px;border-collapse:collapse;font-size:12.5px; }
+.seg-tabla th { position:sticky;top:0;background:var(--surface2);font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.3px;padding:8px 4px;text-align:center;border-bottom:1px solid var(--border-md);white-space:nowrap; }
+.seg-tabla th.l,.seg-tabla td.l { text-align:left; }
+.seg-tabla td { padding:6px 4px;border-bottom:1px solid var(--border);text-align:center;vertical-align:middle; }
+.seg-tabla tr.seg-fila:hover td { background:var(--surface2); }
+.seg-tabla td.num { font-weight:700;color:var(--wood);white-space:nowrap;padding-left:10px; }
+.seg-tabla td.cli { font-weight:600;color:var(--text);max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.seg-tabla td.prod { color:var(--text-3);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.seg-tabla td.env { white-space:nowrap;font-size:12px; }
+.seg-tabla .sticky1 { position:sticky;left:0;background:var(--surface);z-index:1;width:58px;min-width:58px;box-sizing:border-box; }
+.seg-tabla .sticky2 { position:sticky;left:58px;background:var(--surface);z-index:1; }
+.seg-tabla th.sticky1,.seg-tabla th.sticky2 { z-index:2;background:var(--surface2); }
+.seg-sem td { padding:7px 12px;font-weight:700;font-size:12.5px;text-align:left;border-bottom:1px solid var(--border-md); }
+.seg-sem .seg-sem-info { font-weight:500;font-size:11.5px;margin-left:8px;opacity:.85; }
+.sc { width:24px;height:24px;border-radius:50%;border:1px solid var(--border-md);background:var(--surface);color:var(--text-3);
+      font-size:12px;font-weight:700;line-height:1;cursor:pointer;padding:0;font-family:'Inter',sans-serif;transition:transform .1s; }
+.sc:hover { transform:scale(1.15);border-color:var(--brand); }
+.sc.ok { background:#C0DD97;border-color:#639922;color:#27500A; }
+.sc.due { background:#FDF1DC;border-color:var(--amber);color:#854F0B; }
+.sc.late { background:#FCEBEB;border-color:#E24B4A;color:#A32D2D; }
+.seg-cambio { display:inline-block;margin-left:5px;font-size:10.5px;font-weight:700;background:#FDECEF;color:#993556;border:1px solid #E4C3CE;border-radius:10px;padding:1px 7px;cursor:pointer; }
+.seg-nota { cursor:help;margin-left:4px;font-size:11px; }
+.seg-edit { background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:2px 6px; }
+.seg-edit:hover { color:var(--brand); }
+@media (max-width:768px){
+  .seg-tabla { min-width:0;font-size:12px; }
+  .seg-tabla .prod { display:none; }
+  .seg-tabla td.cli { max-width:120px; }
+  .seg-tabla td.env { font-size:11px;white-space:normal;min-width:62px; }
+  .seg-tabla td,.seg-tabla th { padding:5px 2px; }
+  .seg-tabla .sticky1 { width:44px;min-width:44px;padding-left:6px; }
+  .seg-tabla .sticky2 { left:44px; }
+  .sc { width:22px;height:22px; }
+}
+.seg-leyenda { font-size:11px;color:var(--text-3);margin:8px 2px 0;display:flex;gap:14px;flex-wrap:wrap;align-items:center; }
+.seg-leyenda .sc { width:16px;height:16px;font-size:9px;cursor:default; }
+.seg-leyenda .sc:hover { transform:none; }
+#seg-menu { position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:12px;width:250px;display:none; }
+#seg-menu.on { display:block; }
+#seg-menu .m-tag { font-weight:700;font-size:13px;color:var(--text); }
+#seg-menu .m-sub { font-size:11.5px;color:var(--text-3);margin:2px 0 10px; }
+#seg-menu .m-acc { display:flex;flex-direction:column;gap:6px; }
+#seg-menu .m-acc > * { text-align:center; }
+/* Reporte de envíos del lunes */
+.rep-tabla { width:100%;border-collapse:collapse;font-size:12.5px;margin-top:12px; }
+.rep-tabla th { font-size:10.5px;text-transform:uppercase;color:var(--text-3);text-align:left;padding:6px;border-bottom:1px solid var(--border-md); }
+.rep-tabla td { padding:6px;border-bottom:1px solid var(--border);vertical-align:middle; }
+.rep-tabla select { font-size:12px;padding:4px 6px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text);max-width:220px;font-family:'Inter',sans-serif; }
+.rep-ok { color:var(--green-text);font-weight:600; }
+.rep-cambia { color:#854F0B;font-weight:600; }
+.rep-mal { color:var(--red);font-weight:600; }
+@media (max-width:768px){ .rep-tabla { font-size:11.5px; } .rep-tabla select { max-width:150px; } }
+
 /* ── Tablero "hoy hay que avisar" (arriba de Seguimiento) ── */
 /* La pantalla se parte en dos: el tablero queda fijo a la izquierda con su
    propio scroll, así la lista de pedidos siempre está a la vista. En pantallas
@@ -26053,36 +26114,20 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <!-- P1 SEGUIMIENTO -->
 <div class="page" id="page-seg">
 <div class="main">
-  <div class="seg-split" id="seg-split">
-  <div class="seg-col-hoy"><div class="hoy-board" id="seg-hoy"></div></div>
-  <div class="seg-col-lista">
-  <div class="stats-grid" id="seg-stats"></div>
-  <div class="toolbar">
-    <div class="filter-group">
-      <button class="filter-btn active" onclick="setSegFilter('todos',this)">Todos</button>
-      <button class="filter-btn" onclick="setSegFilter('pendiente',this)">Con pendientes</button>
-      <button class="filter-btn" onclick="setSegFilter('completado',this)">Completados</button>
+  <div class="seg-top">
+    <div class="search-wrap"><span class="search-icon">⌕</span>
+      <input type="text" id="seg-search" placeholder="Buscar cliente o N° de pedido" oninput="renderSeg()">
     </div>
-    <div style="display:flex;gap:8px">
-      <button class="tbtn" onclick="syncFromProd()" style="background:var(--amber);font-size:12px">⟳ Sincronizar desde Producción</button>
-      <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
-    </div>
-  </div>
-  <div id="seg-month-bar" class="month-bar"></div>
-  <div class="search-wrap"><span class="search-icon">⌕</span>
-    <input type="text" id="seg-search" placeholder="Buscar por cliente, N° pedido, semana..." oninput="renderSeg()">
-  </div>
-  <div class="legend">
-    <div class="leg"><div class="leg-dot" style="background:#C0DD97"></div>Completado</div>
-    <div class="leg"><div class="leg-dot" style="background:#FAC775"></div>En curso</div>
-    <div class="leg"><div class="leg-dot" style="background:#F4C0D1"></div>Sin iniciar</div>
-    <span style="color:var(--text-muted);font-size:11px;margin-left:6px">★ = checkpoint crítico</span>
+    <button class="btn-ghost" style="margin:0" onclick="abrirReporte()">📋 Pegar reporte de envíos</button>
+    <button class="btn-add" onclick="openModal()">+ Nuevo pedido</button>
   </div>
   <div id="seg-alerta-semana"></div>
-  <div id="seg-lista" class="ped-grid"></div>
+  <div id="seg-lista"></div>
   <div class="empty-state" id="seg-empty" style="display:none"><span class="empty-icon">📋</span>No se encontraron pedidos.</div>
+  <div style="margin-top:22px;text-align:right">
+    <button class="btn-ghost" style="font-size:11px;margin:0" onclick="syncFromProd()" title="Reescribe Seguimiento con los pedidos de Producción (conserva los checks)">⟳ Sincronizar desde Producción</button>
   </div>
-  </div>
+  <div id="seg-menu"></div>
 </div></div>
 
 <!-- P2 PRODUCCIÓN -->
@@ -26696,6 +26741,23 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 </div>
 
 <!-- MODAL SEG -->
+<!-- Reporte de envíos del lunes: César y Cristian mandan por WhatsApp qué sale
+     cada día de la semana; se pega acá y se cruza con los pedidos. -->
+<div class="modal-bg" id="modal-reporte-bg">
+  <div class="modal" style="width:min(860px,100%)">
+    <div class="modal-header"><div class="modal-title">Pegar reporte de envíos</div><button class="btn-close" onclick="cerrarReporte()">×</button></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12.5px;color:var(--text-2)">
+      <span>Semana de envío del lunes</span>
+      <input type="date" id="rep-lunes" onchange="analizarReporte()" style="padding:5px 8px;border:1px solid var(--border-md);border-radius:6px;background:var(--surface);color:var(--text);font-family:'Inter',sans-serif">
+    </div>
+    <textarea id="rep-texto" rows="7" oninput="analizarReporteDiferido()" placeholder="Pega acá el mensaje tal como llegó, por ejemplo:&#10;· Juan Antonio Puerta 217 x 91. Lunes&#10;· Javier Recasens Cubierta 180 x 80. Viernes" style="width:100%;box-sizing:border-box;font-family:'Inter',sans-serif;font-size:13px;padding:10px;border:1px solid var(--border-md);border-radius:8px;background:var(--surface);color:var(--text);resize:vertical"></textarea>
+    <div id="rep-resultado"></div>
+    <div class="modal-footer">
+      <button class="btn-sec" onclick="cerrarReporte()">Cancelar</button>
+      <button class="btn-pri" id="rep-aplicar" onclick="aplicarReporte()">Aplicar</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="modal-seg-bg">
   <div class="modal">
     <div class="modal-header"><div class="modal-title" id="modal-title">Nuevo pedido</div><button class="btn-close" onclick="closeModal()">×</button></div>
@@ -26912,13 +26974,11 @@ function extractMonthFromDate(d){
   return null;
 }
 function currentMonthName(){return MESES_ES[new Date().getMonth()];}
-var segMonthFilter=currentMonthName();
 var finMonthFilter=currentMonthName();
 var prodMonthFilter=currentMonthName();
 var pixelMonthFilter=currentMonthName();
 var costMonthFilter=currentMonthName();
 var dashMonthFilter=currentMonthName();
-function setSegMonth(m){segMonthFilter=m;renderSeg();}
 function setDashMonth(m){dashMonthFilter=m;renderDash();renderNotif();renderGrafico();renderRanking();}
 // Fecha de referencia para saber cuándo salió un pedido.
 // Si no está cargado el día de envío (los pedidos viejos no lo tienen), se
@@ -27192,7 +27252,7 @@ var SC=[{bg:'#EEF3FB',border:'#9BB8E8',text:'#2D4E8A'},{bg:'#F3EEF9',border:'#C0
 var scm={},sci=0;
 function getSC(s){if(!scm[s]){scm[s]=SC[sci%SC.length];sci++;}return scm[s];}
 const SEED=[];
-let orders=[],editingKey=null,segFilter='todos',pollInterval=null,pendingOps=0;
+let orders=[],editingKey=null,pollInterval=null,pendingOps=0;
 // ── DATOS: Supabase (antes Firebase) ───────────────────────────────────────
 // api() mantiene EXACTAMENTE el mismo contrato que la versión Firebase, así que
 // las ~47 llamadas repartidas por el archivo no cambian. Lo único distinto es
@@ -27528,6 +27588,16 @@ const AVISO_CADUCA_DIAS=30;
 // Estos avisos nombran una fecha concreta: si el envío se corre, hay que
 // volver a mandarlos porque el cliente quedó con el dato viejo.
 const AVISOS_POR_FECHA=['aviso_sem','aviso_lun','aviso_dia'];
+// Qué avisos reabrir cuando el envío pasa de una fecha a otra. "Avisar la
+// semana de entrega" no nombra el día ("queda listo la próxima semana"), así
+// que si el envío se mueve dentro de la misma semana sigue siendo cierto y no
+// se le vuelve a pedir: el reporte del lunes movía 9 pedidos de lunes a viernes
+// y le pedía a César nueve mensajes repetidos.
+function avisosQueReabre(prevIso,nuevoIso){
+  var lp=_lunesDe(new Date(prevIso+'T12:00:00')),ln=_lunesDe(new Date(nuevoIso+'T12:00:00'));
+  var mismaSemana=lp.getTime()===ln.getTime();
+  return AVISOS_POR_FECHA.filter(function(id){return !(mismaSemana&&id==='aviso_sem');});
+}
 function fechaLarga(iso){
   if(!iso)return'';
   var d=new Date(iso+'T12:00:00');if(isNaN(d))return iso;
@@ -27582,77 +27652,6 @@ function avisosPendientes(){
     return x.falta-y.falta;});
   return{lista:out,caducados:Object.keys(caducados).length};
 }
-// Plegar el tablero deja la lista de pedidos a ancho completo. La preferencia
-// se recuerda por dispositivo.
-function toggleTablero(){
-  var s=document.getElementById('seg-split');if(!s)return;
-  var off=!s.classList.contains('sin-tablero');
-  s.classList.toggle('sin-tablero',off);
-  try{localStorage.setItem('cazaru_tablero_off',off?'1':'');}catch(e){}
-  renderSegHoy();
-}
-function restaurarTablero(){
-  try{
-    var s=document.getElementById('seg-split');
-    if(s&&localStorage.getItem('cazaru_tablero_off'))s.classList.add('sin-tablero');
-  }catch(e){}
-}
-function renderSegHoy(){
-  var el=document.getElementById('seg-hoy');if(!el)return;
-  var r=avisosPendientes(),todo=r.lista;
-  // El "¿lo recibió?" es POST-entrega: el pedido ya salió y el cliente ya lo
-  // tiene. Mezclado con los avisos de pedidos que todavía no despachan inflaba
-  // el contador y tapaba lo que de verdad urge, que es tener informado a quien
-  // AÚN espera su pedido. Va en su propio bloque y no suma al contador.
-  var postentrega=todo.filter(function(p){return p.avisoId==='recibido';});
-  var lista=todo.filter(function(p){return p.avisoId!=='recibido';});
-  var cambios=lista.filter(function(p){return p.urgente;});
-  var atrasados=lista.filter(function(p){return p.atrasado&&!p.urgente;});
-  var alDia=lista.filter(function(p){return!p.atrasado&&!p.urgente;});
-  var pieCaducados=r.caducados?'<div class="hoy-sub" style="margin-top:10px">'+r.caducados+(r.caducados===1?' pedido antiguo con avisos sin marcar':' pedidos antiguos con avisos sin marcar')+' (más de '+AVISO_CADUCA_DIAS+' días pasados) ya no se piden.</div>':'';
-  var badgeBg=(atrasados.length||cambios.length)?'background:#FDECEF;color:#993556':'background:#EAF5E1;color:#4E7A1B';
-  var plegado=document.getElementById('seg-split')&&document.getElementById('seg-split').classList.contains('sin-tablero');
-  var btnPlegar='<button class="btn-ghost" style="font-size:11px;padding:3px 9px;margin:0" onclick="toggleTablero()" title="'+(plegado?'Mostrar el tablero':'Ocultar el tablero y dar todo el ancho a los pedidos')+'">'+(plegado?'▸':'◂')+'</button>';
-  var head='<div class="hoy-head"><div class="hoy-title">📣 Hoy hay que avisar</div><div style="display:flex;align-items:center;gap:8px"><div class="hoy-count" style="'+badgeBg+'">'+lista.length+(lista.length===1?' pendiente':' pendientes')+'</div>'+btnPlegar+'</div></div>';
-  function bloque(titulo,color,items){
-    if(!items.length)return'';
-    // Sin título no se dibuja la cabecera: el bloque post-entrega ya trae la
-    // suya con el contador, y repetirla se veía duplicado.
-    var cab=titulo?'<div class="hoy-grupo" style="color:'+color+'">'+titulo+' ('+items.length+')</div>':'';
-    return cab+items.map(function(p){
-      var fin=finRecords.find(function(x){return String(x.num||'')===p.numStr;});
-      var cel=fin?String(fin.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
-      var wa=cel?'<a class="hoy-btn wa" target="_blank" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(p.msg)+'" onclick="marcarAviso(\''+p.numStr+'\',\''+p.avisoId+'\')">Abrir WhatsApp</a>':'<span class="hoy-sub">Sin número</span>';
-      var hecho='<button class="hoy-btn" onclick="marcarAviso(\''+p.numStr+'\',\''+p.avisoId+'\')">✓ Ya avisé</button>';
-      var excusa=p.atrasado?'<button class="hoy-btn excusa" onclick="anotarExcusa(\''+p.numStr+'\',\''+p.avisoId+'\')">No avisé porque…</button>':'';
-      return'<div class="hoy-item"><div class="hoy-dot" style="background:'+p.color+'"></div><div class="hoy-info"><div class="hoy-cli">#'+esc(p.numStr)+' '+esc(p.nombre)+'</div><div class="hoy-tag" style="color:'+p.color+'">'+p.tag+'</div><div class="hoy-sub">'+esc(p.sub)+'</div></div><div class="hoy-acciones">'+wa+hecho+excusa+'</div></div>';
-    }).join('');
-  }
-  // Post-entrega aparte, plegado por defecto: es seguimiento de cortesía, no
-  // se pierde nada si se hace mañana. Lo de arriba sí.
-  var post='';
-  if(postentrega.length){
-    var abierto=window._hoyPostAbierto?' abierto':'';
-    post='<div class="hoy-post'+abierto+'">'+
-      '<button class="hoy-post-head" onclick="togglePostEntrega()">'+
-        '<span class="hoy-post-flecha">'+(abierto?'▾':'▸')+'</span>'+
-        '<span>Ya lo recibieron · seguimiento post-entrega</span>'+
-        '<span class="hoy-post-cnt">'+postentrega.length+'</span>'+
-      '</button>'+
-      (abierto?'<div class="hoy-post-body">'+bloque('','#4E7A1B',postentrega)+'</div>':'')+
-    '</div>';
-  }
-  var cuerpo=lista.length
-    ?bloque('Cambió la fecha de envío','#993556',cambios)+bloque('Atrasados','#993556',atrasados)+bloque('Para hoy','#4E7A1B',alDia)
-    :'<div class="hoy-sub" style="color:var(--green);font-weight:600">✓ Todo al día con los pedidos por salir.</div>';
-  el.innerHTML=head+cuerpo+post+pieCaducados;
-}
-// El bloque post-entrega recuerda si quedó abierto, para no cerrarse solo cada
-// vez que se marca un aviso y se vuelve a dibujar el tablero.
-function togglePostEntrega(){
-  window._hoyPostAbierto=!window._hoyPostAbierto;
-  renderSegHoy();
-}
 // Marcar desde el tablero es exactamente lo mismo que marcar el check en la tabla.
 function marcarAviso(numStr,avisoId){
   var o=orders.find(function(x){return String(x.num||'')===String(numStr);});
@@ -27675,13 +27674,9 @@ async function anotarExcusa(numStr,avisoId){
 function getFilteredOrders(){
   var q=(document.getElementById('seg-search').value||'').toLowerCase().trim();
   var list=orders.slice();
-  if(segMonthFilter!=='todos')list=list.filter(function(o){return extractMonth(o.semana)===segMonthFilter;});
-  if(segFilter==='completado')list=list.filter(o=>getProgress(o.checks).pct===100);
-  if(segFilter==='pendiente')list=list.filter(o=>getProgress(o.checks).pct<100);
   if(q)list=list.filter(o=>(o.num||'').toLowerCase().includes(q)||(o.nombre||'').toLowerCase().includes(q)||(o.apellido||'').toLowerCase().includes(q)||(o.semana||'').toLowerCase().includes(q)||(o.producto||'').toLowerCase().includes(q));
   return list;
 }
-function setSegFilter(f,btn){segFilter=f;document.querySelectorAll('#page-seg .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderSeg();}
 async function toggleCheck(numStr,cid){
   if(!DB_URL)return;var o=orders.find(x=>String(x.num||'')===String(numStr));if(!o)return;
   if(!o.checks)o.checks={};
@@ -27689,15 +27684,6 @@ async function toggleCheck(numStr,cid){
   pendingOps++;setSyncState('syncing');
   try{var patch={};patch[cid]=newVal;patch.last_activity=Date.now();o.last_activity=patch.last_activity;await api('pedidos/'+numStr+'/checks','PATCH',{[cid]:newVal});if(DB_URL)api('pedidos/'+numStr+'/last_activity','PUT',patch.last_activity).catch(_falloGuardado('Actividad del pedido '+numStr));setSyncState('online');var chkLabel=(CHECKS.find(function(c){return c.id===cid;})||{label:cid}).label;logHistorial(numStr,(newVal?'✓ Marcado: ':' ✗ Desmarcado: ')+chkLabel);}
   catch(e){o.checks[cid]=!newVal;renderSeg();setSyncState('offline');}finally{pendingOps--;}
-}
-function renderSegStats(){
-  renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
-  var base=segMonthFilter==='todos'?orders:orders.filter(function(o){return extractMonth(o.semana)===segMonthFilter;});
-  var tot=base.length,comp=base.filter(function(o){return getProgress(o.checks).pct===100;}).length;
-  var cur=base.filter(function(o){var p=getProgress(o.checks).pct;return p>0&&p<100;}).length;
-  var sin=base.filter(function(o){return getProgress(o.checks).pct===0;}).length;
-  var label=segMonthFilter==='todos'?'Total':(segMonthFilter.charAt(0)+segMonthFilter.slice(1).toLowerCase());
-  document.getElementById('seg-stats').innerHTML='<div class="stat-card"><div class="stat-label">'+label+'</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Completados</div><div class="stat-val green">'+comp+'</div></div><div class="stat-card"><div class="stat-label">En curso</div><div class="stat-val amber">'+cur+'</div></div><div class="stat-card"><div class="stat-label">Sin iniciar</div><div class="stat-val pink">'+sin+'</div></div>';
 }
 // Orden cronológico de "SEMANA 03 AGOSTO": lo más antiguo arriba, que es
 // donde se acumula lo atrasado.
@@ -27834,103 +27820,345 @@ function renderAlertaSemana(){
   el.innerHTML='<div style="background:#FDF6E8;border:1px solid #E8D5A8;border-left:4px solid var(--amber);border-radius:var(--radius-xl);padding:12px 15px;margin-bottom:14px">'+
     '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:220px;font-size:12.5px;color:var(--text)">⚠ '+partes.join(' · ')+'.</div>'+btnVer+btnTodo+'</div>'+lista+'</div>';
 }
+// ── Seguimiento en tabla (05-10-2026) ──────────────────────────────────────
+// Una fila por pedido, tipo planilla, agrupadas por semana con franjas de
+// color distintas. Reemplaza las tarjetas y el tablero "Hoy hay que avisar":
+// el aviso que toca se ve en su propia columna con "!" (ámbar si es para hoy,
+// rojo si está atrasado) y al tocarlo se abre un menú para mandarlo por
+// WhatsApp, marcarlo o anotar por qué no se avisó. Así no hay dos listas que
+// digan lo mismo.
+var SEG_COLS=[
+  {id:'word',c:'Word',t:'Orden Word creada'},
+  {id:'produccion',c:'Prod',t:'En producción'},
+  {id:'aviso_sem',c:'Sem',t:'Avisar la semana de entrega'},
+  {id:'aviso_lun',c:'Día',t:'Confirmar el día de envío'},
+  {id:'aviso_dia',c:'Mañana',t:'Avisar que sale mañana'},
+  {id:'comprobante',c:'Compr',t:'Comprobante enviado'},
+  {id:'recibido',c:'Recib',t:'Recibió el pedido'}
+];
+// Franjas de semana: dos semanas vecinas nunca quedan del mismo color.
+var SEG_FRANJAS=[
+  {bg:'#E6F1FB',borde:'#378ADD',txt:'#0C447C'},
+  {bg:'#FAEEDA',borde:'#BA7517',txt:'#633806'},
+  {bg:'#E1F5EE',borde:'#1D9E75',txt:'#085041'},
+  {bg:'#EEEDFE',borde:'#7F77DD',txt:'#3C3489'},
+  {bg:'#FBEAF0',borde:'#D4537E',txt:'#72243E'},
+  {bg:'#F1EFE8',borde:'#888780',txt:'#444441'}
+];
+var segPend={};            // numStr -> {avisoId: item de avisosPendientes()}
+var segVerAnteriores=false;
+function _isoLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _sumarDias(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x;}
 function renderSeg(){
   var list=getFilteredOrders(),cont=document.getElementById('seg-lista'),empty=document.getElementById('seg-empty');
-  renderSegStats();renderSegHoy();renderAlertaSemana();renderMonthBar('seg-month-bar',orders,segMonthFilter,'setSegMonth',function(o){return extractMonth(o.semana);});
+  renderAlertaSemana();
   if(!cont)return;
+  cerrarMenuAviso();
+  segPend={};
+  avisosPendientes().lista.forEach(function(p){(segPend[p.numStr]=segPend[p.numStr]||{})[p.avisoId]=p;});
   if(!list.length){cont.innerHTML='';empty.style.display='block';return;}
-  empty.style.display='none';scm={};sci=0;orders.forEach(o=>getSC(o.semana));
-  function tarjeta(o){
-    var p=getProgress(o.checks),sc=getSC(o.semana),recib=yaRecibio(o),numStr=String(o.num||'');
-    var cls=recib?'recibido':p.pct===100?'verde':p.pct>0?'amarillo':'rosado';
-    var pctColor=recib?'#4E7A1B':p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';
-    // Los 8 checkpoints, todos visibles. El crítico va marcado con ★.
-    var checks=CHECKS.map(function(c){
-      var done=c.id==='recibido'?recib:!!(o.checks&&o.checks[c.id]);
-      var kls='pchk'+(done?' done':'')+(c.critical?' crit':'')+(c.nocount?' nocount':'');
-      var ico=done?'&#10003;':'&#9675;';
-      return '<button class="'+kls+'" onclick="toggleCheck(\''+numStr+'\',\''+c.id+'\')" title="'+esc(c.label)+'"><span class="pchk-ico">'+ico+'</span><span>'+esc(c.label)+(c.critical?' ★':'')+'</span></button>';
-    }).join('');
-    var nota=o.notas?'<div class="nota-tag" title="'+esc(o.notas)+'">'+esc(o.notas)+'</div>':'';
-    // Motivos anotados cuando un aviso se pasó de fecha y no se mandó.
-    Object.keys(o.excusas||{}).forEach(function(k){
-      var ex=o.excusas[k],a=AVISOS.find(function(x){return x.id===k;})||{tag:k};
-      var t=a.tag+': '+ex.texto;
-      nota+='<div class="nota-tag" title="'+esc(t)+'">⚠ '+esc(t)+'</div>';
-    });
-    var canalBadge=o.canal==='web'
-      ?'<span style="font-size:10px;font-weight:600;background:#EEF3FB;color:#2D4E8A;border-radius:4px;padding:2px 6px">🌐 Web</span>'
-      :'<span style="font-size:10px;font-weight:600;background:var(--green-dim);color:var(--green-text);border-radius:4px;padding:2px 6px">💬 WA</span>';
-    var diaEnvio='';
-    if(o.dia_envio){
-      var de=new Date(o.dia_envio+'T12:00:00'),hoy=new Date();hoy.setHours(0,0,0,0);
-      var diffD=Math.round((de-hoy)/86400000);
-      var diaStr=de.toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});
-      var diaColor=diffD<=0?'var(--red)':diffD<=3?'var(--amber)':'var(--text-3)';
-      var sufijo=diffD===0?' · HOY':diffD===1?' · mañana':diffD<0?' · ya salió':'';
-      diaEnvio='<span style="font-size:10px;font-weight:'+(diffD<=3?'700':'500')+';color:'+diaColor+'">📅 '+esc(diaStr)+sufijo+'</span>';
-    }
-    // La semana ya no va acá: es el título del grupo que contiene la tarjeta.
-    var piezas=o.piezas?'<span style="font-size:10px;color:var(--text-3)">'+esc(o.piezas)+' pz</span>':'';
-    // "Recibió pedido": aparece recién 10 días después de la fecha de envío y
-    // marca el check 'recibido', el mismo que usa el tablero de arriba.
-    var btnRecibio='',deR=fechaEnvioPedido(o);
-    if(deR&&!recib){
-      var hoyR=new Date();hoyR.setHours(0,0,0,0);
-      if(Math.round((hoyR-deR)/86400000)>=10){
-        var finR=finRecords.find(function(x){return String(x.num||'')===numStr;});
-        var celR=finR?String(finR.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
-        var msgR='Hola! '+(o.nombre||'')+'. Quería confirmar si recibiste todo bien finalmente!';
-        btnRecibio=celR
-          ?'<a href="https://wa.me/56'+celR+'?text='+encodeURIComponent(msgR)+'" target="_blank" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" class="btn-wa">¿Lo recibió?</a>'
-          :'<button class="btn-edit" onclick="marcarAviso(\''+numStr+'\',\'recibido\')" title="Este cliente no tiene celular guardado">¿Lo recibió?</button>';
-      }
-    }
-    var estrella=recib?'<span title="Confirmó que lo recibió" style="color:#4E7A1B"> ★</span>':'';
-    return '<div class="ped-card '+cls+'">'+
-      '<div class="ped-top"><div style="min-width:0">'+
-        '<div><span class="pedido-num">'+esc(o.num||'—')+'</span>'+estrella+'</div>'+
-        '<div class="ped-cli">'+esc(o.nombre)+' '+esc(o.apellido)+'</div>'+
-        '<div class="ped-prod">'+esc(o.producto)+'</div>'+
-      '</div><div class="ped-pct" style="color:'+pctColor+'">'+p.pct+'%</div></div>'+
-      '<div class="ped-bar"><div class="ped-fill" style="width:'+p.pct+'%;background:'+pctColor+'"></div></div>'+
-      '<div class="ped-meta">'+diaEnvio+canalBadge+piezas+'</div>'+
-      nota+
-      '<div class="ped-checks">'+checks+'</div>'+
-      '<div class="ped-acciones">'+btnRecibio+'<button class="btn-edit" onclick="openModal(\''+numStr+'\')">Editar</button></div>'+
-    '</div>';
-  }
-  // Agrupado por semana: título grande arriba y las tarjetas debajo.
+  empty.style.display='none';
+  var buscando=!!(document.getElementById('seg-search').value||'').trim();
+  var hoy=new Date();hoy.setHours(12,0,0,0);
+  var semEstaSemana=semanaDeFecha(_isoLocal(hoy));
+  var semProxima=semanaDeFecha(_isoLocal(_sumarDias(hoy,7)));
   var grupos={};
   list.forEach(function(o){
     var s=normalizeSemana(o.semana)||'Sin semana';
-    if(!grupos[s])grupos[s]=[];
-    grupos[s].push(o);
+    (grupos[s]=grupos[s]||[]).push(o);
   });
+  // Una semana queda a la vista si su envío fue hace menos de dos semanas o si
+  // le queda algún aviso por hacer. Lo demás va a "Ver semanas anteriores":
+  // eran 120 pedidos y casi todos ya no necesitaban nada. El "¿lo recibió?"
+  // no cuenta: es cortesía post-entrega y mantenía a la vista todo agosto.
+  var limite=_sumarDias(hoy,-14);
+  function vigente(sem,peds){
+    if(sem==='Sin semana')return true;
+    if(peds.some(function(o){var pd=segPend[String(o.num||'')]||{};return Object.keys(pd).some(function(k){return k!=='recibido';});}))return true;
+    var env=fechaEnvioDeSemana(sem);
+    return !env||env>=limite;
+  }
   var claves=Object.keys(grupos).sort(function(a,b){return ordenSemana(a)-ordenSemana(b);});
-  cont.innerHTML=claves.map(function(sem){
-    var peds=grupos[sem];
-    var pend=peds.filter(function(o){return getProgress(o.checks).pct<100;}).length;
-    // Por defecto se pliegan los grupos sin nada pendiente; nunca esconde
-    // trabajo por hacer. Si se abre o cierra a mano, manda esa decisión.
-    // El grupo sin semana siempre abierto: es lo que no se puede pasar por alto.
-    var abierto=(sem==='Sin semana')?true:_grupoAbierto(sem,peds);
-    var sc=(sem==='Sin semana')?{border:'var(--red)'}:getSC(peds[0].semana);
-    var badge=pend
-      ?'<span class="sem-pend">'+pend+' con pendientes</span>'
-      :'<span class="sem-listo">✓ todo listo</span>';
-    return '<div class="sem-grupo'+(abierto?'':' cerrado')+'" data-sem="'+esc(sem)+'">'+
-      '<div class="sem-head" onclick="toggleGrupoSemana(\''+esc(String(sem).replace(/'/g,"\\'"))+'\')">'+
-        '<span class="sem-punto" style="background:'+sc.border+'"></span>'+
-        '<span class="sem-titulo">'+esc(sem)+'</span>'+
-        '<span class="sem-info">'+peds.length+(peds.length===1?' pedido':' pedidos')+'</span>'+
-        badge+
-        '<span class="sem-arrow">'+(abierto?'▾':'▸')+'</span>'+
-      '</div>'+
-      '<div class="ped-grid">'+peds.map(tarjeta).join('')+'</div>'+
-    '</div>';
-  }).join('');
+  var visibles=(buscando||segVerAnteriores)?claves:claves.filter(function(s){return vigente(s,grupos[s]);});
+  var ocultas=claves.length-visibles.length;
+  var cab='<tr><th class="l sticky1">N°</th><th class="l sticky2">Cliente</th><th class="l">Producto</th><th>Envío</th>'+
+    SEG_COLS.map(function(c){return '<th title="'+esc(c.t)+'">'+esc(c.c)+'</th>';}).join('')+'<th></th></tr>';
+  var filas='';
+  visibles.forEach(function(sem,i){
+    var peds=grupos[sem].slice().sort(function(a,b){
+      var da=a.dia_envio||'9999',db=b.dia_envio||'9999';
+      return da<db?-1:da>db?1:Number(a.num||0)-Number(b.num||0);
+    });
+    var fr=sem==='Sin semana'?{bg:'#FCEBEB',borde:'#E24B4A',txt:'#791F1F'}:SEG_FRANJAS[i%SEG_FRANJAS.length];
+    var etiqueta=sem===semEstaSemana?' · sale esta semana':sem===semProxima?' · sale la próxima semana':'';
+    var titulo=sem==='Sin semana'?'Sin semana de producción':(sem.charAt(0)+sem.slice(1).toLowerCase());
+    filas+='<tr class="seg-sem"><td colspan="'+(SEG_COLS.length+5)+'" style="background:'+fr.bg+';color:'+fr.txt+';border-left:5px solid '+fr.borde+'">'+
+      esc(titulo)+esc(etiqueta)+'<span class="seg-sem-info">'+peds.length+(peds.length===1?' pedido':' pedidos')+'</span></td></tr>';
+    peds.forEach(function(o){filas+=_filaSeg(o,fr,hoy);});
+  });
+  var ver='';
+  if(!buscando&&(ocultas||segVerAnteriores)){
+    var txtVer=segVerAnteriores?'Ocultar semanas anteriores':('Ver '+ocultas+(ocultas===1?' semana anterior':' semanas anteriores'));
+    ver='<div style="text-align:center;margin-top:12px"><button class="btn-ghost" style="margin:0" onclick="segVerAnteriores=!segVerAnteriores;renderSeg()">'+txtVer+'</button></div>';
+  }
+  var ley='<div class="seg-leyenda"><span><span class="sc ok" style="display:inline-block;text-align:center;line-height:14px">✓</span> hecho</span>'+
+    '<span><span class="sc due" style="display:inline-block;text-align:center;line-height:14px">!</span> toca hacerlo</span>'+
+    '<span><span class="sc late" style="display:inline-block;text-align:center;line-height:14px">!</span> atrasado</span>'+
+    '<span>Tocar un círculo lo marca o lo desmarca</span></div>';
+  cont.innerHTML='<div class="seg-tabla-wrap"><table class="seg-tabla"><thead>'+cab+'</thead><tbody>'+filas+'</tbody></table></div>'+ley+ver;
 }
+function _filaSeg(o,fr,hoy){
+  var numStr=String(o.num||''),pend=segPend[numStr]||{},recib=yaRecibio(o);
+  var celdas=SEG_COLS.map(function(c){
+    var done=c.id==='recibido'?recib:!!(o.checks&&o.checks[c.id]);
+    var js='\''+numStr+'\',\''+c.id+'\'';
+    if(done)return '<td><button class="sc ok" title="'+esc(c.t)+' · hecho (tocar para desmarcar)" onclick="toggleCheck('+js+')">✓</button></td>';
+    var p=pend[c.id];
+    if(p)return '<td><button class="sc '+(p.atrasado?'late':'due')+'" title="'+esc(p.tag+' · '+p.sub)+'" onclick="menuAviso(event,'+js+')">!</button></td>';
+    return '<td><button class="sc" title="'+esc(c.t)+'" onclick="toggleCheck('+js+')">·</button></td>';
+  }).join('');
+  var env='<span style="color:var(--text-3)">—</span>';
+  if(o.dia_envio){
+    var de=new Date(o.dia_envio+'T12:00:00'),diff=Math.round((de-hoy)/86400000);
+    var col=diff<0?'var(--text-3)':diff<=1?'var(--red)':diff<=3?'#854F0B':'var(--text)';
+    var diaTxt=de.toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'})+(diff===0?' · hoy':diff===1?' · mañana':'');
+    env='<span style="color:'+col+';font-weight:'+(diff>=0&&diff<=3?'700':'500')+'">'+esc(diaTxt)+'</span>';
+  }
+  if(pend.cambio)env+='<span class="seg-cambio" title="'+esc(pend.cambio.sub)+'" onclick="menuAviso(event,\''+numStr+'\',\'cambio\')">⚠ avisar cambio</span>';
+  var notas=[];
+  if(o.notas)notas.push(o.notas);
+  // Motivos anotados cuando un aviso se pasó de fecha y no se mandó.
+  Object.keys(o.excusas||{}).forEach(function(k){
+    var a=AVISOS.find(function(x){return x.id===k;})||{tag:k};
+    notas.push('⚠ '+a.tag+': '+o.excusas[k].texto);
+  });
+  var nota=notas.length?'<span class="seg-nota" title="'+esc(notas.join('\n'))+'">📝</span>':'';
+  var nom=((o.nombre||'')+' '+(o.apellido||'')).trim();
+  return '<tr class="seg-fila"><td class="l num sticky1" style="border-left:5px solid '+fr.borde+'">'+esc(numStr||'—')+'</td>'+
+    '<td class="l cli sticky2" title="'+esc(nom)+'">'+esc(nom)+nota+'</td>'+
+    '<td class="l prod" title="'+esc(o.producto)+'">'+esc(o.producto)+'</td>'+
+    '<td class="env">'+env+'</td>'+celdas+
+    '<td><button class="seg-edit" title="Editar pedido" onclick="openModal(\''+numStr+'\')">✎</button></td></tr>';
+}
+// Menú del "!": lo mismo que ofrecía el tablero, pero pegado a la celda.
+function menuAviso(ev,numStr,avisoId){
+  ev.stopPropagation();
+  var p=(segPend[numStr]||{})[avisoId];
+  var m=document.getElementById('seg-menu');if(!m||!p)return;
+  var fin=finRecords.find(function(x){return String(x.num||'')===numStr;});
+  var cel=fin?String(fin.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
+  var js='\''+numStr+'\',\''+avisoId+'\'';
+  var wa=cel
+    ?'<a class="btn-wa" target="_blank" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(p.msg)+'" onclick="cerrarMenuAviso();marcarAviso('+js+')">Abrir WhatsApp</a>'
+    :'<div class="m-sub" style="margin:0">Sin celular guardado</div>';
+  var excusa=p.atrasado?'<button class="btn-ghost" style="margin:0" onclick="cerrarMenuAviso();anotarExcusa('+js+')">No avisé porque…</button>':'';
+  m.innerHTML='<div class="m-tag">#'+esc(numStr)+' · '+esc(p.tag)+'</div><div class="m-sub">'+esc(p.nombre)+' · '+esc(p.sub)+'</div>'+
+    '<div class="m-acc">'+wa+'<button class="btn-ghost" style="margin:0" onclick="cerrarMenuAviso();marcarAviso('+js+')">✓ Ya avisé</button>'+excusa+'</div>';
+  m.classList.add('on');
+  var r=ev.currentTarget.getBoundingClientRect(),w=m.offsetWidth,h=m.offsetHeight;
+  var x=Math.min(Math.max(8,r.left+r.width/2-w/2),window.innerWidth-w-8);
+  var y=r.bottom+6;if(y+h>window.innerHeight-8)y=Math.max(8,r.top-h-6);
+  m.style.left=x+'px';m.style.top=y+'px';
+}
+function cerrarMenuAviso(){var m=document.getElementById('seg-menu');if(m)m.classList.remove('on');}
+document.addEventListener('click',function(e){var m=document.getElementById('seg-menu');if(m&&m.classList.contains('on')&&!m.contains(e.target))cerrarMenuAviso();});
+window.addEventListener('scroll',cerrarMenuAviso,true);
+
+// ── Reporte de envíos del lunes ────────────────────────────────────────────
+// César y Cristian mandan por WhatsApp qué sale cada día ("· Javier Recasens
+// Cubierta 180 x 80. Viernes"). Se pega tal cual: cada línea se cruza con los
+// pedidos por el nombre del cliente y el día de la semana, y se muestra qué
+// coincide, qué cambia y qué no se encontró. Nada se guarda hasta "Aplicar".
+var REP_DIAS={LUNES:0,MARTES:1,MIERCOLES:2,JUEVES:3,VIERNES:4,SABADO:5};
+var REP_DIAS_NOMBRE=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+// Palabras que describen el producto o la medida, no al cliente.
+var REP_RUIDO={CUBIERTA:1,CUBIERTAS:1,PUERTA:1,PUERTAS:1,MESA:1,MESAS:1,CENTRO:1,REPISA:1,REPISAS:1,REDONDA:1,REDONDO:1,
+  COMEDOR:1,ESCRITORIO:1,BANQUETA:1,MESON:1,VANITORIO:1,COCINA:1,BARRA:1,ISLA:1,LENGA:1,COIHUE:1,RAULI:1,CIPRES:1,
+  MANIO:1,CASTANO:1,OREGON:1,PINO:1,CON:1,DEL:1,LOS:1,LAS:1,CM:1,MTS:1};
+var repFilas=[],repTimer=null;
+function _repNorm(s){return String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z0-9]+/g,' ').trim();}
+// Distancia de edición contando una transposición como un solo error, para que
+// "Hon Wha" calce con "Hon Hwa".
+function _repDist(a,b){
+  if(Math.abs(a.length-b.length)>1)return 9;
+  var d=[],i,j;
+  for(i=0;i<=a.length;i++)d[i]=[i];
+  for(j=0;j<=b.length;j++)d[0][j]=j;
+  for(i=1;i<=a.length;i++)for(j=1;j<=b.length;j++){
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+(a[i-1]===b[j-1]?0:1));
+    if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1])d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1);
+  }
+  return d[a.length][b.length];
+}
+function _repCalza(t,u){
+  if(t===u)return true;
+  if(t.length<3||u.length<3)return false;
+  var dd=_repDist(t,u);
+  // En nombres de tres letras solo se perdona el orden, no una letra distinta.
+  if(t.length===3||u.length===3)return dd===1&&t.split('').sort().join('')===u.split('').sort().join('');
+  return dd<=1;
+}
+function _repLunesPorDefecto(){
+  var d=new Date();d.setHours(12,0,0,0);
+  var dow=d.getDay();
+  // Sábado y domingo el reporte ya habla de la semana que viene.
+  if(dow===6)d.setDate(d.getDate()+2);else if(dow===0)d.setDate(d.getDate()+1);else _lunesDe(d);
+  return _isoLocal(d);
+}
+function _repFecha(lunesIso,dia){return _isoLocal(_sumarDias(new Date(lunesIso+'T12:00:00'),dia));}
+function _repCorto(iso){if(!iso)return'sin día';return new Date(iso+'T12:00:00').toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});}
+function _repNombre(o){return((o.nombre||'')+' '+(o.apellido||'')).trim();}
+// Los pedidos que pueden estar en el reporte: envío entre tres semanas antes y
+// cuatro después del lunes elegido.
+function _repCandidatos(lunes){
+  var desde=_sumarDias(lunes,-21),hasta=_sumarDias(lunes,27);
+  return orders.filter(function(o){var f=fechaEnvioPedido(o);return f&&f>=desde&&f<=hasta;});
+}
+function _repPuntaje(o,nombres,tokens){
+  var nom=_repNorm(_repNombre(o)).split(' ').filter(function(t){return t.length>=3;});
+  var pts=0;
+  nom.forEach(function(t){if(nombres.some(function(u){return _repCalza(t,u);}))pts++;});
+  if(!pts)return 0;
+  // Desempata si el producto también calza ("Cubierta", "Mesa"...).
+  var prod=_repNorm(o.producto);
+  if(tokens.some(function(u){return REP_RUIDO[u]&&u.length>=4&&prod.indexOf(u.replace(/S$/,''))>=0;}))pts+=0.5;
+  return pts;
+}
+function abrirReporte(){
+  document.getElementById('rep-lunes').value=_repLunesPorDefecto();
+  document.getElementById('rep-texto').value='';
+  repFilas=[];_repDibujar();
+  document.getElementById('modal-reporte-bg').classList.add('open');
+  setTimeout(function(){document.getElementById('rep-texto').focus();},50);
+}
+function cerrarReporte(){document.getElementById('modal-reporte-bg').classList.remove('open');}
+function analizarReporteDiferido(){clearTimeout(repTimer);repTimer=setTimeout(analizarReporte,250);}
+function analizarReporte(){
+  var txt=document.getElementById('rep-texto').value||'';
+  var lunesIso=document.getElementById('rep-lunes').value||_repLunesPorDefecto();
+  var lunes=new Date(lunesIso+'T12:00:00');
+  var cands=_repCandidatos(lunes);
+  repFilas=txt.split(/\r?\n/).map(function(l){return l.replace(/^[\s·•\-\*–—>]+/,'').trim();})
+    .filter(function(l){return l.length>2;})
+    .map(function(linea){
+      var tokens=_repNorm(linea).split(' ').filter(Boolean);
+      var dia=null;
+      for(var i=tokens.length-1;i>=0;i--){if(REP_DIAS[tokens[i]]!==undefined){dia=REP_DIAS[tokens[i]];break;}}
+      var nombres=tokens.filter(function(t){return REP_DIAS[t]===undefined&&!REP_RUIDO[t]&&!/^\d/.test(t)&&t.length>=3;});
+      // Si la línea trae el N° de pedido, manda ese.
+      var porNum=null;
+      tokens.forEach(function(t){if(/^\d{4}$/.test(t)){var o=cands.find(function(x){return String(x.num||'')===t;});if(o)porNum=o;}});
+      var objetivo=dia===null?lunes:_sumarDias(lunes,dia);
+      var ranking=cands.map(function(o){return{o:o,pts:o===porNum?99:_repPuntaje(o,nombres,tokens)};})
+        .filter(function(r){return r.pts>0;})
+        .sort(function(a,b){
+          if(b.pts!==a.pts)return b.pts-a.pts;
+          return Math.abs(fechaEnvioPedido(a.o)-objetivo)-Math.abs(fechaEnvioPedido(b.o)-objetivo);
+        });
+      return{linea:linea,dia:dia,
+        num:ranking.length?String(ranking[0].o.num||''):'',
+        dudoso:ranking.length>1&&ranking[1].pts===ranking[0].pts,
+        opciones:ranking.map(function(r){return String(r.o.num||'');}),
+        aplicar:true};
+    });
+  _repDibujar();
+}
+function _repDibujar(){
+  var el=document.getElementById('rep-resultado'),btn=document.getElementById('rep-aplicar');if(!el)return;
+  if(!repFilas.length){el.innerHTML='';btn.textContent='Aplicar';btn.disabled=true;return;}
+  var lunesIso=document.getElementById('rep-lunes').value;
+  var lunes=new Date(lunesIso+'T12:00:00');
+  var candNums=_repCandidatos(lunes).map(function(c){return String(c.num||'');});
+  var nCambios=0,usados={};
+  var filas=repFilas.map(function(f,i){
+    var o=f.num?orders.find(function(x){return String(x.num||'')===f.num;}):null;
+    if(o)usados[f.num]=true;
+    // Primero los pedidos cuyo nombre calza, después el resto de la ventana.
+    var vistos={},opts='<option value="">— elegir pedido —</option>';
+    f.opciones.concat(candNums).forEach(function(n){
+      if(!n||vistos[n])return;vistos[n]=true;
+      var c=orders.find(function(x){return String(x.num||'')===n;});if(!c)return;
+      opts+='<option value="'+esc(n)+'"'+(n===f.num?' selected':'')+'>#'+esc(n)+' '+esc(_repNombre(c))+'</option>';
+    });
+    var selPed='<select onchange="repCambiar('+i+',\'num\',this.value)">'+opts+'</select>';
+    var selDia='<select onchange="repCambiar('+i+',\'dia\',this.value)"><option value="">— día —</option>'+
+      REP_DIAS_NOMBRE.map(function(n,k){return '<option value="'+k+'"'+(f.dia===k?' selected':'')+'>'+n+'</option>';}).join('')+'</select>';
+    var estado,chk='',nuevo=f.dia===null?'':_repFecha(lunesIso,f.dia);
+    if(!o)estado='<span class="rep-mal">No lo encontré: elige el pedido</span>';
+    else if(f.dia===null)estado='<span class="rep-mal">No dice el día: elígelo</span>';
+    else if(o.dia_envio===nuevo)estado='<span class="rep-ok">✓ Ya coincide</span>';
+    else{
+      var antes=o.dia_envio?_repCorto(o.dia_envio):'Sin día';
+      estado='<span class="rep-cambia">'+esc(antes)+' → '+esc(_repCorto(nuevo))+'</span>';
+      chk='<label style="white-space:nowrap;font-size:12px;cursor:pointer"><input type="checkbox"'+(f.aplicar?' checked':'')+' onchange="repCambiar('+i+',\'aplicar\',this.checked)"> cambiar</label>';
+      if(f.aplicar)nCambios++;
+    }
+    if(o&&f.dudoso)estado+='<div style="font-size:11px;color:var(--text-3)">Hay otro cliente parecido: revisa que sea este</div>';
+    return '<tr><td style="max-width:240px">'+esc(f.linea)+'</td><td>'+selPed+'</td><td>'+selDia+'</td><td>'+estado+'</td><td>'+chk+'</td></tr>';
+  }).join('');
+  // Lo que según la app sale esa semana y el reporte no nombra.
+  var finSemana=_sumarDias(lunes,6);
+  var faltan=orders.filter(function(o){
+    if(usados[String(o.num||'')])return false;
+    var f=fechaEnvioPedido(o);return f&&f>=lunes&&f<=finSemana;
+  });
+  var faltanHtml=faltan.length
+    ?'<div style="margin-top:12px;font-size:12.5px;background:#FDF6E8;border:1px solid #E8D5A8;border-radius:8px;padding:10px 12px"><b>Según la app salen esa semana, pero no están en el reporte:</b> '+
+      faltan.map(function(o){return '#'+esc(o.num)+' '+esc(_repNombre(o))+' ('+esc(_repCorto(o.dia_envio||''))+')';}).join(' · ')+'</div>'
+    :'';
+  el.innerHTML='<div style="overflow-x:auto"><table class="rep-tabla"><thead><tr><th>Línea del reporte</th><th>Pedido</th><th>Día</th><th>Qué pasa</th><th></th></tr></thead><tbody>'+filas+'</tbody></table></div>'+faltanHtml+
+    '<div style="font-size:11.5px;color:var(--text-3);margin-top:10px">Si un pedido cambia de día, los avisos que ya se le mandaron se reabren y queda pendiente avisarle el cambio de fecha.</div>';
+  btn.disabled=!nCambios;
+  btn.textContent=nCambios?('Aplicar '+nCambios+(nCambios===1?' cambio':' cambios')):'Nada que cambiar';
+}
+function repCambiar(i,campo,valor){
+  var f=repFilas[i];if(!f)return;
+  if(campo==='dia')f.dia=valor===''?null:Number(valor);
+  else if(campo==='num'){f.num=valor;f.dudoso=false;}
+  else f.aplicar=!!valor;
+  _repDibujar();
+}
+async function aplicarReporte(){
+  if(!DB_URL)return;
+  var lunesIso=document.getElementById('rep-lunes').value;
+  // Si el mismo pedido quedó en dos líneas, manda la última.
+  var porNum={};
+  repFilas.forEach(function(f){
+    if(!f.aplicar||!f.num||f.dia===null)return;
+    var o=orders.find(function(x){return String(x.num||'')===f.num;});
+    if(o&&o.dia_envio!==_repFecha(lunesIso,f.dia))porNum[f.num]={o:o,nuevo:_repFecha(lunesIso,f.dia)};
+  });
+  var nums=Object.keys(porNum);if(!nums.length)return;
+  var btn=document.getElementById('rep-aplicar');btn.disabled=true;btn.textContent='Guardando…';
+  var ok=0,fallo=0;
+  pendingOps++;setSyncState('syncing');
+  for(var k=0;k<nums.length;k++){
+    var n=nums[k],o=porNum[n].o,nuevo=porNum[n].nuevo,prev=o.dia_envio||'',sem=semanaDeFecha(nuevo);
+    var patch={num:n,dia_envio:nuevo,semana:sem};
+    // Igual que al editar a mano: los avisos que nombraban la fecha vieja se
+    // reabren y queda pendiente contarle al cliente el cambio.
+    if(prev){
+      var checks=Object.assign({},o.checks||{});
+      avisosQueReabre(prev,nuevo).forEach(function(id){checks[id]=false;});
+      checks.cambio=false;
+      patch.checks=checks;
+      patch.cambio_fecha={anterior:prev,nueva:nuevo,fecha:todayStr};
+    }
+    try{
+      await api('pedidos/'+n,'PATCH',patch);
+      Object.assign(o,patch);
+      // Producción es la fuente de verdad de la semana: se corrige ahí también.
+      var p=prodOrders.find(function(z){return String(z.pedido||'')===n;});
+      if(p&&normalizeSemana(p.envio)!==sem){p.envio=sem;await saveProdOrder(p);}
+      logHistorial(n,'Reporte de envíos: '+(prev?'envío movido del '+prev+' al '+nuevo:'envío fijado el '+nuevo));
+      ok++;
+    }catch(e){fallo++;}
+  }
+  pendingOps--;setSyncState(fallo?'offline':'online');
+  cerrarReporte();renderSeg();renderProd();
+  showToast(fallo?('Guardados '+ok+', fallaron '+fallo):('✓ '+ok+(ok===1?' pedido actualizado':' pedidos actualizados')),!!fallo);
+}
+document.getElementById('modal-reporte-bg').addEventListener('click',function(e){if(e.target===this)cerrarReporte();});
 function openModal(numStr){
   editingKey=numStr||null;
   document.getElementById('modal-title').textContent=numStr?'Editar pedido':'Nuevo pedido';
@@ -28027,7 +28255,7 @@ async function saveOrder(){
     // fecha vieja: se reabren y queda pendiente avisarle al cliente del cambio.
     var aviso='';
     if(prev.dia_envio&&dia_envio&&prev.dia_envio!==dia_envio){
-      AVISOS_POR_FECHA.forEach(function(id){checksFinal[id]=false;});
+      avisosQueReabre(prev.dia_envio,dia_envio).forEach(function(id){checksFinal[id]=false;});
       checksFinal.cambio=false;
       aviso=' — envío movido del '+prev.dia_envio+' al '+dia_envio;
     }
@@ -32635,7 +32863,6 @@ async function initAllModules(){
   if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
   else if(usuarioRol==='taller'){await loadGastos();}
   else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
-  restaurarTablero();
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
   armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
