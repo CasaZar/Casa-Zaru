@@ -27,6 +27,12 @@ $candado$;
 -- se sabe si mover el botón bajo los precios (revisión UX del 06-10) sirvió.
 -- Mientras no corra, el cotizador intenta registrarlo y la base lo rechaza en
 -- silencio: no rompe nada, solo no se mide.
+--
+-- Ampliado el 06-10-2026 (todavía sin aplicar la primera versión) con las
+-- dos salidas para el que duda, que van bajo el botón "Quiero mi...":
+--   duda        tocó "¿Tienes dudas? Pregúntanos" (WhatsApp con "tengo una duda")
+--   muestrario  tocó "¿Quieres ver la madera antes?" (pide el muestrario)
+-- Así se ve cuántos van a comprar y cuántos a preguntar, por separado.
 -- ══════════════════════════════════════════════════════════════════
 
 alter table public.embudo_eventos
@@ -34,4 +40,5 @@ alter table public.embudo_eventos
 
 alter table public.embudo_eventos
   add constraint embudo_eventos_paso_check
-  check (paso in ('visita','producto','medidas','datos','cotizacion','whatsapp'));
+  check (paso in ('visita','producto','medidas','datos','cotizacion',
+                  'whatsapp','duda','muestrario'));
