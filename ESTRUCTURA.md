@@ -155,6 +155,8 @@ cambiarlo en el Manual.
   y sin desplegar; el botón fue revertido del cotizador público a propósito.
 - **Netlify Function** `leer-documento` — lee boletas con GPT-4o para la app de
   gastos. Filtra por origen (devuelve 403 desde afuera).
+- **SII y Wasabil** (emisión de boletas/facturas, documentos recibidos) — tienen
+  su propio mapa en `WASABIL-SII.md`.
 - **Apps Script** — recordatorio de seguimiento + planilla de gastos Wasabil.
 - **Tarea diaria 8:03** — reporte de gastos Wasabil por correo.
 

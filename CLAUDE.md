@@ -4,6 +4,8 @@
 `index.html` — single-file HTML de ~1.27 MB. Hacer **ediciones puntuales (str_replace)**, nunca regenerar el archivo completo.
 
 Ver `ESTRUCTURA.md` para el mapa completo (3 repos, 3 sitios, 3 proyectos Supabase).
+Ver `WASABIL-SII.md` para todo lo de boletas, facturas, SII y Wasabil (dónde vive cada pieza,
+cómo se emite, reglas y trampas).
 
 ## Entorno de trabajo
 
