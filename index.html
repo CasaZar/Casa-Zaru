@@ -674,6 +674,15 @@ body.rol-vendedor #cli-stats .stat-card:nth-child(3),
 body.rol-vendedor #cli-stats .stat-card:nth-child(4) { display:none !important; }
 /* La caja son datos de Finanzas, que el vendedor no ve. */
 body.rol-vendedor #dash-caja { display:none !important; }
+/* Finanzas en solo lectura (vendedor): se ve todo, no se toca nada. */
+#fin-aviso-lectura { display:none; }
+body.fin-lectura #fin-aviso-lectura { display:block;margin:0 0 12px;padding:9px 14px;border-radius:10px;background:var(--surface2);border:1px solid var(--border-md);font-size:12.5px;color:var(--text-2); }
+body.fin-lectura #page-fin .toolbar > div:last-child,
+body.fin-lectura #page-fin .tipo-btn,
+body.fin-lectura #page-fin .btn-del,
+body.fin-lectura #fin-boletas-web { display:none !important; }
+body.fin-lectura #page-fin table.fin tbody input:disabled,
+body.fin-lectura #page-fin table.fin tbody select:disabled { border-color:transparent !important;background:transparent !important;color:var(--text);opacity:1;-webkit-text-fill-color:var(--text);appearance:none; }
 
 /* ── TALLER: entra a Gastos solo por la bodega. Las facturas traen precios de
    compra y el mayor trae los sueldos de todo el equipo, así que no los ve.
@@ -26367,6 +26376,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <!-- P3 FINANZAS -->
 <div class="page" id="page-fin">
 <div class="main">
+  <div id="fin-aviso-lectura">👁 Solo lectura: puedes ver ventas, pagos y documentos, pero los cambios los hace administración.</div>
   <div class="stats-grid" id="fin-stats"></div>
   <div class="toolbar">
     <div class="filter-group">
@@ -29348,6 +29358,26 @@ function exportProdXLSX(){
 
 // ── FINANZAS ──────────────────────────────────────────────────────────────
 let finRecords=[],editingFinIdx=null,finFilter='todos';let finEmitiendo={};
+// ── Finanzas en solo lectura (vendedor) ───────────────────────────────────
+// finLectura se prende cuando un vendedor logra leer Finanzas. Con eso la
+// sección se muestra, pero sin ningún control que escriba: los campos quedan
+// deshabilitados, los botones de emitir/borrar/agregar no se dibujan y finSave
+// no manda nada. Es comodidad, no seguridad: la base igual rechaza la escritura.
+var finLectura=false;
+function activarFinLectura(){
+  finLectura=true;
+  document.body.classList.add('fin-lectura');
+  document.querySelectorAll('[onclick*="showPage(\'fin\'"]').forEach(function(b){b.style.display='';});
+  // Lo que viene a mirar es quién debe: arranca en "Deben saldo", todos los meses.
+  finMonthFilter='todos';
+  var btn=document.querySelector('#page-fin .filter-btn[onclick*="\'saldo\'"]');
+  if(btn)setFinFilter('saldo',btn);else renderFin();
+}
+// Tras cada dibujo: nada editable dentro de Finanzas.
+function _bloquearFinLectura(){
+  if(!finLectura)return;
+  document.querySelectorAll('#page-fin table.fin tbody input:not(.envio-check),#page-fin table.fin tbody select,#fin-mobile-cards input,#fin-mobile-cards select').forEach(function(el){el.disabled=true;});
+}
 async function loadFin(){
   if(!DB_URL)return;
   try{
@@ -29358,6 +29388,7 @@ async function loadFin(){
         var r=Object.assign({},e[1],{_fbKey:e[0]});
         var ns=String(r.num||e[0]);
         if(!seen[ns]){seen[ns]=true;finRecords.push(r);}
+        else if(usuarioRol!=='admin'){/* solo el admin limpia duplicados: el resto no puede borrar */}
         else{
           var ei=finRecords.findIndex(function(x){return String(x.num||x._fbKey||'')===ns;});
           if(!/^[0-9]+$/.test(e[0])){api('finanzas/'+e[0],'DELETE').catch(_falloGuardado('Borrado de Finanzas duplicada'));}
@@ -29370,18 +29401,20 @@ async function loadFin(){
     }else finRecords=[];
     renderFin();
     if(document.getElementById('page-dash')&&document.getElementById('page-dash').classList.contains('active'))renderDash();
-    _barrerEmisionesEnCola();   // cierra solos los documentos que quedaron en cola en el SII
-    traerBoletasWeb(false);     // pega las boletas que emitió Shopify (cada 10 min como máximo)
+    if(usuarioRol==='admin'){
+      _barrerEmisionesEnCola();   // cierra solos los documentos que quedaron en cola en el SII
+      traerBoletasWeb(false);     // pega las boletas que emitió Shopify (cada 10 min como máximo)
+    }
   }catch(e){console.error('Error cargando finanzas',e);}
 }
 function finSave(numStr){
-  if(!DB_URL)return;
+  if(!DB_URL||finLectura)return;
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(r)api('finanzas/'+numStr,'PUT',r).catch(_falloGuardado('Finanzas del pedido '+numStr));
 }
 function finSet(numStr,field,val,inp){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
-  if(!r)return;
+  if(!r||finLectura)return;
   r[field]=val;
   var MONEY=['val_prod','val_envio','val_comision','total','abono1','abono2','abono3'];
   if(inp&&MONEY.indexOf(field)>=0){
@@ -30126,6 +30159,15 @@ function _docControls(numStr,docNum){
   var emitiendo=!!finEmitiendo[numStr+'_'+docNum];
   var btnHtml;
   var procKey='doc'+docNum+'_procesando';
+  // Solo lectura: se informa el estado, sin ningún botón que emita o corrija.
+  if(finLectura){
+    var _est=r[emitidaKey]
+      ?'<span style="font-size:11px;font-weight:600;color:var(--green-text)">✓ '+(r[tipoKey]==='FACTURA'?'Factura':'Boleta')+' '+esc(r[numKey]||'')+'</span>'
+      :(r[procKey]?'<span style="font-size:11px;color:#854F0B">⏳ En proceso</span>':'<span style="font-size:11px;color:var(--text-3)">— Sin emitir</span>');
+    var _pdf=r[pdfKey]?(' <a href="'+esc(r[pdfKey])+'" target="_blank" rel="noopener" style="font-size:10px" title="Ver PDF">📄</a>'):'';
+    var _m=Number(r['doc'+docNum+'_monto'])||0;
+    return _est+_pdf+(_m?'<div style="font-size:10px;color:var(--text-3)">'+fmtCLP(_m)+'</div>':'');
+  }
   if(emitiendo)btnHtml='<button class="doc-btn" disabled style="margin-bottom:4px;opacity:0.6">⏳ Emitiendo…</button>';
   // El enlace de anular está acá y no escondido en un menú porque es la única
   // salida legítima cuando un documento salió mal: marcarlo pendiente ya no
@@ -30168,6 +30210,7 @@ function renderFin(){
     const _tipoBadge=_tipoK==='VENTA'?'':'<div class="tipo-badge" style="background:'+_tipoDef.color+'">'+esc(_tipoDef.label)+'</div>';
     return`<tr class="${listo?'fin-listo':''} ${_tipoK!=='VENTA'?'fin-no-venta':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}${_tipoBadge}<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('${numStr}')">🏷️</button></td><td style="background:${bg};font-size:11px;min-width:110px"><input type="date" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:2px 4px;width:108px" value="${(function(){var f=r.fecha_creacion||r.fecha||'';if(!f)return'';var p=f.split('/');return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):f;})()}" onchange="(function(v){var p=v.split('-');var fd=parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];finSet('${numStr}','fecha_creacion',fd,null);finSet('${numStr}','fecha',fd,null);finSave('${numStr}');})(this.value)"></td><td style="background:${bg}"><input style="${ni}min-width:110px" value="${esc(r.semana)}" placeholder="SEMANA 29 JUNIO" ${iF} onchange="finSet('${numStr}','semana',this.value,null);${saveStr}"></td><td style="background:${bg}"><div style="font-weight:600;white-space:nowrap">${esc(r.nombre)} ${esc(r.apellido)}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${esc(r.celular)}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${esc(r.producto)}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:130px"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finSet('${numStr}','como',this.value,null);${saveStr}">${_opcionesCanal(r.como)}</select></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" id="fintot-${numStr}" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td>${_abonoCell('abono1',r.abono1,r.fecha_abono1)}${_abonoCell('abono2',r.abono2,r.fecha_abono2)}${_abonoCell('abono3',r.abono3,r.fecha_abono3)}<td style="background:${bg};min-width:100px">${_pendCellHTML(r)}</td>${_docCell(1)}${_docCell(2)}<td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span>${prodEstado?`<div style="font-size:10px;font-weight:600;color:${_peColor};margin-top:4px">🪵 ${prodEstado}</div>`:''}</td><td style="background:${bg}"><input type="checkbox" class="envio-check" style="margin-right:5px;cursor:pointer;vertical-align:middle" onchange="toggleEnvioSel('${numStr}',this.checked)"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta envío">📦</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
   }).join('');
+  _bloquearFinLectura();
 }
 // El total es producto − descuento + envío + comisión. Antes era un campo suelto:
 // si se corregía el envío (pasa seguido, cuando aparece un flete más barato), el
@@ -33037,7 +33080,17 @@ async function initAllModules(){
   await loadDocumentos();
   if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
   else if(usuarioRol==='taller'){await loadGastos();}
-  else{await loadClientesSeguro();document.body.classList.add('rol-vendedor');}
+  else{
+    document.body.classList.add('rol-vendedor');
+    // Finanzas en SOLO LECTURA para el vendedor (13-10-2026): ve los pagos
+    // pendientes de sus clientes, sin poder cambiar nada. Lo decide el servidor:
+    // la migración 0017 le da SELECT sobre gestion_finanzas y nada más, así que
+    // si la política no está (o se quita) esto vuelve vacío y la sección sigue
+    // escondida como antes, con Clientes armado desde la vista segura.
+    await loadFin();
+    if(finRecords.length)activarFinLectura();
+    else await loadClientesSeguro();
+  }
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
   armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
@@ -33697,8 +33750,9 @@ function renderFinCards(){
   var el=document.getElementById('fin-mobile-cards');if(!el)return;
   var list=getFilteredFin();if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">💰</span>No hay registros.</div>';return;}
   var html2='';
-  list.forEach(function(r){var idx2=finRecords.indexOf(r),_p=estadoPagoFin(r),listo=r.doc1_emitida&&r.doc2_emitida;html2+='<div class="fin-card"><div class="fin-card-header"><div><div class="fin-card-num">#'+(r.num||'—')+'</div><div class="fin-card-semana">'+(r.semana||'')+'</div>'+(tipoDe(r)!=='VENTA'?'<div class="tipo-badge" style="background:'+((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).color||'var(--text-3)')+'">'+esc((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).label||'')+'</div>':'')+'</div><span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span></div><div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+esc(r.producto)+(r.vendedor?' · <span style="font-weight:600;color:var(--wood)">👤 '+esc(r.vendedor)+'</span>':'')+'</div><div class="fin-card-montos"><div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">'+(_p.excedente?'Excedente':'Pendiente')+'</div><div class="fin-card-monto-val" style="color:'+(_p.debe?'var(--amber)':_p.color)+'">'+_p.txt+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div></div><div class="fin-card-docs"><div class="fin-card-docs-title">Documentos</div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 1</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),1)+'</div></div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 2</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),2)+'</div></div></div><button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button></div>';});
+  list.forEach(function(r){var idx2=finRecords.indexOf(r),_p=estadoPagoFin(r),listo=r.doc1_emitida&&r.doc2_emitida;html2+='<div class="fin-card"><div class="fin-card-header"><div><div class="fin-card-num">#'+(r.num||'—')+'</div><div class="fin-card-semana">'+(r.semana||'')+'</div>'+(tipoDe(r)!=='VENTA'?'<div class="tipo-badge" style="background:'+((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).color||'var(--text-3)')+'">'+esc((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).label||'')+'</div>':'')+'</div><span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span></div><div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+esc(r.producto)+(r.vendedor?' · <span style="font-weight:600;color:var(--wood)">👤 '+esc(r.vendedor)+'</span>':'')+'</div><div class="fin-card-montos"><div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">'+(_p.excedente?'Excedente':'Pendiente')+'</div><div class="fin-card-monto-val" style="color:'+(_p.debe?'var(--amber)':_p.color)+'">'+_p.txt+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div></div><div class="fin-card-docs"><div class="fin-card-docs-title">Documentos</div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 1</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),1)+'</div></div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 2</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),2)+'</div></div></div>'+(finLectura?'':'<button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button>')+'</div>';});
   el.innerHTML=html2;
+  _bloquearFinLectura();
 }
 function renderProdCards(){
   var el=document.getElementById('prod-mobile-cards');if(!el)return;
