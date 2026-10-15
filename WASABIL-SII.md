@@ -125,14 +125,23 @@ Migraciones (todas del proyecto de Gestión):
    (`POST /documents`, precio con IVA incluido).
 8. La función espera hasta ~16 s la respuesta del SII.
 
-Las cuatro salidas se tratan distinto, y esa diferencia es el corazón del sistema:
+**La función solo atiende a un admin con sesión iniciada**, en sus tres acciones.
+La app la llama con el token del usuario (`sbFetch`), nunca con la llave pública, y
+antes de tomar el candado se asegura de que a la sesión le quede vida
+(`_sesionVigente`): si no se puede renovar, la emisión se corta sin dejar nada puesto.
+
+Las salidas se tratan distinto, y esa diferencia es el corazón del sistema:
 
 | Qué pasó | Qué hace la app |
 |---|---|
 | **Emitido** | Guarda folio y PDF, completa la fila, sube el PDF a Drive |
 | **En cola** (el SII tarda) | El candado **se queda**. Reconsulta sola a los 20, 40, 60, 120, 300 y 600 s, y otra vez cada vez que se abre Finanzas |
 | **Wasabil dice que no creó nada** | Suelta el candado |
-| **Se cortó la red** | El candado **se queda**: no se sabe si el documento existe. Revisar en Wasabil antes de tocar nada |
+| **La sesión no pasó** (401 / 403) | Suelta el candado: la función rechaza **antes** de hablar con Wasabil |
+| **Se cortó la red, o la función se cayó** (5xx) | El candado **se queda**: no se sabe si el documento existe. Revisar en Wasabil antes de tocar nada |
+
+Al consultar un documento en cola (`check`) solo un 200 dice algo del documento. Un
+rechazo o una caída no lo sacan de "Procesando".
 
 El PDF queda en Drive como `<pedido>. <cliente> - <glosa> - Folio <n>.pdf`. El folio
 en el nombre no es adorno: sin él, abono y saldo chocaban y el PDF se corrompía.
@@ -149,8 +158,13 @@ solo registra el folio de la NC y libera el cupo para volver a emitir.
   - Subida a Drive: POST directo al Apps Script con un PDF mínimo.
   - Estado de un documento: acción `check` con un `uuid` que ya existe. Consulta y
     sube el PDF; nunca crea.
+  - Permisos de la función: llamarla con la llave pública tiene que dar 403 en
+    cualquier acción.
 - **Primero el candado, después la emisión.** Si no se puede registrar el
   documento, no se emite.
+- **En la función, el permiso se revisa antes de cualquier llamada a Wasabil.** La
+  app lee un 403 como "no se creó nada" y suelta el candado: un 403 devuelto
+  después de crear terminaría en un documento duplicado.
 - **Ante un corte, no reintentar a ciegas.** Mirar si el pedido quedó con
   `docN_procesando` o con fila en `gestion_documentos`. Sin candado, Wasabil nunca
   se llamó y es seguro reintentar.
@@ -220,4 +234,11 @@ error al crearla; la URL es lo que importa, no renombrar.
   `factura_lineas`. Hoy la pestaña solo corrige glosa, cantidad, unidad y precio.
 - **Recibidos**: no hay importador. El piloto de agosto se cargó a mano y la carga
   histórica (~1.400 documentos) está sin decidir.
-- **Emisión**: la app manda un `idempotency_key` que la función todavía no usa.
+- **Emisión**: la app manda un `idempotency_key` (`pedido-documento-idDelCandado`)
+  que la función todavía no reenvía a Wasabil. Wasabil sí la soporta
+  (`app.wasabil.com/api-docs/documents-create` → Idempotencia): repetir una llamada
+  con la misma clave devuelve el mismo documento en vez de crear otro. Dos cuidados
+  al conectarla: una clave queda atada a un documento **para siempre** — por eso
+  lleva el id del candado y no solo pedido-documento, o una reemisión tras nota de
+  crédito devolvería el documento anulado —, y el 409
+  `duplicate_request_in_progress` es "puede existir", no "no se creó".

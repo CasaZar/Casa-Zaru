@@ -119,14 +119,12 @@ async function pollStatus(uuid: string, token: string, maxTries = 8): Promise<an
   return null;
 }
 
-// ── Boletas de Shopify ──────────────────────────────────────────────
-// Shopify emite la boleta solo (integración de Wasabil) y guarda el número de
-// orden en invoice_reference. Acá se buscan para pegarlas a la venta en la app.
-//
-// La función se llama con la llave pública, así que esta rama exige además
-// una sesión de admin: si no, cualquiera con la llave leería nombres, correos
-// y PDFs de clientes. Se comprueba leyendo gestion_finanzas con el token del
-// usuario, que por RLS solo devuelve filas a un admin.
+// ── Quién puede llamar ──────────────────────────────────────────────
+// Solo un admin con sesión iniciada. La llave pública pasa la verificación de
+// JWT de Supabase pero no identifica a nadie, así que no alcanza para ninguna
+// rama. Se comprueba leyendo gestion_finanzas con el token del usuario, que
+// por RLS solo devuelve filas a un admin. Ante cualquier duda (sin token, la
+// base no contesta) responde false.
 async function esAdmin(req: Request): Promise<boolean> {
   const auth = req.headers.get("Authorization") || "";
   const url = Deno.env.get("SUPABASE_URL");
@@ -144,6 +142,10 @@ async function esAdmin(req: Request): Promise<boolean> {
   }
 }
 
+// ── Boletas de Shopify ──────────────────────────────────────────────
+// Shopify emite la boleta solo (integración de Wasabil) y guarda el número de
+// orden en invoice_reference. Acá se buscan para pegarlas a la venta en la app.
+//
 // Listar es POST /documents/query con los filtros en el cuerpo (GET /documents
 // responde 405). Ver app.wasabil.com/api-docs/documents.
 async function listarDocumentos(token: string, filtros: Record<string, unknown>) {
@@ -254,6 +256,22 @@ async function handleRequest(req: Request): Promise<Response> {
     return jsonResponse({ success: false, error: "Body inválido" }, 400);
   }
 
+  // ── Puerta de entrada: todas las ramas ──────────────────────────────
+  // Crear manda un documento real al SII; `check` y `buscar_web` devuelven
+  // folios y PDFs de clientes. Nada de eso es para quien no sea admin.
+  //
+  // Va ANTES de cualquier llamada a Wasabil y la app cuenta con eso: lee un
+  // 403 como "no se creó nada" y suelta el candado. No mover esta
+  // comprobación más abajo ni devolver 403 después de crear.
+  if (!(await esAdmin(req))) {
+    const rechazo: Record<string, unknown> = { success: false, error: "Requiere sesión de administrador" };
+    // Una pestaña que quedó abierta con la app vieja lee cualquier rechazo de
+    // `check` como "el documento falló" y lo saca de Procesando. Con
+    // status_id 2 lo lee como "sigue en cola" y no toca nada hasta recargar.
+    if (body?.action === "check") rechazo.status_id = 2;
+    return jsonResponse(rechazo, 403);
+  }
+
   const {
     numStr, docType, total, producto, detalle,
     nombre, apellido, email, rut, razon_social, giro, direccion, comuna, ciudad,
@@ -290,9 +308,6 @@ async function handleRequest(req: Request): Promise<Response> {
   // Búsqueda de boletas que emitió Shopify por su cuenta. Solo lectura: esta
   // rama termina siempre en un return y nunca llega a la creación de abajo.
   if (body?.action === "buscar_web") {
-    if (!(await esAdmin(req))) {
-      return jsonResponse({ success: false, error: "Requiere sesión de administrador" }, 403);
-    }
     return jsonResponse(await buscarBoletasWeb(body, token));
   }
 
