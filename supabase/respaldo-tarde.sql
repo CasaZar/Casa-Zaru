@@ -13,6 +13,9 @@ $candado$;
 
 -- ══════════════════════════════════════════════════════════════
 -- Casa Zaru · Segundo respaldo del día (en la tarde)
+-- APLICADO el 15-10-2026: job 3 `gestion-respaldo-tarde`; el respaldo inmediato
+-- llegó a Drive (pg_net marca timeout a los 5 s, igual que el de la noche, pero
+-- la función termina sola y sube el archivo).
 --
 -- El respaldo diario (cron `gestion-respaldo-diario`, 06:00 UTC = 03:00 en
 -- Chile) deja `respaldo-gestion-AAAA-MM-DD.json` en Drive. Lo que se corrige en
