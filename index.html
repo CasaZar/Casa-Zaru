@@ -27722,8 +27722,12 @@ function avisosPendientes(){
   orders.forEach(function(o){
     var numStr=String(o.num||''),nom=((o.nombre||'')+' '+(o.apellido||'')).trim();
     // Se corrió el envío y el cliente todavía no lo sabe: va antes que todo lo
-    // demás, aunque los otros avisos estén atrasados.
-    if(o.cambio_fecha&&!(o.checks&&o.checks.cambio)){
+    // demás, aunque los otros avisos estén atrasados. Si ya se mandó el
+    // comprobante (o confirmó que lo recibió), el pedido salió y el cliente ya
+    // tiene la fecha real: avisar el cambio a esa altura no tiene sentido
+    // (15-10-2026, la semana del 28-09 seguía pidiendo 9 avisos de cambio).
+    var _yaSalio=!!(o.checks&&o.checks.comprobante)||yaRecibio(o);
+    if(o.cambio_fecha&&!(o.checks&&o.checks.cambio)&&!_yaSalio){
       out.push({numStr:numStr,nombre:nom,avisoId:'cambio',urgente:true,atrasado:false,falta:-999,
         tag:'⚠ Avisar el cambio de fecha',color:'#993556',
         sub:'Era '+fechaLarga(o.cambio_fecha.anterior)+' → ahora '+fechaLarga(o.cambio_fecha.nueva),
