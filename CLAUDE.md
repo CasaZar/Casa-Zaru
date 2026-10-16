@@ -12,22 +12,15 @@ cómo se emite, reglas y trampas).
 **Carpeta buena:** `C:\Users\dell\Casa Zaru - Claude`. Existe un clon viejo en
 `OneDrive\Desktop\Casa Zaru Visual\Casa-Zaru` que quedó de un enredo — no trabajar ahí.
 
-⚠️ **Verificar antes de confiar en el párrafo siguiente:** el 15-09-2026 no se encontró `supabase`
-ni `node` en el PATH ni en las rutas habituales (nodejs, npm global, scoop, winget), y todo lo de
-Supabase hubo que hacerlo por el panel. Correr `Get-Command supabase` primero; si no aparece, el
-camino es el SQL Editor del panel.
+**En esta máquina NO hay Node, npm, CLI de Supabase ni `psql`.** Verificado el 15-09 y otra vez el
+16-10-2026 (PATH + rutas habituales: nodejs, npm global, scoop, winget). `python` es solo el stub de
+la Microsoft Store. Hubo una versión de esta sección que decía lo contrario («confirmado el 3 sep»):
+estaba mal y se borró. Si alguien lo instala, correr `Get-Command node, supabase` antes de reescribir
+esto.
 
-**Node, npm y el CLI de Supabase sí están instalados** en esta máquina — confirmado el 3 sep 2026,
-corrigiendo lo que decía antes esta sección. El CLI ya está logueado y enlazado (`supabase link`) al
-proyecto de Gestión (`padnttpgzuotxeipjrry`): `supabase db push` aplica las migraciones pendientes de
-`supabase/migrations/` y las registra solo en `schema_migrations` (no hace falta el insert manual si
-se aplica así), y `supabase db query --linked "<sql>"` sirve para consultas puntuales contra ese
-proyecto. `psql` sigue sin estar instalado.
-
-`index.html` no es un proyecto Node (no hay `package.json`), así que `npm install`/`npm test` no
-aplican — pero es porque no hay nada que instalar, no porque falte npm. Sin un entorno de browser para
-correr el archivo, las verificaciones del HTML/JS siguen siendo estructurales (grep, balance de
-llaves, conteo de `<th>` vs `<td>`) y contra la base por HTTP.
+Por eso todo lo de Supabase va por el **SQL Editor del panel** (o por HTTP contra PostgREST), y
+`index.html` se prueba en el navegador: `.claude/static-server.ps1` + el Browser pane. Sin eso, las
+verificaciones son estructurales (grep, balance de llaves, conteo de `<th>` vs `<td>`).
 
 **Probar la app:** `.claude/static-server.ps1` la sirve en `localhost:5500` (también hay perfiles en
 `.claude/launch.json`). Abrirla con `file://` funciona, pero un servidor evita bordes raros de ese origen.
@@ -61,10 +54,8 @@ izquierda no son adorno: la versión se guarda como **texto**, así que sin rell
 ordenada entre la `1` y la `2`.
 
 El registro de lo aplicado lo lleva Supabase en `supabase_migrations.schema_migrations`, que es lo
-que muestra Database → Migrations en el panel. **Preferir `supabase db push`** (el CLI está enlazado
-al proyecto de Gestión, ver arriba): aplica los `.sql` pendientes y los registra solo. Si por algún
-motivo se aplica a mano (SQL Editor o Management API) hay que **insertar la fila ahí también**, si no
-el panel no la ve:
+que muestra Database → Migrations en el panel. Como no hay CLI (ver arriba), las migraciones se
+aplican a mano en el SQL Editor, y **hay que insertar la fila ahí también**, si no el panel no la ve:
 
 ```sql
 insert into supabase_migrations.schema_migrations (version, name, statements)
@@ -73,7 +64,8 @@ values ('0005', 'nombre_corto', array[$mig$ <contenido del .sql> $mig$]);
 
 **No llevar una tabla de migraciones propia** — ya existe una y duplicarla es pedir que diverjan.
 
-Estado (verificado contra la base el 3 sep 2026): aplicadas y registradas `0001`–`0003`, `0005`–`0014`.
+Estado: el 3 sep 2026 estaban aplicadas y registradas `0001`–`0003` y `0005`–`0014`; al 16-10 el
+repo llega a la `0018`. Lo aplicado de verdad se mira en `schema_migrations`, no en esta línea.
 **No existe ninguna `0004`**, ni en el repo ni en la base — el hueco es a propósito y no hay nada
 pendiente ahí.
 
