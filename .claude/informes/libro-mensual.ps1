@@ -15,7 +15,8 @@
 # Uso:  .\libro-mensual.ps1 -Mes 2026-09
 param(
   [string]$Mes,
-  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Informes Gestion'
+  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Informes Gestion',
+  [string]$Respaldo   # ruta de un respaldo-gestion-*.json puntual (por defecto, el más nuevo de Drive)
 )
 $ErrorActionPreference = 'Stop'
 $cl  = [Globalization.CultureInfo]'es-CL'
@@ -26,6 +27,8 @@ $MESES = @('Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Se
 $TRAMOS = @(@(0, 0.02), @(15000000, 0.025), @(25000000, 0.035))   # comisión César: tramo por val_prod, % sobre sin IVA
 $IVA = 0.19
 $RUT_PROPIO = '77157082'
+$PAGO_FACTURA = 'Pago de factura ya contada'   # el gasto se cuenta con la factura; el pago no se suma otra vez
+$UMBRAL_OTROS = 20000   # un gasto sin identificar bajo este monto (con IVA) va a "Otros gastos" sin preguntar
 
 $iniMes = if ($Mes) { [datetime]::ParseExact("$Mes-01", 'yyyy-MM-dd', $INV) } else { (Get-Date -Day 1).Date.AddMonths(-1) }
 $finMes = $iniMes.AddMonths(1).AddDays(-1)
@@ -52,7 +55,7 @@ function Aviso($texto) { [void]$avisos.Add($texto) }
 
 # ── Gestión (respaldo diario) ──
 $dirResp = 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
-$resp = Get-ChildItem $dirResp -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$resp = if ($Respaldo) { Get-Item $Respaldo } else { Get-ChildItem $dirResp -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
 if (-not $resp) { throw "No hay respaldos en $dirResp" }
 $j = [IO.File]::ReadAllText($resp.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json
 $prod = @{}; @($j.tablas.gestion_produccion) | ForEach-Object { $prod[$_.num] = $_.data }
@@ -62,7 +65,7 @@ $ventasTodas = @(@($j.tablas.gestion_finanzas) | ForEach-Object {
   [pscustomobject]@{
     num = $_.num; cliente = ("$($d.nombre) $($d.apellido)").Trim(); apellido = "$($d.apellido)"; tipo = $tipo
     fecha = Fecha $(if ($d.fecha_creacion) { $d.fecha_creacion } else { $d.fecha })
-    total = $tot; vp = (N $d.val_prod); envio = (N $d.val_envio); abonado = $a; saldo = $tot - $a
+    total = $tot; vp = (N $d.val_prod); envio = (N $d.val_envio); abonado = $a; saldo = $tot - $a; semana = "$($d.semana)"
     vendedor = $(if ("$($d.vendedor)") { "$($d.vendedor)" } else { '(sin asignar)' })
     producto = "$($d.producto)"; web = ("$($d.canal_pago)" -match 'SHOPIFY')
     d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; ab = @((N $d.abono1), (N $d.abono2), (N $d.abono3)); a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3); tipoDoc = $d.doc1_tipo
@@ -70,6 +73,37 @@ $ventasTodas = @(@($j.tablas.gestion_finanzas) | ForEach-Object {
 } | Where-Object { $_.tipo -eq 'VENTA' })
 $vMes = @($ventasTodas | Where-Object { EnMes $_.fecha } | Sort-Object fecha)
 $vAnt = @($ventasTodas | Where-Object { $_.fecha -and $_.fecha -ge $iniMes.AddMonths(-1) -and $_.fecha -lt $iniMes })
+
+# ── Pedidos que salieron en el mes (para la hoja Starken) ──
+# Starken factura una vez al mes todos los despachos del período, así que el envío cobrado se cuenta en el mes en
+# que SALE el pedido, no en el que se vendió. Por mes de venta, septiembre 2026 dio −$393 mil, pero varias ventas de
+# fin de agosto se despacharon y pagaron en septiembre (#1537: $360.000 de envío cobrado en agosto, flete pagado el 21-09).
+# Día de salida = dia_envio de Seguimiento (gestion_pedidos): es el que se mueve cuando cambia la fecha; Producción y
+# Finanzas se quedan con la original (#1556: 28-09 en Producción, 07-10 en Seguimiento). Si no está, el de Producción;
+# si tampoco, el lunes de la semana del pedido + 7 días (sale la semana siguiente).
+# La estimación falla cuando se movió la fecha (check "cambio" de Seguimiento): por eso esos casos van a los avisos.
+# Va acá y no en la hoja porque el Resumen, que muestra los avisos, se arma antes.
+$MES_NUM = @{}; for ($i = 0; $i -lt 12; $i++) { $MES_NUM[$MESES[$i].ToUpper()] = $i + 1 }
+$seg = @{}; @($j.tablas.gestion_pedidos) | ForEach-Object { $seg["$($_.num)"] = $_.data }
+$cambioFecha = @{}; foreach ($k in $seg.Keys) { if ($seg[$k].checks.cambio) { $cambioFecha[$k] = $true } }
+function Despacho($v) {
+  $s = $seg["$($v.num)"]; $p = $prod[$v.num]
+  foreach ($x in @($s, $p)) { if ($x -and $x.dia_envio) { $d = Fecha $x.dia_envio; if ($d) { return @{ fecha = $d; estimada = $false } } } }
+  $sem = if ($s -and $s.semana) { "$($s.semana)" } elseif ($v.semana) { $v.semana } elseif ($p) { "$($p.envio)" } else { '' }
+  if (-not $v.fecha -or $sem -notmatch 'SEMANA\s+(\d{1,2})\s+(\p{L}+)') { return $null }
+  $m = $MES_NUM["$($matches[2])".ToUpper()]; if (-not $m) { return $null }
+  try { $lunes = (Get-Date -Year $v.fecha.Year -Month $m -Day ([int]$matches[1])).Date } catch { return $null }
+  if ($lunes -lt $v.fecha.AddDays(-60)) { $lunes = $lunes.AddYears(1) }   # vendido en diciembre, semana de enero
+  @{ fecha = $lunes.AddDays(7); estimada = $true }
+}
+$desp = @($ventasTodas | ForEach-Object { $d = Despacho $_; if ($d -and (EnMes $d.fecha)) {
+  [pscustomobject]@{ num = $_.num; cliente = $_.cliente; venta = $_.fecha; salida = $d.fecha; estimada = $d.estimada; envio = (Neto $_.envio) } } } | Sort-Object salida)
+foreach ($v in @($ventasTodas | Where-Object { $_.envio -gt 0 -and $_.fecha -and $_.fecha -ge $iniMes.AddMonths(-2) -and $_.fecha -le $finMes })) {
+  $d = Despacho $v
+  if (-not $d) { Aviso "Venta #$($v.num) ($($v.cliente)) cobró $(Plata $v.envio) de envío pero no tiene día de envío ni semana: no entra en la hoja Starken." }
+  elseif ($d.estimada -and $cambioFecha["$($v.num)"] -and $d.fecha -ge $iniMes.AddMonths(-1) -and $d.fecha -le $finMes.AddMonths(1)) {
+    Aviso "Venta #$($v.num) ($($v.cliente)): sin día de envío y con cambio de fecha avisado. Se estimó la salida el $($d.fecha.ToString('dd-MM')) por su semana, pero puede haber salido después: cargar el día real en Seguimiento para que sus $(Plata $v.envio) de envío caigan en el mes correcto de la hoja Starken." }
+}
 
 # m² vendidos en el mes (líneas de producción de las ventas del mes)
 $m2Mes = 0.0
@@ -90,17 +124,24 @@ if (-not $emit.Count) { Aviso "Falta emitidas-$tag.csv (documentos emitidos seg�
 
 # ── Mercado Pago ──
 $mp = @(LeerCsv (Join-Path $CZ "mp-$tag.csv"))
-$mp = @($mp | ForEach-Object { [pscustomobject]@{ fecha = Fecha $_.fecha; mov = $_.mov; tipo = $_.tipo; monto = (N $_.monto); comision = -(N $_.otros) } })
+$mp = @($mp | ForEach-Object { [pscustomobject]@{ fecha = Fecha $_.fecha; mov = $_.mov; tipo = $_.tipo; id = "$($_.id)"; monto = (N $_.monto); comision = -(N $_.otros) } })
 $mpSaldos = LeerJson (Join-Path $CZ "mp-$tag.json")
 if (-not $mp.Count) { Aviso "Falta el movimiento de Mercado Pago de $mesNom (mp-$tag.csv): la caja y las ventas de feria quedan incompletas." }
 
 # ── Ventas de feria (Point de Mercado Pago en las fechas de cada feria) ──
-$ferias = @(LeerCsv (Join-Path $PLAN 'ferias.csv') | ForEach-Object { [pscustomobject]@{ nombre = $_.Nombre; desde = Fecha $_.Desde; hasta = Fecha $_.Hasta } } | Where-Object { (EnMes $_.desde) -or (EnMes $_.hasta) })
+# Solo cobros con Point. En las mismas fechas también se liberan ventas de Mercado Libre y cobros con link,
+# que ya se cuentan por otro lado. El canal sale del reporte de liquidaciones de Mercado Pago
+# (mp-AAAA-MM-canal.csv: id;plataforma). Sin ese archivo se separa por la comisión: Point cobra ~2-3 %,
+# Mercado Libre ~17 % y el link ~4 %.
+$ferias = @(LeerCsv (Join-Path $PLAN 'ferias.csv') | ForEach-Object { [pscustomobject]@{ nombre = $_.Nombre; desde = Fecha $_.Desde; hasta = Fecha $_.Hasta; costos = "$($_.Costos)" } } | Where-Object { (EnMes $_.desde) -or (EnMes $_.hasta) })
+$mpCanal = @{}; LeerCsv (Join-Path $CZ "mp-$tag-canal.csv") | ForEach-Object { $mpCanal["$($_.id)"] = "$($_.plataforma)" }
+function EsPoint($m) { if ($mpCanal.Count) { $mpCanal["$($m.id)"] -eq 'Point' } else { $m.monto -gt 0 -and $m.comision / $m.monto -le 0.035 } }
 $ventasFeria = @()
 foreach ($f in $ferias) {
-  $ventasFeria += @($mp | Where-Object { $_.tipo -eq 'Liberación de dinero' -and $_.fecha -ge $f.desde -and $_.fecha -le $f.hasta -and $_.monto -gt 1000 -and $_.monto -lt 300000 } |
+  $ventasFeria += @($mp | Where-Object { $_.tipo -eq 'Liberación de dinero' -and $_.fecha -ge $f.desde -and $_.fecha -le $f.hasta -and $_.monto -gt 1000 -and (EsPoint $_) } |
     ForEach-Object { [pscustomobject]@{ feria = $f.nombre; fecha = $_.fecha; bruto = $_.monto; comision = $_.comision } })
 }
+if ($ferias.Count -and -not $mpCanal.Count) { Aviso "Falta mp-$tag-canal.csv (reporte de liquidaciones de Mercado Pago): las ventas de feria se separaron de Mercado Libre por la comisión." }
 $ventasML = @($emit | Where-Object { $_.plataforma -eq 'MercadoLibre' })
 
 # ── Reglas de clasificación (privadas) ──
@@ -115,25 +156,74 @@ function Clasificar($fuente, $texto, $monto) {
 }
 
 # ── Facturas recibidas (planilla de gastos Wasabil: Monto = total con IVA) ──
-$gastos = @(LeerCsv (Join-Path $PLAN 'Gastos Wasabil 2026.csv') | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
+$planilla = @(LeerCsv (Join-Path $PLAN 'Gastos Wasabil 2026.csv'))
+$fechaFactura = @{}; foreach ($x in $planilla) { $fechaFactura["$($x.Folio)"] = Fecha $x.Fecha }
+$gastos = @($planilla | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
   $tot = N $_.Monto; $td = "$($_.'Tipo doc')"
   $neto = if ($td -match 'compra|exenta') { $tot } else { Neto $tot }
   $cat = "$($_.'Categoría')"; $sub = ''
   $r = Clasificar 'planilla' "$($_.RUT)" $tot; if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria }
+  if ($cat -in '', 'POR CLASIFICAR' -and $tot -lt $UMBRAL_OTROS) { $cat = 'Otros gastos'; $sub = 'sin identificar' }
   [pscustomobject]@{ fuente = 'Factura'; fecha = Fecha $_.Fecha; proveedor = $_.Proveedor; rut = $_.RUT; doc = "$td $($_.Folio)"; folio = "$($_.Folio)"
     categoria = $cat; sub = $sub; neto = $neto; iva = $(if ($td -match 'compra|exenta') { 0 } else { $tot - $neto }); total = $tot; detalle = "$($_.'Detalle (glosa)')" }
 })
 
+# ── Cartolas: la que mejor cubre el mes, no la más nueva ──
+# En Descargas conviven cartolas parciales y exports de "solo ingresos" (el 06-10 uno así dio un resultado
+# falso de +$5M). Por cuenta se elige la que tiene más movimientos dentro del mes (empate: la más nueva).
+. (Join-Path $PLAN 'lib-xls.ps1')
+function FilasBci($path) {
+  @(Read-XlsxRows $path | Select-Object -Skip 1 | Where-Object { $_.Count -gt 10 -and $_[0] -match '^\d' } | ForEach-Object {
+    [pscustomobject]@{ fecha = [datetime]::FromOADate([double]::Parse($_[0], $INV)).Date; hora = $_[1]; ing = (N $_[8]); egr = (N $_[9]); saldo = (N $_[10]); rut = "$($_[12])"; nombre = "$($_[11])"; nota = "$($_[17])" } } |
+    Where-Object { EnMes $_.fecha })
+}
+function FilasBdc($path) {
+  $b = [IO.File]::ReadAllBytes($path)
+  if ($b.Length -lt 8 -or (($b[0..7] | ForEach-Object { $_.ToString('x2') }) -join '') -ne 'd0cf11e0a1b11ae1') { return @() }
+  if ([Text.Encoding]::GetEncoding(28591).GetString($b) -notmatch '77\.157\.082-8') { return @() }   # solo cartolas de Muvale
+  try { $raw = @(Read-XlsRows $path) } catch { return @() }
+  @($raw | Where-Object { $_.Count -gt 9 -and "$($_[1])" -match '^\d{2}/\d{2}/\d{4}$' } | ForEach-Object {
+    [pscustomobject]@{ fecha = [datetime]::ParseExact($_[1], 'dd/MM/yyyy', $INV); glosa = "$($_[3])"; cargo = (N $_[7]); abono = (N $_[8]); saldo = (N $_[9]) } } | Where-Object { EnMes $_.fecha })
+}
+function MejorCartola($filtro, $leer) {
+  $mejor = $null; $filas = @()
+  foreach ($f in @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter $filtro | Where-Object { $_.LastWriteTime -ge $iniMes } | Sort-Object LastWriteTime -Descending)) {
+    $r = @(& $leer $f.FullName)
+    if ($r.Count -gt $filas.Count) { $mejor = $f; $filas = $r }
+  }
+  [pscustomobject]@{ archivo = $mejor; filas = $filas }
+}
+$cBci = MejorCartola '*Movimientos_Detallado_Cuenta_7175*.xlsx' ${function:FilasBci}
+$cBdc = MejorCartola 'cartola*.xls' ${function:FilasBdc}
+foreach ($c in @(@('BCI 7175', $cBci, 'egr'), @('Banco de Chile', $cBdc, 'cargo'))) {
+  if (-not $c[1].archivo) { Aviso "Falta la cartola de $($c[0]) de $mesNom en Descargas: la caja y los pagos sin factura quedan incompletos."; continue }
+  $fs = @($c[1].filas | ForEach-Object { $_.fecha }); $min = ($fs | Measure-Object -Minimum).Minimum; $max = ($fs | Measure-Object -Maximum).Maximum
+  if ($min -gt $iniMes.AddDays(6) -or $max -lt $finMes.AddDays(-6)) { Aviso "La cartola de $($c[0]) ($($c[1].archivo.Name)) cubre solo del $($min.ToString('dd-MM')) al $($max.ToString('dd-MM')): faltan días del mes." }
+  if (-not (Suma $c[1].filas $c[2])) { Aviso "La cartola de $($c[0]) ($($c[1].archivo.Name)) no trae egresos: parece un export de solo ingresos." }
+}
+
 # ── Bancos: pagos del mes cruzados con las facturas (cargar-cartolas.ps1 en modo simulación) ──
+# cargar-cartolas.ps1 toma la cartola más nueva de la carpeta que se le pasa: se le pasa una con las dos elegidas.
+$dirCart = Join-Path $env:TEMP ('libro-cartolas-' + [guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Force $dirCart | Out-Null
+foreach ($a in @($cBci.archivo, $cBdc.archivo) | Where-Object { $_ }) { Copy-Item $a.FullName $dirCart }
 $tmpBanco = Join-Path $env:TEMP "banco-$tag.csv"
-& (Join-Path $PLAN 'cargar-cartolas.ps1') -Desde $iniMes.ToString('yyyy-MM-dd') -Simular -ExportarCsv $tmpBanco *> $null
+& (Join-Path $PLAN 'cargar-cartolas.ps1') -Desde $iniMes.ToString('yyyy-MM-dd') -Descargas $dirCart -Simular -ExportarCsv $tmpBanco *> $null
+Remove-Item $dirCart -Recurse -Force -ErrorAction SilentlyContinue
 $banco = @(LeerCsv $tmpBanco | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
   $txt = "$($_.Glosa) | $($_.Contraparte) | $($_.Nota)"; $monto = N $_.Monto
   $conFactura = "$($_.Factura)" -match '\[(\d+)\]'; $folio = if ($conFactura) { $matches[1] } else { '' }
+  # "≈" = solo calzaron el monto y la fecha. No basta si (1) es una transferencia a una persona: en septiembre
+  # quincenas, horas y rendiciones calzaron con fletes de Céspedes; o (2) la factura es posterior al pago: un
+  # cargo de tarjeta del 28-09 calzó con una factura de bencina del 09-10. Se tratan como pagos sin factura.
+  if ($conFactura -and "$($_.Factura)" -match '≈') {
+    $ff = $fechaFactura[$folio]
+    if ("$($_.Glosa)" -match '^Transferencia enviada' -or ($ff -and $ff -gt (Fecha $_.Fecha).AddDays(3))) { $conFactura = $false; $folio = '' }
+  }
   $cat = "$($_.Categoria)"; $sub = ''
   if ("$($_.Factura)" -match 'traspaso') { $cat = 'Traspaso interno (no es gasto)' }
-  elseif ($conFactura) { $g = $gastos | Where-Object { $_.folio -eq $folio } | Select-Object -First 1; $cat = if ($g) { $g.categoria } else { '(factura de otro mes)' } }
-  elseif (-not $cat) { $r = Clasificar 'banco' $txt $monto; if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria } else { $cat = 'POR CLASIFICAR' } }
+  elseif ($conFactura) { $g = $gastos | Where-Object { $_.folio -eq $folio } | Select-Object -First 1; $cat = if ($g) { $g.categoria } else { $PAGO_FACTURA } }
+  elseif (-not $cat) { $r = Clasificar 'banco' $txt $monto; if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria } elseif ($monto -lt $UMBRAL_OTROS) { $cat = 'Otros gastos'; $sub = 'sin identificar' } else { $cat = 'POR CLASIFICAR' } }
   [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = Fecha $_.Fecha; cuenta = $_.Cuenta; proveedor = $(if ($_.Contraparte) { $_.Contraparte } else { ($_.Glosa -replace '^Pago:\s*', '') })
     rut = $_.RUT; doc = ''; conFactura = $conFactura; categoria = $cat; sub = $sub; neto = $monto; iva = 0; total = $monto; detalle = "$($_.Nota)"; glosa = $_.Glosa }
 })
@@ -141,13 +231,9 @@ Remove-Item $tmpBanco -ErrorAction SilentlyContinue
 $sinFactura = @($banco | Where-Object { -not $_.conFactura -and $_.categoria -ne 'Traspaso interno (no es gasto)' })
 
 # ── Saldos de las cuentas ──
-. (Join-Path $PLAN 'lib-xls.ps1')
 $caja = @()
-$fBci = Get-ChildItem "$env:USERPROFILE\Downloads" -Filter '*Movimientos_Detallado_Cuenta_7175*.xlsx' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if ($fBci) {
-  $rows = @(Read-XlsxRows $fBci.FullName | Select-Object -Skip 1 | Where-Object { $_.Count -gt 10 -and $_[0] -match '^\d' } | ForEach-Object {
-    [pscustomobject]@{ fecha = [datetime]::FromOADate([double]::Parse($_[0], $INV)).Date; hora = $_[1]; ing = (N $_[8]); egr = (N $_[9]); saldo = (N $_[10]); rut = "$($_[12])"; nombre = "$($_[11])"; nota = "$($_[17])" } } |
-    Where-Object { EnMes $_.fecha })
+if ($cBci.archivo) {
+  $rows = @($cBci.filas)
   if ($rows.Count) {
     $ult = $rows | Sort-Object fecha, hora | Select-Object -Last 1
     $ing = Suma $rows 'ing'; $egr = Suma $rows 'egr'
@@ -156,11 +242,8 @@ if ($fBci) {
     $bciIngresos = @($rows | Where-Object { $_.ing -gt 0 -and $_.rut -notmatch $RUT_PROPIO })
   }
 }
-$fBdc = Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'cartola*.xls' | Sort-Object LastWriteTime -Descending
-foreach ($f in $fBdc) {
-  try { $raw = @(Read-XlsRows $f.FullName) } catch { continue }
-  $rows = @($raw | Where-Object { $_.Count -gt 9 -and "$($_[1])" -match '^\d{2}/\d{2}/\d{4}$' } | ForEach-Object {
-    [pscustomobject]@{ fecha = [datetime]::ParseExact($_[1], 'dd/MM/yyyy', $INV); glosa = "$($_[3])"; cargo = (N $_[7]); abono = (N $_[8]); saldo = (N $_[9]) } } | Where-Object { EnMes $_.fecha })
+foreach ($x in @(1)) {
+  $rows = @($cBdc.filas)
   if (-not $rows.Count) { continue }
   $ult = $rows[0]   # la cartola viene de la más nueva a la más vieja
   $ing = Suma $rows 'abono'; $egr = Suma $rows 'cargo'
@@ -178,6 +261,15 @@ if ($mp.Count -and $mpSaldos) {
 $mpSinDetalle = -(Suma @($mp | Where-Object { $_.tipo -in 'Pago', 'Compra' }) 'monto') - (Suma @($mp | Where-Object { $_.tipo -eq 'Devolución de pago' }) 'monto')
 $mpCuotas = -(Suma @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' }) 'monto')
 
+# ── Créditos recibidos (creditos.csv, privado) ──
+# Un crédito no es venta. Si al recibirlo se pagó el crédito anterior, ese pago es capital: se saca de
+# "Mercado Pago sin detalle" y se suma a las cuotas.
+$creditos = @(LeerCsv (Join-Path $PLAN 'creditos.csv') | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
+  [pscustomobject]@{ fecha = Fecha $_.Fecha; acreedor = "$($_.Acreedor)"; recibido = (N $_.Recibido); pagoAnterior = (N $_.PagoCreditoAnterior); nota = "$($_.Nota)" } })
+$credPagoMP = Suma @($creditos | Where-Object { $_.acreedor -match 'Mercado Pago' }) 'pagoAnterior'
+$yaEnCuotas = @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' -and [math]::Abs($_.monto + $credPagoMP) -le 1 }).Count   # el estado de cuenta ya lo trae como cuota
+if ($credPagoMP -gt 0 -and -not $yaEnCuotas) { $quita = [math]::Min($credPagoMP, [math]::Max(0, $mpSinDetalle)); $mpSinDetalle -= $quita; $mpCuotas += $credPagoMP }
+
 # ── Meta, SII, cotizador ──
 $meta = LeerJson (Join-Path $CZ "meta-$tag.json")
 $sii = LeerJson (Join-Path $CZ "sii-$tag.json")
@@ -186,10 +278,10 @@ $kpi = LeerJson (Join-Path $CZ 'kpis-cotizador.json')
 # ═════════════════════════════ RESULTADO ═════════════════════════════
 $SECCION = @{
   'Madera (proveedores)' = 'costo'; 'Materiales e insumos' = 'costo'; 'Bases de fierro (mesas)' = 'costo'; 'Embalaje' = 'costo'; 'Maquinaria y herramientas' = 'costo'
-  'Fletes y logística' = 'venta'; 'Comisiones marketplace' = 'venta'; 'Comisiones bancarias' = 'venta'; 'Publicidad Meta' = 'venta'; 'Publicidad Google' = 'venta'; 'Ferias' = 'venta'
+  'Fletes y logística' = 'venta'; 'Devoluciones a clientes' = 'venta'; 'Comisiones marketplace' = 'venta'; 'Comisiones bancarias' = 'venta'; 'Publicidad Meta' = 'venta'; 'Publicidad Google' = 'venta'; 'Ferias' = 'venta'
   'Sueldos y remuneraciones' = 'fijo'; 'Imposiciones (Previred)' = 'fijo'; 'Arriendo' = 'fijo'; 'Servicios básicos' = 'fijo'; 'Combustible (bencina)' = 'fijo'
   'Transporte / viajes' = 'fijo'; 'Software y suscripciones' = 'fijo'; 'Gastos administrativos' = 'fijo'; 'Mantención y reparaciones' = 'fijo'
-  'Colación y alimentación equipo' = 'fijo'; 'Post venta' = 'fijo'; 'Reforestación' = 'fijo'; 'POR CLASIFICAR' = 'fijo'
+  'Colación y alimentación equipo' = 'fijo'; 'Post venta' = 'fijo'; 'Reforestación' = 'fijo'; 'POR CLASIFICAR' = 'fijo'; 'Otros gastos' = 'fijo'
 }
 $todo = @($gastos) + @($sinFactura)
 foreach ($m in $todo) {
@@ -207,11 +299,15 @@ function PorCat($sec) {
 }
 $vNetaPedidos = Neto (Suma $vMes 'total'); $vNetaML = Suma $ventasML 'neto'; $vNetaFeria = Neto (Suma $ventasFeria 'bruto')
 $ventaNeta = $vNetaPedidos + $vNetaML + $vNetaFeria
-$lCosto = PorCat 'costo'; $lVenta = PorCat 'venta'; $lFijo = PorCat 'fijo'; $lFin = PorCat 'fin'
+$lCosto = @(PorCat 'costo'); $lVenta = @(PorCat 'venta'); $lFijo = @(PorCat 'fijo'); $lFin = @(PorCat 'fin')
 $tCosto = Suma $lCosto 'monto'; $tVenta = Suma $lVenta 'monto'; $tFijo = Suma $lFijo 'monto'; $tFin = Suma $lFin 'monto'
 $margenBruto = $ventaNeta - $tCosto; $contrib = $margenBruto - $tVenta; $operac = $contrib - $tFijo; $resultado = $operac - $tFin
 $ads = $metaReal + (Suma @($todo | Where-Object { $_.categoria -eq 'Publicidad Google' }) 'neto')
 $feriaCosto = Suma @($todo | Where-Object { $_.categoria -eq 'Ferias' }) 'neto'
+# IVA del mes: lo mismo en la hoja IVA y en "Por pagar"
+$debito = Suma $emit 'iva'; $credito = if ($sii) { $sii.compras.facturas.iva } else { Suma $gastos 'iva' }
+$ivaFeria = (Suma $ventasFeria 'bruto') - $vNetaFeria
+$ivaMes = $debito + $ivaFeria - $credito
 
 # ═════════════════════════════ AVISOS ═════════════════════════════
 # Boletas repetidas: mismo cliente, mismo monto, mismo día, sin nota de crédito que la anule
@@ -236,12 +332,14 @@ foreach ($v in $cobrar) {
   if ($p.Count) { $v | Add-Member -NotePropertyName pagadoBanco -NotePropertyValue $p[0].fecha -Force
     Aviso "Venta #$($v.num) ($($v.cliente)): el saldo de $(Plata $v.saldo) parece pagado el $($p[0].fecha.ToString('dd-MM')) en BCI ($($p[0].nombre)), pero Gestión lo sigue mostrando como deuda." }
 }
-# Pagos a proveedores sin factura
-foreach ($g in @($sinFactura | Where-Object { $_.seccion -eq 'costo' -and $_.sub -ne 'Rendición taller' } | Group-Object proveedor | Where-Object { (Suma $_.Group 'neto') -ge 100000 })) {
-  Aviso "$($g.Name): $(Plata (Suma $g.Group 'neto')) pagados en $mesNom sin factura (en $($g.Count) pago$(if ($g.Count -gt 1) { 's' }))." }
+# Compras a proveedores sin factura (un solo aviso)
+$sinFactProv = @($sinFactura | Where-Object { $_.seccion -eq 'costo' -and $_.sub -ne 'Rendición taller' } | Group-Object proveedor | Where-Object { (Suma $_.Group 'neto') -ge 100000 } | Sort-Object { -(Suma $_.Group 'neto') })
+if ($sinFactProv.Count) {
+  $det = @($sinFactProv | ForEach-Object { "$($_.Name) $(Plata (Suma $_.Group 'neto'))" })
+  Aviso "Compras sin factura por $(Plata (Suma @($sinFactProv | ForEach-Object { $_.Group }) 'neto')): $($det -join ', '). No dan crédito de IVA; pedir factura cuando se pueda." }
 $porClas = @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' })
 if ($porClas.Count) { Aviso "$($porClas.Count) gastos por $(Plata (Suma $porClas 'neto')) siguen POR CLASIFICAR (ver Facturas recibidas). Clasificarlos en la planilla o en reglas-cierre.csv." }
-if ($mpSinDetalle -gt 0) { Aviso "Mercado Pago: $(Plata $mpSinDetalle) en pagos y compras sin detalle del comercio (el estado de cuenta PDF no lo trae). No entran al resultado; bajar el reporte en Excel/CSV con descripción para clasificarlos." }
+if ($mpSinDetalle -gt 0) { Aviso "Mercado Pago: $(Plata $mpSinDetalle) en pagos sin el nombre del comercio (no lo trae ni el estado de cuenta ni el reporte de liquidaciones). Quedan fuera del resultado: si alguno es un gasto sin factura, falta sumarlo." }
 if ($meta -and $metaReal - $metaFact -gt 1000) { Aviso "Meta: gasto real $(Plata $metaReal) pero solo $(Plata $metaFact) tienen factura de compra. Revisar con el contador las facturas que faltan (IVA no recuperado)." }
 if ($ventasFeria.Count) { Aviso "Ventas de feria con Point: $(Plata (Suma $ventasFeria 'bruto')) sin boleta electrónica (el voucher vale como boleta). Su IVA ($(Plata ((Suma $ventasFeria 'bruto') - $vNetaFeria))) no está en el débito de Wasabil: confirmar que entre al F29." }
 foreach ($v in $vMes) {
@@ -399,15 +497,24 @@ $a = $f.Count + 1; foreach ($l in $lVenta) { L $l.cat (-$l.monto) $(if ($l.cat -
 $rMC = Total 'Margen de contribución' "B$rMB$(Rango $a)" 'lo que deja cada venta para pagar los gastos fijos'
 $a = $f.Count + 1; foreach ($l in $lFijo) { L $l.cat (-$l.monto) $(if ($l.cat -eq 'Sueldos y remuneraciones') { 'pagados en el mes (los sueldos se pagan a mes vencido)' }) }
 $rRO = Total 'Resultado operacional' "B$rMC$(Rango $a)"
-$a = $f.Count + 1; foreach ($l in $lFin) { L "$($l.cat) — intereses" (-$l.monto) }
-if (-not $lFin.Count) { L 'Gastos financieros' 0 }
+$a = $f.Count + 1; foreach ($l in $lFin) { L $(if ($l.cat -eq 'Créditos y deudas (cuotas)') { 'Intereses de créditos' } else { $l.cat }) (-$l.monto) }
+if (-not $lFin.Count) { L 'Intereses de créditos' 0 }
 [void](Total 'Resultado del mes' "B$rRO$(Rango $a)")
 [void]$f.Add(@())
-Sub $f 'Fuera del resultado (plata que salió, pero no es gasto del mes)'
-$fuera = @($todo | Where-Object { -not $_.seccion -and $_.categoria -notmatch 'Publicidad Meta' } | Group-Object categoria | ForEach-Object { ,@((C "   $($_.Name)"), (C (Suma $_.Group 'neto') 2)) })
-if ($mpCuotas) { $fuera += ,@((C '   Cuota crédito Mercado Pago'), (C $mpCuotas 2)) }
-if ($mpSinDetalle -gt 0) { $fuera += ,@((C '   Pagos con Mercado Pago sin detalle'), (C $mpSinDetalle 2)) }
-foreach ($x in $fuera) { [void]$f.Add($x) }
+# Solo plata que de verdad salió de las cuentas. Una factura de activo (la camioneta) no es un pago: va en una nota.
+Sub $f 'Plata que salió y no es gasto del mes'
+$salio = @($todo | Where-Object { -not $_.seccion -and $_.fuente -ne 'Factura' }) + @($banco | Where-Object { $_.conFactura -and $_.categoria -eq $PAGO_FACTURA })
+$fuera = @($salio | Group-Object categoria | ForEach-Object { [pscustomobject]@{ cat = $_.Name; monto = (Suma $_.Group 'neto') } })
+if ($mpCuotas) {
+  $c = $fuera | Where-Object { $_.cat -eq 'Créditos y deudas (cuotas)' } | Select-Object -First 1
+  if ($c) { $c.monto += $mpCuotas } else { $fuera += [pscustomobject]@{ cat = 'Créditos y deudas (cuotas)'; monto = $mpCuotas } }
+}
+if ($mpSinDetalle -gt 0) { $fuera += [pscustomobject]@{ cat = 'Pagos con Mercado Pago sin detalle'; monto = $mpSinDetalle } }
+$NOMBRE_FUERA = @{ 'Créditos y deudas (cuotas)' = 'Cuotas de créditos (capital)'; 'Préstamos de socios (no es gasto)' = 'Devolución de préstamos a socios'; 'Impuestos (SII)' = 'Impuestos (IVA y PPM del mes anterior)' }
+foreach ($x in @($fuera | Sort-Object monto -Descending)) { [void]$f.Add(@((C "   $(if ($NOMBRE_FUERA[$x.cat]) { $NOMBRE_FUERA[$x.cat] } else { $x.cat })"), (C $x.monto 2))) }
+$activo = Suma @($gastos | Where-Object { $_.categoria -eq 'Inversión (activo fijo)' }) 'neto'
+if ($creditos.Count) { Nota $f "Entraron $(Plata (Suma $creditos 'recibido')) de créditos ($((@($creditos | ForEach-Object { $_.acreedor } | Select-Object -Unique)) -join ', ')): no es venta$(if (Suma $creditos 'pagoAnterior') { "; de eso, $(Plata (Suma $creditos 'pagoAnterior')) pagaron el crédito anterior (incluido arriba en las cuotas)" })." }
+if ($activo) { Nota $f "Además llegaron facturas de activos por $(Plata $activo) neto ($((@($gastos | Where-Object { $_.categoria -eq 'Inversión (activo fijo)' } | ForEach-Object { $_.sub } | Where-Object { $_ } | Select-Object -Unique)) -join ', ')). No son gasto del mes ni plata que salió: se pagan aparte." }
 [void]$f.Add(@())
 Sub $f "Para revisar antes de cerrar ($($avisos.Count))"
 foreach ($t in $avisos) { [void]$f.Add(@(C "• $t" 10)) }
@@ -446,15 +553,15 @@ Hoja 'Ventas' $f @(8, 11, 26, 32, 12, 14, 13, 14, 11, 13, 13) 0
 
 # ── 4. Por cobrar y por pagar ──
 $f = New-Object System.Collections.ArrayList
-Titulo $f "Por cobrar y por pagar — al $($finMes.ToString('dd-MM-yyyy'))" 'Lo que nos deben los clientes y lo que debemos nosotros.'
-Sub $f 'Por cobrar (ventas con saldo, sin ventas web)'
+Titulo $f 'Por cobrar y por pagar' "Por cobrar: ventas hasta el $($finMes.ToString('dd-MM')) que todavía tienen saldo según Gestión ($($resp.LastWriteTime.ToString('dd-MM HH:mm'))). Por pagar: lo que se debe por $mesNom."
+Sub $f 'Por cobrar (sin ventas web)'
 Tabla $f @('N°', 'Fecha', 'Cliente', 'Total', 'Abonado', 'Saldo', 'Ojo') @($cobrar | ForEach-Object { ,@("#$($_.num)", $_.fecha, $_.cliente, $_.total, $_.abonado, $_.saldo, $(if ($_.pagadoBanco) { "parece pagado el $($_.pagadoBanco.ToString('dd-MM')) en BCI" })) }) @(3, 4, 5)
 Sub $f 'Por pagar'
-$pagar = @(,@('Comisión de César del mes', $comCesar, 'se paga con el sueldo del mes siguiente'))
+$pagar = @()
 $suel = Suma @($sinFactura | Where-Object { $_.categoria -eq 'Sueldos y remuneraciones' }) 'neto'; $prev = Suma @($sinFactura | Where-Object { $_.categoria -eq 'Imposiciones (Previred)' }) 'neto'
-if ($suel) { $pagar += ,@("Sueldos de $mesNom (estimado)", $suel, 'igual a lo pagado este mes; se pagan a inicios del mes siguiente') }
+if ($suel) { $pagar += ,@("Sueldos de $mesNom (estimado)", $suel, "igual a lo pagado este mes; ya incluye la comisión de César ($(Plata $comCesar))") }
 if ($prev) { $pagar += ,@('Previred (estimado)', $prev, 'igual a lo pagado este mes') }
-if ($sii) { $s = $sii.ventas; $deb = $s.facturas.iva + $s.boletas.iva + $s.notas_credito.iva; $pagar += ,@('IVA del mes', [math]::Max(0, $deb - $sii.compras.facturas.iva), 'débito − crédito según Wasabil; ver hoja IVA') }
+$pagar += ,@('IVA del mes', [math]::Max(0, $ivaMes), $(if ($ivaMes -lt 0) { "crédito a favor de $(Plata (-$ivaMes)) para el mes siguiente" } else { 'incluye el IVA de las ventas de feria; ver hoja IVA' }))
 foreach ($m in LeerCsv (Join-Path $PLAN 'por-pagar-manual.csv')) { $pagar += ,@($m.Concepto, (N $m.Monto), $m.Nota) }
 Tabla $f @('Concepto', 'Monto', 'Nota') $pagar @(1)
 Hoja 'Por cobrar y pagar' $f @(30, 12, 30, 14, 14, 14, 30)
@@ -463,11 +570,37 @@ Hoja 'Por cobrar y pagar' $f @(30, 12, 30, 14, 14, 14, 30)
 $f = New-Object System.Collections.ArrayList
 $mad = @($todo | Where-Object { $_.categoria -eq 'Madera (proveedores)' } | Sort-Object fecha)
 $madTot = Suma $mad 'neto'
-Titulo $f "Compras de madera — $mesNom" "Neto sin IVA (con factura) o monto pagado (sin factura). $($m2Mes.ToString('N1', $cl)) m² vendidos en el mes → $(Plata $(if ($m2Mes) { $madTot / $m2Mes } else { 0 })) de madera por m²."
-Tabla $f @('Fecha', 'Proveedor', 'Especie / detalle', 'Documento', 'Monto', 'Con factura') @($mad | ForEach-Object { ,@($_.fecha, $_.proveedor, $(if ($_.sub) { "$($_.sub) · $($_.detalle)" } else { $_.detalle }), $_.doc, $_.neto, $(if ($_.fuente -eq 'Factura') { 'Sí' } else { 'NO' })) }) @(4)
+Titulo $f "Proveedores de madera — $mesNom" "Montos sin IVA. Madera del mes: $(Plata $madTot), el $([math]::Round($(if ($ventaNeta) { 100 * $madTot / $ventaNeta } else { 0 }))) % de la venta neta. $($m2Mes.ToString('N1', $cl)) m² vendidos → $(Plata $(if ($m2Mes) { $madTot / $m2Mes } else { 0 })) de madera por m²."
 Sub $f 'Por proveedor'
 Tabla $f @('Proveedor', 'Compras', 'Monto', 'Sin factura') @($mad | Group-Object proveedor | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'neto'), (Suma @($_.Group | Where-Object { $_.fuente -ne 'Factura' }) 'neto')) } | Sort-Object { -$_[2] }) @(1, 2, 3)
-Hoja 'Madera' $f @(11, 40, 50, 18, 14, 11) 0
+Sub $f 'Cada compra'
+Tabla $f @('Proveedor', 'Fecha', 'Monto', 'Con factura', 'Especie / detalle', 'Documento') @($mad | ForEach-Object { ,@($_.proveedor, $_.fecha, $_.neto, $(if ($_.fuente -eq 'Factura') { 'Sí' } else { 'NO' }), $(if ($_.sub) { "$($_.sub) · $($_.detalle)" } else { $_.detalle }), $_.doc) }) @(2)
+Hoja 'Madera' $f @(44, 11, 14, 12, 60, 18)
+
+# ── Starken ──
+# Envío cobrado por mes de salida: ver $desp en la sección de ventas.
+$f = New-Object System.Collections.ArrayList
+$fletes =@($todo | Where-Object { $_.categoria -eq 'Fletes y logística' })
+$stk = @($fletes | Where-Object { "$($_.proveedor)" -match 'STARKEN' } | Sort-Object fecha)
+$stkTot = Suma $stk 'neto'; $envCobrado = Suma $desp 'envio'
+$otrosFletes = @($fletes | Where-Object { $stk -notcontains $_ }); $otrosTot = Suma $otrosFletes 'neto'
+Titulo $f "Starken — $mesNom" 'Montos sin IVA. Starken factura a fin de mes todos los despachos del período.'
+Sub $f 'Lo que costó y lo que se cobró'
+[void]$f.Add(@((C 'Envío cobrado de los pedidos que salieron en el mes' 11), (C $envCobrado 13)))
+[void]$f.Add(@((C 'Starken (facturas del mes)' 11), (C $stkTot 13)))
+[void]$f.Add(@((C 'Otros fletes (cargo a Santiago y locales)' 11), (C $otrosTot 13)))
+[void]$f.Add(@((C 'Diferencia: cobrado menos todos los fletes' 11), (C ($envCobrado - $stkTot - $otrosTot) 13)))
+Nota $f 'El envío cuenta en el mes en que sale el pedido (día de envío de Seguimiento o de Producción; si falta, el lunes de su semana + 7 días), igual que el flete. Un pedido vendido a fin de mes cuenta en el mes siguiente.'
+[void]$f.Add(@())
+Sub $f 'Pedidos que salieron en el mes'
+Tabla $f @('Pedido', 'Salida', 'Detalle', 'Envío neto') @($desp | ForEach-Object { ,@("#$($_.num) $($_.cliente)", $_.salida, "Vendido el $($_.venta.ToString('dd-MM-yyyy'))$(if ($_.estimada) { ' · salida estimada (semana + 7 días)' })$(if ($_.estimada -and $cambioFecha["$($_.num)"]) { ', con cambio de fecha: revisar' })", $_.envio) }) @(3)
+[void]$f.Add(@())
+Sub $f 'Facturas de Starken'
+Tabla $f @('Fecha', 'Documento', 'Detalle', 'Neto') @($stk | ForEach-Object { ,@($_.fecha, $_.doc, $_.detalle, $_.neto) }) @(3)
+$pagosStk = @($banco | Where-Object { "$($_.proveedor) $($_.glosa)" -match 'Starken' } | Sort-Object fecha)
+if ($pagosStk.Count) { Sub $f 'Pagos a Starken en el mes'; Tabla $f @('Fecha', 'Cuenta', 'Detalle', 'Monto') @($pagosStk | ForEach-Object { ,@($_.fecha, $_.cuenta, $(if ($_.detalle) { $_.detalle } else { $_.glosa }), $_.total) }) @(3) }
+if ($otrosFletes.Count) { Sub $f 'Otros fletes (cargo a Santiago y locales)'; Tabla $f @('Proveedor', 'Viajes', 'Neto') @($otrosFletes | Group-Object proveedor | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'neto')) } | Sort-Object { -$_[2] }) @(1, 2) }
+Hoja 'Starken' $f @(48, 18, 60, 14)
 
 # ── 6. Bencina ──
 $f = New-Object System.Collections.ArrayList
@@ -480,16 +613,34 @@ Hoja 'Bencina' $f @(11, 34, 24, 40, 14)
 
 # ── 7. Sueldos y gastos fijos ──
 $f = New-Object System.Collections.ArrayList
-Titulo $f "Sueldos y gastos fijos — $mesNom" 'CONFIDENCIAL: tiene sueldos por persona. No compartir este archivo.'
+Titulo $f "Sueldos — $mesNom" 'CONFIDENCIAL: tiene sueldos por persona. No compartir este archivo.'
 $sue = @($sinFactura | Where-Object { $_.categoria -in 'Sueldos y remuneraciones', 'Imposiciones (Previred)' } | Sort-Object fecha)
-Sub $f 'Sueldos e imposiciones pagados en el mes'
-Tabla $f @('Fecha', 'Persona', 'Concepto', 'Monto') @($sue | ForEach-Object { ,@($_.fecha, $_.proveedor, $(if ($_.detalle) { $_.detalle } else { $_.categoria }), $_.neto) }) @(3)
 Sub $f 'Por persona'
 Tabla $f @('Persona', 'Pagos', 'Total') @($sue | Group-Object proveedor | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'neto')) } | Sort-Object { -$_[2] }) @(1, 2)
+Sub $f 'Cada pago'
+Tabla $f @('Persona', 'Fecha', 'Concepto', 'Monto') @($sue | ForEach-Object { ,@($_.proveedor, $_.fecha, $(if ($_.detalle) { $_.detalle } else { $_.categoria }), $_.neto) }) @(3)
+Hoja 'Sueldos' $f @(34, 11, 40, 14)
+
+# ── Gastos fijos ──
+# Lo que cuesta mantener la empresa abierta, y cuánto hay que vender para cubrirlo con el margen del mes.
+$f = New-Object System.Collections.ArrayList
+$fijos = @($lFijo) + @($lFin | ForEach-Object { [pscustomobject]@{ cat = $(if ($_.cat -eq 'Créditos y deudas (cuotas)') { 'Intereses de créditos' } else { $_.cat }); monto = $_.monto } })
+$tFijos = Suma $fijos 'monto'
+$tasa = if ($ventaNeta) { $contrib / $ventaNeta } else { 0 }
+$equilibrio = if ($tasa -gt 0) { $tFijos / $tasa } else { 0 }
+Titulo $f "Gastos fijos — $mesNom" 'Lo que cuesta mantener la empresa abierta, se venda o no. Montos sin IVA; los sueldos son los pagados en el mes.'
+Tabla $f @('Concepto', 'Monto', '% del total') @($fijos | Sort-Object monto -Descending | ForEach-Object { ,@($_.cat, $_.monto, (C $(if ($tFijos) { $_.monto / $tFijos } else { 0 }) 4)) }) @(1)
+Sub $f '¿Cuánto hay que vender para cubrirlos?'
+[void]$f.Add(@((C 'Gastos fijos del mes' 11), (C $tFijos 13)))
+[void]$f.Add(@((C 'De cada $100 vendidos, quedan para los fijos' 11), (C ([math]::Round($tasa * 100)) 13)))
+[void]$f.Add(@((C 'Venta neta necesaria para cubrirlos' 11), (C ([math]::Round($equilibrio)) 13)))
+[void]$f.Add(@((C "Venta neta de $mesNom" 11), (C $ventaNeta 13)))
+Nota $f "De cada `$100 que se venden quedan `$$([math]::Round($tasa * 100)) después de materiales, publicidad, ferias, fletes y comisiones. Con eso, cubrir $(Plata $tFijos) de gastos fijos exige vender $(Plata $equilibrio) neto al mes$(if ($ventaNeta -lt $equilibrio) { "; en $mesNom faltaron $(Plata ($equilibrio - $ventaNeta))" } else { '' }). Usa el margen de este mes: una feria o una compra grande de madera lo mueven."
+[void]$f.Add(@())
 $fij = @($todo | Where-Object { $_.seccion -eq 'fijo' -and $_.categoria -notin 'Sueldos y remuneraciones', 'Imposiciones (Previred)' } | Sort-Object categoria, fecha)
-Sub $f 'Otros gastos fijos'
-Tabla $f @('Categoría', 'Fecha', 'Proveedor', 'Detalle', 'Monto') @($fij | ForEach-Object { ,@($_.categoria, $_.fecha, $_.proveedor, $_.detalle, $_.neto) }) @(4)
-Hoja 'Sueldos y fijos' $f @(30, 11, 34, 40, 14)
+Sub $f 'Detalle (sin sueldos, que están en la hoja Sueldos)'
+Tabla $f @('Concepto', 'Fecha', 'Proveedor', 'Detalle', 'Monto') @($fij | ForEach-Object { ,@($_.categoria, $_.fecha, $_.proveedor, $_.detalle, $_.neto) }) @(4)
+Hoja 'Gastos fijos' $f @(46, 16, 34, 50, 14)
 
 # ── 8. Marketing y CAC ──
 $f = New-Object System.Collections.ArrayList
@@ -504,7 +655,6 @@ $ind = @(
   @('Pedidos del mes', $nV, 7), @('Clientes que cotizaron en el mes', $(if ($cotMes) { $cotMes.clientes } else { '' }), 7),
   @('De cotizar a comprar', $(if ($cotMes -and $cotMes.clientes) { $nV / $cotMes.clientes } else { '' }), 4),
   @('CAC: publicidad ÷ pedidos', $(if ($nV) { $ads / $nV } else { 0 }), 2),
-  @('CAC con ferias', $(if ($nV) { ($ads + $feriaCosto) / $nV } else { 0 }), 2),
   @('Costo por cliente que cotizó', $(if ($cotMes -and $cotMes.clientes) { $ads / $cotMes.clientes } else { '' }), 2),
   @('Publicidad sobre la venta neta', $(if ($ventaNeta) { $ads / $ventaNeta } else { 0 }), 4),
   @('Venta neta por cada $1 en publicidad', $(if ($ads) { $ventaNeta / $ads } else { 0 }), 8),
@@ -516,15 +666,31 @@ Hoja 'Marketing y CAC' $f @(42, 16)
 # ── 9. Ferias ──
 $f = New-Object System.Collections.ArrayList
 Titulo $f "Ferias — $mesNom" '¿Valió la pena? Ventas con Point en las fechas de cada feria (ferias.csv) contra sus costos (categoría Ferias).'
+# Cada costo va a la feria que lo nombra en ferias.csv (columna Costos: expresión regular que busca en el
+# proveedor y en el detalle). Si en el mes hay una sola feria, todos los costos de la categoría Ferias son suyos.
+$coFerias = @($todo | Where-Object { $_.categoria -eq 'Ferias' }); $asignados = @()
+function EtiquetaCosto($c) {
+  if ($c.sub) { return "$($c.sub): $($c.proveedor)" }
+  $d = "$($c.detalle)" -replace '\s+x\d+$', ''; if ($d.Length -gt 45) { $d = $d.Substring(0, 45).Trim() + '…' }
+  if ($d) { "$d ($($c.proveedor))" } else { "$($c.proveedor)" }
+}
 foreach ($fe in $ferias) {
-  $vs = @($ventasFeria | Where-Object { $_.feria -eq $fe.nombre }); $co = @($todo | Where-Object { $_.categoria -eq 'Ferias' })
+  $vs = @($ventasFeria | Where-Object { $_.feria -eq $fe.nombre })
+  $co = if ($fe.costos) { @($coFerias | Where-Object { "$($_.proveedor) $($_.detalle)" -match $fe.costos }) } elseif ($ferias.Count -eq 1) { $coFerias } else { @() }
+  $asignados += $co
   Sub $f "$($fe.nombre) ($($fe.desde.ToString('dd-MM')) al $($fe.hasta.ToString('dd-MM')))"
   $bruto = Suma $vs 'bruto'; $com = Suma $vs 'comision'
   $res = @(@('Ventas (con IVA)', $bruto), @('− IVA', -($bruto - (Neto $bruto))), @('− Comisión Mercado Pago', -$com))
-  foreach ($c in $co) { $res += ,@("− $($c.sub): $($c.proveedor)", -$c.neto) }
+  foreach ($c in $co) { $res += ,@("− $(EtiquetaCosto $c)", -$c.neto) }
   Tabla $f @('Concepto', 'Monto') $res @(1)
-  Nota $f "$($vs.Count) ventas; ticket promedio $(Plata $(if ($vs.Count) { $bruto / $vs.Count } else { 0 })). No descuenta el costo de los productos de madera propios vendidos ni traslados/colaciones del equipo."
+  Nota $f "$($vs.Count) ventas; ticket promedio $(Plata $(if ($vs.Count) { $bruto / $vs.Count } else { 0 }))$(if (-not $co.Count) { '. Sin costos registrados para esta feria' }). No descuenta el costo de los productos de madera propios vendidos ni traslados/colaciones del equipo."
   Tabla $f @('Fecha', 'Venta', 'Comisión') @($vs | ForEach-Object { ,@($_.fecha, $_.bruto, $_.comision) }) @(1, 2)
+}
+$sinAsignar = @($coFerias | Where-Object { $asignados -notcontains $_ })
+if ($sinAsignar.Count) {
+  Sub $f 'Costos de ferias sin asignar a una feria'
+  Tabla $f @('Proveedor', 'Monto') @($sinAsignar | ForEach-Object { ,@($_.proveedor, $_.neto) }) @(1)
+  Nota $f 'Para asignarlos, poner el proveedor o el detalle en la columna Costos de ferias.csv.'
 }
 if (-not $ferias.Count) { Nota $f 'No hubo ferias este mes (ferias.csv).' }
 Hoja 'Ferias' $f @(44, 14, 12)
@@ -580,8 +746,6 @@ Hoja 'Facturas emitidas' $f @(11, 16, 9, 40, 14, 14, 13, 12, 13) 0
 # ── 13. IVA ──
 $f = New-Object System.Collections.ArrayList
 Titulo $f "IVA — $mesNom" 'Para revisar contra el F29 del contador.'
-$debito = Suma $emit 'iva'; $credito = if ($sii) { $sii.compras.facturas.iva } else { Suma $gastos 'iva' }
-$ivaFeria = (Suma $ventasFeria 'bruto') - $vNetaFeria
 $iv = @(@('Débito: documentos emitidos (Wasabil)', $debito), @('Débito: ventas de feria con voucher (estimado)', $ivaFeria), @('− Crédito: facturas de compra', -$credito))
 Tabla $f @('Concepto', 'Monto') $iv @(1)
 Nota $f 'Positivo = IVA a pagar. Negativo = crédito a favor para el mes siguiente. Las facturas de compra que emitimos (Google, Meta, Shopify) retienen el IVA: se paga y se recupera en el mismo F29.'
@@ -590,16 +754,32 @@ Hoja 'IVA' $f @(52, 16)
 
 # ── 14. Deudas e inversiones ──
 $f = New-Object System.Collections.ArrayList
-Titulo $f "Deudas e inversiones — $mesNom" 'Lo pagado en el mes. El saldo que queda de cada deuda no está en ningún sistema: completarlo a mano para ver la deuda total.'
-$di = @($todo | Where-Object { $_.categoria -in 'Inversión (activo fijo)', 'Créditos y deudas (cuotas)', 'Préstamos de socios (no es gasto)' } | Sort-Object categoria, fecha | ForEach-Object { ,@($_.categoria, $_.fecha, $_.proveedor, $(if ($_.sub) { $_.sub } else { $_.detalle }), $_.neto, $_.fuente, '') })
-if ($mpCuotas) { $di += ,@('Créditos y deudas (cuotas)', '', 'Mercado Pago', 'cuota crédito', $mpCuotas, 'Mercado Pago', '') }
-Tabla $f @('Tipo', 'Fecha', 'A quién', 'Detalle', 'Monto', 'Fuente', 'Saldo que queda') $di @(4)
+Titulo $f "Deudas e inversiones — $mesNom" 'El saldo que queda de cada deuda no está en ningún sistema: completarlo a mano para ver la deuda total.'
+$CAT_DEUDA = @('Créditos y deudas (cuotas)', 'Préstamos de socios (no es gasto)', 'Pagos de la camioneta', 'Inversión (activo fijo)')
+Sub $f 'Pagado en el mes (sale de los bancos y Mercado Pago)'
+$di = @($todo | Where-Object { $_.categoria -in $CAT_DEUDA -and $_.fuente -ne 'Factura' } | Sort-Object categoria, fecha | ForEach-Object { ,@($_.categoria, $_.fecha, $_.proveedor, $(if ($_.sub) { $_.sub } else { $_.detalle }), $_.neto, '') })
+if ($mpCuotas) { $di += ,@('Créditos y deudas (cuotas)', '', 'Mercado Pago', 'cuota del crédito', $mpCuotas, '') }
+Tabla $f @('Tipo', 'Fecha', 'A quién', 'Detalle', 'Monto', 'Saldo que queda') $di @(4)
+if ($creditos.Count) {
+  Sub $f 'Créditos recibidos en el mes'
+  Tabla $f @('Fecha', 'De quién', 'Recibido', 'Pagó el crédito anterior', 'Nota') @($creditos | ForEach-Object { ,@($_.fecha, $_.acreedor, $_.recibido, $_.pagoAnterior, $_.nota) }) @(2, 3)
+}
+$fd = @($todo | Where-Object { $_.categoria -in $CAT_DEUDA -and $_.fuente -eq 'Factura' } | Sort-Object categoria, fecha)
+if ($fd.Count) {
+  Sub $f 'Facturas recibidas en el mes (no son pagos)'
+  Tabla $f @('Tipo', 'Fecha', 'Proveedor', 'Detalle', 'Neto') @($fd | ForEach-Object { ,@($(if ($_.categoria -eq 'Créditos y deudas (cuotas)') { 'Intereses de créditos (están en el resultado)' } else { $_.categoria }), $_.fecha, $_.proveedor, $_.detalle, $_.neto) })
+}
 Hoja 'Deudas e inversiones' $f @(30, 11, 34, 30, 14, 16, 16)
 
 # Para auditar: $env:LIBRO_DEBUG = 'C:\ruta\movimientos.csv' deja cada gasto con su categoría y sección
 if ($env:LIBRO_DEBUG) { $todo | Select-Object fuente, fecha, proveedor, categoria, sub, seccion, neto, detalle | Export-Csv $env:LIBRO_DEBUG -Delimiter ';' -NoTypeInformation -Encoding UTF8 }
 
 # ═════════════════════════════ GUARDAR ═════════════════════════════
+# Orden de las hojas: primero lo que más mueve plata.
+$ORDEN = @('Resumen', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
+$ordenadas = @($hojas | Sort-Object { $i = [array]::IndexOf($ORDEN, $_.nombre); if ($i -lt 0) { 99 } else { $i } })
+$hojas.Clear(); foreach ($h in $ordenadas) { [void]$hojas.Add($h) }
+
 New-Item -ItemType Directory -Force $Salida | Out-Null
 $ruta = Join-Path $Salida "Libro mensual Casa Zaru $tag.xlsx"
 GuardarXlsx $ruta
