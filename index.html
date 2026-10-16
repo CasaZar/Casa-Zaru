@@ -506,6 +506,24 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 #seg-menu .m-sub { font-size:11.5px;color:var(--text-3);margin:2px 0 10px; }
 #seg-menu .m-acc { display:flex;flex-direction:column;gap:6px; }
 #seg-menu .m-acc > * { text-align:center; }
+/* Post venta: un caso por problema después de la venta */
+.pv-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px; }
+.pv-card { background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--red);border-radius:var(--radius-xl);padding:13px 15px; }
+.pv-card.cerrado { border-left-color:var(--green);opacity:.85; }
+.pv-card.taller,.pv-card.reenviado { border-left-color:var(--amber); }
+.pv-top { display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px; }
+.pv-caso { font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.3px; }
+.pv-cli { font-size:14.5px;font-weight:700;color:var(--text);margin-top:1px; }
+.pv-prod { font-size:12px;color:var(--text-3); }
+.pv-tags { display:flex;flex-wrap:wrap;gap:5px;margin:8px 0; }
+.pv-tag { font-size:11px;font-weight:600;border-radius:10px;padding:2px 8px;background:var(--surface2);color:var(--text-2); }
+.pv-tag.motivo { background:#FCEBEB;color:#A32D2D; }
+.pv-notas { font-size:12.5px;color:var(--text);white-space:pre-wrap;margin:6px 0;line-height:1.4; }
+.pv-pie { display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--text-3); }
+.pv-estado { font-size:12px;font-weight:700;padding:4px 8px;border-radius:7px;border:1px solid var(--border-md);background:var(--surface2);color:var(--text);font-family:'Inter',sans-serif; }
+.pv-trabajo { font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;background:var(--surface2); }
+.pv-hist { font-size:11.5px;color:var(--text-3);margin:10px 0 4px;max-height:140px;overflow:auto;border-top:1px solid var(--border);padding-top:8px; }
+@media (max-width:768px){ .pv-grid { grid-template-columns:1fr; } }
 /* "Sale esta semana": la lista del cuaderno de César, por día, para tachar */
 .ss-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:14px 16px;margin-bottom:14px; }
 .ss-head { display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px; }
@@ -26020,6 +26038,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon">🔧</span> Costos</button>
     <button class="nav-tab" onclick="showPage('gastos',this)"><span class="tab-icon">📄</span> Gastos</button>
     <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
+    <button class="nav-tab" onclick="showPage('pv',this)"><span class="tab-icon">🛠</span> Post venta</button>
   </div>
   <!-- Sidebar footer -->
   <div id="sidebar-footer" style="padding:10px 8px;border-top:1px solid rgba(245,237,227,0.12)">
@@ -26584,6 +26603,51 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 </div></div>
 
 <!-- P6 CLIENTES -->
+<!-- POST VENTA: un caso por problema después de la venta (16-10-2026) -->
+<div class="page" id="page-pv">
+<div class="main">
+  <div class="seg-top">
+    <div class="filter-group" id="pv-filtros">
+      <button class="filter-btn active" onclick="setPvFiltro('abiertos',this)">Abiertos</button>
+      <button class="filter-btn" onclick="setPvFiltro('cerrados',this)">Cerrados</button>
+      <button class="filter-btn" onclick="setPvFiltro('todos',this)">Todos</button>
+    </div>
+    <div class="search-wrap"><span class="search-icon">⌕</span>
+      <input type="text" id="pv-search" placeholder="Buscar cliente o N° de pedido" oninput="renderPostventa()">
+    </div>
+    <button class="btn-add" onclick="abrirCasoPV()">+ Nuevo caso</button>
+  </div>
+  <div id="pv-lista"></div>
+</div></div>
+
+<div class="modal-bg" id="modal-pv-bg">
+  <div class="modal" style="width:min(600px,100%)">
+    <div class="modal-header"><div class="modal-title" id="pv-titulo">Nuevo caso de post venta</div><button class="btn-close" onclick="cerrarCasoPV()">×</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>N° del pedido original</label><input id="pv-origen" type="text" placeholder="1558" onchange="autocompletarPV()"></div>
+      <div class="form-group"><label>Cliente</label><input id="pv-cliente" type="text"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Celular</label><input id="pv-celular" type="text"></div>
+      <div class="form-group"><label>Producto</label><input id="pv-producto" type="text"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Motivo</label><select id="pv-motivo"></select></div>
+      <div class="form-group"><label>Qué se hace</label><select id="pv-accion"></select></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Estado</label><select id="pv-estado"></select></div>
+      <div class="form-group"><label>N° de retiro Starken (OF)</label><input id="pv-of" type="text" placeholder="opcional"></div>
+    </div>
+    <div class="form-grid full"><div class="form-group"><label>Notas: qué pasó y qué se acordó con el cliente</label><textarea id="pv-notas" rows="3" style="width:100%;box-sizing:border-box;font-family:'Inter',sans-serif;font-size:13px;padding:8px;border:1px solid var(--border-md);border-radius:8px;background:var(--surface);color:var(--text);resize:vertical"></textarea></div></div>
+    <div id="pv-historial"></div>
+    <div class="modal-footer">
+      <button class="btn-sec" onclick="cerrarCasoPV()">Cancelar</button>
+      <button class="btn-pri" id="pv-guardar" onclick="guardarCasoPV()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-cli">
 <div class="main">
   <div class="stats-grid" id="cli-stats"></div>
@@ -27216,6 +27280,7 @@ function showPage(p,btn){
   if(p==='gastos'){loadGastos();}
   if(p==='prod'){loadProd();}
   if(p==='cli'){renderClientes();}
+  if(p==='pv'){loadPostventa();}
   if(p==='dash'){
     if(DB_URL){
       Promise.all([loadFin(),loadProd()]).then(function(){renderDash();});
@@ -27229,7 +27294,7 @@ function showPage(p,btn){
 // hay una segunda lista de secciones: los permisos por rol (que esconden los
 // botones) y restaurarPagina() siguen funcionando igual. Si el rol ve más de
 // 5 secciones, las primeras 4 van en la barra y el resto en la hoja "Más".
-var NAV_ORDEN=['dash','prod','seg','fin','cli','gastos','cost','pixel'];
+var NAV_ORDEN=['dash','prod','seg','fin','cli','pv','gastos','cost','pixel'];
 function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
 function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
 function _paginaActiva(){var a=document.querySelector('.page.active');return a?a.id.replace('page-',''):'';}
@@ -28905,7 +28970,11 @@ function canalCanonico(txt){
 const TIPOS_REGISTRO=[
   {k:'VENTA',      label:'Venta',      color:'var(--green)'},
   {k:'MUESTRARIO', label:'Muestrario', color:'var(--amber)'},
-  {k:'DEVOLUCION', label:'Devolución', color:'var(--red)'}
+  // La clave sigue siendo DEVOLUCION para no tocar los registros guardados; en
+  // pantalla se llama "Post venta" desde el 16-10-2026. Es el TRABAJO extra
+  // (rehacer, reparar) a $0, no la venta original: esa sigue siendo VENTA y su
+  // caso vive en la sección Post venta.
+  {k:'DEVOLUCION', label:'Post venta', color:'var(--red)'}
 ];
 function tipoDe(r){return (r&&r.tipo)||'VENTA';}
 // Única fuente de verdad para "¿esto cuenta como venta?". Todo cálculo de
@@ -33099,6 +33168,201 @@ async function initAllModules(){
   armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
 }
+// ── POST VENTA (16-10-2026) ────────────────────────────────────────────────
+// Un caso por cada problema después de la venta (llegó dañado, falla, cambio).
+// El caso apunta al pedido ORIGINAL, que sigue contando como venta. Si hay que
+// rehacer o reparar, el botón del caso crea un trabajo aparte en Producción y
+// Seguimiento ("PV" + número original), de tipo Post venta y a $0; lo que
+// cuesta se carga en su tarjeta de Costos, que solo ve el admin. La tabla
+// `postventa` (migración 0018) no guarda montos: la usan los tres roles.
+var PV_MOTIVOS={danado:'Llegó dañado',falla:'Falla / garantía',cambio:'Cambio',otro:'Otro'};
+var PV_ACCIONES={por_definir:'Por definir',reparar:'Reparar',rehacer:'Rehacer',reenviar:'Reenviar',reembolsar:'Reembolsar'};
+var PV_ESTADOS=[['abierto','Abierto'],['retiro','Retiro solicitado'],['taller','En taller'],['reenviado','Reenviado'],['cerrado','Cerrado']];
+var pvCasos=[],pvFiltro='abiertos',pvEditando=null,pvCargado=false;
+function _pvEstadoTxt(e){var x=PV_ESTADOS.find(function(s){return s[0]===e;});return x?x[1]:e;}
+function _pvOpts(obj,sel){return Object.keys(obj).map(function(k){return '<option value="'+k+'"'+(k===sel?' selected':'')+'>'+esc(obj[k])+'</option>';}).join('');}
+async function loadPostventa(){
+  if(!DB_URL){renderPostventa();return;}
+  try{pvCasos=await sbGet('postventa','select=*&order=id.desc');pvCargado=true;}
+  catch(e){console.error('postventa',e);pvCasos=[];pvCargado=false;}
+  renderPostventa();
+}
+function setPvFiltro(f,btn){pvFiltro=f;document.querySelectorAll('#pv-filtros .filter-btn').forEach(function(b){b.classList.remove('active');});if(btn)btn.classList.add('active');renderPostventa();}
+// Lo que costó el trabajo de post venta, desde su tarjeta de Costos (solo admin).
+function _pvCosto(num){
+  if(usuarioRol!=='admin'||!num)return null;
+  var c=costRecords.find(function(r){return String(r.num||'')===String(num);});
+  if(!c)return null;
+  return (c.lineas||[]).reduce(function(s,l){return s+(Number(l.total)||0);},0);
+}
+function renderPostventa(){
+  var el=document.getElementById('pv-lista');if(!el)return;
+  if(DB_URL&&!pvCargado){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">🛠</span>No se pudo leer Post venta. Si recién se instaló, falta correr la migración 0018 en Supabase.</div>';return;
+  }
+  var q=_normBusca((document.getElementById('pv-search')||{}).value||'');
+  var lista=pvCasos.filter(function(c){
+    if(pvFiltro==='abiertos'&&c.estado==='cerrado')return false;
+    if(pvFiltro==='cerrados'&&c.estado!=='cerrado')return false;
+    if(q&&!_calza(q,[c.pedido_origen,c.cliente,c.producto,c.pedido_trabajo,c.of_retiro].join(' ')))return false;
+    return true;
+  });
+  if(!lista.length){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">🛠</span>'+(pvCasos.length?'No hay casos con este filtro.':'Todavía no hay casos. Usa «+ Nuevo caso» cuando un cliente reclame por un pedido.')+'</div>';return;
+  }
+  var hoy=Date.now();
+  el.innerHTML='<div class="pv-grid">'+lista.map(function(c){
+    var dias=Math.max(0,Math.floor((hoy-new Date(c.creado).getTime())/86400000));
+    var est='<select class="pv-estado" onchange="cambiarEstadoPV('+c.id+',this.value)" aria-label="Estado del caso">'+
+      PV_ESTADOS.map(function(s){return '<option value="'+s[0]+'"'+(s[0]===c.estado?' selected':'')+'>'+esc(s[1])+'</option>';}).join('')+'</select>';
+    var trabajo='';
+    if(c.pedido_trabajo){
+      var p=_prodDe(c.pedido_trabajo),o=orders.find(function(x){return String(x.num||'')===String(c.pedido_trabajo);});
+      var costo=_pvCosto(c.pedido_trabajo);
+      trabajo='<div class="pv-trabajo">🪵 Trabajo <b>#'+esc(c.pedido_trabajo)+'</b>'+(p?' · '+esc(p.estado||'En taller')+' · '+esc((p.envio||'').toLowerCase()):'')+
+        (o&&o.dia_envio?' · envío '+esc(_repCorto(o.dia_envio)):'')+(costo!==null?' · costo '+(costo?fmtCLP(costo):'sin cargar en Costos'):'')+'</div>';
+    }else if(c.accion==='reparar'||c.accion==='rehacer'){
+      trabajo='<button class="btn-ghost" style="margin:6px 0 0;font-size:12px" onclick="crearTrabajoPV('+c.id+')">🪵 Crear trabajo en Producción</button>';
+    }
+    var cls=c.estado==='cerrado'?'cerrado':(c.estado==='taller'||c.estado==='reenviado'?c.estado:'');
+    return '<div class="pv-card '+cls+'">'+
+      '<div class="pv-top"><div style="min-width:0"><div class="pv-caso">Caso '+c.id+' · pedido #'+esc(c.pedido_origen)+'</div>'+
+        '<div class="pv-cli">'+esc(c.cliente||'—')+'</div><div class="pv-prod">'+esc(c.producto||'')+(c.celular?' · '+esc(c.celular):'')+'</div></div>'+est+'</div>'+
+      '<div class="pv-tags"><span class="pv-tag motivo">'+esc(PV_MOTIVOS[c.motivo]||c.motivo)+'</span><span class="pv-tag">'+esc(PV_ACCIONES[c.accion]||c.accion)+'</span>'+
+        (c.of_retiro?'<span class="pv-tag">Retiro OF '+esc(c.of_retiro)+'</span>':'')+'</div>'+
+      (c.notas?'<div class="pv-notas">'+esc(c.notas)+'</div>':'')+trabajo+
+      '<div class="pv-pie"><span>'+(c.estado==='cerrado'?'Cerrado':'Abierto hace '+dias+(dias===1?' día':' días'))+'</span>'+
+        '<button class="btn-edit" onclick="abrirCasoPV('+c.id+')">Ver / editar</button></div>'+
+    '</div>';
+  }).join('')+'</div>';
+}
+function abrirCasoPV(id){
+  var c=id?pvCasos.find(function(x){return x.id===id;}):null;
+  pvEditando=c?c.id:null;
+  document.getElementById('pv-titulo').textContent=c?('Caso '+c.id+' · pedido #'+c.pedido_origen):'Nuevo caso de post venta';
+  document.getElementById('pv-origen').value=c?c.pedido_origen:'';
+  document.getElementById('pv-origen').disabled=!!c;
+  document.getElementById('pv-cliente').value=c?(c.cliente||''):'';
+  document.getElementById('pv-celular').value=c?(c.celular||''):'';
+  document.getElementById('pv-producto').value=c?(c.producto||''):'';
+  document.getElementById('pv-motivo').innerHTML=_pvOpts(PV_MOTIVOS,c?c.motivo:'danado');
+  document.getElementById('pv-accion').innerHTML=_pvOpts(PV_ACCIONES,c?c.accion:'por_definir');
+  var est={};PV_ESTADOS.forEach(function(s){est[s[0]]=s[1];});
+  document.getElementById('pv-estado').innerHTML=_pvOpts(est,c?c.estado:'abierto');
+  document.getElementById('pv-of').value=c?(c.of_retiro||''):'';
+  document.getElementById('pv-notas').value=c?(c.notas||''):'';
+  var h=(c&&c.historial)||[];
+  document.getElementById('pv-historial').innerHTML=h.length?'<div class="pv-hist"><b>Historial</b><br>'+h.slice().reverse().map(function(x){
+    return esc(new Date(x.f).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}))+' · '+esc((x.q||'').split('@')[0])+' — '+esc(x.t);
+  }).join('<br>')+'</div>':'';
+  document.getElementById('modal-pv-bg').classList.add('open');
+}
+function cerrarCasoPV(){document.getElementById('modal-pv-bg').classList.remove('open');pvEditando=null;}
+// Al escribir el N° del pedido original se trae cliente, celular y producto.
+function autocompletarPV(){
+  var n=String(document.getElementById('pv-origen').value||'').trim();if(!n)return;
+  var o=orders.find(function(x){return String(x.num||'')===n;}),p=_prodDe(n),f=finRecords.find(function(x){return String(x.num||'')===n;});
+  if(!o&&!p&&!f){showToast('No encontré el pedido #'+n,true);return;}
+  var nom=((o&&(o.nombre+' '+(o.apellido||'')))||(p&&(p.comprador+' '+(p.apellido||'')))||(f&&(f.nombre+' '+(f.apellido||'')))||'').trim();
+  var cel=(f&&f.celular)||(p&&p._cliente&&p._cliente.phone)||'';
+  var prod=(o&&o.producto)||(f&&f.producto)||(p&&p.lineas&&p.lineas[0]&&p.lineas[0].producto)||'';
+  if(!document.getElementById('pv-cliente').value)document.getElementById('pv-cliente').value=nom;
+  if(!document.getElementById('pv-celular').value)document.getElementById('pv-celular').value=cel;
+  if(!document.getElementById('pv-producto').value)document.getElementById('pv-producto').value=prod;
+}
+function _pvHist(c,t){var h=((c&&c.historial)||[]).slice();h.push({f:new Date().toISOString(),q:usuarioEmail||'',t:t});return h;}
+async function guardarCasoPV(){
+  if(!DB_URL)return;
+  var d={
+    pedido_origen:String(document.getElementById('pv-origen').value||'').trim(),
+    cliente:document.getElementById('pv-cliente').value.trim(),
+    celular:document.getElementById('pv-celular').value.trim(),
+    producto:document.getElementById('pv-producto').value.trim(),
+    motivo:document.getElementById('pv-motivo').value,
+    accion:document.getElementById('pv-accion').value,
+    estado:document.getElementById('pv-estado').value,
+    of_retiro:document.getElementById('pv-of').value.trim()||null,
+    notas:document.getElementById('pv-notas').value.trim()||null
+  };
+  if(!d.pedido_origen){showToast('Falta el N° del pedido original',true);return;}
+  var btn=document.getElementById('pv-guardar');btn.disabled=true;
+  try{
+    var c=pvEditando?pvCasos.find(function(x){return x.id===pvEditando;}):null;
+    if(c){
+      var cambios=[];
+      if(c.estado!==d.estado)cambios.push('estado: '+_pvEstadoTxt(d.estado));
+      if(c.accion!==d.accion)cambios.push('qué se hace: '+PV_ACCIONES[d.accion]);
+      if(c.motivo!==d.motivo)cambios.push('motivo: '+PV_MOTIVOS[d.motivo]);
+      if((c.of_retiro||'')!==(d.of_retiro||''))cambios.push('retiro OF: '+(d.of_retiro||'—'));
+      if((c.notas||'')!==(d.notas||''))cambios.push('notas');
+      delete d.pedido_origen;
+      d.actualizado=new Date().toISOString();
+      if(d.estado==='cerrado'&&c.estado!=='cerrado')d.cerrado=d.actualizado;
+      if(d.estado!=='cerrado')d.cerrado=null;
+      if(cambios.length)d.historial=_pvHist(c,'Editó '+cambios.join(', '));
+      await sbUpdate('postventa',c.id,d);
+      if(cambios.length)logHistorial(c.pedido_origen,'Post venta caso '+c.id+': '+cambios.join(', '));
+    }else{
+      d.historial=_pvHist(null,'Abrió el caso ('+PV_MOTIVOS[d.motivo]+')');
+      if(d.estado==='cerrado')d.cerrado=new Date().toISOString();
+      var fila=await sbInsert('postventa',d);
+      logHistorial(d.pedido_origen,'Post venta: se abrió el caso '+(fila&&fila.id?fila.id:'')+' ('+PV_MOTIVOS[d.motivo]+')');
+    }
+    cerrarCasoPV();await loadPostventa();showToast('✓ Caso guardado');
+  }catch(e){showToast('No se pudo guardar: '+e.message,true);}
+  finally{btn.disabled=false;}
+}
+async function cambiarEstadoPV(id,estado){
+  var c=pvCasos.find(function(x){return x.id===id;});if(!c||c.estado===estado)return;
+  var ahora=new Date().toISOString();
+  try{
+    await sbUpdate('postventa',id,{estado:estado,actualizado:ahora,cerrado:estado==='cerrado'?ahora:null,historial:_pvHist(c,'Estado: '+_pvEstadoTxt(estado))});
+    logHistorial(c.pedido_origen,'Post venta caso '+id+': '+_pvEstadoTxt(estado));
+    await loadPostventa();showToast('✓ '+_pvEstadoTxt(estado));
+  }catch(e){showToast('No se pudo cambiar el estado: '+e.message,true);renderPostventa();}
+}
+// Crea el trabajo en Producción y Seguimiento con las piezas del pedido
+// original, a $0 y de tipo Post venta. Al admin además le deja la tarjeta de
+// Costos (y la fila de Finanzas, en $0) para cargar lo que cuesta la vuelta.
+async function crearTrabajoPV(id){
+  var c=pvCasos.find(function(x){return x.id===id;});if(!c||c.pedido_trabajo||!DB_URL)return;
+  var origen=String(c.pedido_origen),p0=_prodDe(origen);
+  if(!p0){showToast('El pedido #'+origen+' no está en Producción: no tengo sus piezas para copiar',true);return;}
+  var num='PV'+origen,k=2;
+  while(_prodDe(num)||orders.some(function(o){return String(o.num||'')===num;})){num='PV'+origen+'-'+k;k++;}
+  var semana=_nombreSemana(_lunesDe(new Date()));
+  var etiqueta='POST VENTA ('+(PV_ACCIONES[c.accion]||c.accion)+' · '+(PV_MOTIVOS[c.motivo]||c.motivo)+')';
+  var lineas=JSON.parse(JSON.stringify(p0.lineas||[])).map(function(l){l.observaciones=etiqueta+(l.observaciones?' · '+l.observaciones:'');return l;});
+  var prod0=(lineas[0]&&lineas[0].producto)||c.producto||'';
+  var prodRec={pedido:num,comprador:p0.comprador||'',apellido:p0.apellido||'',canal:p0.canal||'whatsapp',envio:semana,
+    fecha:todayStr,fecha_creacion:todayStr,lineas:lineas,tipo:'DEVOLUCION',estado:'En taller',
+    pedido_origen:origen,postventa_id:c.id,vendedor:p0.vendedor||'',_cliente:p0._cliente||null};
+  var segRec={num:num,semana:semana,nombre:p0.comprador||'',apellido:p0.apellido||'',producto:'POST VENTA · '+prod0,
+    piezas:lineas.reduce(function(s,l){return s+(Number(l.cantidad)||1);},0),canal:p0.canal||'whatsapp',
+    checks:{},tipo:'DEVOLUCION',pedido_origen:origen,fecha_creacion:todayStr};
+  try{
+    await api('produccion/'+num,'PUT',prodRec);prodOrders.push(prodRec);
+    await api('pedidos/'+num,'PUT',segRec);orders.push(segRec);
+    if(usuarioRol==='admin'){
+      var f0=finRecords.find(function(x){return String(x.num||'')===origen;})||{};
+      var finRec={num:num,fecha:todayStr,fecha_creacion:todayStr,nombre:f0.nombre||p0.comprador||'',apellido:f0.apellido||p0.apellido||'',
+        producto:'POST VENTA · '+prod0,semana:semana,tipo:'DEVOLUCION',total:0,val_prod:0,val_envio:0,abono1:0,abono2:0,abono3:0,
+        celular:f0.celular||'',email:f0.email||'',rut:f0.rut||'',direccion:f0.direccion||'',comuna:f0.comuna||'',ciudad:f0.ciudad||'',pedido_origen:origen};
+      await api('finanzas/'+num,'PUT',finRec);finRecords.push(finRec);
+      var costRec={num:num,semana:semana,nombre:finRec.nombre,apellido:finRec.apellido,producto:finRec.producto,venta_total:0,
+        canal:'POST VENTA',fecha:todayStr,lineas:c.accion==='rehacer'?_lineasEstandar(lineas):[]};
+      await api('costos/'+num,'PUT',costRec);costRecords.push(costRec);
+    }
+    await sbUpdate('postventa',c.id,{pedido_trabajo:num,actualizado:new Date().toISOString(),historial:_pvHist(c,'Creó el trabajo #'+num+' en Producción ('+semana.toLowerCase()+')')});
+    logHistorial(origen,'Post venta caso '+c.id+': trabajo #'+num+' creado en Producción');
+    logHistorial(num,'Trabajo de post venta del pedido #'+origen+' (caso '+c.id+')');
+    renderProd();renderSeg();try{renderFin();renderCost();}catch(e){}
+    await loadPostventa();
+    showToast('✓ Trabajo #'+num+' creado en Producción, '+semana.toLowerCase());
+  }catch(e){showToast('No se pudo crear el trabajo: '+e.message,true);}
+}
+document.getElementById('modal-pv-bg').addEventListener('click',function(e){if(e.target===this)cerrarCasoPV();});
+
 // ── VOLVER A LA MISMA SECCIÓN AL RECARGAR ──
 // Recargar estando en Finanzas botaba siempre al dashboard y había que navegar
 // de vuelta. Se restaura la última sección guardada por showPage(), con dos
