@@ -24,8 +24,13 @@
 // Llamadas (POST, JSON):
 //   { accion: 'destinos' }
 //     → { ciudades: [{ codigo, nombre, region, comunas: ['…'] }] }
+//   { accion: 'tarifa', destino: <codigoCiudad>, kilos: <kg> }
+//     Cotiza SOLO POR PESO, como el plugin de Starken en la web (Shopify): manda un cubo de
+//     2.500 cm³ por kilo en vez de las medidas reales. Así una mesa con base sale al mismo
+//     precio que en casazaru.cl, y Starken factura ese valor en la cuenta de la web.
 //   { accion: 'tarifa', destino: <codigoCiudad>, bultos: [{ largo, ancho, alto, kilos }] }
-//     → { origen, destino, conCuentaCorriente, bulto: { largo, ancho, alto, kilos },
+//     Con las medidas reales (peso volumétrico incluido), por si algún día hace falta.
+//     → { origen, destino, conCuentaCorriente, bulto: { largo, ancho, alto, kilos, modo },
 //         tarifas: [{ entrega, servicio, total, dias }] }   (tarifas vacío = sin cobertura)
 // Errores: { error } con 400 (datos), 422 (Starken rechazó la consulta), 429 (límite por IP),
 // 500 (configuración), 502/504 (Starken caído).
@@ -43,17 +48,22 @@ function secreto(nombre: string) {
 const BASE = (secreto('STARKEN_BASE') || 'https://restservices.starken.cl/apiprd/starkenservices/rest/').replace(/\/?$/, '/');
 const ORIGEN = Number(secreto('STARKEN_ORIGEN') || 103);
 const ORIGEN_NOMBRE = (secreto('STARKEN_ORIGEN_NOMBRE') || 'VILLARRICA').toUpperCase();
+// Cómo cotiza la web: el plugin de Shopify manda un cubo de ~2.500 cm³ por kilo (verificado el
+// 17-10-2026: 43 kg → cubo de 47,5 cm → $38.480, lo mismo que cobró el checkout y facturó
+// Starken). Con ese cubo el peso volumétrico nunca supera al real: se cotiza solo por kilos.
+const CM3_POR_KG = 2500;
 
-const ORIGENES_PERMITIDOS = [
-  'https://cotizador.casazaru.cl',
-  'http://localhost:5550', // perfil «Cotizador» de .claude/launch.json
-  'http://127.0.0.1:5550',
-];
+const ORIGEN_PUBLICO = 'https://cotizador.casazaru.cl';
+// Además del sitio, cualquier puerto de localhost: los perfiles de .claude/launch.json
+// (5550 el cotizador, 5560 la vista previa segura de .claude/video) sirven en puertos distintos.
+function origenPermitido(origen: string) {
+  return origen === ORIGEN_PUBLICO || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origen);
+}
 
 function cors(req: Request) {
   const origen = req.headers.get('origin') || '';
   return {
-    'Access-Control-Allow-Origin': ORIGENES_PERMITIDOS.includes(origen) ? origen : ORIGENES_PERMITIDOS[0],
+    'Access-Control-Allow-Origin': origenPermitido(origen) ? origen : ORIGEN_PUBLICO,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Vary': 'Origin',
@@ -165,13 +175,20 @@ function juntarBultos(bultos: any[]) {
     kilos += numeroPositivo(b.kilos, 2000, 'kilos del bulto ' + (i + 1));
   });
   const r2 = (x: number) => Math.round(x * 100) / 100;
-  return { largo: r2(largo), ancho: r2(ancho), alto: r2(alto), kilos: r2(kilos) };
+  return { largo: r2(largo), ancho: r2(ancho), alto: r2(alto), kilos: r2(kilos), modo: 'medidas' };
+}
+
+// Un cubo con el volumen que Starken "perdona" para ese peso: la cotización queda por kilos.
+function cuboPorPeso(kilos: any) {
+  const kg = numeroPositivo(kilos, 5000, 'kilos');
+  const lado = Math.round(Math.cbrt(kg * CM3_POR_KG) * 10) / 10;
+  return { largo: lado, ancho: lado, alto: lado, kilos: Math.round(kg * 100) / 100, modo: 'peso' };
 }
 
 async function tarifa(body: any) {
   const destino = Number(body.destino);
   if (!Number.isInteger(destino) || destino <= 0) throw new ErrorPublico('Falta la ciudad de destino', 400);
-  const bulto = juntarBultos(body.bultos);
+  const bulto = (body.kilos !== undefined && body.bultos === undefined) ? cuboPorPeso(body.kilos) : juntarBultos(body.bultos);
 
   const cta = secreto('STARKEN_CTA');
   const ctaDv = secreto('STARKEN_CTA_DV');
