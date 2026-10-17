@@ -1,9 +1,29 @@
 ---
 name: cierre-mensual
-description: Cierre mensual de Casa Zaru con números de gerente de finanzas — arma el libro Excel de 14 hojas (resumen y estado de resultados, caja, ventas, por cobrar y pagar, madera, bencina, sueldos y fijos, marketing y CAC, ferias, cotizador, facturas recibidas y emitidas, IVA, deudas). Actívala cuando el usuario pida "cierre mensual", "cierre de <mes>", "libro del mes", "estado de resultados", "cuánto ganamos/perdimos" o "el Excel del cierre".
+description: Cierre mensual y semanal de Casa Zaru con números de gerente de finanzas — libro Excel de 18 hojas (resumen con semáforo, historial mes a mes, madera, Starken, gastos fijos, caja, ventas, por cobrar y pagar, sueldos, bencina, marketing y CAC, ferias, cotizador, facturas recibidas y emitidas, IVA, deudas) y el tablero HTML en Drive. Actívala cuando el usuario pida "cierre mensual", "cierre de <mes>", "cierre de la semana", "libro del mes", "tablero", "estado de resultados", "cuánto ganamos/perdimos", "en qué estamos fallando" o "el Excel del cierre".
 ---
 
-# Cierre mensual — libro Excel
+# Cierre mensual — libro Excel y tablero
+
+**Método (acordado el 15 y 17-10-2026), en tres niveles:**
+1. **Solo, todos los días:** Gestión (respaldo 03:00), facturas de Wasabil (tarea 08:03) y cotizador.
+2. **Lunes 10:15, tarea "CasaZaru - Tablero Semanal"** (`correr-tablero.ps1` → `libro-mensual.ps1` del mes en
+   curso): el usuario baja antes a Descargas la cartola BCI completa, la de Banco de Chile y el reporte de
+   liquidaciones de Mercado Pago (`settlement_v2-*.xlsx`); el script elige la cartola que mejor cubre el mes, clasifica
+   con `reglas-cierre.csv`, manda lo menor a $20.000 a "Otros gastos", y deja en Drive el libro del mes y
+   `Tablero Casa Zaru.html`. Claude corre la conciliación (skill `conciliacion`) y deja máximo 3 preguntas con respuesta
+   propuesta. Cada respuesta se convierte en regla para que no vuelva a preguntarse.
+3. **Día 2, tarea "CasaZaru - Cierre Mensual Gestion"** (`correr-cierre.ps1`): PDF + libro + tablero del mes cerrado.
+   Al usuario se le dan tres cifras: resultado, caja y por cobrar.
+
+**Para bancos o inversionistas:** hoja Resumen (números, semáforo, estado de resultados) + hoja Historial (mes a mes,
+se acumula sola en `Casa Zaru Planillas\historial-mensual.csv`) + el tablero. La hoja Sueldos es confidencial: sacarla.
+**Qué está fallando:** el semáforo del Resumen y del tablero, con umbrales en `Casa Zaru Planillas\metas.csv`
+(meta de venta, margen mínimo, publicidad máxima, por cobrar máximo, meses de caja).
+
+**El Excel no se rellena a mano** (se regenera solo y se perdería): lo que el usuario decide va a los archivos privados
+de `Casa Zaru Planillas`: `reglas-cierre.csv` (clasificación), `ferias.csv`, `creditos.csv`, `por-pagar-manual.csv`,
+`metas.csv`. Claude los edita con la respuesta del usuario (manteniendo la marca UTF-8).
 
 > **Desde el 15-10-2026 el cierre se hace de a poco, los lunes**, para que fin de mes no sea un atracón.
 > El usuario solo baja la cartola BCI (completa, no "solo ingresos") y el movimiento de Mercado Pago.

@@ -8,10 +8,22 @@
       "port": 5500
     },
     {
+      "name": "Informes Gestion",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5650", "-Root", "G:\\Mi unidad\\Casa Zaru\\Informes Gestion"],
+      "port": 5650
+    },
+    {
       "name": "Cotizador",
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5550", "-Root", "C:\\Users\\dell\\Cotizador"],
       "port": 5550
+    },
+    {
+      "name": "Video cotizador",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5560", "-Root", "C:\\Users\\dell\\Casa Zaru - Claude\\.claude\\video"],
+      "port": 5560
     },
     {
       "name": "Maqueta finanzas",

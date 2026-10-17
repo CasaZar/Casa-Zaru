@@ -98,12 +98,14 @@ function Despacho($v) {
 }
 $desp = @($ventasTodas | ForEach-Object { $d = Despacho $_; if ($d -and (EnMes $d.fecha)) {
   [pscustomobject]@{ num = $_.num; cliente = $_.cliente; venta = $_.fecha; salida = $d.fecha; estimada = $d.estimada; envio = (Neto $_.envio) } } } | Sort-Object salida)
+$sinDia = @()
 foreach ($v in @($ventasTodas | Where-Object { $_.envio -gt 0 -and $_.fecha -and $_.fecha -ge $iniMes.AddMonths(-2) -and $_.fecha -le $finMes })) {
   $d = Despacho $v
   if (-not $d) { Aviso "Venta #$($v.num) ($($v.cliente)) cobró $(Plata $v.envio) de envío pero no tiene día de envío ni semana: no entra en la hoja Starken." }
-  elseif ($d.estimada -and $cambioFecha["$($v.num)"] -and $d.fecha -ge $iniMes.AddMonths(-1) -and $d.fecha -le $finMes.AddMonths(1)) {
-    Aviso "Venta #$($v.num) ($($v.cliente)): sin día de envío y con cambio de fecha avisado. Se estimó la salida el $($d.fecha.ToString('dd-MM')) por su semana, pero puede haber salido después: cargar el día real en Seguimiento para que sus $(Plata $v.envio) de envío caigan en el mes correcto de la hoja Starken." }
+  elseif ($d.estimada -and $cambioFecha["$($v.num)"] -and $d.fecha -ge $iniMes.AddMonths(-1) -and $d.fecha -le $finMes.AddMonths(1)) { $sinDia += "#$($v.num) $($v.cliente) ($(Plata $v.envio))" }
 }
+# Un solo aviso para todos: son el mismo problema y la misma acción.
+if ($sinDia.Count) { Aviso "$($sinDia.Count) ventas con cambio de fecha y sin día de envío cargado: $($sinDia -join ', '). Su envío se estimó por la semana; cargar el día real en Seguimiento para que caiga en el mes correcto de la hoja Starken." }
 
 # m² vendidos en el mes (líneas de producción de las ventas del mes)
 $m2Mes = 0.0
@@ -198,7 +200,9 @@ $cBdc = MejorCartola 'cartola*.xls' ${function:FilasBdc}
 foreach ($c in @(@('BCI 7175', $cBci, 'egr'), @('Banco de Chile', $cBdc, 'cargo'))) {
   if (-not $c[1].archivo) { Aviso "Falta la cartola de $($c[0]) de $mesNom en Descargas: la caja y los pagos sin factura quedan incompletos."; continue }
   $fs = @($c[1].filas | ForEach-Object { $_.fecha }); $min = ($fs | Measure-Object -Minimum).Minimum; $max = ($fs | Measure-Object -Maximum).Maximum
-  if ($min -gt $iniMes.AddDays(6) -or $max -lt $finMes.AddDays(-6)) { Aviso "La cartola de $($c[0]) ($($c[1].archivo.Name)) cubre solo del $($min.ToString('dd-MM')) al $($max.ToString('dd-MM')): faltan días del mes." }
+  # En un mes en curso es normal que la cartola termine antes del 30: solo se avisa si le faltan días al principio o, en un mes cerrado, al final.
+  $mesCerrado = ($finMes -lt (Get-Date).Date)
+  if ($min -gt $iniMes.AddDays(6) -or ($mesCerrado -and $max -lt $finMes.AddDays(-6))) { Aviso "La cartola de $($c[0]) ($($c[1].archivo.Name)) cubre solo del $($min.ToString('dd-MM')) al $($max.ToString('dd-MM')): faltan días del mes." }
   if (-not (Suma $c[1].filas $c[2])) { Aviso "La cartola de $($c[0]) ($($c[1].archivo.Name)) no trae egresos: parece un export de solo ingresos." }
 }
 
@@ -311,7 +315,10 @@ $ivaMes = $debito + $ivaFeria - $credito
 
 # ═════════════════════════════ AVISOS ═════════════════════════════
 # Boletas repetidas: mismo cliente, mismo monto, mismo día, sin nota de crédito que la anule
-$nc = @($emit | Where-Object { $_.tipo -match 'cr.dito' })
+# Las notas de crédito pueden salir el mes siguiente (la de Buneder, del 25-09, salió el 06-10): se miran también ahí.
+$tagSig = $iniMes.AddMonths(1).ToString('yyyy-MM')
+$ncExtra = @(LeerCsv (Join-Path $CZ "emitidas-$tagSig.csv") | Where-Object { "$($_.tipo)" -match 'cr.dito' } | ForEach-Object { [pscustomobject]@{ rut = $_.rut; total = (N $_.total) } })
+$nc = @($emit | Where-Object { $_.tipo -match 'cr.dito' }) + $ncExtra
 foreach ($g in @($emit | Where-Object { $_.tipo -eq 'Boleta' -and $_.rut } | Group-Object rut, total, fecha | Where-Object { $_.Count -gt 1 })) {
   $b = $g.Group[0]; $anuladas = @($nc | Where-Object { $_.rut -eq $b.rut -and $_.total -eq -$b.total }).Count
   if ($g.Count - $anuladas -gt 1) { Aviso "Boletas repetidas a $($b.cliente): folios $((@($g.Group | ForEach-Object folio)) -join ' y ') por $(Plata $b.total) cada una, el $($b.fecha.ToString('dd-MM')). Revisar y anular la que sobra con nota de crédito." }
@@ -346,6 +353,60 @@ foreach ($v in $vMes) {
   if (-not $v.web -and $v.total -gt 0 -and [math]::Abs($v.total - $v.vp - $v.envio) -gt 1000) { Aviso "Venta #$($v.num) ($($v.cliente)): total $(Plata $v.total) no cuadra con valor producto $(Plata $v.vp) + envío $(Plata $v.envio). Cambia la comisión de César." }
   if ($v.vendedor -eq '(sin asignar)') { Aviso "Venta #$($v.num) ($($v.cliente)) sin vendedor." }
 }
+
+# ═════════════════════════════ INDICADORES, SEMÁFORO E HISTORIAL ═════════════════════════════
+$metas = @{ VentaNetaMes = 0; MargenBrutoMin = 0.55; CACMaxPct = 0.10; PorCobrarMaxPct = 0.25; MesesCajaMin = 1 }
+foreach ($m in LeerCsv (Join-Path $PLAN 'metas.csv')) { if ("$($m.Indicador)") { $metas["$($m.Indicador)"] = [double]::Parse("$($m.Valor)".Replace(',', '.'), $INV) } }
+$cajaFin = Suma $caja 'final'
+$porCobrar = Suma $cobrar 'saldo'
+$cac = if ($vMes.Count) { $ads / $vMes.Count } else { 0 }
+$ticket = if ($vMes.Count) { (Suma $vMes 'total') / $vMes.Count } else { 0 }
+$tFijosTot = $tFijo + $tFin
+$maderaTot = Suma @($todo | Where-Object { $_.categoria -eq 'Madera (proveedores)' }) 'neto'
+$pctMB = if ($ventaNeta) { $margenBruto / $ventaNeta } else { 0 }
+# Documentos pendientes de emitir según Gestión (pago marcado sin su boleta o factura)
+$pend = @()
+foreach ($r in ($ventasTodas | Where-Object { -not $_.web -and $_.fecha -and $_.fecha -le $finMes })) {
+  if ($r.a1 -gt 0 -and -not $r.d1) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 1', $r.tipoDoc, $r.a1) }
+  if ($r.a23 -gt 0 -and -not $r.d2) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 2', $r.tipoDoc, $r.a23) }
+}
+$pendTot = 0; foreach ($p in $pend) { $pendTot += $p[4] }
+$porClasTot = Suma @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' }) 'neto'
+$sinFactTot = Suma @($sinFactura | Where-Object { $_.seccion -eq 'costo' -and $_.sub -ne 'Rendición taller' }) 'neto'
+$hoy = (Get-Date).Date
+$esFinal = ($finMes -lt $hoy)
+$datosAl = if ($esFinal) { $finMes } elseif ($cBci.filas.Count) { ($cBci.filas | ForEach-Object { $_.fecha } | Measure-Object -Maximum).Maximum } else { $hoy }
+$estadoMes = if ($esFinal) { 'final' } else { "parcial (datos al $($datosAl.ToString('dd-MM')))" }
+if ($esFinal -and (-not $mp.Count -or -not $meta)) { $estadoMes = 'parcial (faltan ' + ((@($(if (-not $mp.Count) { 'Mercado Pago' }), $(if (-not $meta) { 'gasto real de Meta' })) | Where-Object { $_ }) -join ' y ') + ')' }
+
+# Semáforo: cada línea dice qué pasa y qué hacer. Los umbrales viven en metas.csv.
+$semaforo = New-Object System.Collections.ArrayList
+function Luz($nombre, $estado, $valor, $accion) { [void]$semaforo.Add([pscustomobject]@{ nombre = $nombre; estado = $estado; icono = @{ bien = '✓'; ojo = '!'; mal = '✗' }[$estado]; valor = $valor; accion = $accion }) }
+if ($metas.VentaNetaMes -gt 0) {
+  $pctMeta = $ventaNeta / $metas.VentaNetaMes
+  Luz 'Venta frente a la meta' $(if ($pctMeta -ge 1) { 'bien' } elseif ($pctMeta -ge 0.8) { 'ojo' } else { 'mal' }) "$(Plata $ventaNeta) de $(Plata $metas.VentaNetaMes) ($([math]::Round($pctMeta * 100)) %)" $(if ($pctMeta -ge 1) { 'Meta cumplida.' } else { "Faltan $(Plata ($metas.VentaNetaMes - $ventaNeta)) para la meta$(if (-not $esFinal) { ' (mes en curso)' })." })
+}
+Luz 'Margen bruto' $(if ($pctMB -ge $metas.MargenBrutoMin) { 'bien' } elseif ($pctMB -ge $metas.MargenBrutoMin - 0.1) { 'ojo' } else { 'mal' }) "$([math]::Round($pctMB * 100)) % de la venta (mínimo $([math]::Round($metas.MargenBrutoMin * 100)) %)" $(if ($pctMB -ge $metas.MargenBrutoMin) { 'Los materiales están bajo control.' } else { 'Revisar precio de la madera por m² y los descuentos.' })
+Luz 'Gastos fijos cubiertos' $(if ($contrib -ge $tFijosTot) { 'bien' } elseif ($contrib -ge $tFijosTot * 0.7) { 'ojo' } else { 'mal' }) "cada venta deja $(Plata $contrib) y los fijos son $(Plata $tFijosTot)" $(if ($contrib -ge $tFijosTot) { 'El mes se paga solo.' } else { "Faltaron $(Plata ($tFijosTot - $contrib)) de margen: vender más o bajar fijos." })
+$pctAds = if ($ventaNeta) { $ads / $ventaNeta } else { 0 }
+Luz 'Publicidad' $(if ($pctAds -le $metas.CACMaxPct) { 'bien' } elseif ($pctAds -le $metas.CACMaxPct * 1.5) { 'ojo' } else { 'mal' }) "$([math]::Round($pctAds * 100)) % de la venta, $(Plata $cac) por pedido" $(if ($pctAds -le $metas.CACMaxPct) { 'Dentro del máximo.' } else { 'Supera el máximo: revisar campañas que no convierten.' })
+$pctCobrar = if ($ventaNeta) { $porCobrar / $ventaNeta } else { 0 }
+Luz 'Plata por cobrar' $(if ($pctCobrar -le $metas.PorCobrarMaxPct) { 'bien' } elseif ($pctCobrar -le $metas.PorCobrarMaxPct * 1.5) { 'ojo' } else { 'mal' }) "$(Plata $porCobrar) en $($cobrar.Count) pedidos" $(if ($cobrar.Count) { 'Cobrar antes de despachar; los más viejos primero.' } else { 'Nada pendiente.' })
+$mesesCaja = if ($tFijosTot) { $cajaFin / $tFijosTot } else { 0 }
+Luz 'Caja' $(if ($mesesCaja -ge $metas.MesesCajaMin) { 'bien' } elseif ($mesesCaja -ge $metas.MesesCajaMin / 2) { 'ojo' } else { 'mal' }) "$(Plata $cajaFin), alcanza para $($mesesCaja.ToString('N1', $cl)) meses de gastos fijos" $(if ($mesesCaja -ge $metas.MesesCajaMin) { 'Colchón suficiente.' } else { 'Colchón corto: cuidar los pagos grandes y cobrar lo pendiente.' })
+$ordenCount = $pend.Count + @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' }).Count
+Luz 'Orden administrativo' $(if ($ordenCount -eq 0 -and $sinFactTot -lt 300000) { 'bien' } elseif ($ordenCount -le 5) { 'ojo' } else { 'mal' }) "$($pend.Count) documentos sin emitir ($(Plata $pendTot)), $(Plata $porClasTot) sin clasificar, $(Plata $sinFactTot) comprado sin factura" $(if ($ordenCount -eq 0) { 'Todo al día.' } else { 'Emitir lo pendiente y pedir factura a los proveedores.' })
+
+# Historial: una fila por mes, se reescribe la del mes que se está generando.
+$histPath = Join-Path $PLAN 'historial-mensual.csv'
+$esReal = ($Salida -eq 'G:\Mi unidad\Casa Zaru\Informes Gestion')
+function FilaHist($r) { [pscustomobject]@{ Mes = "$($r.Mes)"; Estado = "$($r.Estado)"; VentaNeta = (N $r.VentaNeta); Pedidos = (N $r.Pedidos); Ticket = (N $r.Ticket); MargenBruto = (N $r.MargenBruto); Contribucion = (N $r.Contribucion); GastosFijos = (N $r.GastosFijos); Resultado = (N $r.Resultado); Caja = (N $r.Caja); PorCobrar = (N $r.PorCobrar); CAC = (N $r.CAC); Publicidad = (N $r.Publicidad); Madera = (N $r.Madera); Generado = "$($r.Generado)" } }
+$hist = @(LeerCsv $histPath | Where-Object { "$($_.Mes)" -ne $tag } | ForEach-Object { FilaHist $_ })
+$filaMes = [pscustomobject]@{ Mes = $tag; Estado = $estadoMes; VentaNeta = [math]::Round($ventaNeta); Pedidos = $vMes.Count; Ticket = [math]::Round($ticket); MargenBruto = [math]::Round($margenBruto); Contribucion = [math]::Round($contrib); GastosFijos = [math]::Round($tFijosTot); Resultado = [math]::Round($resultado); Caja = [math]::Round($cajaFin); PorCobrar = [math]::Round($porCobrar); CAC = [math]::Round($cac); Publicidad = [math]::Round($ads); Madera = [math]::Round($maderaTot); Generado = (Get-Date).ToString('yyyy-MM-dd HH:mm') }
+$histTodo = @(@($hist) + @($filaMes) | Sort-Object Mes)
+if ($esReal) { $histTodo | Export-Csv $histPath -Delimiter ';' -NoTypeInformation -Encoding UTF8 }
+$tagAnt = $iniMes.AddMonths(-1).ToString('yyyy-MM')
+$ant = $histTodo | Where-Object { $_.Mes -eq $tagAnt } | Select-Object -First 1
 
 # ═════════════════════════════ EXCEL ═════════════════════════════
 function X($s) { [Security.SecurityElement]::Escape("$s") }
@@ -466,18 +527,33 @@ $gen = (Get-Date).ToString('dd-MM-yyyy HH:mm')
 
 # ── 1. Resumen ──
 $f = New-Object System.Collections.ArrayList
-Titulo $f "Casa Zaru — Cierre de $mesNom $($iniMes.Year)" "Montos sin IVA. Generado $gen. Fuentes: Gestión, planilla de gastos Wasabil, cartolas BCI y Banco de Chile, Mercado Pago, Wasabil y Meta."
+Titulo $f "Casa Zaru — Cierre de $mesNom $($iniMes.Year) ($estadoMes)" "Montos sin IVA. Generado $gen. Fuentes: Gestión, planilla de gastos Wasabil, cartolas BCI y Banco de Chile, Mercado Pago, Wasabil y Meta. Este archivo se genera solo: lo que haya que corregir se corrige en Gestión, en la planilla de gastos o en las reglas, no acá."
 Sub $f 'Los números del mes'
-$cajaFin = Suma $caja 'final'
+[void]$f.Add(@((C 'Indicador' 1), (C 'Este mes' 1), (C 'Mes anterior' 1), (C 'De dónde sale' 1)))
+function Ant($campo) { if ($ant) { $ant.$campo } else { '' } }
 $kp = @(
-  @('Venta neta del mes', $ventaNeta, "$($vMes.Count) pedidos + $($ventasML.Count) Mercado Libre + $($ventasFeria.Count) ventas de feria"),
-  @('Margen bruto', $margenBruto, 'venta − materiales'),
-  @('Resultado del mes', $resultado, 'después de todos los gastos del mes'),
-  @('Caja total al cierre', $cajaFin, 'BCI + Banco de Chile + Mercado Pago'),
-  @('Costo de adquisición por venta (CAC)', $(if ($vMes.Count) { [math]::Round($ads / $vMes.Count) } else { 0 }), 'Meta + Google ÷ pedidos del mes'),
-  @('Madera por m² vendido', $(if ($m2Mes -gt 0) { [math]::Round((Suma @($todo | Where-Object { $_.categoria -eq 'Madera (proveedores)' }) 'neto') / $m2Mes) } else { 0 }), "$($m2Mes.ToString('N1', $cl)) m² vendidos")
+  @('Venta neta', $ventaNeta, (Ant 'VentaNeta'), "$($vMes.Count) pedidos + $($ventasML.Count) Mercado Libre + $($ventasFeria.Count) ventas de feria"),
+  @('Margen bruto', $margenBruto, (Ant 'MargenBruto'), "venta − materiales ($([math]::Round($pctMB * 100)) % de la venta)"),
+  @('Resultado del mes', $resultado, (Ant 'Resultado'), 'después de todos los gastos del mes'),
+  @('Caja al cierre', $cajaFin, (Ant 'Caja'), 'BCI + Banco de Chile + Mercado Pago'),
+  @('Por cobrar', $porCobrar, (Ant 'PorCobrar'), "$($cobrar.Count) pedidos con saldo"),
+  @('Publicidad por pedido (CAC)', [math]::Round($cac), (Ant 'CAC'), 'Meta + Google ÷ pedidos del mes'),
+  @('Madera por m² vendido', $(if ($m2Mes -gt 0) { [math]::Round($maderaTot / $m2Mes) } else { 0 }), '', "$($m2Mes.ToString('N1', $cl)) m² vendidos")
 )
-foreach ($k in $kp) { [void]$f.Add(@((C $k[0] 11), (C $k[1] 13), (C $k[2] 6))) }
+foreach ($k in $kp) { [void]$f.Add(@((C $k[0] 11), (C $k[1] 13), (C $k[2] 2), (C $k[3] 6))) }
+[void]$f.Add(@())
+Sub $f 'Semáforo: dónde estamos bien y dónde fallamos'
+foreach ($s in $semaforo) { [void]$f.Add(@((C "$($s.icono)  $($s.nombre)" 11), (C $s.estado.ToUpper() 6), (C $s.valor 6), (C $s.accion 6))) }
+Nota $f 'Los umbrales (meta de venta, margen mínimo, publicidad máxima, por cobrar, meses de caja) están en metas.csv.'
+[void]$f.Add(@())
+Sub $f 'Qué falta para cerrar el mes'
+$falta = @()
+if ($pend.Count) { $falta += "Emitir $($pend.Count) documentos por $(Plata $pendTot) (hoja Facturas emitidas, al final)." }
+if ($cobrar.Count) { $falta += "Cobrar $(Plata $porCobrar) de $($cobrar.Count) pedidos (hoja Por cobrar y pagar)." }
+if ($porClasTot) { $falta += "Clasificar $(Plata $porClasTot) de gastos sin categoría (hoja Facturas recibidas)." }
+if (-not $esFinal) { $falta += "El mes sigue abierto: faltan los movimientos desde el $($datosAl.AddDays(1).ToString('dd-MM'))." }
+if (-not $falta.Count) { $falta += 'Nada: el mes está cerrado.' }
+foreach ($x in $falta) { [void]$f.Add(@(C "• $x")) }
 [void]$f.Add(@())
 Sub $f 'Estado de resultados'
 [void]$f.Add(@((C 'Concepto' 1), (C 'Monto' 1), (C '% venta' 1), (C 'De dónde sale' 1)))
@@ -518,7 +594,7 @@ if ($activo) { Nota $f "Además llegaron facturas de activos por $(Plata $activo
 [void]$f.Add(@())
 Sub $f "Para revisar antes de cerrar ($($avisos.Count))"
 foreach ($t in $avisos) { [void]$f.Add(@(C "• $t" 10)) }
-Hoja 'Resumen' $f @(48, 16, 10, 60)
+Hoja 'Resumen' $f @(48, 16, 16, 70)
 
 # ── 2. Caja ──
 $f = New-Object System.Collections.ArrayList
@@ -734,11 +810,6 @@ Titulo $f "Documentos emitidos — $mesNom" 'Según Wasabil (incluye las boletas
 Tabla $f @('Fecha', 'Tipo', 'Folio', 'Cliente', 'RUT', 'Origen', 'Neto', 'IVA', 'Total') @($emit | ForEach-Object { ,@($_.fecha, $_.tipo, $_.folio, $_.cliente, $_.rut, $_.plataforma, $_.neto, $_.iva, $_.total) }) @(6, 7, 8)
 Sub $f 'Por tipo'
 Tabla $f @('Tipo', 'Cantidad', 'Neto', 'IVA', 'Total') @($emit | Group-Object tipo | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'neto'), (Suma $_.Group 'iva'), (Suma $_.Group 'total')) }) @(1, 2, 3, 4)
-$pend = @()
-foreach ($r in ($ventasTodas | Where-Object { -not $_.web -and $_.fecha -and $_.fecha -le $finMes })) {
-  if ($r.a1 -gt 0 -and -not $r.d1) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 1', $r.tipoDoc, $r.a1) }
-  if ($r.a23 -gt 0 -and -not $r.d2) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 2', $r.tipoDoc, $r.a23) }
-}
 Sub $f 'Pendientes de emitir según Gestión'
 Tabla $f @('N°', 'Cliente', 'Documento', 'Tipo', 'Monto') $pend @(4)
 Hoja 'Facturas emitidas' $f @(11, 16, 9, 40, 14, 14, 13, 12, 13) 0
@@ -771,12 +842,20 @@ if ($fd.Count) {
 }
 Hoja 'Deudas e inversiones' $f @(30, 11, 34, 30, 14, 16, 16)
 
+# ── Historial ──
+$f = New-Object System.Collections.ArrayList
+Titulo $f 'Historial mes a mes' 'Se actualiza solo cada vez que se genera el libro de un mes. Montos sin IVA. "parcial" = el mes todavía no terminó o le faltan insumos.'
+Tabla $f @('Mes', 'Estado', 'Venta neta', 'Pedidos', 'Ticket promedio', 'Margen bruto', '% margen', 'Gastos fijos', 'Resultado', 'Caja', 'Por cobrar', 'CAC', 'Publicidad', 'Madera') @($histTodo | ForEach-Object {
+  ,@($_.Mes, $_.Estado, $_.VentaNeta, (C $_.Pedidos 7), $_.Ticket, $_.MargenBruto, (C $(if ($_.VentaNeta) { $_.MargenBruto / $_.VentaNeta } else { 0 }) 4), $_.GastosFijos, $_.Resultado, $_.Caja, $_.PorCobrar, $_.CAC, $_.Publicidad, $_.Madera) })
+Nota $f 'Para un banco o un inversionista: esta hoja y el Resumen. La hoja Sueldos es confidencial, sacarla antes de compartir el archivo.'
+Hoja 'Historial' $f @(10, 10, 14, 9, 14, 14, 10, 14, 14, 14, 14, 12, 13, 13)
+
 # Para auditar: $env:LIBRO_DEBUG = 'C:\ruta\movimientos.csv' deja cada gasto con su categoría y sección
 if ($env:LIBRO_DEBUG) { $todo | Select-Object fuente, fecha, proveedor, categoria, sub, seccion, neto, detalle | Export-Csv $env:LIBRO_DEBUG -Delimiter ';' -NoTypeInformation -Encoding UTF8 }
 
 # ═════════════════════════════ GUARDAR ═════════════════════════════
 # Orden de las hojas: primero lo que más mueve plata.
-$ORDEN = @('Resumen', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
+$ORDEN = @('Resumen', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
 $ordenadas = @($hojas | Sort-Object { $i = [array]::IndexOf($ORDEN, $_.nombre); if ($i -lt 0) { 99 } else { $i } })
 $hojas.Clear(); foreach ($h in $ordenadas) { [void]$hojas.Add($h) }
 
@@ -784,4 +863,9 @@ New-Item -ItemType Directory -Force $Salida | Out-Null
 $ruta = Join-Path $Salida "Libro mensual Casa Zaru $tag.xlsx"
 GuardarXlsx $ruta
 "Libro: $ruta"
+# Tablero HTML al lado del libro (mismo nombre siempre: se abre desde Drive y muestra el último mes generado)
+. (Join-Path $PSScriptRoot 'tablero.ps1')
+$rutaTab = Join-Path $Salida 'Tablero Casa Zaru.html'
+Tablero $rutaTab
+"Tablero: $rutaTab"
 "$mesNom $($iniMes.Year): venta neta $(Plata $ventaNeta) | margen bruto $(Plata $margenBruto) | contribución $(Plata $contrib) | resultado $(Plata $resultado) | caja $(Plata $cajaFin) | avisos $($avisos.Count)"

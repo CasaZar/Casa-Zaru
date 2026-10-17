@@ -5,6 +5,8 @@ New-Item -ItemType Directory -Force (Split-Path $log) | Out-Null
 Start-Transcript -Path $log -Force | Out-Null
 try {
   & (Join-Path $PSScriptRoot 'cierre-mensual.ps1')
+  # Libro Excel y tablero del mes que acaba de cerrar (día 2 → mes anterior)
+  & (Join-Path $PSScriptRoot 'libro-mensual.ps1') -Mes (Get-Date).AddMonths(-1).ToString('yyyy-MM')
 } catch {
   Write-Output "ERROR: $($_.Exception.Message)"
   $code = 1
