@@ -9,3 +9,12 @@ nunca en el de Gestión. Lo de `../supabase/` es de Gestión (`padnttpgzuotxeipj
   `schema_migrations` y no los aplica `supabase db push`.
 - Un archivo nuevo para este proyecto va acá y lleva el mismo candado (copiarlo de cualquier
   archivo de la carpeta).
+
+## Edge Functions (`functions/`)
+
+Las funciones de servidor de este proyecto. No hay CLI en el PC, así que se despliegan desde el
+panel (Edge Functions → Deploy a new function → Via Editor); el encabezado de cada `index.ts`
+dice el nombre, los secretos que necesita y si hay que apagar «Verify JWT». Los secretos se cargan
+en el panel y **nunca** se escriben en estos archivos: el repo es público.
+
+- `starken-tarifa` — precio del despacho con la API de Cotización de Starken.
