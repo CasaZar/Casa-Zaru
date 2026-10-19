@@ -47,10 +47,13 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
   **Validar**: saldo inicial + movimientos − comisiones = saldo final, y las comisiones = las del PDF.
 - **Gasto real de Meta** del mes (reporte mensual de anuncios) → `meta-AAAA-MM.json`
   `{mes, gasto, fuente}`. Las facturas de Meta en Wasabil cubren solo una parte: no usarlas como gasto.
-  **Meta y Google se pagan con la tarjeta de Mercado Pago** (19-10): los "Pago" del estado de cuenta de MP
-  son la publicidad. Si falta el json, el script estima Meta = pagos de MP − Google facturado y lo dice.
-- **Liquidaciones de Mercado Pago**: el script las lee directo de Descargas (`settlement_v2-1038334230-*.xlsx`,
-  ese número es la cuenta de Casa Zaru; hay settlements de otros negocios). Ya no hace falta `mp-AAAA-MM-canal.csv`.
+  **La tarjeta prepago de Mercado Pago paga Facebook, Claude, Manychat, bencina, cursos y compras en Mercado
+  Libre** (19-10). Ni el estado de cuenta ni las liquidaciones traen el nombre del comercio: pedir al usuario
+  capturas de la actividad en la web de Mercado Pago y transcribirlas a `~/.casazaru/mp-nombres.csv`
+  (Fecha;Monto;Nombre;Fuente). Con eso el script clasifica cada pago con las reglas y toma Facebook como gasto
+  real de Meta si falta el json. Sin nombre, el pago queda en una bolsa y sale un aviso.
+- **Liquidaciones de Mercado Pago**: el script las lee directo de Descargas (`settlement_v2-1038334230-*`, xlsx o
+  csv; ese número es la cuenta de Casa Zaru, hay settlements de otros negocios). Ya no hace falta `mp-AAAA-MM-canal.csv`.
 - **Ajustes manuales** (`ajustes.csv`: Fecha;Concepto;Monto;Categoria;Nota) para decisiones del usuario que no
   están en ningún sistema; entran al resultado y se listan en el Resumen. Dejarlo vacío si no hay.
 - **Reporte de liquidaciones de Mercado Pago** (`settlement_v2-*.xlsx`, trae el canal de cada cobro:
