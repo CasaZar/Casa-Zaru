@@ -30434,7 +30434,10 @@ async function loadPixel(){
 function fmtPhone(p){if(!p)return'';return String(p).replace(/\D/g,'').replace(/^56/,'');}
 function fmtLower(s){if(!s)return'';return String(s).trim().toLowerCase();}
 function fmtRegion(s){if(!s)return'';var v=String(s).trim().toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/\./g,'').replace(/\s+/g,' ');if(/\b(rm|r\.m|r m|metropolitana|metropolitano|metro)\b/.test(v))return'santiago';return v;}
-function fmtEmail(e){if(!e)return'';var s=String(e).trim().toLowerCase();if(s.indexOf('@')===-1||s.indexOf('.')===-1)return'';s=s.replace(/^[\s+c56\-]+/,'');return s;}
+// Se queda con el correo que venga en el texto, sin recortarle nada. Antes se le
+// quitaban del inicio todas las «c», «5», «6», «+» y «-» (19-10-2026): «carlos@…»
+// quedaba «arlos@…» en Finanzas, en el Pixel y en las boletas emitidas.
+function fmtEmail(e){if(!e)return'';var s=String(e).trim().toLowerCase();var m=s.match(/[a-z0-9._%+\-]+@[a-z0-9\-]+(?:\.[a-z0-9\-]+)+/);return m?m[0].replace(/^[+\-.]+/,''):'';}
 function fmtName(n){if(!n)return'';return n.trim().toLowerCase();}
 // Hora del evento para la planilla del Pixel, en hora de Chile y con el desfase
 // que corresponde a ESA fecha (30-09-2026). Antes iba "-04:00" fijo: desde el
