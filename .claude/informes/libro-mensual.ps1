@@ -130,20 +130,36 @@ $mp = @($mp | ForEach-Object { [pscustomobject]@{ fecha = Fecha $_.fecha; mov = 
 $mpSaldos = LeerJson (Join-Path $CZ "mp-$tag.json")
 if (-not $mp.Count) { Aviso "Falta el movimiento de Mercado Pago de $mesNom (mp-$tag.csv): la caja y las ventas de feria quedan incompletas." }
 
+# ── Liquidaciones de Mercado Pago (settlement_v2-<cuenta>-*.xlsx en Descargas) ──
+# El usuario lo baja los lunes. Trae el canal de cada cobro (Point, Link de Pago, Checkout Pro, Mercado Libre) y las
+# salidas. Se toma el archivo de la cuenta de Casa Zaru con más filas dentro del mes. Columnas por posición:
+# 0 id, 1 medio, 2 tipo, 3 valor, 4 fecha origen, 5 comisiones, 7 neto, 9 canal, 10 plataforma.
+. (Join-Path $PLAN 'lib-xls.ps1')
+$MP_CUENTA = '1038334230'
+function FilasLiq($path) {
+  @(Read-XlsxRows $path | Select-Object -Skip 1 | Where-Object { $_.Count -gt 10 -and "$($_[4])" -match '^\d{4}-\d{2}-\d{2}' } | ForEach-Object {
+    $f = Fecha "$($_[4])".Substring(0, 10); $plat = "$($_[10])"; if (-not $plat -and "$($_[9])" -eq 'Mercado Libre') { $plat = 'Mercado Libre' }
+    [pscustomobject]@{ id = "$($_[0])"; medio = "$($_[1])"; tipo = "$($_[2])"; monto = (N $_[3]); fecha = $f; comision = -(N $_[5]); canal = "$($_[9])"; plataforma = $plat } } | Where-Object { EnMes $_.fecha })
+}
+$liq = @(); $liqArchivo = $null
+foreach ($fx in @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter "settlement_v2-$MP_CUENTA-*.xlsx" | Where-Object { $_.LastWriteTime -ge $iniMes } | Sort-Object LastWriteTime -Descending)) {
+  $r = @(FilasLiq $fx.FullName); if ($r.Count -gt $liq.Count) { $liq = $r; $liqArchivo = $fx }
+}
+
 # ── Ventas de feria (Point de Mercado Pago en las fechas de cada feria) ──
 # Solo cobros con Point. En las mismas fechas también se liberan ventas de Mercado Libre y cobros con link,
-# que ya se cuentan por otro lado. El canal sale del reporte de liquidaciones de Mercado Pago
-# (mp-AAAA-MM-canal.csv: id;plataforma). Sin ese archivo se separa por la comisión: Point cobra ~2-3 %,
-# Mercado Libre ~17 % y el link ~4 %.
+# que ya se cuentan por otro lado. El canal sale de las liquidaciones (o de mp-AAAA-MM-canal.csv, el formato
+# anterior). Sin ninguno de los dos se separa por la comisión: Point cobra ~2-3 %, Mercado Libre ~17 %, el link ~4 %.
 $ferias = @(LeerCsv (Join-Path $PLAN 'ferias.csv') | ForEach-Object { [pscustomobject]@{ nombre = $_.Nombre; desde = Fecha $_.Desde; hasta = Fecha $_.Hasta; costos = "$($_.Costos)" } } | Where-Object { (EnMes $_.desde) -or (EnMes $_.hasta) })
-$mpCanal = @{}; LeerCsv (Join-Path $CZ "mp-$tag-canal.csv") | ForEach-Object { $mpCanal["$($_.id)"] = "$($_.plataforma)" }
+$mpCanal = @{}; foreach ($x in $liq) { if ($x.plataforma) { $mpCanal[$x.id] = $x.plataforma } }
+LeerCsv (Join-Path $CZ "mp-$tag-canal.csv") | ForEach-Object { if (-not $mpCanal.ContainsKey("$($_.id)")) { $mpCanal["$($_.id)"] = "$($_.plataforma)" } }
 function EsPoint($m) { if ($mpCanal.Count) { $mpCanal["$($m.id)"] -eq 'Point' } else { $m.monto -gt 0 -and $m.comision / $m.monto -le 0.035 } }
 $ventasFeria = @()
 foreach ($f in $ferias) {
   $ventasFeria += @($mp | Where-Object { $_.tipo -eq 'Liberación de dinero' -and $_.fecha -ge $f.desde -and $_.fecha -le $f.hasta -and $_.monto -gt 1000 -and (EsPoint $_) } |
     ForEach-Object { [pscustomobject]@{ feria = $f.nombre; fecha = $_.fecha; bruto = $_.monto; comision = $_.comision } })
 }
-if ($ferias.Count -and -not $mpCanal.Count) { Aviso "Falta mp-$tag-canal.csv (reporte de liquidaciones de Mercado Pago): las ventas de feria se separaron de Mercado Libre por la comisión." }
+if ($ferias.Count -and -not $mpCanal.Count) { Aviso "Faltan las liquidaciones de Mercado Pago de $mesNom en Descargas (settlement_v2-$MP_CUENTA-*.xlsx): las ventas de feria se separaron de Mercado Libre por la comisión." }
 $ventasML = @($emit | Where-Object { $_.plataforma -eq 'MercadoLibre' })
 
 # ── Reglas de clasificación (privadas) ──
@@ -262,20 +278,34 @@ if ($mp.Count -and $mpSaldos) {
   $calc = $mpSaldos.saldo_inicial + $ing - $egr
   if ([math]::Abs($calc - $mpSaldos.saldo_final) -gt 1) { Aviso "Mercado Pago no cuadra: saldo calculado $(Plata $calc) vs informado $(Plata $mpSaldos.saldo_final)." }
 }
-$mpSinDetalle = -(Suma @($mp | Where-Object { $_.tipo -in 'Pago', 'Compra' }) 'monto') - (Suma @($mp | Where-Object { $_.tipo -eq 'Devolución de pago' }) 'monto')
+# Los "Pago" de Mercado Pago son la publicidad: Meta y Google se pagan con la tarjeta de Mercado Pago (confirmado el
+# 19-10; en septiembre los pagos sumaron $1.890.223 y Meta real + Google $1.893.456). Las "Compra" son compras en
+# Mercado Libre que llegan con factura (film, cinta, velas). Sin estado de cuenta, los pagos se leen de las liquidaciones.
+$mpPagos = if ($mp.Count) { -(Suma @($mp | Where-Object { $_.tipo -eq 'Pago' }) 'monto') } else { -(Suma @($liq | Where-Object { $_.tipo -eq 'Pago aprobado' -and $_.monto -lt 0 -and -not $_.plataforma -and $_.medio -eq 'available_money' }) 'monto') }
+$mpCompras = -(Suma @($mp | Where-Object { $_.tipo -eq 'Compra' }) 'monto') - (Suma @($mp | Where-Object { $_.tipo -eq 'Devolución de pago' }) 'monto')
 $mpCuotas = -(Suma @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' }) 'monto')
 
 # ── Créditos recibidos (creditos.csv, privado) ──
-# Un crédito no es venta. Si al recibirlo se pagó el crédito anterior, ese pago es capital: se saca de
-# "Mercado Pago sin detalle" y se suma a las cuotas.
+# Un crédito no es venta. Si al recibirlo se pagó el crédito anterior, ese pago sale como un "Pago" más en Mercado
+# Pago: es capital, se saca de los pagos de publicidad y se suma a las cuotas.
 $creditos = @(LeerCsv (Join-Path $PLAN 'creditos.csv') | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
   [pscustomobject]@{ fecha = Fecha $_.Fecha; acreedor = "$($_.Acreedor)"; recibido = (N $_.Recibido); pagoAnterior = (N $_.PagoCreditoAnterior); nota = "$($_.Nota)" } })
 $credPagoMP = Suma @($creditos | Where-Object { $_.acreedor -match 'Mercado Pago' }) 'pagoAnterior'
 $yaEnCuotas = @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' -and [math]::Abs($_.monto + $credPagoMP) -le 1 }).Count   # el estado de cuenta ya lo trae como cuota
-if ($credPagoMP -gt 0 -and -not $yaEnCuotas) { $quita = [math]::Min($credPagoMP, [math]::Max(0, $mpSinDetalle)); $mpSinDetalle -= $quita; $mpCuotas += $credPagoMP }
+if ($credPagoMP -gt 0 -and -not $yaEnCuotas) { $quita = [math]::Min($credPagoMP, [math]::Max(0, $mpPagos)); $mpPagos -= $quita; $mpCuotas += $credPagoMP }
+
+# ── Ajustes manuales (ajustes.csv, privado): decisiones del usuario que no están en ningún sistema ──
+# Ej.: el resto de una devolución que no pasó por el banco. Fecha;Concepto;Monto;Categoria;Nota
+$ajustes = @(LeerCsv (Join-Path $PLAN 'ajustes.csv') | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
+  [pscustomobject]@{ fuente = 'Ajuste'; fecha = Fecha $_.Fecha; cuenta = ''; proveedor = "$($_.Concepto)"; rut = ''; doc = ''; conFactura = $false; categoria = "$($_.Categoria)"; sub = ''; neto = (N $_.Monto); iva = 0; total = (N $_.Monto); detalle = "$($_.Nota)"; glosa = '' } })
 
 # ── Meta, SII, cotizador ──
+# Gasto real de Meta: el reporte mensual (meta-AAAA-MM.json). Si no está, se estima con los pagos de Mercado Pago menos
+# lo facturado por Google, que es lo que de verdad salió de la cuenta.
 $meta = LeerJson (Join-Path $CZ "meta-$tag.json")
+$google = Suma @($gastos | Where-Object { $_.categoria -eq 'Publicidad Google' }) 'neto'
+$metaEstimado = $false
+if (-not $meta -and $mpPagos -gt 0) { $meta = [pscustomobject]@{ gasto = [math]::Max(0, $mpPagos - $google); fuente = 'estimado: pagos de Mercado Pago menos lo facturado por Google' }; $metaEstimado = $true }
 $sii = LeerJson (Join-Path $CZ "sii-$tag.json")
 $kpi = LeerJson (Join-Path $CZ 'kpis-cotizador.json')
 
@@ -287,7 +317,7 @@ $SECCION = @{
   'Transporte / viajes' = 'fijo'; 'Software y suscripciones' = 'fijo'; 'Gastos administrativos' = 'fijo'; 'Mantención y reparaciones' = 'fijo'
   'Colación y alimentación equipo' = 'fijo'; 'Post venta' = 'fijo'; 'Reforestación' = 'fijo'; 'POR CLASIFICAR' = 'fijo'; 'Otros gastos' = 'fijo'
 }
-$todo = @($gastos) + @($sinFactura)
+$todo = @($gastos) + @($sinFactura) + @($ajustes)
 foreach ($m in $todo) {
   $s = $SECCION[$m.categoria]
   if ($m.categoria -eq 'Créditos y deudas (cuotas)') { $s = if ($m.fuente -eq 'Factura') { 'fin' } else { $null } }   # factura = interés; cuota del banco = capital
@@ -306,7 +336,9 @@ $ventaNeta = $vNetaPedidos + $vNetaML + $vNetaFeria
 $lCosto = @(PorCat 'costo'); $lVenta = @(PorCat 'venta'); $lFijo = @(PorCat 'fijo'); $lFin = @(PorCat 'fin')
 $tCosto = Suma $lCosto 'monto'; $tVenta = Suma $lVenta 'monto'; $tFijo = Suma $lFijo 'monto'; $tFin = Suma $lFin 'monto'
 $margenBruto = $ventaNeta - $tCosto; $contrib = $margenBruto - $tVenta; $operac = $contrib - $tFijo; $resultado = $operac - $tFin
-$ads = $metaReal + (Suma @($todo | Where-Object { $_.categoria -eq 'Publicidad Google' }) 'neto')
+$ads = $metaReal + $google
+# Lo que salió por Mercado Pago en publicidad tiene que parecerse a Meta + Google; si no, algo se paga por otro lado.
+if ($meta -and -not $metaEstimado -and $mpPagos -gt 0 -and [math]::Abs($mpPagos - $ads) -gt 0.15 * $ads) { Aviso "Los pagos de Mercado Pago ($(Plata $mpPagos)) no cuadran con Meta + Google ($(Plata $ads)): revisar si hubo otro pago por esa vía o publicidad pagada por otra cuenta." }
 $feriaCosto = Suma @($todo | Where-Object { $_.categoria -eq 'Ferias' }) 'neto'
 # IVA del mes: lo mismo en la hoja IVA y en "Por pagar"
 $debito = Suma $emit 'iva'; $credito = if ($sii) { $sii.compras.facturas.iva } else { Suma $gastos 'iva' }
@@ -346,11 +378,11 @@ if ($sinFactProv.Count) {
   Aviso "Compras sin factura por $(Plata (Suma @($sinFactProv | ForEach-Object { $_.Group }) 'neto')): $($det -join ', '). No dan crédito de IVA; pedir factura cuando se pueda." }
 $porClas = @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' })
 if ($porClas.Count) { Aviso "$($porClas.Count) gastos por $(Plata (Suma $porClas 'neto')) siguen POR CLASIFICAR (ver Facturas recibidas). Clasificarlos en la planilla o en reglas-cierre.csv." }
-if ($mpSinDetalle -gt 0) { Aviso "Mercado Pago: $(Plata $mpSinDetalle) en pagos sin el nombre del comercio (no lo trae ni el estado de cuenta ni el reporte de liquidaciones). Quedan fuera del resultado: si alguno es un gasto sin factura, falta sumarlo." }
 if ($meta -and $metaReal - $metaFact -gt 1000) { Aviso "Meta: gasto real $(Plata $metaReal) pero solo $(Plata $metaFact) tienen factura de compra. Revisar con el contador las facturas que faltan (IVA no recuperado)." }
 if ($ventasFeria.Count) { Aviso "Ventas de feria con Point: $(Plata (Suma $ventasFeria 'bruto')) sin boleta electrónica (el voucher vale como boleta). Su IVA ($(Plata ((Suma $ventasFeria 'bruto') - $vNetaFeria))) no está en el débito de Wasabil: confirmar que entre al F29." }
 foreach ($v in $vMes) {
-  if (-not $v.web -and $v.total -gt 0 -and [math]::Abs($v.total - $v.vp - $v.envio) -gt 1000) { Aviso "Venta #$($v.num) ($($v.cliente)): total $(Plata $v.total) no cuadra con valor producto $(Plata $v.vp) + envío $(Plata $v.envio). Cambia la comisión de César." }
+  # Un total MAYOR que producto + envío es un cobro extra (instalación, marco): no es error. Uno menor sí.
+  if (-not $v.web -and $v.total -gt 0 -and ($v.vp + $v.envio - $v.total) -gt 1000) { Aviso "Venta #$($v.num) ($($v.cliente)): total $(Plata $v.total) es menor que valor producto $(Plata $v.vp) + envío $(Plata $v.envio). Cambia la comisión de César." }
   if ($v.vendedor -eq '(sin asignar)') { Aviso "Venta #$($v.num) ($($v.cliente)) sin vendedor." }
 }
 
@@ -569,7 +601,7 @@ L 'Ferias (Point Mercado Pago)' $vNetaFeria "$($ventasFeria.Count) ventas"
 $rV = Total 'Venta neta' "SUM(B$($rVenta):B$($rVenta + 2))"
 $a = $f.Count + 1; foreach ($l in $lCosto) { L $l.cat (-$l.monto) }
 $rMB = Total 'Margen bruto' "B$rV$(Rango $a)" 'venta − materiales'
-$a = $f.Count + 1; foreach ($l in $lVenta) { L $l.cat (-$l.monto) $(if ($l.cat -eq 'Publicidad Meta' -and $meta) { 'gasto real (no solo lo facturado)' }) }
+$a = $f.Count + 1; foreach ($l in $lVenta) { L $l.cat (-$l.monto) $(if ($l.cat -eq 'Publicidad Meta' -and $meta) { if ($metaEstimado) { 'estimado: lo pagado por Mercado Pago menos Google' } else { 'gasto real (no solo lo facturado)' } }) }
 $rMC = Total 'Margen de contribución' "B$rMB$(Rango $a)" 'lo que deja cada venta para pagar los gastos fijos'
 $a = $f.Count + 1; foreach ($l in $lFijo) { L $l.cat (-$l.monto) $(if ($l.cat -eq 'Sueldos y remuneraciones') { 'pagados en el mes (los sueldos se pagan a mes vencido)' }) }
 $rRO = Total 'Resultado operacional' "B$rMC$(Rango $a)"
@@ -585,10 +617,11 @@ if ($mpCuotas) {
   $c = $fuera | Where-Object { $_.cat -eq 'Créditos y deudas (cuotas)' } | Select-Object -First 1
   if ($c) { $c.monto += $mpCuotas } else { $fuera += [pscustomobject]@{ cat = 'Créditos y deudas (cuotas)'; monto = $mpCuotas } }
 }
-if ($mpSinDetalle -gt 0) { $fuera += [pscustomobject]@{ cat = 'Pagos con Mercado Pago sin detalle'; monto = $mpSinDetalle } }
+if ($mpCompras -gt 0) { $fuera += [pscustomobject]@{ cat = 'Compras en Mercado Libre pagadas con Mercado Pago (ya contadas con su factura)'; monto = $mpCompras } }
 $NOMBRE_FUERA = @{ 'Créditos y deudas (cuotas)' = 'Cuotas de créditos (capital)'; 'Préstamos de socios (no es gasto)' = 'Devolución de préstamos a socios'; 'Impuestos (SII)' = 'Impuestos (IVA y PPM del mes anterior)' }
 foreach ($x in @($fuera | Sort-Object monto -Descending)) { [void]$f.Add(@((C "   $(if ($NOMBRE_FUERA[$x.cat]) { $NOMBRE_FUERA[$x.cat] } else { $x.cat })"), (C $x.monto 2))) }
 $activo = Suma @($gastos | Where-Object { $_.categoria -eq 'Inversión (activo fijo)' }) 'neto'
+if ($ajustes.Count) { Nota $f "Ajustes manuales del mes (ajustes.csv): $((@($ajustes | ForEach-Object { "$($_.proveedor) $(Plata $_.neto) → $($_.categoria)" })) -join '; ')." }
 if ($creditos.Count) { Nota $f "Entraron $(Plata (Suma $creditos 'recibido')) de créditos ($((@($creditos | ForEach-Object { $_.acreedor } | Select-Object -Unique)) -join ', ')): no es venta$(if (Suma $creditos 'pagoAnterior') { "; de eso, $(Plata (Suma $creditos 'pagoAnterior')) pagaron el crédito anterior (incluido arriba en las cuotas)" })." }
 if ($activo) { Nota $f "Además llegaron facturas de activos por $(Plata $activo) neto ($((@($gastos | Where-Object { $_.categoria -eq 'Inversión (activo fijo)' } | ForEach-Object { $_.sub } | Where-Object { $_ } | Select-Object -Unique)) -join ', ')). No son gasto del mes ni plata que salió: se pagan aparte." }
 [void]$f.Add(@())
@@ -720,9 +753,8 @@ Hoja 'Gastos fijos' $f @(46, 16, 34, 50, 14)
 
 # ── 8. Marketing y CAC ──
 $f = New-Object System.Collections.ArrayList
-$google = Suma @($todo | Where-Object { $_.categoria -eq 'Publicidad Google' }) 'neto'
-$cotMes = if ($kpi) { $kpi.conversion_por_mes | Where-Object { $_.mes -eq $tag } | Select-Object -First 1 } else { $null }
-Titulo $f "Marketing y costo de adquisición — $mesNom" $(if ($meta) { "Meta: gasto real del reporte de anuncios ($($meta.fuente))." } else { 'Meta: solo lo facturado (falta meta-AAAA-MM.json con el gasto real).' })
+$cotMes =if ($kpi) { $kpi.conversion_por_mes | Where-Object { $_.mes -eq $tag } | Select-Object -First 1 } else { $null }
+Titulo $f "Marketing y costo de adquisición — $mesNom" $(if ($meta -and -not $metaEstimado) { "Meta: gasto real del reporte de anuncios ($($meta.fuente))." } elseif ($meta) { "Meta $($meta.fuente). Meta y Google se pagan con la tarjeta de Mercado Pago." } else { 'Meta: solo lo facturado (faltan meta-AAAA-MM.json y los movimientos de Mercado Pago).' })
 $mk = @(@('Meta (Facebook / Instagram)', $metaReal), @('Google', $google), @('Ferias (arriendo y productos)', $feriaCosto))
 Tabla $f @('Canal', 'Gasto') $mk @(1)
 Sub $f 'Indicadores'
