@@ -84,10 +84,17 @@ primera vez). Aun así revisar los pedidos con saldo de semanas anteriores.
   cuentas personales del dueño, `GETNET` $10, "Transferencia interna". El script
   las marca como internas; los nombres personales se leen de
   `%USERPROFILE%\.claude\conciliacion-excluir.txt` (local, fuera del repo).
-- **Flow** deposita el **96,204 %** de lo cobrado (medido dos veces). Un depósito
-  de Flow puede **juntar varios pagos** de distintos pedidos. En la app se marca
-  el **bruto**, no el depósito.
-- **Venti Pay:** tasa todavía no medida. Si se confirma un caso, anotarla acá.
+- **Flow** deposita el **96,204 %** de lo cobrado: comisión fija de 3,80 % (3,19 % + IVA),
+  medida en seis pagos de sep-oct 2026. Deposita desde dos RUT: `FLOW S A` y
+  `Flow Pagos Chile Spa`. Un depósito de Flow puede **juntar varios pagos** de
+  distintos pedidos. En la app se marca el **bruto**, no el depósito.
+- **Venti Pay:** comisión **variable**, 3,27 % a 6,99 % en tres pagos de sep-oct 2026
+  (probablemente según cuotas). Un pago por depósito; el comentario de la transferencia
+  trae su número de operación. Cruzar por monto contra pedidos web con un margen de 7 %.
+- **Mercado Pago** (liquidaciones `settlement_v2-1038334230-*`): link de pago y
+  Checkout Pro 3,80 % casi siempre, a veces 5,79 % con tarjeta de crédito; Point
+  2,96 % crédito y 2,13 % débito; Mercado Libre cobra cargo fijo + envío (~$5.200 por
+  venta de $12.000, no es un porcentaje).
 - **Pagan terceros:** empresas, fundaciones o familiares pagan por el cliente, y
   el nombre de la transferencia no se parece al del pedido. Buscar por **monto y
   RUT de facturación** (el pedido guarda el RUT de quien factura), no solo por el
