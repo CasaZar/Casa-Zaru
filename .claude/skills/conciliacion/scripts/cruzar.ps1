@@ -54,7 +54,7 @@ $out = foreach ($i in $ing) {
   if ($i.tipo -in 'point','ml') { $clase = $i.tipo }
   elseif (@($EXCLUIR | Where-Object { $q.Contains((Norm $_).Trim()) }).Count) { $clase = 'interno (no es venta)' }
   elseif ($q -match 'flow s a') { $clase = 'pasarela'; $bruto = [int64][math]::Round($i.monto / $TASA_FLOW) }
-  # Venti Pay cobra otra comisión, todavía no medida: se cruza solo por monto neto.
+  # Venti Pay cobra comisión variable (3,3 a 7 % medido en sep-oct 2026): se cruza solo por monto neto.
   elseif ($q -match 'venti pay') { $clase = 'pasarela (tasa desconocida)' }
 
   $cands = @()
