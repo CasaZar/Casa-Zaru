@@ -523,6 +523,33 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .pv-estado { font-size:12px;font-weight:700;padding:4px 8px;border-radius:7px;border:1px solid var(--border-md);background:var(--surface2);color:var(--text);font-family:'Inter',sans-serif; }
 .pv-trabajo { font-size:12px;margin-top:6px;padding:7px 9px;border-radius:8px;background:var(--surface2); }
 .pv-hist { font-size:11.5px;color:var(--text-3);margin:10px 0 4px;max-height:140px;overflow:auto;border-top:1px solid var(--border);padding-top:8px; }
+/* ── Cuentas empresa (B2B, 22-10-2026) · paleta de marca: verde, terracota, dorado, crema ── */
+#page-emp,.emp-modal { --ev:#485B3D;--et:#B5652E;--ed:#D4AC74;--ec:#F1ECE4;--ec2:#E8E1D5; }
+.emp-stats { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px; }
+.emp-stats .stat-card { padding:10px 12px; }
+.emp-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px; }
+.emp-card { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s; }
+.emp-card:hover { border-color:var(--ev); }
+.emp-card.inactiva { opacity:.55; }
+.emp-n { font-weight:700;font-size:14.5px; } .emp-m { font-size:12px;color:var(--text-2);margin-top:2px;overflow-wrap:anywhere; }
+.emp-pill { display:inline-block;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 7px;vertical-align:middle;margin-left:6px;white-space:nowrap; }
+.emp-pill.p5 { background:var(--ev);color:var(--ec); } .emp-pill.p2 { background:var(--ed);color:#1F1D24; } .emp-pill.p0 { background:var(--ec2);color:var(--text-3); }
+.emp-bar { height:8px;background:var(--ec2);border-radius:5px;margin:8px 0 4px;position:relative;overflow:hidden; }
+.emp-bar i { position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--ed),var(--et));border-radius:5px; }
+.emp-bar b { position:absolute;top:-2px;width:2px;height:12px;background:var(--ev); }
+.emp-leg { display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);gap:8px; }
+.emp-kv { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0; }
+.emp-kv div { background:var(--ec);border-radius:8px;padding:8px 10px; } .emp-kv .l { font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em; } .emp-kv .v { font-weight:700;font-size:15px; }
+.emp-note { background:#EBD9BC;border-left:3px solid var(--et);padding:8px 10px;border-radius:6px;font-size:12px;margin:10px 0; }
+.emp-tabla { width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px; } .emp-tabla td { padding:7px 4px;border-top:1px solid var(--border);vertical-align:top; } .emp-tabla td.r { text-align:right;font-weight:600;white-space:nowrap; } .emp-src { font-size:10px;color:var(--text-3); }
+.emp-tabla tr.anulada td { text-decoration:line-through;color:var(--text-3); }
+.emp-lbl { font-size:11px;color:var(--text-3);margin:12px 0 4px;text-transform:uppercase;letter-spacing:.05em; }
+.emp-acciones { display:flex;gap:8px;flex-wrap:wrap;margin-top:14px; }
+.btn-emp { padding:9px 13px;border-radius:var(--radius);border:none;background:var(--et);color:#fff;font-weight:600;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap; }
+.btn-emp.verde { background:var(--ev); } .btn-emp.ghost { background:var(--surface);color:var(--ev);border:1px solid var(--border-md); }
+.btn-emp:disabled { opacity:.5;cursor:default; }
+.b2b-aviso { margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid #485B3D;background:var(--surface);font-size:13px;line-height:1.45; } .b2b-aviso b { color:#485B3D; }
+.b2b-aviso.nueva { border-style:dashed;border-color:var(--border-hi); }
 @media (max-width:768px){ .pv-grid { grid-template-columns:1fr; } }
 /* "Sale esta semana": la lista del cuaderno de César, por día, para tachar */
 .ss-card { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-xl);padding:14px 16px;margin-bottom:14px; }
@@ -26038,6 +26065,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon">🔧</span> Costos</button>
     <button class="nav-tab" onclick="showPage('gastos',this)"><span class="tab-icon">📄</span> Gastos</button>
     <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
+    <button class="nav-tab" onclick="showPage('emp',this)"><span class="tab-icon">🏢</span> Empresas</button>
     <button class="nav-tab" onclick="showPage('pv',this)"><span class="tab-icon">🛠</span> Post venta</button>
   </div>
   <!-- Sidebar footer -->
@@ -26315,7 +26343,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         </div>
         <div style="display:flex;flex-direction:column;gap:3px">
           <label style="font-size:11px;color:var(--text-3)">RUT</label>
-          <input type="text" id="pp-rut" placeholder="12.345.678-9" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+          <input type="text" id="pp-rut" placeholder="12.345.678-9" onchange="b2bAvisoRut(this.value,'pp-rut')" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
         </div>
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:180px">
           <label style="font-size:11px;color:var(--text-3)">Giro</label>
@@ -26657,6 +26685,74 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
 </div>
 
+<div class="page" id="page-emp">
+<div class="main">
+  <div class="emp-stats" id="emp-stats"></div>
+  <div class="seg-top">
+    <div class="search-wrap"><span class="search-icon">⌕</span>
+      <input type="text" id="emp-search" placeholder="Buscar razón social, RUT o contacto" oninput="renderEmpresas()">
+    </div>
+    <label style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:4px"><input type="checkbox" id="emp-inactivas" onchange="renderEmpresas()"> ver inactivas</label>
+    <button class="btn-add" onclick="abrirEmpresa()">+ Empresa</button>
+  </div>
+  <div id="emp-lista"></div>
+</div></div>
+
+<div class="modal-bg" id="modal-emp-bg">
+  <div class="modal emp-modal" style="width:min(600px,100%)">
+    <div class="modal-header"><div class="modal-title" id="emp-titulo">Nueva cuenta empresa</div><button class="btn-close" onclick="cerrarEmpresa()">×</button></div>
+    <div class="form-grid">
+      <div class="form-group"><label>Razón social</label><input id="emp-razon" type="text" placeholder="Constructora Ejemplo SpA"></div>
+      <div class="form-group"><label>RUT</label><input id="emp-rut" type="text" placeholder="76.123.456-7"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Contacto</label><input id="emp-contacto" type="text" placeholder="Nombre de quien compra"></div>
+      <div class="form-group"><label>Celular</label><input id="emp-celular" type="text" placeholder="+56912345678"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Correo</label><input id="emp-email" type="email"></div>
+      <div class="form-group"><label>Giro</label><input id="emp-giro" type="text"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Comuna</label><input id="emp-comuna" type="text"></div>
+      <div class="form-group"><label>Inicio del ciclo <span style="color:var(--text-3)">(primera compra)</span></label><input id="emp-inicio" type="date"></div>
+    </div>
+    <div class="form-grid full"><div class="form-group"><label>Notas</label><textarea id="emp-notas" rows="2" style="width:100%;box-sizing:border-box;font-family:'Inter',sans-serif"></textarea></div></div>
+    <div id="emp-activa-wrap" style="display:none;margin-bottom:10px"><label style="font-size:13px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="emp-activa"> Cuenta activa (si se desmarca, deja de sumar y el link del cliente se apaga)</label></div>
+    <div class="modal-footer">
+      <button class="btn-sec" onclick="cerrarEmpresa()">Cancelar</button>
+      <button class="btn-pri" id="emp-guardar" onclick="guardarEmpresa()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-emp-ficha-bg">
+  <div class="modal emp-modal" style="width:min(640px,100%)" id="emp-ficha"></div>
+</div>
+
+<div class="modal-bg" id="modal-emp-compra-bg">
+  <div class="modal emp-modal" style="width:min(520px,100%)">
+    <div class="modal-header"><div class="modal-title" id="emp-compra-titulo">Compra a mano</div><button class="btn-close" onclick="cerrarCompraEmp()">×</button></div>
+    <div style="font-size:12px;color:var(--text-3);margin-bottom:10px">Solo para lo que no pasó por la app: las facturas que se emiten desde Finanzas se suman solas por el RUT.</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Fecha</label><input id="emp-c-fecha" type="date"></div>
+      <div class="form-group"><label>Monto con IVA</label><input id="emp-c-monto" type="number" step="1" min="0" placeholder="1250000"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Tipo</label><select id="emp-c-tipo"><option value="FACTURA">Factura</option><option value="NC">Nota de crédito (resta)</option></select></div>
+      <div class="form-group"><label>Folio</label><input id="emp-c-folio" type="text" placeholder="opcional"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Detalle</label><input id="emp-c-detalle" type="text" placeholder="Cubierta coihue 240×60"></div>
+      <div class="form-group"><label>N° pedido</label><input id="emp-c-pedido" type="text" placeholder="opcional"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sec" onclick="cerrarCompraEmp()">Cancelar</button>
+      <button class="btn-pri" id="emp-c-guardar" onclick="guardarCompraEmp()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-cli">
 <div class="main">
   <div class="stats-grid" id="cli-stats"></div>
@@ -26909,7 +27005,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div class="form-group"><label>Celular</label><input id="fn-celular" type="text" placeholder="+56912345678"></div>
     </div>
     <div class="form-grid">
-      <div class="form-group"><label>RUT</label><input id="fn-rut" type="text" placeholder="12.345.678-9"></div>
+      <div class="form-group"><label>RUT</label><input id="fn-rut" type="text" placeholder="12.345.678-9" onchange="b2bAvisoRut(this.value,'fn-rut')"></div>
       <div class="form-group"><label>Medio de pago</label>
         <select id="fn-medio"><option value="BCI">BCI</option><option value="MERCADO PAGO">Mercado Pago</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="OTRO">Otro</option></select>
       </div>
@@ -27298,6 +27394,7 @@ function showPage(p,btn){
   if(p==='prod'){loadProd();}
   if(p==='cli'){renderClientes();}
   if(p==='pv'){loadPostventa();}
+  if(p==='emp'){loadEmpresas();}
   if(p==='dash'){
     if(DB_URL){
       Promise.all([loadFin(),loadProd()]).then(function(){renderDash();});
@@ -27311,7 +27408,7 @@ function showPage(p,btn){
 // hay una segunda lista de secciones: los permisos por rol (que esconden los
 // botones) y restaurarPagina() siguen funcionando igual. Si el rol ve más de
 // 5 secciones, las primeras 4 van en la barra y el resto en la hoja "Más".
-var NAV_ORDEN=['dash','prod','seg','fin','cli','pv','gastos','cost','pixel'];
+var NAV_ORDEN=['dash','prod','seg','fin','cli','emp','pv','gastos','cost','pixel'];
 function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
 function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
 function _paginaActiva(){var a=document.querySelector('.page.active');return a?a.id.replace('page-',''):'';}
@@ -27661,7 +27758,7 @@ function aplicarPermisos(){
   if(usuarioRol==='taller'){
     document.body.classList.add('rol-taller');
     // Al taller se le esconde todo lo que NO sea suyo, en vez de solo lo de admin.
-    ['fin','cost','pixel','seg','cli','dash'].forEach(function(p){
+    ['fin','cost','pixel','seg','cli','emp','dash'].forEach(function(p){
       document.querySelectorAll('[onclick*="showPage(\''+p+'\'"]').forEach(function(b){b.style.display='none';});
       var pg=document.getElementById('page-'+p);if(pg)pg.classList.remove('active');
     });
@@ -28791,6 +28888,7 @@ function renderPrevProd(o){
   document.getElementById('pp-rut').value=(fac.doc_tipo==='FACTURA'&&fac.rut_empresa)?fac.rut_empresa:(cli.rut||'');
   document.getElementById('pp-razon').value=fac.razon_social||'';
   document.getElementById('pp-giro').value=fac.giro||'';
+  b2bAvisoRut(document.getElementById('pp-rut').value,'pp-rut');
   ['pp-fact-dir','pp-fact-comuna','pp-fact-ciudad'].forEach(function(id){document.getElementById(id).value='';});
   toggleFacturaPrev();
   document.getElementById('pp-canal').value='TRANSFERENCIA';
@@ -30412,6 +30510,7 @@ function openFinModal(idx){
   document.getElementById('fin-calc-preview').style.display='none';
   if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-canal').value=r.canal_pago||'TRANSFERENCIA';document.getElementById('fn-desc-pct').value=r.descuento_pct||'';document.getElementById('fn-pasarela').value=r.pasarela||'';document.getElementById('fn-costo-mp').value=r.costo_mp||'';document.getElementById('fn-costo-shopify').value=r.costo_shopify||'';document.getElementById('fn-bloque-costos').style.display=(r.canal_pago==='LINK_MP'||r.canal_pago==='WEB_SHOPIFY')?'':'none';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
   else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-comision','fn-desc-pct','fn-costo-mp','fn-costo-shopify'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';document.getElementById('fn-canal').value='TRANSFERENCIA';document.getElementById('fn-pasarela').value='';aplicarCanalPago();toggleCamposFactura();}
+  b2bAvisoRut(document.getElementById('fn-rut').value,'fn-rut');
   document.getElementById('modal-fin-bg').classList.add('open');
 }
 function closeFinModal(){document.getElementById('modal-fin-bg').classList.remove('open');editingFinIdx=null;}
@@ -33200,6 +33299,9 @@ async function initAllModules(){
   // documentos del cliente. Es lo único de facturación que un vendedor puede
   // leer, y la política de la tabla (es_usuario) lo permite explícitamente.
   await loadDocumentos();
+  // Cuentas empresa: admin y vendedor las necesitan antes de cargar una venta
+  // (el aviso por RUT en Producción y Finanzas sale de acá).
+  if(usuarioRol!=='taller')await loadEmpresas();
   if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
   else if(usuarioRol==='taller'){await loadGastos();}
   else{
@@ -33217,6 +33319,237 @@ async function initAllModules(){
   armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
 }
+// ── CUENTAS EMPRESA · B2B (22-10-2026) ────────────────────────────────────
+// Una cuenta por RUT. Lo comprado se acumula por ciclos de 12 meses desde
+// `inicio_ciclo`: sobre $1.500.000 → 2 % en las siguientes compras, sobre
+// $3.000.000 → 5 %, además del 5 % por transferencia. Las cifras (ciclo,
+// acumulado, tramo, cuánto falta) vienen de la vista v_b2b_cuentas: acá no se
+// recalcula nada. Las facturas emitidas desde Finanzas se suman solas por un
+// trigger sobre gestion_documentos (migración 0019); «+ Compra a mano» es
+// para lo que no pasó por la app. El cliente ve su cuenta con un link privado
+// (token) en el sitio del cotizador, que llama a b2b_estado(token).
+var EMP_LINK_BASE='https://cotizador.casazaru.cl/cuenta.html?t=';
+var empCuentas=[],empCompras=[],empCargado=false,empEditando=null,empFichaId=null,empCompraEmpId=null;
+function _empNormRut(r){var s=String(r||'').toUpperCase().replace(/[^0-9K]/g,'');if(s.length<7)return '';return s.slice(0,-1)+'-'+s.slice(-1);}
+function _empFmtRut(r){var n=_empNormRut(r);if(!n)return r||'';var c=n.split('-');return c[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+c[1];}
+function _empFecha(d){if(!d)return '—';return new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'2-digit'});}
+function _empDe(id){return empCuentas.find(function(e){return e.id===id;});}
+function _empPorRut(rut){var n=_empNormRut(rut);if(!n)return null;return empCuentas.find(function(e){return e.rut===n&&e.activa;})||null;}
+function _empPill(p,txt){p=Number(p)||0;return '<span class="emp-pill p'+p+'">'+(p?p+' %':'—')+(txt?' '+txt:'')+'</span>';}
+function _empFaltaTxt(e){var t=Number(e.tramo_pct)||0;if(t===5)return 'tramo máximo';if(t===2)return 'faltan '+fmtCLP(e.falta_5)+' para 5 %';return 'faltan '+fmtCLP(e.falta_2)+' para 2 %';}
+function _empBarra(e,alto){var pct=Math.min(100,Math.round(Number(e.acumulado)/3000000*100));return '<div class="emp-bar"'+(alto?' style="height:10px"':'')+'><i style="width:'+pct+'%"></i><b style="left:50%"></b></div><div class="emp-leg"><span>'+fmtCLP(e.acumulado)+' acumulado</span><span>'+_empFaltaTxt(e)+'</span></div>';}
+async function loadEmpresas(){
+  if(!DB_URL){renderEmpresas();return;}
+  try{
+    empCuentas=await sbGet('v_b2b_cuentas','select=*&order=acumulado.desc,razon_social.asc');
+    empCompras=await sbGet('b2b_compras','select=*&order=fecha.desc,id.desc');
+    empCargado=true;
+  }catch(e){console.error('b2b',e);empCuentas=[];empCompras=[];empCargado=false;}
+  renderEmpresas();
+  if(empFichaId&&document.getElementById('modal-emp-ficha-bg').classList.contains('open'))renderFichaEmp();
+}
+function renderEmpresas(){
+  var el=document.getElementById('emp-lista'),st=document.getElementById('emp-stats');if(!el)return;
+  if(DB_URL&&!empCargado){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">🏢</span>No se pudo leer las cuentas empresa. Si recién se instaló, falta correr la migración 0019 en Supabase.</div>';
+    if(st)st.innerHTML='';return;
+  }
+  var q=_normBusca((document.getElementById('emp-search')||{}).value||'');
+  var verInact=!!(document.getElementById('emp-inactivas')||{}).checked;
+  var activas=empCuentas.filter(function(e){return e.activa;});
+  var en5=activas.filter(function(e){return Number(e.tramo_pct)===5;}).length,en2=activas.filter(function(e){return Number(e.tramo_pct)===2;}).length;
+  var acum=activas.reduce(function(s,e){return s+(Number(e.acumulado)||0);},0);
+  if(st)st.innerHTML='<div class="stat-card"><div class="stat-label">Cuentas</div><div class="stat-val" style="color:#485B3D">'+activas.length+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">En 5 % · en 2 %</div><div class="stat-val" style="color:#B5652E">'+en5+' · '+en2+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Acumulado en ciclo</div><div class="stat-val">'+fmtCLP(acum)+'</div></div>';
+  var lista=empCuentas.filter(function(e){
+    if(!verInact&&!e.activa)return false;
+    if(q&&!_calza(q,[e.razon_social,e.rut,_empFmtRut(e.rut),e.contacto,e.celular,e.email].join(' ')))return false;
+    return true;
+  });
+  if(!lista.length){
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">🏢</span>'+(empCuentas.length?'Ninguna cuenta calza con la búsqueda.':'Todavía no hay cuentas. Usa «+ Empresa» para abrir la primera.')+'</div>';return;
+  }
+  el.innerHTML='<div class="emp-grid">'+lista.map(function(e){
+    var contacto=[e.contacto,e.celular||'<span style="color:#B5652E">sin celular</span>'].filter(Boolean).join(' · ');
+    return '<div class="emp-card'+(e.activa?'':' inactiva')+'" onclick="abrirFichaEmp('+e.id+')">'+
+      '<div class="emp-n">'+esc(e.razon_social)+_empPill(e.tramo_pct)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+'</div>'+
+      '<div class="emp-m">'+esc(_empFmtRut(e.rut))+' · '+contacto+'</div>'+
+      _empBarra(e)+
+      '<div class="emp-m">Ciclo '+_empFecha(e.ciclo_inicio)+' → '+_empFecha(e.ciclo_fin)+' · '+(e.ultima_compra?'última compra '+_empFecha(e.ultima_compra):'sin compras')+' · '+(Number(e.n_facturas)||0)+' factura'+(Number(e.n_facturas)===1?'':'s')+'</div>'+
+    '</div>';
+  }).join('')+'</div>';
+}
+function abrirEmpresa(id){
+  var e=id?_empDe(id):null;empEditando=e?e.id:null;
+  document.getElementById('emp-titulo').textContent=e?('Editar · '+e.razon_social):'Nueva cuenta empresa';
+  document.getElementById('emp-razon').value=e?e.razon_social:'';
+  document.getElementById('emp-rut').value=e?_empFmtRut(e.rut):'';
+  document.getElementById('emp-rut').disabled=!!e;
+  document.getElementById('emp-contacto').value=e?(e.contacto||''):'';
+  document.getElementById('emp-celular').value=e?(e.celular||''):'';
+  document.getElementById('emp-email').value=e?(e.email||''):'';
+  document.getElementById('emp-giro').value=e?(e.giro||''):'';
+  document.getElementById('emp-comuna').value=e?(e.comuna||''):'';
+  document.getElementById('emp-inicio').value=e?String(e.inicio_ciclo).slice(0,10):new Date().toISOString().slice(0,10);
+  document.getElementById('emp-notas').value=e?(e.notas||''):'';
+  document.getElementById('emp-activa-wrap').style.display=e?'block':'none';
+  document.getElementById('emp-activa').checked=e?!!e.activa:true;
+  document.getElementById('modal-emp-bg').classList.add('open');
+}
+// Desde el aviso de Producción/Finanzas: abre el modal con lo que ya se escribió de la venta.
+function abrirEmpresaDesde(inputId){
+  abrirEmpresa();
+  var v=function(id){var x=document.getElementById(id);return x?String(x.value||'').trim():'';};
+  document.getElementById('emp-rut').value=v(inputId);
+  if(inputId==='pp-rut'){
+    document.getElementById('emp-razon').value=v('pp-razon');document.getElementById('emp-giro').value=v('pp-giro');
+    document.getElementById('emp-contacto').value=(v('pp-nombre')+' '+v('pp-apellido')).trim();
+    document.getElementById('emp-celular').value=v('pp-celular');document.getElementById('emp-email').value=v('pp-email');
+  }else{
+    document.getElementById('emp-razon').value=v('fn-razon-social');document.getElementById('emp-giro').value=v('fn-giro');
+    document.getElementById('emp-contacto').value=(v('fn-nombre')+' '+v('fn-apellido')).trim();
+    document.getElementById('emp-celular').value=v('fn-celular');document.getElementById('emp-email').value=v('fn-email');
+    document.getElementById('emp-comuna').value=v('fn-comuna');
+  }
+}
+function cerrarEmpresa(){document.getElementById('modal-emp-bg').classList.remove('open');empEditando=null;}
+async function guardarEmpresa(){
+  if(!DB_URL)return;
+  var d={
+    razon_social:document.getElementById('emp-razon').value.trim(),
+    rut:_empNormRut(document.getElementById('emp-rut').value),
+    contacto:document.getElementById('emp-contacto').value.trim()||null,
+    celular:document.getElementById('emp-celular').value.trim()||null,
+    email:document.getElementById('emp-email').value.trim()||null,
+    giro:document.getElementById('emp-giro').value.trim()||null,
+    comuna:document.getElementById('emp-comuna').value.trim()||null,
+    inicio_ciclo:document.getElementById('emp-inicio').value||new Date().toISOString().slice(0,10),
+    notas:document.getElementById('emp-notas').value.trim()||null
+  };
+  if(!d.razon_social){alert('Falta la razón social.');return;}
+  if(!d.rut){alert('El RUT no es válido.');return;}
+  if(empEditando!==null)d.activa=document.getElementById('emp-activa').checked;
+  else if(empCuentas.some(function(e){return e.rut===d.rut;})){alert('Ya existe una cuenta con ese RUT.');return;}
+  var btn=document.getElementById('emp-guardar');btn.disabled=true;
+  try{
+    if(empEditando!==null){delete d.rut;await sbUpdate('b2b_empresas',empEditando,d);}
+    else await sbInsert('b2b_empresas',d);
+    cerrarEmpresa();showToast('✓ Cuenta guardada');await loadEmpresas();
+    // si venía desde una venta, refrescar el aviso
+    ['pp-rut','fn-rut'].forEach(function(id){var x=document.getElementById(id);if(x&&x.value)b2bAvisoRut(x.value,id);});
+  }catch(e){showToast('No se pudo guardar: '+e.message,true);}
+  btn.disabled=false;
+}
+function abrirFichaEmp(id){empFichaId=id;renderFichaEmp();document.getElementById('modal-emp-ficha-bg').classList.add('open');}
+function cerrarFichaEmp(){document.getElementById('modal-emp-ficha-bg').classList.remove('open');empFichaId=null;}
+function renderFichaEmp(){
+  var e=_empDe(empFichaId),el=document.getElementById('emp-ficha');if(!e||!el)return;
+  var compras=empCompras.filter(function(k){return k.empresa_id===e.id;});
+  var enCiclo=compras.filter(function(k){return k.fecha>=e.ciclo_inicio&&k.fecha<=e.ciclo_fin;});
+  var antes=compras.filter(function(k){return k.fecha<e.ciclo_inicio&&!k.anulada;});
+  var t=Number(e.tramo_pct)||0;
+  var fila=function(k){
+    var src=[k.tipo==='NC'?'Nota de crédito':'Factura',k.folio?k.folio:'',k.pedido?'pedido '+k.pedido:'',k.origen==='app'?'automática':(k.origen==='wasabil'?'historial':'a mano')].filter(Boolean).join(' · ');
+    var anular=(!k.anulada&&k.origen!=='app')?' <a href="#" onclick="anularCompraEmp('+k.id+');return false" style="font-size:10px;color:var(--text-3)">anular</a>':'';
+    return '<tr'+(k.anulada?' class="anulada"':'')+'><td>'+_empFecha(k.fecha)+'<br><span class="emp-src">'+esc(src)+(k.anulada?' · anulada':'')+'</span>'+anular+'</td><td>'+esc(k.detalle||'')+'</td><td class="r">'+fmtCLP(k.monto)+'</td></tr>';
+  };
+  var dias=Number(e.dias_ciclo);
+  var nota=(e.activa&&dias>=0&&dias<=30)?'<div class="emp-note">El ciclo vence en '+dias+(dias===1?' día':' días')+'. Al renovarse, el acumulado vuelve a $0 y el tramo se pierde si no compra.</div>':'';
+  var sumAntes=antes.reduce(function(s,k){return s+(Number(k.monto)||0);},0);
+  el.innerHTML='<div class="modal-header"><div class="modal-title">'+esc(e.razon_social)+_empPill(t,'vigente')+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+'</div><button class="btn-close" onclick="cerrarFichaEmp()">×</button></div>'+
+    '<div class="emp-m">RUT '+esc(_empFmtRut(e.rut))+(e.contacto?' · '+esc(e.contacto):'')+(e.celular?' · '+esc(e.celular):'')+(e.email?' · '+esc(e.email):'')+(e.giro?' · '+esc(e.giro):'')+'</div>'+
+    _empBarra(e,true)+
+    '<div class="emp-leg" style="margin-top:2px"><span>$0</span><span>$1,5M → 2 %</span><span>$3M → 5 %</span></div>'+
+    '<div class="emp-kv">'+
+      '<div><div class="l">Acumulado ciclo</div><div class="v">'+fmtCLP(e.acumulado)+'</div></div>'+
+      '<div><div class="l">'+(t===5?'Tramo máximo':(t===2?'Falta para 5 %':'Falta para 2 %'))+'</div><div class="v">'+(t===5?'✓':fmtCLP(t===2?e.falta_5:e.falta_2))+'</div></div>'+
+      '<div><div class="l">Ciclo</div><div class="v" style="font-size:13px">'+_empFecha(e.ciclo_inicio)+' → '+_empFecha(e.ciclo_fin)+'</div></div>'+
+      '<div><div class="l">Descuento próxima compra</div><div class="v" style="color:#485B3D">'+(t?t+' % + '+'5 % transf.':'solo 5 % transf.')+'</div></div>'+
+    '</div>'+nota+
+    '<div class="emp-lbl">Compras del ciclo</div>'+
+    (enCiclo.length?'<table class="emp-tabla">'+enCiclo.map(fila).join('')+'</table>':'<div class="emp-m">Sin compras en este ciclo.</div>')+
+    '<div class="emp-lbl">Antes de este ciclo</div>'+
+    (antes.length?'<div class="emp-m">'+antes.length+' documento'+(antes.length===1?'':'s')+' · '+fmtCLP(sumAntes)+' en total<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">ver</summary><table class="emp-tabla">'+antes.map(fila).join('')+'</table></details></div>':'<div class="emp-m">Sin compras anteriores registradas.</div>')+
+    (e.notas?'<div class="emp-lbl">Notas</div><div class="emp-m">'+esc(e.notas)+'</div>':'')+
+    '<div class="emp-acciones">'+
+      '<button class="btn-emp ghost" onclick="abrirCompraEmp('+e.id+')">+ Compra a mano</button>'+
+      (e.celular?'<button class="btn-emp ghost" onclick="waEmp('+e.id+')">📱 WhatsApp</button>':'')+
+      '<button class="btn-emp verde" onclick="copiarLinkEmp('+e.id+')">Copiar link</button>'+
+      '<button class="btn-emp ghost" onclick="abrirEmpresa('+e.id+')">✎ Editar</button>'+
+    '</div>';
+}
+function copiarLinkEmp(id){
+  var e=_empDe(id);if(!e||!e.token)return;
+  var url=EMP_LINK_BASE+e.token;
+  var ok=function(){showToast('✓ Link copiado: '+url);};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(ok,function(){prompt('Copia el link:',url);});
+  else prompt('Copia el link:',url);
+}
+function waEmp(id){
+  var e=_empDe(id);if(!e||!e.celular)return;
+  var tel=String(e.celular).replace(/\D/g,'');if(tel.length===9)tel='56'+tel;
+  var t=Number(e.tramo_pct)||0;
+  var msg='Hola '+((e.contacto||'').split(' ')[0]||'')+', te escribe '+((usuarioEmail||'').split('@')[0]==='hola'?'Tomás':'César')+' de Casa Zaru.\n\n'+
+    'Tu cuenta Casa Zaru a nombre de '+e.razon_social+' lleva '+fmtCLP(e.acumulado)+' acumulados en este ciclo'+(t?' y tiene el '+t+' % de descuento activo':'')+'.\n\n'+
+    'Acá la puedes revisar cuando quieras: '+EMP_LINK_BASE+e.token;
+  window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
+}
+function abrirCompraEmp(id){
+  empCompraEmpId=id;var e=_empDe(id);
+  document.getElementById('emp-compra-titulo').textContent='Compra a mano · '+(e?e.razon_social:'');
+  document.getElementById('emp-c-fecha').value=new Date().toISOString().slice(0,10);
+  ['emp-c-monto','emp-c-folio','emp-c-detalle','emp-c-pedido'].forEach(function(i){document.getElementById(i).value='';});
+  document.getElementById('emp-c-tipo').value='FACTURA';
+  document.getElementById('modal-emp-compra-bg').classList.add('open');
+}
+function cerrarCompraEmp(){document.getElementById('modal-emp-compra-bg').classList.remove('open');empCompraEmpId=null;}
+async function guardarCompraEmp(){
+  if(!DB_URL||!empCompraEmpId)return;
+  var monto=Math.round(Number(document.getElementById('emp-c-monto').value)||0);
+  if(!monto){alert('Falta el monto.');return;}
+  var tipo=document.getElementById('emp-c-tipo').value;
+  var d={empresa_id:empCompraEmpId,fecha:document.getElementById('emp-c-fecha').value||new Date().toISOString().slice(0,10),
+    monto:tipo==='NC'?-Math.abs(monto):Math.abs(monto),tipo:tipo,
+    folio:document.getElementById('emp-c-folio').value.trim()||null,
+    detalle:document.getElementById('emp-c-detalle').value.trim()||null,
+    pedido:document.getElementById('emp-c-pedido').value.trim()||null,origen:'manual'};
+  var btn=document.getElementById('emp-c-guardar');btn.disabled=true;
+  try{await sbInsert('b2b_compras',d);cerrarCompraEmp();showToast('✓ Compra registrada');await loadEmpresas();}
+  catch(e){showToast('No se pudo guardar: '+(String(e.message).indexOf('23505')>=0?'ese folio ya está registrado':e.message),true);}
+  btn.disabled=false;
+}
+async function anularCompraEmp(id){
+  if(!confirm('¿Anular esta compra? Deja de sumar en la cuenta.'))return;
+  try{await sbUpdate('b2b_compras',id,{anulada:true});showToast('Compra anulada');await loadEmpresas();}
+  catch(e){showToast('No se pudo anular: '+e.message,true);}
+}
+// Aviso al cargar una venta (Producción / Finanzas): si el RUT es de una cuenta
+// registrada muestra el tramo para aplicar el descuento; si no, ofrece abrirla.
+function b2bAvisoRut(rut,inputId){
+  var inp=document.getElementById(inputId);if(!inp)return;
+  var box=document.getElementById(inputId+'-b2b');
+  if(!box){
+    box=document.createElement('div');box.id=inputId+'-b2b';
+    var fila=inp.closest('.form-group')||inp.parentNode;
+    if(inputId==='pp-rut'&&fila.parentNode)fila=fila.parentNode;   /* la fila completa de facturación */
+    fila.insertAdjacentElement('afterend',box);
+  }
+  var n=_empNormRut(rut);
+  if(!n||usuarioRol==='taller'){box.innerHTML='';return;}
+  var e=_empPorRut(n);
+  if(!e){
+    box.innerHTML='<div class="b2b-aviso nueva">🏢 Este RUT no tiene cuenta empresa. <a href="#" onclick="abrirEmpresaDesde(\''+inputId+'\');return false" style="color:#485B3D;font-weight:600">Abrir una</a> para que esta compra empiece a acumular.</div>';
+    return;
+  }
+  var t=Number(e.tramo_pct)||0,acum=Number(e.acumulado)||0;
+  var txt=t?'Esta venta descuenta <b>'+t+' %</b> además de la transferencia.':'Todavía sin descuento: le faltan '+fmtCLP(e.falta_2)+' para el 2 %.';
+  var vp=Number((document.getElementById(inputId==='pp-rut'?'pp-val-prod':'fn-val-prod')||{}).value)||0;
+  var salto='';
+  if(t<5&&vp>0){var tras=acum+vp;if(tras>=3000000&&t<5)salto=' Con esta compra pasa a <b>5 %</b>.';else if(tras>=1500000&&t<2)salto=' Con esta compra pasa a <b>2 %</b>.';}
+  box.innerHTML='<div class="b2b-aviso">🏢 <b>Cuenta empresa · tramo '+(t?t+' %':'—')+'</b><br>'+esc(e.razon_social)+' lleva '+fmtCLP(acum)+' en su ciclo. '+txt+salto+'</div>';
+}
+
 // ── POST VENTA (16-10-2026) ────────────────────────────────────────────────
 // Un caso por cada problema después de la venta (llegó dañado, falla, cambio).
 // El caso apunta al pedido ORIGINAL, que sigue contando como venta. Si hay que
