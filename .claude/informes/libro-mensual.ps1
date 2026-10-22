@@ -1,4 +1,4 @@
-﻿# Libro mensual de Casa Zaru (Excel, 14 hojas) — el cierre con números de gerente de finanzas
+﻿# Libro mensual de Casa Zaru (Excel, 19 hojas) + tablero HTML y PDF — el cierre con números de gerente de finanzas
 #
 # Junta: ventas (respaldo de Gestión), facturas recibidas (planilla de gastos Wasabil, ya clasificada
 # con las categorías oficiales), pagos sin factura (cartolas BCI + Banco de Chile vía cargar-cartolas.ps1),
@@ -245,19 +245,50 @@ $banco = @(LeerCsv $tmpBanco | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach
   # "≈" = solo calzaron el monto y la fecha. No basta si (1) es una transferencia a una persona: en septiembre
   # quincenas, horas y rendiciones calzaron con fletes de Céspedes; o (2) la factura es posterior al pago: un
   # cargo de tarjeta del 28-09 calzó con una factura de bencina del 09-10. Se tratan como pagos sin factura.
+  $aprox = $false
   if ($conFactura -and "$($_.Factura)" -match '≈') {
     $ff = $fechaFactura[$folio]
-    if ("$($_.Glosa)" -match '^Transferencia enviada' -or ($ff -and $ff -gt (Fecha $_.Fecha).AddDays(3))) { $conFactura = $false; $folio = '' }
+    if ("$($_.Glosa)" -match '^Transferencia enviada' -or ($ff -and $ff -gt (Fecha $_.Fecha).AddDays(3))) { $conFactura = $false; $folio = '' } else { $aprox = $true }
   }
-  $cat = "$($_.Categoria)"; $sub = ''
-  if ("$($_.Factura)" -match 'traspaso') { $cat = 'Traspaso interno (no es gasto)' }
-  elseif ($conFactura) { $g = $gastos | Where-Object { $_.folio -eq $folio } | Select-Object -First 1; $cat = if ($g) { $g.categoria } else { $PAGO_FACTURA } }
-  elseif (-not $cat) { $r = Clasificar 'banco' $txt $monto; if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria } elseif ($monto -lt $UMBRAL_OTROS) { $cat = 'Otros gastos'; $sub = 'sin identificar' } else { $cat = 'POR CLASIFICAR' } }
-  [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = Fecha $_.Fecha; cuenta = $_.Cuenta; proveedor = $(if ($_.Contraparte) { $_.Contraparte } else { ($_.Glosa -replace '^Pago:\s*', '') })
-    rut = $_.RUT; doc = ''; conFactura = $conFactura; categoria = $cat; sub = $sub; neto = $monto; iva = 0; total = $monto; detalle = "$($_.Nota)"; glosa = $_.Glosa }
+  # origen = de dónde sale la justificación del pago (hoja Semanas): traspaso, factura, cargador, regla, menor o ninguno
+  $cat = "$($_.Categoria)"; $sub = ''; $origen = if ($cat) { 'cargador' } else { 'ninguno' }
+  if ("$($_.Factura)" -match 'traspaso') { $cat = 'Traspaso interno (no es gasto)'; $origen = 'traspaso' }
+  elseif ($conFactura) { $g = $gastos | Where-Object { $_.folio -eq $folio } | Select-Object -First 1; $cat = if ($g) { $g.categoria } else { $PAGO_FACTURA }; $origen = 'factura' }
+  elseif (-not $cat) { $r = Clasificar 'banco' $txt $monto; if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria; $origen = 'regla' } elseif ($monto -lt $UMBRAL_OTROS) { $cat = 'Otros gastos'; $sub = 'sin identificar'; $origen = 'menor' } else { $cat = 'POR CLASIFICAR' } }
+  [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = Fecha $_.Fecha; cuenta = ($_.Cuenta -replace '\s+75243-30$', ''); proveedor = $(if ($_.Contraparte) { $_.Contraparte } else { ($_.Glosa -replace '^Pago:\s*', '') })
+    rut = $_.RUT; doc = ''; conFactura = $conFactura; categoria = $cat; sub = $sub; neto = $monto; iva = 0; total = $monto; detalle = "$($_.Nota)"; glosa = $_.Glosa; folio = $folio; aprox = $aprox; origen = $origen }
 })
 Remove-Item $tmpBanco -ErrorAction SilentlyContinue
+# Una factura justifica un solo pago. Si dos cargos calzan con el mismo folio (dos cargas de bencina de $30.000 y una
+# sola factura), se queda el calce exacto o el más antiguo; los demás vuelven a ser pagos sin factura (el 22-10 dos
+# cargas de Copec se "pagaban" con la misma factura de NAHUEN y una quedaba fuera del gasto).
+foreach ($g in @($banco | Where-Object { $_.conFactura -and $_.folio } | Group-Object folio | Where-Object { $_.Count -gt 1 })) {
+  foreach ($d in @($g.Group | Sort-Object aprox, fecha | Select-Object -Skip 1)) {
+    $d.conFactura = $false; $d.aprox = $false; $d.folio = ''
+    $r = Clasificar 'banco' "$($d.glosa) | $($d.proveedor) | $($d.detalle)" $d.neto
+    if ($r) { $d.categoria = $r.Categoria; $d.sub = $r.Subcategoria; $d.origen = 'regla' } elseif ($d.neto -lt $UMBRAL_OTROS) { $d.categoria = 'Otros gastos'; $d.sub = 'sin identificar'; $d.origen = 'menor' } else { $d.categoria = 'POR CLASIFICAR'; $d.sub = ''; $d.origen = 'ninguno' }
+  }
+}
 $sinFactura = @($banco | Where-Object { -not $_.conFactura -and $_.categoria -ne 'Traspaso interno (no es gasto)' })
+
+# ── Cuadre semanal: cada peso que salió de las cuentas, con su justificación (hoja Semanas y tablero) ──
+# "Que todo gasto esté justificado" (17-10). Un pago está justificado si tiene factura, si lo explica una regla
+# (reglas-cierre.csv o el cargador de cartolas), si es un traspaso entre cuentas propias o si es menor a $20.000.
+# Lo demás sale como SIN JUSTIFICAR, y eso es lo único que hay que mirar el lunes.
+$cuadre = New-Object System.Collections.ArrayList
+function Salida($fecha, $cuenta, $aQuien, $monto, $cat, $just, $ok, $detalle = '') { [void]$cuadre.Add([pscustomobject]@{ fecha = $fecha; cuenta = $cuenta; aQuien = "$aQuien"; monto = [double]$monto; categoria = $cat; justificacion = $just; ok = [bool]$ok; detalle = "$detalle" }) }
+$provFactura = @{}; foreach ($x in $planilla) { $provFactura["$($x.Folio)"] = "$($x.Proveedor)" }
+foreach ($b in $banco) {
+  $just = switch ($b.origen) {
+    'traspaso' { 'Traspaso entre cuentas propias' }
+    'factura'  { "Factura $($b.folio)$(if ($provFactura[$b.folio]) { " de $($provFactura[$b.folio])" })$(if ($b.aprox) { ' (calza monto y fecha)' })" }
+    'regla'    { "Regla: $($b.categoria)$(if ($b.sub) { " · $($b.sub)" })" }
+    'cargador' { "Regla del cargador: $($b.categoria)" }
+    'menor'    { "Menor a $(Plata $UMBRAL_OTROS): va a Otros gastos" }
+    default    { 'SIN JUSTIFICAR: ni factura ni regla' }
+  }
+  Salida $b.fecha $b.cuenta $b.proveedor $b.neto $b.categoria $just ($b.origen -ne 'ninguno') $b.detalle
+}
 
 # ── Saldos de las cuentas ──
 $caja = @()
@@ -297,15 +328,20 @@ function NombreMP($fecha, $monto) { $x = $mpNombres | Where-Object { $_.fecha -e
 $salidasMP = if ($mp.Count) { @($mp | Where-Object { $_.tipo -in 'Pago', 'Compra' } | ForEach-Object { [pscustomobject]@{ fecha = $_.fecha; monto = -$_.monto; plataforma = $(if ($_.tipo -eq 'Compra') { 'Mercado Libre' } else { '' }) } }) }
              else { @($liq | Where-Object { $_.tipo -eq 'Pago aprobado' -and $_.monto -lt 0 -and $_.medio -eq 'available_money' } | ForEach-Object { [pscustomobject]@{ fecha = $_.fecha; monto = $(if ($_.real) { -$_.real } else { -$_.monto }); plataforma = $_.plataforma } }) }
 $mpMeta = 0; $mpSinNombre = 0; $mpSinNombreN = 0; $mpGastos = @()
+$MP_TARJETA = 'Mercado Pago (tarjeta)'
 foreach ($s in $salidasMP) {
   $nom = NombreMP $s.fecha $s.monto
-  if ($nom -match 'Facebook|Meta') { $mpMeta += $s.monto; continue }
-  if ($nom -match 'Pr.stamo|cuota|Muvale') { continue }                                   # capital del crédito (creditos.csv) o traspaso propio
-  if (-not $nom) { if ($s.plataforma -eq 'Mercado Libre') { $nom = 'Mercado Libre (compra)' } else { $mpSinNombre += $s.monto; $mpSinNombreN++; continue } }
+  if ($nom -match 'Facebook|Meta') { $mpMeta += $s.monto; Salida $s.fecha $MP_TARJETA $nom $s.monto 'Publicidad Meta' 'Facebook: es el gasto real de Meta' $true; continue }
+  if ($nom -match 'Muvale') { Salida $s.fecha $MP_TARJETA $nom $s.monto 'Traspaso interno (no es gasto)' 'Traspaso entre cuentas propias' $true; continue }
+  if ($nom -match 'Pr.stamo|cuota') { Salida $s.fecha $MP_TARJETA $nom $s.monto 'Créditos y deudas (cuotas)' 'Capital del crédito de Mercado Pago (creditos.csv): no es gasto' $true; continue }
+  if (-not $nom) { if ($s.plataforma -eq 'Mercado Libre') { $nom = 'Mercado Libre (compra)' } else { $mpSinNombre += $s.monto; $mpSinNombreN++; Salida $s.fecha $MP_TARJETA '(sin nombre del comercio)' $s.monto 'POR CLASIFICAR' 'SIN JUSTIFICAR: falta el nombre del comercio (capturas de Mercado Pago → mp-nombres.csv)' $false; continue } }
   $r = Clasificar 'banco' $nom $s.monto
   $cat = if ($nom -match 'Mercado Libre') { $PAGO_FACTURA } elseif ($r) { $r.Categoria } elseif ($s.monto -lt $UMBRAL_OTROS) { 'Otros gastos' } else { 'POR CLASIFICAR' }
-  $mpGastos += [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = $s.fecha; cuenta = 'Mercado Pago (tarjeta)'; proveedor = $nom; rut = ''; doc = ''; conFactura = ($cat -eq $PAGO_FACTURA); categoria = $cat; sub = $(if ($r) { "$($r.Subcategoria)" } else { '' }); neto = $s.monto; iva = 0; total = $s.monto; detalle = 'pagado con la tarjeta de Mercado Pago'; glosa = $nom }
+  $just = if ($cat -eq $PAGO_FACTURA) { 'Compra en Mercado Libre: la factura llega a Wasabil' } elseif ($r) { "Regla: $cat$(if ("$($r.Subcategoria)") { " · $($r.Subcategoria)" })" } elseif ($cat -eq 'Otros gastos') { "Menor a $(Plata $UMBRAL_OTROS): va a Otros gastos" } else { "SIN JUSTIFICAR: no hay regla para '$nom' en reglas-cierre.csv" }
+  Salida $s.fecha $MP_TARJETA $nom $s.monto $cat $just ($cat -ne 'POR CLASIFICAR') 'pagado con la tarjeta de Mercado Pago'
+  $mpGastos += [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = $s.fecha; cuenta = $MP_TARJETA; proveedor = $nom; rut = ''; doc = ''; conFactura = ($cat -eq $PAGO_FACTURA); categoria = $cat; sub = $(if ($r) { "$($r.Subcategoria)" } else { '' }); neto = $s.monto; iva = 0; total = $s.monto; detalle = 'pagado con la tarjeta de Mercado Pago'; glosa = $nom }
 }
+foreach ($c in @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' })) { Salida $c.fecha 'Mercado Pago' 'Mercado Pago (crédito)' (-$c.monto) 'Créditos y deudas (cuotas)' 'Cuota del crédito de Mercado Pago: capital, no es gasto' $true }
 $sinFactura = @($sinFactura) + @($mpGastos | Where-Object { -not $_.conFactura })
 $banco = @($banco) + @($mpGastos)
 $mpCompras = Suma @($mpGastos | Where-Object { $_.conFactura }) 'neto'
@@ -320,6 +356,11 @@ $creditos = @(LeerCsv (Join-Path $PLAN 'creditos.csv') | Where-Object { EnMes (F
 $credPagoMP = Suma @($creditos | Where-Object { $_.acreedor -match 'Mercado Pago' }) 'pagoAnterior'
 $yaEnCuotas = @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' -and [math]::Abs($_.monto + $credPagoMP) -le 1 }).Count   # el estado de cuenta ya lo trae como cuota
 if ($credPagoMP -gt 0 -and -not $yaEnCuotas) { $quita = [math]::Min($credPagoMP, [math]::Max(0, $mpSinNombre)); $mpSinNombre -= $quita; $mpCuotas += $credPagoMP }
+# En el cuadre semanal ese pago deja de estar "sin nombre": es el pago del crédito anterior.
+foreach ($c in @($creditos | Where-Object { $_.pagoAnterior -gt 0 })) {
+  $x = $cuadre | Where-Object { -not $_.ok -and $_.cuenta -eq $MP_TARJETA -and [math]::Abs($_.monto - $c.pagoAnterior) -le 1 -and [math]::Abs(($_.fecha - $c.fecha).TotalDays) -le 3 } | Select-Object -First 1
+  if ($x) { $x.ok = $true; $x.aQuien = $c.acreedor; $x.categoria = 'Créditos y deudas (cuotas)'; $x.justificacion = 'Pago del crédito anterior al renovarlo (creditos.csv): capital, no es gasto' }
+}
 
 # ── Ajustes manuales (ajustes.csv, privado): decisiones del usuario que no están en ningún sistema ──
 # Ej.: el resto de una devolución que no pasó por el banco. Fecha;Concepto;Monto;Categoria;Nota
@@ -404,7 +445,7 @@ if ($sinFactProv.Count) {
   $det = @($sinFactProv | ForEach-Object { "$($_.Name) $(Plata (Suma $_.Group 'neto'))" })
   Aviso "Compras sin factura por $(Plata (Suma @($sinFactProv | ForEach-Object { $_.Group }) 'neto')): $($det -join ', '). No dan crédito de IVA; pedir factura cuando se pueda." }
 $porClas = @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' })
-if ($porClas.Count) { Aviso "$($porClas.Count) gastos por $(Plata (Suma $porClas 'neto')) siguen POR CLASIFICAR (ver Facturas recibidas). Clasificarlos en la planilla o en reglas-cierre.csv." }
+if ($porClas.Count) { Aviso "$($porClas.Count) gastos por $(Plata (Suma $porClas 'neto')) siguen POR CLASIFICAR (hojas Semanas y Facturas recibidas). Clasificarlos en la planilla o en reglas-cierre.csv." }
 if ($meta -and $metaReal - $metaFact -gt 1000) { Aviso "Meta: gasto real $(Plata $metaReal) pero solo $(Plata $metaFact) tienen factura de compra. Revisar con el contador las facturas que faltan (IVA no recuperado)." }
 if ($ventasFeria.Count) { Aviso "Ventas de feria con Point: $(Plata (Suma $ventasFeria 'bruto')) sin boleta electrónica (el voucher vale como boleta). Su IVA ($(Plata ((Suma $ventasFeria 'bruto') - $vNetaFeria))) no está en el débito de Wasabil: confirmar que entre al F29." }
 foreach ($v in $vMes) {
@@ -437,6 +478,17 @@ $esFinal = ($finMes -lt $hoy)
 $datosAl = if ($esFinal) { $finMes } elseif ($cBci.filas.Count) { ($cBci.filas | ForEach-Object { $_.fecha } | Measure-Object -Maximum).Maximum } else { $hoy }
 $estadoMes = if ($esFinal) { 'final' } else { "parcial (datos al $($datosAl.ToString('dd-MM')))" }
 if ($esFinal -and (-not $mp.Count -or -not $meta)) { $estadoMes = 'parcial (faltan ' + ((@($(if (-not $mp.Count) { 'Mercado Pago' }), $(if (-not $meta) { 'gasto real de Meta' })) | Where-Object { $_ }) -join ' y ') + ')' }
+
+# Semanas del cuadre: de lunes a domingo (para que no se pierda ningún pago), recortadas al mes.
+# "completa" = su último día ya está cubierto por los datos (cartola y, si no hay estado de cuenta, liquidaciones de MP).
+function Lunes($d) { $d.Date.AddDays(-(([int]$d.DayOfWeek + 6) % 7)) }
+$datosHasta = $datosAl; if (-not $mp.Count -and $liq.Count -and $liqHasta -lt $datosHasta) { $datosHasta = $liqHasta }
+$semanas = @($cuadre | Where-Object { $_.fecha } | Group-Object { (Lunes $_.fecha).ToString('yyyy-MM-dd') } | Sort-Object Name | ForEach-Object {
+  $lun = [datetime]::ParseExact($_.Name, 'yyyy-MM-dd', $INV); $d1 = if ($lun -lt $iniMes) { $iniMes } else { $lun }; $d2 = $lun.AddDays(6); if ($d2 -gt $finMes) { $d2 = $finMes }
+  $sin = @($_.Group | Where-Object { -not $_.ok })
+  [pscustomobject]@{ lunes = $lun; desde = $d1; hasta = $d2; nombre = "Semana del $($d1.ToString('dd-MM')) al $($d2.ToString('dd-MM'))"; movs = @($_.Group | Sort-Object fecha, cuenta, aQuien)
+    n = $_.Count; salio = (Suma $_.Group 'monto'); sinJust = (Suma $sin 'monto'); nSin = $sin.Count; completa = ($d2 -le $datosHasta) } })
+$sinJustTot = Suma @($cuadre | Where-Object { -not $_.ok }) 'monto'; $nSinJust = @($cuadre | Where-Object { -not $_.ok }).Count
 
 # Semáforo: cada línea dice qué pasa y qué hacer. Los umbrales viven en metas.csv.
 $semaforo = New-Object System.Collections.ArrayList
@@ -609,7 +661,9 @@ Sub $f 'Qué falta para cerrar el mes'
 $falta = @()
 if ($pend.Count) { $falta += "Emitir $($pend.Count) documentos por $(Plata $pendTot) (hoja Facturas emitidas, al final)." }
 if ($cobrar.Count) { $falta += "Cobrar $(Plata $porCobrar) de $($cobrar.Count) pedidos (hoja Por cobrar y pagar)." }
-if ($porClasTot) { $falta += "Clasificar $(Plata $porClasTot) de gastos sin categoría (hoja Facturas recibidas)." }
+$porClasFact = Suma @($gastos | Where-Object { $_.categoria -eq 'POR CLASIFICAR' }) 'neto'
+if ($porClasFact) { $falta += "Clasificar $(Plata $porClasFact) de facturas sin categoría (hoja Facturas recibidas)." }
+if ($nSinJust) { $falta += "Justificar $nSinJust pagos por $(Plata $sinJustTot) (hoja Semanas: los que dicen SIN JUSTIFICAR)." }
 if (-not $esFinal) { $falta += "El mes sigue abierto: faltan los movimientos desde el $($datosAl.AddDays(1).ToString('dd-MM'))." }
 if (-not $falta.Count) { $falta += 'Nada: el mes está cerrado.' }
 foreach ($x in $falta) { [void]$f.Add(@(C "• $x")) }
@@ -654,6 +708,22 @@ if ($activo) { Nota $f "Además llegaron facturas de activos por $(Plata $activo
 Sub $f "Para revisar antes de cerrar ($($avisos.Count))"
 foreach ($t in $avisos) { [void]$f.Add(@(C "• $t" 10)) }
 Hoja 'Resumen' $f @(48, 16, 16, 70)
+
+# ── 1b. Semanas (cuadre semanal: cada peso que salió, con su justificación) ──
+$f = New-Object System.Collections.ArrayList
+Titulo $f "Semanas — $mesNom" 'Cuadre semanal: cada peso que salió de BCI, Banco de Chile y la tarjeta de Mercado Pago, con su justificación (factura, regla o traspaso). Las semanas van de lunes a domingo para que no se pierda ningún pago. Lo único que hay que mirar es lo que dice SIN JUSTIFICAR.'
+Sub $f 'Resumen por semana'
+Tabla $f @('Semana', 'Pagos', 'Salió', 'Sin justificar', 'Pagos sin justificar', 'Estado') @($semanas | ForEach-Object { ,@($_.nombre, (C $_.n 7), $_.salio, $_.sinJust, (C $_.nSin 7), $(if ($_.nSin) { 'Revisar' } elseif (-not $_.completa) { 'En curso' } else { 'Cerrada ✓' })) }) @(2, 3)
+$fuentesSem = @("cartolas $((@(@($cBci.archivo, $cBdc.archivo) | Where-Object { $_ } | ForEach-Object { $_.Name })) -join ' y ')")
+$fuentesSem += if ($mp.Count) { 'Mercado Pago: estado de cuenta del mes' } elseif ($liq.Count) { "Mercado Pago: liquidaciones hasta el $($liqHasta.ToString('dd-MM')) ($($liqArchivo.Name))" } else { 'Mercado Pago: SIN DATOS (faltan las liquidaciones en Descargas), los pagos de la tarjeta no están' }
+Nota $f "Fuentes: $($fuentesSem -join '; '). Datos hasta el $($datosHasta.ToString('dd-MM'))."
+foreach ($s in $semanas) {
+  Sub $f "$($s.nombre): $(Plata $s.salio) en $($s.n) pagos$(if ($s.nSin) { " — $($s.nSin) sin justificar por $(Plata $s.sinJust)" } else { ' — todo justificado' })"
+  Tabla $f @('Fecha', 'Cuenta', 'A quién', 'Monto', 'Categoría', 'Justificación', 'Detalle') @($s.movs | ForEach-Object { ,@($_.fecha, $_.cuenta, $_.aQuien, $_.monto, $_.categoria, (C $_.justificacion $(if ($_.ok) { $null } else { 10 })), $_.detalle) }) @(3)
+}
+if (-not $semanas.Count) { Nota $f 'Sin pagos en el mes: ¿faltan las cartolas en Descargas?' }
+Nota $f "Para justificar un pago: si tiene factura, cargarla en Wasabil; si se repite todos los meses, agregar la regla en reglas-cierre.csv; si es de la tarjeta de Mercado Pago, poner el nombre del comercio en mp-nombres.csv. Los menores a $(Plata $UMBRAL_OTROS) sin identificar van solos a Otros gastos."
+Hoja 'Semanas' $f @(11, 16, 36, 13, 28, 58, 40)
 
 # ── 2. Caja ──
 $f = New-Object System.Collections.ArrayList
@@ -913,7 +983,7 @@ if ($env:LIBRO_DEBUG) { $todo | Select-Object fuente, fecha, proveedor, categori
 
 # ═════════════════════════════ GUARDAR ═════════════════════════════
 # Orden de las hojas: primero lo que más mueve plata.
-$ORDEN = @('Resumen', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
+$ORDEN = @('Resumen', 'Semanas', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
 $ordenadas = @($hojas | Sort-Object { $i = [array]::IndexOf($ORDEN, $_.nombre); if ($i -lt 0) { 99 } else { $i } })
 $hojas.Clear(); foreach ($h in $ordenadas) { [void]$hojas.Add($h) }
 
@@ -926,4 +996,7 @@ GuardarXlsx $ruta
 $rutaTab = Join-Path $Salida 'Tablero Casa Zaru.html'
 Tablero $rutaTab
 "Tablero: $rutaTab"
+# Y en PDF: Drive no muestra el HTML como página (ni en el celular), el PDF sí se abre desde el enlace.
+$rutaPdf = Join-Path $Salida 'Tablero Casa Zaru.pdf'
+if (TableroPdf $rutaTab $rutaPdf) { "Tablero PDF: $rutaPdf" } else { "AVISO: no se pudo generar el PDF del tablero (¿falta Microsoft Edge?)." }
 "$mesNom $($iniMes.Year): venta neta $(Plata $ventaNeta) | margen bruto $(Plata $margenBruto) | contribución $(Plata $contrib) | resultado $(Plata $resultado) | caja $(Plata $cajaFin) | avisos $($avisos.Count)"

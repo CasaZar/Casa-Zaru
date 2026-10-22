@@ -1,6 +1,6 @@
 ---
 name: cierre-mensual
-description: Cierre mensual y semanal de Casa Zaru con números de gerente de finanzas — libro Excel de 18 hojas (resumen con semáforo, historial mes a mes, madera, Starken, gastos fijos, caja, ventas, por cobrar y pagar, sueldos, bencina, marketing y CAC, ferias, cotizador, facturas recibidas y emitidas, IVA, deudas) y el tablero HTML en Drive. Actívala cuando el usuario pida "cierre mensual", "cierre de <mes>", "cierre de la semana", "libro del mes", "tablero", "estado de resultados", "cuánto ganamos/perdimos", "en qué estamos fallando" o "el Excel del cierre".
+description: Cierre mensual y semanal de Casa Zaru con números de gerente de finanzas — libro Excel de 19 hojas (resumen con semáforo, cuadre semanal con cada pago justificado, historial mes a mes, madera, Starken, gastos fijos, caja, ventas, por cobrar y pagar, sueldos, bencina, marketing y CAC, ferias, cotizador, facturas recibidas y emitidas, IVA, deudas) y el tablero HTML + PDF en Drive. Actívala cuando el usuario pida "cierre mensual", "cierre de <mes>", "cierre de la semana", "cuadre semanal", "qué gastos faltan justificar", "libro del mes", "tablero", "estado de resultados", "cuánto ganamos/perdimos", "en qué estamos fallando" o "el Excel del cierre".
 ---
 
 # Cierre mensual — libro Excel y tablero
@@ -10,9 +10,14 @@ description: Cierre mensual y semanal de Casa Zaru con números de gerente de fi
 2. **Lunes 10:15, tarea "CasaZaru - Tablero Semanal"** (`correr-tablero.ps1` → `libro-mensual.ps1` del mes en
    curso): el usuario baja antes a Descargas la cartola BCI completa, la de Banco de Chile y el reporte de
    liquidaciones de Mercado Pago (`settlement_v2-*.xlsx`); el script elige la cartola que mejor cubre el mes, clasifica
-   con `reglas-cierre.csv`, manda lo menor a $20.000 a "Otros gastos", y deja en Drive el libro del mes y
-   `Tablero Casa Zaru.html`. Claude corre la conciliación (skill `conciliacion`) y deja máximo 3 preguntas con respuesta
-   propuesta. Cada respuesta se convierte en regla para que no vuelva a preguntarse.
+   con `reglas-cierre.csv`, manda lo menor a $20.000 a "Otros gastos", y deja en Drive el libro del mes,
+   `Tablero Casa Zaru.html` y `Tablero Casa Zaru.pdf` (el PDF es el que se abre desde el enlace de Drive y en el
+   celular: Drive muestra el HTML como código). Claude corre la conciliación (skill `conciliacion`) y deja máximo 3
+   preguntas con respuesta propuesta. Cada respuesta se convierte en regla para que no vuelva a preguntarse.
+   **El cuadre semanal es la hoja Semanas del libro** (desde el 22-10): cada peso que salió de BCI, Banco de Chile y la
+   tarjeta de Mercado Pago, por semana de lunes a domingo, con su justificación (factura N°, regla, traspaso, menor a
+   $20.000). Lo único que pide acción es lo que dice SIN JUSTIFICAR; eso mismo sale en el tablero (bloque de la última
+   semana completa) y en "Qué falta para cerrar el mes". No se arma con scripts sueltos.
 3. **Día 2, tarea "CasaZaru - Cierre Mensual Gestion"** (`correr-cierre.ps1`): PDF + libro + tablero del mes cerrado.
    Al usuario se le dan tres cifras: resultado, caja y por cobrar.
 
@@ -93,8 +98,11 @@ $env:LIBRO_DEBUG = '<scratchpad>\movs.csv'; .\libro-mensual.ps1 -Mes AAAA-MM -Sa
 - La hoja Starken compara el envío de los pedidos que SALIERON en el mes con los fletes del mes. Día de salida:
   dia_envio de Seguimiento (se mueve con el cambio de fecha; Producción queda con la original), si no el de
   Producción, si no el lunes de la semana + 7 días. Los estimados con cambio de fecha avisado salen como aviso.
-- Hojas, en este orden: Resumen, Madera (por proveedor), Starken (cobrado vs todos los fletes), Gastos
-  fijos (con la venta necesaria para cubrirlos), Caja, Ventas, Por cobrar y pagar, Sueldos
+- Una factura justifica un solo pago: si dos cargos calzan "≈" con el mismo folio (dos cargas de bencina y una sola
+  factura), el segundo vuelve a ser pago sin factura y se clasifica por regla. Un pago cuya glosa dice "factura <mes>"
+  sin número ("Pago final factura agosto", Renatte) también es pago de factura ya contada.
+- Hojas, en este orden: Resumen, Semanas (cuadre semanal), Historial, Madera (por proveedor), Starken (cobrado vs
+  todos los fletes), Gastos fijos (con la venta necesaria para cubrirlos), Caja, Ventas, Por cobrar y pagar, Sueldos
   (confidencial), Bencina, Marketing y CAC, Ferias, Cotizador, Facturas recibidas y emitidas, IVA, Deudas.
 - Si Gestión cambió después del respaldo de las 03:00, pasar `-Respaldo <copia al día>.json`.
 - El resultado tiene que cuadrar con sus partes y la caja con los saldos de las cartolas.

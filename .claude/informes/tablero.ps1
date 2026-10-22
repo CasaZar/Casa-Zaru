@@ -60,6 +60,24 @@ function Tablero($ruta) {
   $avisosHtml = (@($avisos | Select-Object -First 6) | ForEach-Object { "<li>$(Hx $_)</li>" }) -join ''
   $masAvisos = if ($avisos.Count -gt 6) { "<p class=`"muted`">y $($avisos.Count - 6) avisos más en el libro.</p>" } else { '' }
 
+  # El cuadre de la semana: la última completa (lunes a domingo) que cubren los datos; si no hay ninguna, la que va.
+  # Debajo, todas las semanas del mes. Lo único que pide acción es lo que está sin justificar.
+  $semRef = @($semanas | Where-Object { $_.completa }) | Select-Object -Last 1
+  if (-not $semRef) { $semRef = @($semanas) | Select-Object -Last 1 }
+  $semHtml = ''
+  if ($semRef) {
+    $sinL = @($semRef.movs | Where-Object { -not $_.ok })
+    $cerradas = @($semanas | Where-Object { $_.completa -and -not $_.nSin }).Count
+    $semTiles = (Tile 'Salió' (Plata $semRef.salio) '' "$($semRef.n) pagos de BCI, Banco de Chile y la tarjeta de Mercado Pago") +
+                (Tile 'Sin justificar' (Plata $semRef.sinJust) '' $(if ($sinL.Count) { "$($sinL.Count) pagos por mirar" } else { 'Todo justificado' })) +
+                (Tile 'Semanas cerradas' "$cerradas de $($semanas.Count)" '' 'con todo justificado')
+    $semLista = if ($sinL.Count) { '<ul class="lista">' + (($sinL | ForEach-Object { "<li>$(Hx $_.fecha.ToString('dd-MM')) · $(Hx $_.cuenta) · $(Hx $_.aQuien) · <b>$(Hx (Plata $_.monto))</b>. $(Hx ($_.justificacion -replace '^SIN JUSTIFICAR:\s*', ''))</li>" }) -join '') + '</ul>' }
+               else { '<p class="muted">Cada pago tiene su factura, su regla o es un traspaso entre cuentas propias.</p>' }
+    $semTabla = '<table class="sem"><thead><tr><th>Semana</th><th>Pagos</th><th>Salió</th><th>Sin justificar</th></tr></thead><tbody>' +
+                (($semanas | ForEach-Object { "<tr class=`"$(if ($_.nSin) { 'mal' } elseif ($_.completa) { 'bien' } else { 'curso' })`"><td>$(Hx $_.nombre)$(if (-not $_.completa) { ' <span class="muted">(en curso)</span>' })</td><td>$($_.n)</td><td>$(Hx (Plata $_.salio))</td><td>$(if ($_.nSin) { Hx (Plata $_.sinJust) } else { '✓' })</td></tr>" }) -join '') + '</tbody></table>'
+    $semHtml = "<h2>$(Hx $semRef.nombre)$(if (-not $semRef.completa) { ' (en curso)' })</h2><div class=`"tiles`">$semTiles</div>$semLista<h3>Semanas de $(Hx $mesNom.ToLower())</h3>$semTabla"
+  }
+
   $css = @'
 :root{--bg:#F1ECE4;--card:#FFFFFF;--ink:#2B2622;--muted:#6B625A;--line:#E3DCCF;--verde:#485B3D;--terracota:#B5652E;--dorado:#D4AC74;--dorado-ink:#5C4512;--bar:#485B3D;--bar-neg:#B5652E}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1F1C19;--card:#2A2622;--ink:#F1ECE4;--muted:#B8AEA2;--line:#3A342E;--verde:#8FAE7B;--terracota:#D99463;--dorado:#D4AC74;--dorado-ink:#F1ECE4;--bar:#8FAE7B;--bar-neg:#D99463}}
@@ -83,16 +101,37 @@ h2{font-size:18px;margin:32px 0 12px;font-weight:600}
 svg{width:100%;height:auto;display:block}.bar.pos{fill:var(--bar)}.bar.neg{fill:var(--bar-neg)}.bar.parcial{opacity:.55}.base{stroke:var(--line);stroke-width:1}
 .val{font-size:12px;fill:var(--ink);font-family:system-ui,sans-serif}.mes{font-size:12px;fill:var(--muted);font-family:system-ui,sans-serif}
 ul.lista{margin:0;padding-left:20px}ul.lista li{margin:6px 0}.muted{color:var(--muted)}footer{margin-top:40px;font-size:13px;color:var(--muted)}
+h3{font-size:15px;margin:20px 0 8px;font-weight:600}
+table.sem{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);font-size:14px}
+table.sem th,table.sem td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line)}table.sem th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+table.sem th:nth-child(n+2),table.sem td:nth-child(n+2){text-align:right;white-space:nowrap}table.sem tr:last-child td{border-bottom:0}
+table.sem tr.mal td:last-child{color:var(--terracota);font-weight:700}table.sem tr.bien td:last-child{color:var(--verde);font-weight:700}
+@media print{@page{size:A4;margin:12mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-size:13px;background:#fff}main{padding:0;max-width:none}
+.tiles{grid-template-columns:repeat(3,1fr)}.charts{grid-template-columns:1fr 1fr}.tile,.luces li,.chart,table.sem tr{break-inside:avoid}h2,h3{break-after:avoid}}
 '@
 
   $html = "<!doctype html><html lang=`"es`"><head><meta charset=`"utf-8`"><meta name=`"viewport`" content=`"width=device-width,initial-scale=1`"><title>Tablero Casa Zaru</title><style>$css</style></head><body><main>" +
     "<header><h1>Casa Zaru · $(Hx $mesNom) $($iniMes.Year)</h1><p>$(Hx $estadoMes). Montos sin IVA. Generado el $(Hx $gen).</p></header>" +
     "<h2>Los números</h2><div class=`"tiles`">$tiles</div>" +
     "<h2>Dónde estamos bien y dónde fallamos</h2><ul class=`"luces`">$luces</ul>" +
+    $semHtml +
     "<h2>Mes a mes</h2><div class=`"charts`">$(Barras 'VentaNeta' 'Venta neta por mes' $false)$(Barras 'Resultado' 'Resultado por mes' $true)</div><p class=`"muted`">* mes parcial o con insumos incompletos.</p>" +
     "<h2>Qué falta para cerrar el mes</h2><ul class=`"lista`">$pendHtml</ul>" +
     $(if ($avisos.Count) { "<h2>Para revisar</h2><ul class=`"lista`">$avisosHtml</ul>$masAvisos" } else { '' }) +
     "<footer>Fuentes: Gestión, planilla de gastos Wasabil, cartolas BCI y Banco de Chile, Mercado Pago, Wasabil y Meta. El detalle está en el libro Excel del mes, en la misma carpeta.</footer>" +
     '</main></body></html>'
   [IO.File]::WriteAllText($ruta, $html, (New-Object Text.UTF8Encoding($true)))
+}
+
+# El mismo tablero en PDF, con Edge headless (igual que los informes): Drive no muestra el HTML como página,
+# el PDF sí se abre desde el enlace y en el celular. Devuelve $true si quedó el archivo.
+function TableroPdf($rutaHtml, $rutaPdf) {
+  $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+  if (-not $edge) { return $false }
+  try {
+    if (Test-Path $rutaPdf) { Remove-Item $rutaPdf -Force }
+    $uri = ([Uri](Resolve-Path $rutaHtml).Path).AbsoluteUri
+    $null = Start-Process -FilePath $edge -ArgumentList @('--headless=new', '--disable-gpu', '--no-pdf-header-footer', "--print-to-pdf=`"$rutaPdf`"", "`"$uri`"") -Wait -PassThru -WindowStyle Hidden
+    return [bool](Test-Path $rutaPdf)
+  } catch { return $false }
 }
