@@ -62,7 +62,9 @@ Si algo no se pudo verificar, va en ⚪ con el motivo, no en verde.
 Lo que ya se sabe que está en rojo o amarillo (22-10-2026) y no hay que redescubrir:
 - Restauración ensayada por primera vez el 22-10-2026 en los dos proyectos (OK). Toca repetirla cada mes.
 - El Cotizador no tiene migraciones numeradas: todo `supabase-cotizador/*.sql` es parche suelto.
-- No existe registro de errores del cliente en ninguna de las dos apps.
+- Registro de errores construido el 23-10-2026 (0021 y errores-cliente.sql aplicados; capturas en las dos apps).
+  Las primeras filas son pruebas marcadas «PRUEBA … (se puede borrar)». `cuenta.html` (B2B) no registra: usa
+  la llave pública de Gestión, que a propósito no escribe nada.
 - 38 filas de `gestion_produccion` llevan clave Firebase (pedidos 1447-1497) en vez de numStr.
 - 81 emisiones de mayo a agosto 2026 no tienen fila en `gestion_documentos` (la tabla nace en septiembre).
 - `saldo_monto` y `abono_monto` en finanzas se escriben al cargar la venta y nadie los lee: campos muertos.
