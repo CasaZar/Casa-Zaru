@@ -94,7 +94,7 @@ Write-Output '3/8 migraciones…'
 $migs=@(Get-ChildItem "$repo\supabase\migrations\*.sql" | sort Name); $ult=$(if($migs.Count){$migs[-1].Name}else{'ninguna'})
 $faltan=@(); $creadas=@{}; $borradas=@{}
 foreach($mf in $migs){ $txt=Get-Content -Raw $mf.FullName
-  foreach($mm in [regex]::Matches($txt,'(?i)create table (?:if not exists )?(?:public\.)?([a-z_0-9]+)')){ $creadas[$mm.Groups[1].Value]=$mf.Name.Substring(0,4) }
+  foreach($mm in [regex]::Matches($txt,'(?i)create table (?:if not exists )?(?:public\.)?([a-z_0-9]+)(?![a-z_0-9.])')){ $creadas[$mm.Groups[1].Value]=$mf.Name.Substring(0,4) }
   foreach($mm in [regex]::Matches($txt,'(?i)drop table (?:if exists )?(?:public\.)?([a-z_0-9]+)')){ $borradas[$mm.Groups[1].Value]=$true } }
 foreach($t in ($creadas.Keys | sort)){ if($borradas.ContainsKey($t)){ continue }   # creada y luego revertida por otra migración
   $r=Http 'GET' "$urlG/rest/v1/${t}?select=*&limit=1" $hG $null; if($r.code -eq 404){ $faltan+="$t ($($creadas[$t]))" } }

@@ -129,7 +129,7 @@ if($errores.Count){ $notas+="ERRORES: " + (($errores.Keys | % { "$_ ($($errores[
 if($difFilas.Count){ $notas+="filas distintas: " + ($difFilas -join ', ') }
 if($difSumas.Count){ $notas+="sumas distintas: " + ($difSumas -join ', ') }
 if($sinRespaldo.Count){ $notas+="tablas sin respaldo: " + ($sinRespaldo -join ', ') }
-if($vivos.Count){ $notas+="cambios en la base desde el respaldo (normal): " + ($vivos -join ', ') }
+if($vivos.Count){ $notas+="archivo vs lo que esta sesión ve hoy en la base (actividad posterior o RLS; informativo): " + ($vivos -join ', ') }
 Write-Output ''
 Write-Output ($(if($ok){'✅ RESTAURACIÓN OK'}else{'❌ RESTAURACIÓN CON FALLAS'}) + " · " + ($notas -join ' · '))
 if(Test-Path $dirInf){
