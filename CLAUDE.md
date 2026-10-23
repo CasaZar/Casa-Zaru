@@ -133,11 +133,53 @@ recalcularlas en JS. Después de escribir, recargar con `recargarGastos()` en ve
 `admin` (todo) · `vendedor` (sin Finanzas/Costos/Pixel/Gastos) · `taller` (Producción + bodega).
 La protección real es RLS en el servidor; el CSS `body.rol-*` es solo cosmético.
 
+## Contrato de confiabilidad (vigente desde el 22-10-2026)
+Claude actúa como ingeniero responsable de que la Gestión y el Cotizador no pierdan información.
+Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de hacerlo.
+
+**Datos**
+- Nada se borra ni se pisa sin respaldo verificable previo. `PATCH`, nunca `PUT` sobre el `data` entero.
+- Borrado lógico (`deleted_at` / `eliminada`) en tablas de negocio. `DELETE` físico solo con ok explícito
+  del usuario y respaldo de esas filas.
+- Toda tabla de negocio nueva lleva `created_at`, `updated_at`, `updated_by` y un trigger que guarda la
+  versión anterior en una tabla de historial. Nunca se pierde el estado previo de un pedido, pago o cotización.
+- La integridad vive en la base, no en el JS: FK, unique, check, not null. Si el navegador puede mandar algo
+  inválido, la base lo rechaza.
+- El esquema cambia SOLO por migración numerada, idempotente, con su rollback escrito y registrada en
+  `schema_migrations`. Cero `ALTER` a mano sin archivo. (El Cotizador todavía no cumple esto: ver `/auditoria`.)
+
+**Respaldo**
+- Respaldo diario automático de los dos proyectos a Drive, por tabla, en formato restaurable. Retención
+  objetivo: 30 diarios + 12 mensuales.
+- Prueba de restauración mensual comparando conteos y sumas. Un respaldo que nunca se restauró no existe.
+  Cada prueba se anota en `Informes Gestion/restauraciones.csv` (Drive): `fecha,proyecto,resultado,notas`.
+- Si el último respaldo tiene más de 36 horas, avisar al abrir la sesión.
+
+**Seguridad**
+- Ningún secreto en el repo, el HTML, la memoria ni los mensajes. RLS (+ FORCE) en toda tabla. La llave
+  pública solo lee lo que debe. Toda rotación de llaves queda documentada con fecha.
+
+**Cambios**
+- Cada cambio: commit chico, verificación estructural (llaves balanceadas, `<th>` = `<td>`, sin template
+  anidado), prueba en el navegador a 390 px, push y verificación del sitio en vivo.
+- Antes de cualquier escritura masiva en la base, mostrar el `SELECT` con las filas afectadas y esperar el ok.
+- Nunca probar emitiendo documentos reales al SII ni guardando cotizaciones reales.
+- Si un cambio toca dinero, folios o stock: un solo camino de escritura, idempotente.
+
+**Operación**
+- Un runbook por escenario (cae Supabase, cae GitHub Pages, se borra una tabla, se filtra una llave), cada
+  uno ensayado una vez. Pendientes de escribir.
+- Los errores del cliente (`window.onerror`) se registran en una tabla y se revisan en `/auditoria`. Pendiente.
+- Todo número que se muestre sale de la fórmula real, nunca de cabeza.
+
+La auditoría semanal que mide el cumplimiento es la skill `/auditoria` (abajo).
+
 ## Skills del proyecto
 Viven en `.claude/skills/`. Invocarlas cuando el pedido calce, en vez de reconstruir el análisis a mano:
 
 | Skill | Cuándo se activa |
 |---|---|
+| `auditoria` | "auditoría", "auditoría de confiabilidad", "cómo están los respaldos", "semáforo", o los lunes. Ocho puntos (respaldo, restauración, migraciones, RLS, secretos, integridad, errores del cliente, sitios) con `scripts/auditoria.ps1`; **solo reporta, no corrige**. Informe en `Informes Gestion/` (Drive). |
 | `cierre-semanal` | "cierre semanal", "cómo vamos este mes", "en qué tramo está César", "qué despacha esta semana". Venta acumulada del mes, tramo de comisión y despachos. |
 | `analisis-cotizador` | "análisis del cotizador", "qué se está cotizando", "cómo va el seguimiento". Productos, medidas y ticket cotizados, más tiempo al primer toque y cotizaciones sin tocar. |
 | `conciliacion` | "conciliación", "qué pagos faltan marcar", "qué boletas faltan emitir", o cuando pasan la cartola BCI / export de Mercado Pago. Cruza pagos vs Finanzas vs documentos; totales aparte de Point (ferias) y Mercado Libre. Scripts en `scripts/`; los nombres personales a excluir viven en `%USERPROFILE%\.claude\conciliacion-excluir.txt` (el repo es público). |
