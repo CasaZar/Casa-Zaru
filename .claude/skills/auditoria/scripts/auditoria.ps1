@@ -183,11 +183,23 @@ Sem '6 Integridad' $iG $iC
 
 # ── 7. Errores del cliente ────────────────────────────────────────────────────
 Write-Output '7/8 errores del cliente…'
+# Existe la tabla (404 = no; 401 = sí, sin acceso para la llave pública, que es lo esperado) y qué hay en
+# los últimos 7 días según el respaldo diario, que descubre la tabla solo. Sin llave admin no hace falta.
 $eG=Http 'GET' "$urlG/rest/v1/errores_cliente?select=*&limit=1" $hG $null
-$eC=$(if($SB_KEY){ Http 'GET' "$SB_URL/rest/v1/errores_cliente?select=*&limit=1" $hS $null }else{ @{code=0} })
-$sEG=$(if($eG.code -eq 404){"$SEM_R no existe la tabla"}elseif($eG.code -eq 0){"$SEM_B sin respuesta"}else{"$SEM_V existe (HTTP $($eG.code))"})
-$sEC=$(if($eC.code -eq 404){"$SEM_R no existe la tabla"}elseif($eC.code -eq 0){"$SEM_B sin llave"}else{"$SEM_V existe (HTTP $($eC.code))"})
-if($eG.code -eq 404 -or $eC.code -eq 404){ Prop 'Errores del cliente: tabla errores_cliente (ts, app, usuario, mensaje, stack, url, ua) con insert para authenticated (y anon en el cotizador público), window.onerror + unhandledrejection en las dos apps, y revisar acá los últimos 7 días.' }
+$eC=$(if($anonC){ Http 'GET' "$SB_URL/rest/v1/errores_cliente?select=*&limit=1" $hC $null }else{ @{code=0} })
+function Errores7($J,$lbl){
+  if(-not $J){ return "$SEM_B sin respaldo" }
+  if(-not ($J.tablas.PSObject.Properties.Name -contains 'errores_cliente')){ return "$SEM_A la tabla aún no está en el respaldo (entra en el próximo)" }
+  $f=Filas $J.tablas 'errores_cliente'; $desde=$hoy.AddDays(-7); $rec=@($f | ? { [datetime]$_.ts -ge $desde })
+  if(-not $rec.Count){ return "$SEM_V 0 errores en 7 días (respaldo $($J.generado.Substring(0,10)))" }
+  $g=@($rec | group { "$($_.app) · " + ([string]$_.mensaje).Substring(0,[math]::Min(70,([string]$_.mensaje).Length)) } | sort Count -desc)
+  Det "**Errores $lbl (7 días, según respaldo):** $($rec.Count) en $($g.Count) mensajes distintos."
+  foreach($x in ($g | select -First 5)){ Det "- $($x.Count)× $($x.Name)" }
+  return "$SEM_A $($rec.Count) errores / $($g.Count) mensajes; ver detalle" }
+$sEG=$(if($eG.code -eq 404){"$SEM_R no existe la tabla"}else{ Errores7 $JG 'Gestión' })
+$sEC=$(if($eC.code -eq 404){"$SEM_R no existe la tabla"}else{ Errores7 $JC 'Cotizador' })
+if($eG.code -eq 404){ Prop 'Errores Gestión: aplicar supabase/migrations/0021_errores_cliente.sql.' }
+if($eC.code -eq 404){ Prop 'Errores Cotizador: aplicar supabase-cotizador/errores-cliente.sql.' }
 Sem '7 Errores del cliente' $sEG $sEC
 
 # ── 8. Sitios vivos ───────────────────────────────────────────────────────────

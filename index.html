@@ -27524,6 +27524,34 @@ let orders=[],editingKey=null,pollInterval=null,pendingOps=0;
 const SB_URL='https://padnttpgzuotxeipjrry.supabase.co';
 const SB_ANON=WASABIL_ANON_KEY;
 const SESION_KEY='cazaru_sesion';
+// ── Registro de errores del cliente (contrato de confiabilidad, 23-10-2026) ──
+// Todo error no capturado del navegador va a la tabla errores_cliente (migración
+// 0021). Nunca rompe la app: si falla el envío, se traga. Tope de 20 por carga y
+// sin repetir el mismo mensaje. Solo con sesión: la llave pública no escribe.
+// Se revisa en /auditoria (punto 7) desde el respaldo diario.
+var _errCliEnviados={},_errCliTotal=0;
+function registrarErrorCliente(mensaje,stack,extra){
+  try{
+    mensaje=String(mensaje||'').slice(0,2000);
+    if(!mensaje||/ResizeObserver loop|^Script error\.?$|chrome-extension:|moz-extension:/.test(mensaje))return;
+    var k=mensaje.slice(0,200);if(_errCliEnviados[k]||_errCliTotal>=20)return;
+    _errCliEnviados[k]=1;_errCliTotal++;
+    if(typeof sesion==='undefined'||!sesion||!sesion.access_token)return;
+    var fila={app:'gestion',mensaje:mensaje,stack:stack?String(stack).slice(0,8000):null,
+      url:location.href.slice(0,500),ua:navigator.userAgent.slice(0,300),extra:extra||null};
+    fetch(SB_URL+'/rest/v1/errores_cliente',{method:'POST',keepalive:true,
+      headers:{'apikey':SB_ANON,'Authorization':'Bearer '+sesion.access_token,'Content-Type':'application/json','Prefer':'return=minimal'},
+      body:JSON.stringify(fila)}).catch(function(){});
+  }catch(e){}
+}
+window.addEventListener('error',function(ev){
+  var e=ev&&ev.error;
+  registrarErrorCliente(ev.message||(e&&e.message)||'error sin mensaje',e&&e.stack,{archivo:ev.filename||null,linea:ev.lineno||null,col:ev.colno||null});
+});
+window.addEventListener('unhandledrejection',function(ev){
+  var r=ev&&ev.reason;
+  registrarErrorCliente('Promesa rechazada: '+((r&&r.message)||String(r)),r&&r.stack,null);
+});
 var sesion=null; try{sesion=JSON.parse(localStorage.getItem(SESION_KEY)||'null');}catch(e){sesion=null;}
 var usuarioEmail='',usuarioRol='';
 // Solo las colecciones {num, data jsonb} que habla api(). El módulo de gastos

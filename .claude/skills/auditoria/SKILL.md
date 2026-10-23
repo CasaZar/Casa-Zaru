@@ -25,7 +25,7 @@ Hace solo lo que se puede verificar desde esta máquina sin SQL Editor:
 | 4 | RLS | Con la llave pública de cada proyecto: GET, PATCH y DELETE sobre cada tabla usando un filtro contradictorio (`and=(col.is.null,col.not.is.null)`) que nunca toca una fila. 401 = sin grants; 2xx = hay grant y la policy hay que mirarla en SQL. |
 | 5 | Secretos | Busca `sk-ant-api`, `sb_secret_` y JWT con rol distinto de `anon` en ambos repos y en los últimos 60 commits. |
 | 6 | Integridad | Sobre los respaldos: huérfanos entre colecciones, claves no numéricas en producción, emisiones sin historial, saldos negativos, vistas vs tablas; en el Cotizador toques/líneas huérfanos, números repetidos, ganadas sin monto. |
-| 7 | Errores | Existe `errores_cliente` en cada proyecto. Hoy no existe: rojo hasta que se construya. |
+| 7 | Errores | Existe `errores_cliente` en cada proyecto (0021 en Gestión, `errores-cliente.sql` en el Cotizador) y qué entró en los últimos 7 días, leído del respaldo diario y agrupado por mensaje. Las apps lo alimentan con `registrarErrorCliente()` (window.onerror + unhandledrejection). |
 | 8 | Sitios | HTTP a los sitios y a los dos PostgREST; hash de lo publicado vs lo local. |
 
 El informe queda en `G:\Mi unidad\Casa Zaru\Informes Gestion\auditoria-confiabilidad-<fecha>.md`
