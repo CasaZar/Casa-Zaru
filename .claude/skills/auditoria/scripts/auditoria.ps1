@@ -150,15 +150,15 @@ if($sg.Count -or $sc.Count){ Prop 'Secretos: rotar la llave expuesta hoy mismo y
 # ── 6. Integridad ─────────────────────────────────────────────────────────────
 Write-Output '6/8 integridad…'
 $iG="$SEM_B sin respaldo"; $iC="$SEM_B sin respaldo"
-if($JG){ $T=$JG.tablas; function Idx($n){ $s=@{}; foreach($r in (Filas $T $n)){ $s[[string]$r.num]=$r }; return $s }
+if($JG){ $TAB=$JG.tablas; function Idx($n){ $s=@{}; foreach($r in (Filas $TAB $n)){ $s[[string]$r.num]=$r }; return $s }
   $ped=Idx 'gestion_pedidos'; $pro=Idx 'gestion_produccion'; $fin=Idx 'gestion_finanzas'
   $noNum=@($pro.Keys | ? { $_ -notmatch '^[0-9]+$' -and $_ -notlike 'PV*' -and $_ -notlike 'D*' })
   $finSinPro=@($fin.Keys | ? { -not $pro.ContainsKey($_) }); $proSinFin=@($pro.Keys | ? { -not $fin.ContainsKey($_) -and $_ -notlike 'PV*' })
-  $docs=@{}; foreach($d in (Filas $T 'gestion_documentos')){ $docs[[string]$d.num]=$true }
+  $docs=@{}; foreach($d in (Filas $TAB 'gestion_documentos')){ $docs[[string]$d.num]=$true }
   $sinDoc=@($fin.Values | ? { $_.data.doc1_emitida -and -not $docs.ContainsKey([string]$_.num) })
   $neg=@($fin.Values | ? { ([double]$_.data.total - ([double]$_.data.abono1+[double]$_.data.abono2+[double]$_.data.abono3)) -lt -1 } | % { $_.num })
   $sinSem=@($ped.Values | ? { -not $_.data.semana } | % { $_.num })
-  $vv=(Filas $T 'gestion_ventas').Count; $vf=$fin.Count
+  $vv=(Filas $TAB 'gestion_ventas').Count; $vf=$fin.Count
   Det "**Gestión** (respaldo $($JG.generado)): producción $($pro.Count), pedidos $($ped.Count), finanzas $($fin.Count)."
   Det "- producción con clave no numérica (Firebase): $($noNum.Count); finanzas sin producción por clave: $($finSinPro.Count); producción sin finanzas: $($proSinFin.Count)."
   Det "- emitidas sin fila en gestion_documentos: $($sinDoc.Count); pedidos sin semana: $($sinSem.Count) $(if($sinSem.Count){'('+(($sinSem|select -First 8) -join ', ')+')'})."
@@ -167,8 +167,8 @@ if($JG){ $T=$JG.tablas; function Idx($n){ $s=@{}; foreach($r in (Filas $T $n)){ 
   if($noNum.Count){ Prop "Integridad Gestión: $($noNum.Count) filas de producción con clave Firebase → migración que las renombre a data.pedido, con respaldo previo de esas filas." }
   if($sinDoc.Count){ Prop "Integridad Gestión: $($sinDoc.Count) emisiones sin fila en gestion_documentos → relleno histórico desde Wasabil (como la 0014 para septiembre)." }
   }
-if($JC){ $T=$JC.tablas; $cot=Filas $T 'cotizaciones'; $ids=@{}; foreach($c in $cot){ $ids[[string]$c.id]=$true }
-  $toq=Filas $T 'toques'; $lin=Filas $T 'cotizacion_lineas'
+if($JC){ $TAB=$JC.tablas; $cot=Filas $TAB 'cotizaciones'; $ids=@{}; foreach($c in $cot){ $ids[[string]$c.id]=$true }
+  $toq=Filas $TAB 'toques'; $lin=Filas $TAB 'cotizacion_lineas'
   $oT=@($toq | ? { -not $ids.ContainsKey([string]$_.cotizacion_id) }).Count; $oL=@($lin | ? { -not $ids.ContainsKey([string]$_.cotizacion_id) }).Count
   $vivas=@($cot | ? { -not $_.eliminada }); $dup=@($vivas | ? { $_.numero } | group numero | ? { $_.Count -gt 1 })
   $ganSin=@($vivas | ? { $_.estado -eq 'ganado' -and -not $_.monto_cierre }).Count; $sinNum=@($vivas | ? { -not $_.numero }).Count

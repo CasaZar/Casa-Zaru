@@ -72,7 +72,31 @@ Lo que ya se sabe que está en rojo o amarillo (22-10-2026) y no hay que redescu
 - En `quote_links` del Cotizador hay una fila de prueba `id 6885` (`__auditoria_rls__`) que ni la llave
   secreta pudo borrar: hay un trigger o regla no versionado. Borrarla y traer la protección al repo.
 
-## 4. Trampas conocidas
+## 4. Prueba de restauración (mensual, punto 2 del semáforo)
+
+Carga el respaldo del día en un esquema aparte (`restore_test`) **del mismo proyecto**, por PostgREST,
+y compara filas y sumas de cada columna numérica contra el archivo. Prueba que el archivo está completo
+y que cada valor calza con el tipo de su columna; no prueba un proyecto nuevo desde cero (eso exigiría
+un segundo proyecto o pagar PITR). Al final borra el esquema.
+
+Requisito, una sola vez por proyecto, en el SQL Editor: `supabase/migrations/0020_restore_test.sql`
+(Gestión, registrar en `schema_migrations`) y `supabase-cotizador/restore-test.sql` (Cotizador).
+
+```powershell
+# Cotizador: usa la llave secreta local, Claude puede correrlo
+powershell -NoProfile -ExecutionPolicy Bypass -File ".claude/skills/auditoria/scripts/restaurar-prueba.ps1" -Proyecto cotizador
+# Gestión: pide la clave del admin en pantalla (no se guarda), lo corre el usuario en su terminal
+powershell -NoProfile -ExecutionPolicy Bypass -File ".claude/skills/auditoria/scripts/restaurar-prueba.ps1" -Proyecto gestion -Email hola@casazaru.cl
+# Ensayo sin tocar la base
+... -Proyecto gestion -Simular
+```
+
+Resultado OK = todas las tablas cargan sin error, filas y sumas iguales al archivo y ninguna tabla de
+`public` falta en el respaldo. Se anota en `Informes Gestion/restauraciones.csv`
+(`fecha,proyecto,resultado,notas`); `auditoria.ps1` lee ese archivo para el punto 2. Las diferencias
+contra la base viva son solo informativas (actividad posterior al respaldo).
+
+## 5. Trampas conocidas
 
 - La llave `sb_secret_` de `%USERPROFILE%\.casazaru\config.ps1` responde 403 «Forbidden use of secret
   API key in browser» si el User-Agent parece navegador. El script manda `casazaru-auditoria/1.0`.
