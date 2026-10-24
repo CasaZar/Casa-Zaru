@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Casa Zaru — Sistema de Gestión</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -525,12 +525,54 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .pv-hist { font-size:11.5px;color:var(--text-3);margin:10px 0 4px;max-height:140px;overflow:auto;border-top:1px solid var(--border);padding-top:8px; }
 /* ── Cuentas empresa (B2B, 22-10-2026) · paleta de marca: verde, terracota, dorado, crema ── */
 #page-emp,.emp-modal { --ev:#485B3D;--et:#B5652E;--ed:#D4AC74;--ec:#F1ECE4;--ec2:#E8E1D5; }
-.emp-stats { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px; }
-.emp-stats .stat-card { padding:10px 12px; }
-.emp-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px; }
-.emp-card { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s; }
-.emp-card:hover { border-color:var(--ev); }
-.emp-card.inactiva { opacity:.55; }
+/* Lista en filas (24-10): una barra por empresa, todas en la misma escala $0 → $1,5M (2 %) → $3M (5 %). */
+.emp-hd { display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:14px; }
+.emp-hd h1 { font-family:'Playfair Display',Georgia,serif;font-size:26px;font-weight:600;color:var(--ev);margin:0;line-height:1.15; }
+.emp-res { font-size:13px;color:var(--text-2);margin-top:3px; } .emp-res b { color:var(--text); }
+.emp-tools { display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px; }
+.emp-chips { display:flex;gap:6px;flex-wrap:wrap; }
+.emp-chip { border:1px solid var(--border-md);background:var(--surface);border-radius:20px;padding:6px 12px;font-size:12.5px;font-weight:500;color:var(--text-2);white-space:nowrap;cursor:pointer;font-family:'Inter',sans-serif; }
+.emp-chip b { font-weight:700;margin-left:3px; }
+.emp-chip.on { background:#2A2420;color:#fff;border-color:#2A2420; }
+.emp-chip i { display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px; }
+.emp-tools .search-wrap { flex:1;min-width:200px;margin:0; }
+.emp-tools select { padding:7px 10px;border:1px solid var(--border-md);border-radius:20px;background:var(--surface);font-size:12.5px;color:var(--text-2);font-family:'Inter',sans-serif; }
+.emp-list { background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden; }
+.emp-esc,.emp-row { display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr) 190px;gap:22px;align-items:center;padding:0 18px; }
+.emp-esc { padding-top:9px;padding-bottom:9px;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);border-bottom:1px solid var(--border);background:#FBF9F5; }
+.emp-esc .emp-sc { position:relative;height:14px;width:100%; } .emp-esc .emp-sc span { position:absolute;white-space:nowrap; }
+.emp-row { padding-top:13px;padding-bottom:13px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .12s; }
+.emp-row:hover,.emp-row.abierta { background:#FBF8F3; }
+.emp-row.inactiva > div { opacity:.55; }
+.emp-list > .emp-row:last-child { border-bottom:0; }
+.emp-nm { font-weight:600;font-size:14px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.emp-who { font-size:12px;color:var(--text-3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; } .emp-who .sin { color:var(--et); }
+.emp-amt { text-align:right; } .emp-amt .m { font-weight:700;font-size:15px;font-variant-numeric:tabular-nums; }
+.emp-st { font-size:11.5px;margin-top:2px;color:var(--text-2);font-variant-numeric:tabular-nums; }
+.emp-st.s5 { color:var(--ev);font-weight:600; } .emp-st.casi { color:var(--et);font-weight:600; }
+.emp-bar2 { position:relative;height:12px;background:var(--ec);border-radius:7px; }
+.emp-bar2 .z2 { position:absolute;left:50%;right:0;top:0;bottom:0;background:#EDE3D2;border-radius:0 7px 7px 0; }
+.emp-bar2 i { position:absolute;left:0;top:0;bottom:0;border-radius:7px;transition:width .5s; }
+.emp-bar2 i.f0 { background:#C9B8A3; } .emp-bar2 i.f2 { background:var(--ed); } .emp-bar2 i.f5 { background:var(--ev); }
+.emp-bar2 .mk { position:absolute;left:50%;top:-3px;bottom:-3px;width:2px;background:var(--surface);box-shadow:0 0 0 1px var(--ec2); }
+.emp-bar2 .over { position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:9.5px;font-weight:700;color:#fff;white-space:nowrap; }
+.emp-escm { display:none; }
+.emp-open { grid-column:1/-1;margin:4px 0 2px;background:var(--surface);border:1px solid var(--border-md);border-radius:12px;padding:14px 16px;display:grid;grid-template-columns:1.1fr 1fr 1.2fr;gap:18px;cursor:default; }
+.emp-open .k { font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3);margin-bottom:4px; }
+.emp-open .vv { font-size:13px;line-height:1.55;overflow-wrap:anywhere; }
+.emp-cic { height:6px;background:var(--ec2);border-radius:4px;margin:6px 0 3px;position:relative; } .emp-cic i { position:absolute;left:0;top:0;bottom:0;background:var(--text-2);border-radius:4px; }
+.emp-open .emp-acciones { grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px;margin-top:0; }
+@media (max-width:768px){
+  .emp-hd h1 { font-size:21px; }
+  .emp-chips { flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:2px; }
+  .emp-esc { display:none; }
+  .emp-row { grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;padding:12px; }
+  .emp-row > .emp-who-c { grid-column:1;grid-row:1; } .emp-row > .emp-amt { grid-column:2;grid-row:1; }
+  .emp-row > .emp-barc { grid-column:1/-1;grid-row:2; }
+  .emp-amt .emp-st { display:none; } .emp-escm { display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:11.5px; }
+  .emp-nm { white-space:normal; } .emp-amt .m { font-size:13.5px; }
+  .emp-open { grid-template-columns:1fr;gap:12px;padding:12px; }
+}
 .emp-n { font-weight:700;font-size:14.5px; } .emp-m { font-size:12px;color:var(--text-2);margin-top:2px;overflow-wrap:anywhere; }
 .emp-pill { display:inline-block;font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 7px;vertical-align:middle;margin-left:6px;white-space:nowrap; }
 .emp-pill.p5 { background:var(--ev);color:var(--ec); } .emp-pill.p2 { background:var(--ed);color:#1F1D24; } .emp-pill.p0 { background:var(--ec2);color:var(--text-3); }
@@ -26695,13 +26737,14 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 
 <div class="page" id="page-emp">
 <div class="main">
-  <div class="emp-stats" id="emp-stats"></div>
-  <div class="seg-top">
+  <div class="emp-hd"><div><h1>Cuentas empresa</h1><div class="emp-res" id="emp-stats"></div></div><button class="btn-emp verde" onclick="abrirEmpresa()">+ Empresa</button></div>
+  <div class="emp-tools">
+    <div class="emp-chips" id="emp-chips"></div>
     <div class="search-wrap"><span class="search-icon">⌕</span>
       <input type="text" id="emp-search" placeholder="Buscar razón social, RUT o contacto" oninput="renderEmpresas()">
     </div>
+    <select id="emp-orden" onchange="renderEmpresas()"><option value="acum">Más comprado</option><option value="cerca">Más cerca de subir</option><option value="vence">Ciclo por vencer</option></select>
     <label style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:4px"><input type="checkbox" id="emp-inactivas" onchange="renderEmpresas()"> ver inactivas</label>
-    <button class="btn-add" onclick="abrirEmpresa()">+ Empresa</button>
   </div>
   <div id="emp-lista"></div>
 </div></div>
@@ -33612,7 +33655,7 @@ function _empDe(id){return empCuentas.find(function(e){return e.id===id;});}
 function _empPorRut(rut){var n=_empNormRut(rut);if(!n)return null;return empCuentas.find(function(e){return e.rut===n&&e.activa;})||null;}
 function _empPill(p,txt){p=Number(p)||0;return '<span class="emp-pill p'+p+'">'+(p?p+' %':'—')+(txt?' '+txt:'')+'</span>';}
 function _empFaltaTxt(e){var t=Number(e.tramo_pct)||0;if(t===5)return 'tramo máximo';if(t===2)return 'faltan '+fmtCLP(e.falta_5)+' para 5 %';return 'faltan '+fmtCLP(e.falta_2)+' para 2 %';}
-function _empBarra(e,alto){var pct=Math.min(100,Math.round(Number(e.acumulado)/3000000*100));return '<div class="emp-bar"'+(alto?' style="height:10px"':'')+'><i style="width:'+pct+'%"></i><b style="left:50%"></b></div><div class="emp-leg"><span>'+fmtCLP(e.acumulado)+' acumulado</span><span>'+_empFaltaTxt(e)+'</span></div>';}
+function _empBarra(e){return '<div style="margin:12px 0 6px">'+_empBarra2(e)+'</div><div class="emp-leg"><span>'+fmtCLP(e.acumulado)+' acumulado</span><span>'+_empFaltaTxt(e)+'</span></div>';}
 async function loadEmpresas(){
   if(!DB_URL){renderEmpresas();return;}
   try{
@@ -33631,29 +33674,66 @@ function renderEmpresas(){
   }
   var q=_normBusca((document.getElementById('emp-search')||{}).value||'');
   var verInact=!!(document.getElementById('emp-inactivas')||{}).checked;
+  var orden=(document.getElementById('emp-orden')||{}).value||'acum';
   var activas=empCuentas.filter(function(e){return e.activa;});
-  var en5=activas.filter(function(e){return Number(e.tramo_pct)===5;}).length,en2=activas.filter(function(e){return Number(e.tramo_pct)===2;}).length;
+  var cuenta=function(f){return activas.filter(function(e){return _empEnFiltro(e,f);}).length;};
   var acum=activas.reduce(function(s,e){return s+(Number(e.acumulado)||0);},0);
-  if(st)st.innerHTML='<div class="stat-card"><div class="stat-label">Cuentas</div><div class="stat-val" style="color:#485B3D">'+activas.length+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">En 5 % · en 2 %</div><div class="stat-val" style="color:#B5652E">'+en5+' · '+en2+'</div></div>'+
-    '<div class="stat-card"><div class="stat-label">Acumulado en ciclo</div><div class="stat-val">'+fmtCLP(acum)+'</div></div>';
+  if(st)st.innerHTML='<b>'+activas.length+'</b> cuentas · <b>'+fmtCLP(acum)+'</b> comprado en sus ciclos';
+  var ch=document.getElementById('emp-chips');
+  if(ch)ch.innerHTML=[['todas','Todas',''],['5','5 %','#485B3D'],['2','2 %','#D4AC74'],['0','Sin tramo','#C9B8A3'],['cerca','Cerca de subir','#B5652E']].map(function(c){
+    return '<button class="emp-chip'+(empFiltro===c[0]?' on':'')+'" onclick="empFiltro=\''+c[0]+'\';renderEmpresas()">'+(c[2]?'<i style="background:'+c[2]+'"></i>':'')+c[1]+'<b>'+cuenta(c[0])+'</b></button>';
+  }).join('');
   var lista=empCuentas.filter(function(e){
     if(!verInact&&!e.activa)return false;
+    if(!_empEnFiltro(e,empFiltro))return false;
     if(q&&!_calza(q,[e.razon_social,e.rut,_empFmtRut(e.rut),e.contacto,e.celular,e.email].join(' ')))return false;
     return true;
   });
+  if(orden==='cerca')lista.sort(function(a,b){return _empFaltaSig(a)-_empFaltaSig(b);});
+  else if(orden==='vence')lista.sort(function(a,b){return (Number(a.dias_ciclo)||0)-(Number(b.dias_ciclo)||0);});
   if(!lista.length){
-    el.innerHTML='<div class="empty-state"><span class="empty-icon">🏢</span>'+(empCuentas.length?'Ninguna cuenta calza con la búsqueda.':'Todavía no hay cuentas. Usa «+ Empresa» para abrir la primera.')+'</div>';return;
+    el.innerHTML='<div class="empty-state"><span class="empty-icon">🏢</span>'+(empCuentas.length?'Ninguna cuenta calza con la búsqueda o el filtro.':'Todavía no hay cuentas. Usa «+ Empresa» para abrir la primera.')+'</div>';return;
   }
-  el.innerHTML='<div class="emp-grid">'+lista.map(function(e){
-    var contacto=[e.contacto,e.celular||'<span style="color:#B5652E">sin celular</span>'].filter(Boolean).join(' · ');
-    return '<div class="emp-card'+(e.activa?'':' inactiva')+'" onclick="abrirFichaEmp('+e.id+')">'+
-      '<div class="emp-n">'+esc(e.razon_social)+_empPill(e.tramo_pct)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+'</div>'+
-      '<div class="emp-m">'+esc(_empFmtRut(e.rut))+' · '+contacto+'</div>'+
-      _empBarra(e)+
-      '<div class="emp-m">Ciclo '+_empFecha(e.ciclo_inicio)+' → '+_empFecha(e.ciclo_fin)+' · '+(e.ultima_compra?'última compra '+_empFecha(e.ultima_compra):'sin compras')+' · '+(Number(e.n_facturas)||0)+' factura'+(Number(e.n_facturas)===1?'':'s')+'</div>'+
+  var esc0='<div class="emp-esc"><span>Empresa</span><div class="emp-sc"><span style="left:0">$0</span><span style="left:50%;transform:translateX(-50%)">$1,5M · 2 %</span><span style="right:0">$3M · 5 %</span></div><span style="text-align:right">Comprado en el ciclo</span></div>';
+  el.innerHTML='<div class="emp-list">'+esc0+lista.map(function(e){
+    var s=_empEstado(e);
+    var who=[e.contacto?esc(e.contacto):'',e.celular?esc(e.celular):'<span class="sin">sin celular</span>'].filter(Boolean).join(' · ');
+    return '<div class="emp-row'+(e.activa?'':' inactiva')+(empAbierta===e.id?' abierta':'')+'" onclick="toggleEmp('+e.id+')">'+
+      '<div class="emp-who-c" style="min-width:0"><div class="emp-nm">'+esc(e.razon_social)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+'</div><div class="emp-who">'+who+'</div></div>'+
+      '<div class="emp-barc">'+_empBarra2(e)+'<div class="emp-escm"><span class="emp-st '+s.c+'" style="margin:0">'+s.x+'</span><span style="color:var(--text-3)">'+(Number(e.n_facturas)||0)+' fact.</span></div></div>'+
+      '<div class="emp-amt"><div class="m">'+fmtCLP(e.acumulado)+'</div><div class="emp-st '+s.c+'">'+s.x+'</div></div>'+
+      (empAbierta===e.id?_empDetalle(e):'')+
     '</div>';
   }).join('')+'</div>';
+}
+var empFiltro='todas',empAbierta=null;
+// Lo que falta para el tramo siguiente; las de 5 % van al final del orden «más cerca de subir».
+function _empFaltaSig(e){var t=Number(e.tramo_pct)||0;if(t===5)return Infinity;return Number(t===2?e.falta_5:e.falta_2)||0;}
+function _empEnFiltro(e,f){var t=Number(e.tramo_pct)||0;if(f==='5')return t===5;if(f==='2')return t===2;if(f==='0')return t===0;if(f==='cerca')return _empFaltaSig(e)<=500000;return true;}
+function _empEstado(e){var t=Number(e.tramo_pct)||0;if(t===5)return {c:'s5',x:'5 % vigente'};var f=_empFaltaSig(e);return {c:f<=500000?'casi':'',x:'faltan '+fmtCLP(f)+' para '+(t===2?'5':'2')+' %'};}
+function _empBarra2(e){
+  var a=Number(e.acumulado)||0,t=Number(e.tramo_pct)||0,p=Math.min(100,a/3000000*100);
+  var over=a>3000000?'<span class="over">'+(a/3000000).toLocaleString('es-CL',{maximumFractionDigits:1})+'× la meta</span>':'';
+  return '<div class="emp-bar2"><div class="z2"></div><i class="f'+t+'" style="width:'+p.toFixed(1)+'%"></i><div class="mk"></div>'+over+'</div>';
+}
+function toggleEmp(id){empAbierta=empAbierta===id?null:id;renderEmpresas();}
+function _empDetalle(e){
+  var compras=empCompras.filter(function(k){return k.empresa_id===e.id&&!k.anulada&&k.fecha>=e.ciclo_inicio&&k.fecha<=e.ciclo_fin;});
+  var ini=new Date(String(e.ciclo_inicio).slice(0,10)+'T12:00:00'),fin=new Date(String(e.ciclo_fin).slice(0,10)+'T12:00:00');
+  var pc=Math.max(0,Math.min(100,(Date.now()-ini)/(fin-ini)*100));
+  var dias=Number(e.dias_ciclo);
+  var cont=['RUT '+esc(_empFmtRut(e.rut)),e.contacto?esc(e.contacto):'',e.celular?esc(e.celular):'<span style="color:#B5652E">sin celular</span>',e.email?esc(e.email):''].filter(Boolean).join('<br>');
+  return '<div class="emp-open" onclick="event.stopPropagation()">'+
+    '<div><div class="k">Contacto</div><div class="vv">'+cont+'</div></div>'+
+    '<div><div class="k">Ciclo</div><div class="vv">'+_empFecha(e.ciclo_inicio)+' → '+_empFecha(e.ciclo_fin)+'</div><div class="emp-cic"><i style="width:'+pc.toFixed(0)+'%"></i></div><div class="emp-st'+(dias>=0&&dias<=30?' casi':'')+'">'+(dias>=0?'vence en '+dias+(dias===1?' día':' días'):'')+'</div></div>'+
+    '<div><div class="k">Compras del ciclo · '+compras.length+'</div><div class="vv">'+(compras.length?compras.slice(0,4).map(function(k){return _empFecha(k.fecha)+' · '+(k.tipo==='NC'?'NC':'Factura')+(k.folio?' '+esc(k.folio):'')+' · <b>'+fmtCLP(k.monto)+'</b>';}).join('<br>')+(compras.length>4?'<br><span style="color:var(--text-3)">y '+(compras.length-4)+' más en la ficha</span>':''):'Sin compras en este ciclo.')+'</div></div>'+
+    '<div class="emp-acciones">'+
+      '<button class="btn-emp verde" onclick="copiarLinkEmp('+e.id+')">Copiar link de su cuenta</button>'+
+      (e.celular?'<button class="btn-emp ghost" onclick="waEmp('+e.id+')">📱 WhatsApp</button>':'')+
+      '<button class="btn-emp ghost" onclick="abrirCompraEmp('+e.id+')">+ Compra a mano</button>'+
+      '<button class="btn-emp ghost" onclick="abrirFichaEmp('+e.id+')">Ficha completa</button>'+
+      '<button class="btn-emp ghost" onclick="abrirEmpresa('+e.id+')">✎ Editar</button>'+
+    '</div></div>';
 }
 function abrirEmpresa(id){
   var e=id?_empDe(id):null;empEditando=e?e.id:null;
