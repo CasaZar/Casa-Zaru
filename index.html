@@ -26685,6 +26685,14 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
 </div>
 
+<!-- Envío Starken desde Producción (solo admin, 24-10-2026). El contenido lo arma stkPintar(). -->
+<div class="modal-bg" id="modal-stk-bg">
+  <div class="modal" style="width:min(520px,100%)">
+    <div class="modal-header"><div class="modal-title" id="stk-titulo">Enviar con Starken</div><button class="btn-close" onclick="cerrarEnvioStarken()">×</button></div>
+    <div id="stk-body"></div>
+  </div>
+</div>
+
 <div class="page" id="page-emp">
 <div class="main">
   <div class="emp-stats" id="emp-stats"></div>
@@ -29333,7 +29341,8 @@ function renderProd(){
         ?'<input type="checkbox" title="Lleva base de fierro" style="cursor:pointer" '+(l.fierro?'checked ':'')+'onchange="updateProdField('+oi+',\'fierro\',this.checked,'+li+')">'
         :'';
       const pedidoContent=isFirst?'<input style="'+inS+'font-family:\'DM Serif Display\',serif;font-size:15px;color:var(--wood);width:70px" value="'+(o.pedido||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'pedido\',this.value)">'+estadoSel+
-        '<button class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-top:3px" onclick="addProdLineExist(\''+String(o.pedido||'')+'\')" title="Agregar una pieza a este pedido">+ línea</button>':'';
+        '<button class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-top:3px" onclick="addProdLineExist(\''+String(o.pedido||'')+'\')" title="Agregar una pieza a este pedido">+ línea</button>'+
+        (usuarioRol==='admin'?'<button class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-top:3px;margin-left:3px" onclick="abrirEnvioStarken(\''+esc(String(o.pedido||''))+'\')" title="Enviar con Starken">🚚</button>':''):'';
       const quitarLinea=(o.lineas||[]).length>1?'<button class="btn-ghost" style="padding:3px 6px;font-size:11px;margin-left:2px" onclick="delProdLineExist(\''+String(o.pedido||'')+'\','+li+')" title="Quitar esta pieza del pedido">✕</button>':'';
       const envioContent=isFirst?'<input id="psem-'+oi+'" style="'+inS+'font-size:11px;width:110px" value="'+esc(normalizeSemana(o.envio)||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'envio\',this.value)">'+diasBadge:'';
       return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${pedidoContent}</td><td style="background:${rowBg}">${envioContent}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:115px" value="${esc(o.comprador)}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)"><input style="${inS}width:115px;font-size:11px;margin-top:2px" value="${esc(o.apellido)}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${esc(l.producto)}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg};min-width:125px"><select style="${inS}min-width:115px" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg};text-align:center">${fierroCell}</td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${esc(l.observaciones)}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle;white-space:nowrap"><input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel(${oi},${li},this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd(${oi},${li})" title="Generar etiqueta individual">📄</button>${quitarLinea}</td>${isFirst?`<td rowspan="${(o.lineas||[]).length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
@@ -29343,6 +29352,240 @@ function renderProd(){
 const PROD_ESTADOS=['En taller','Listo','Entregado'];
 function updateProdEstado(oi,val){var o=prodOrders[oi];if(!o)return;o.estado=val;if(DB_URL)api('produccion/'+String(o.pedido||''),'PUT',o).catch(function(){});}
 function diasEnTaller(o){var fc=o.fecha_creacion||o.fecha||'';if(!fc)return null;var d;var p=fc.split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else d=new Date(fc);if(isNaN(d.getTime()))return null;return Math.floor((Date.now()-d.getTime())/(1000*60*60*24));}
+// ── ENVÍO CON STARKEN (solo admin, 24-10-2026) ─────────────────────────────
+// Botón 🚚 de Producción: arma la orden de flete con los datos de la venta
+// (Finanzas) y la pieza (Producción), muestra el precio de Starken ANTES de
+// emitir y, ya emitida, la etiqueta para imprimir. Todo pasa por la Edge
+// Function starken-emitir (credenciales en el servidor, candado contra doble
+// emisión en la tabla envios_starken). Mientras la función esté en modo
+// 'qa' no se crea ninguna OF real.
+var STK_FN=SB_URL+'/functions/v1/starken-emitir';
+var STK_KG_M2=30.5;           // madera + embalaje por m² a 4 cm (misma regla del cotizador)
+var STK_KG_BASE_FIERRO=20;    // base de fierro de mesa (las de la web pesan 18-25 kg)
+var stk={num:'',envio:null,comunas:null,comuna:null,precio:null,modo:'',pedidoN:0,confirmar:false};
+async function stkLlamar(body){
+  var r=await sbFetch(STK_FN,{method:'POST',body:JSON.stringify(body)});
+  var d=await r.json().catch(function(){return{};});
+  if(d&&d.modo)stk.modo=d.modo;
+  if(!r.ok)throw new Error((d&&d.error)||('HTTP '+r.status));
+  return d;
+}
+function _stkNorm(s){return String(s==null?'':s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/Ñ/g,'N').trim();}
+function _stkTit(s){return String(s||'').toLowerCase().replace(/(^|[\s(\/-])\S/g,function(m){return m.toUpperCase();});}
+// "Av. Irarrázaval 2450, depto 304" → calle, número y depto
+function _stkPartirDir(dir){
+  var s=String(dir||'').trim(),m=s.match(/^(.*?)[\s,#]+(\d+[A-Za-z]?)\b[\s,]*(.*)$/);
+  return m?{calle:m[1].replace(/[,\s]+$/,''),numero:m[2],depto:m[3].replace(/^[,\s]+/,'')}:{calle:s,numero:'',depto:''};
+}
+// Kilos de las piezas: m² × 30,5 a 4 cm, proporcional al espesor (2 cm = la mitad,
+// regla del taller), + la base de fierro si la pieza la lleva. Se puede corregir.
+function _stkKilos(o){
+  var kg=0;
+  (o.lineas||[]).forEach(function(l){
+    var m2=calcM2(l.largo,l.ancho,l.cantidad)||0,esp=Number(l.espesor)||4;
+    kg+=m2*STK_KG_M2*(esp/4)+(l.fierro?STK_KG_BASE_FIERRO*(Number(l.cantidad)||1):0);
+  });
+  return Math.round(kg*10)/10;
+}
+function _stkMedidas(o){
+  var la=0,an=0,pz=0;
+  (o.lineas||[]).forEach(function(l){la=Math.max(la,Number(l.largo)||0);an=Math.max(an,Number(l.ancho)||0);pz+=Number(l.cantidad)||1;});
+  return{largo:la||100,ancho:an||50,alto:Math.max(7,7*pz)};   // piezas planas apiladas, 7 cm cada una con embalaje
+}
+async function abrirEnvioStarken(numStr){
+  if(usuarioRol!=='admin'){showToast('Solo el administrador puede enviar con Starken',true);return;}
+  var o=prodOrders[_prodIdx(numStr)];if(!o){showToast('No encontré el pedido '+numStr,true);return;}
+  stk={num:String(numStr),envio:null,comunas:stk.comunas,comuna:null,precio:null,modo:stk.modo,pedidoN:0,confirmar:false};
+  document.getElementById('stk-titulo').textContent='Enviar con Starken · Pedido '+numStr;
+  document.getElementById('stk-body').innerHTML='<div style="padding:18px;color:var(--text-3)">Cargando…</div>';
+  document.getElementById('modal-stk-bg').classList.add('open');
+  try{
+    var r=await sbFetch(SB_URL+'/rest/v1/envios_starken?pedido=eq.'+encodeURIComponent(numStr)+'&order=id.desc');
+    if(!r.ok)throw new Error(r.status===404?'falta aplicar la migración 0022 en la base':'HTTP '+r.status);
+    var filas=await r.json();
+    stk.envio=filas.find(function(e){return e.estado==='emitida'||e.estado==='emitiendo';})||null;
+  }catch(e){
+    document.getElementById('stk-body').innerHTML='<div style="padding:18px;color:var(--red)">No pude leer los envíos: '+esc(e.message)+'</div>';return;
+  }
+  stkPintar();
+  if(!stk.envio)stkCargarComunas();
+}
+function cerrarEnvioStarken(){document.getElementById('modal-stk-bg').classList.remove('open');}
+function stkBanner(){
+  return stk.modo==='qa'?'<div style="background:#EEF6FF;color:#1E40AF;font-size:12px;font-weight:600;border-radius:8px;padding:7px 10px;margin-bottom:10px">MODO PRUEBA (QA de Starken): no se crea ninguna orden real</div>':'';
+}
+function stkPintar(){
+  var body=document.getElementById('stk-body'),e=stk.envio;
+  if(e&&e.estado==='emitida'){
+    body.innerHTML=stkBanner()+
+      '<div style="text-align:center;padding:8px 0 14px"><div style="display:inline-block;background:#DCFCE7;color:#166534;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700">✓ Orden emitida</div>'+
+      '<div style="font-size:28px;font-weight:800;letter-spacing:1px;margin-top:6px">'+esc(e.of_numero)+'</div>'+
+      '<div style="font-size:12px;color:var(--text-3)">N° de orden de flete · '+esc(String(e.kilos).replace('.',','))+' kg'+(e.precio_cotizado?' · cotizado '+fmtCLP(e.precio_cotizado):'')+'</div></div>'+
+      '<button class="btn-pri" style="width:100%" id="stk-btn-etq" onclick="stkEtiqueta()">Imprimir etiqueta (PDF 10 × 10)</button>'+
+      '<button class="btn-sec" style="width:100%;margin-top:8px" onclick="stkCopiarSeguimiento()">Copiar seguimiento para el cliente</button>'+
+      '<div style="text-align:center;margin-top:12px"><a href="#" style="color:var(--red);font-size:12.5px" id="stk-anular" onclick="stkAnular();return false;">Anular esta orden</a></div>';
+    return;
+  }
+  if(e&&e.estado==='emitiendo'){
+    body.innerHTML=stkBanner()+
+      '<div style="background:#FFFBEB;border:1px solid #FDE68A;color:#92400E;border-radius:8px;padding:10px;font-size:13px;line-height:1.5">Hay una emisión que quedó a medias (Starken no respondió). <b>Antes de emitir otra, revisa en Starken PRO</b> si la orden se creó. Si no se creó, libérala aquí.</div>'+
+      '<div style="text-align:center;margin-top:12px"><a href="#" style="color:var(--red);font-size:12.5px" id="stk-anular" onclick="stkAnular();return false;">No se creó: liberar para emitir de nuevo</a></div>';
+    return;
+  }
+  var o=prodOrders[_prodIdx(stk.num)]||{},f=finRecords.find(function(r){return String(r.num||'')===stk.num;})||{};
+  var dir=_stkPartirDir(f.direccion),med=_stkMedidas(o);
+  var prod=((o.lineas||[])[0]||{}).producto||f.producto||'Mueble de madera';
+  function campo(id,lbl,val,extra){return'<div class="form-group"><label>'+lbl+'</label><input id="'+id+'" type="text" value="'+esc(val==null?'':String(val))+'" '+(extra||'')+' oninput="stkCambio(\''+id+'\')"></div>';}
+  body.innerHTML=stkBanner()+
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:2px 0 6px">Destinatario</div>'+
+    '<div class="form-grid">'+campo('stk-nombre','Nombre',f.nombre||o.comprador)+campo('stk-apellidos','Apellidos',f.apellido||o.apellido)+'</div>'+
+    '<div class="form-grid">'+campo('stk-tel','Teléfono',f.celular)+campo('stk-email','Correo',f.email)+'</div>'+
+    '<div class="form-grid">'+campo('stk-rut','RUT (opcional)',f.rut)+'<div></div></div>'+
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Dirección de entrega</div>'+
+    '<div class="form-grid">'+campo('stk-calle','Calle',dir.calle)+campo('stk-numero','Número',dir.numero)+'</div>'+
+    '<div class="form-grid">'+campo('stk-depto','Depto / casa (opcional)',dir.depto)+
+      '<div class="form-group" style="position:relative"><label>Comuna</label><input id="stk-comuna" type="text" value="'+esc(f.comuna||'')+'" autocomplete="off" oninput="stkBuscarComuna(this.value)" onblur="setTimeout(stkComunaSalir,200)"><div id="stk-com-lista" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border-md);border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.12)"></div></div></div>'+
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Bulto</div>'+
+    '<div class="form-grid">'+campo('stk-bultos','Bultos',1,'inputmode="numeric"')+campo('stk-kilos','Kilos (si lo pesaste, escribe el real)',String(_stkKilos(o)).replace('.',','),'inputmode="decimal"')+'</div>'+
+    '<div class="form-grid"><div class="form-group"><label>Medidas</label><select id="stk-modo" onchange="stkCambio(\'stk-modo\')"><option value="web">Como la web (solo kilos)</option><option value="reales">Reales (largo × ancho × alto)</option></select></div>'+
+      campo('stk-medidas','Medidas embalado (cm)',med.largo+' × '+med.ancho+' × '+med.alto)+'</div>'+
+    '<div class="form-grid">'+campo('stk-valor','Valor declarado ($)',Math.round(Number(f.total)||Number(f.val_prod)||0),'inputmode="numeric"')+campo('stk-contenido','Contenido',prod)+'</div>'+
+    '<div id="stk-precio" style="background:var(--surface2,#F5F1EA);border-radius:12px;padding:12px 14px;margin:12px 0"><span style="color:var(--text-3);font-size:13px">Elige la comuna para ver el precio</span></div>'+
+    '<div id="stk-faltan" style="font-size:12px;color:#92400E;margin-bottom:8px"></div>'+
+    '<div style="font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:8px 10px;margin-bottom:10px">Una vez emitida, la orden no se puede modificar: solo anular.</div>'+
+    '<button class="btn-pri" style="width:100%" id="stk-btn-emitir" disabled onclick="stkEmitir()">Emitir orden de flete</button>';
+  stkValidar();
+}
+function _stkVal(id){var el=document.getElementById(id);return el?String(el.value||'').trim():'';}
+function _stkNum(id){return Number(_stkVal(id).replace(/\./g,'').replace(',','.'))||0;}
+function _stkMed(){var p=_stkVal('stk-medidas').split(/[x×*,\s]+/).map(function(v){return Number(v.replace(',','.'))||0;}).filter(function(v){return v>0;});return{largo:p[0]||0,ancho:p[1]||0,alto:p[2]||0};}
+function stkCambio(id){
+  stk.confirmar=false;
+  if(id==='stk-kilos'||id==='stk-modo'||id==='stk-medidas'||id==='stk-bultos')stkCotizar();
+  stkValidar();
+}
+function stkValidar(){
+  var faltan=[];
+  if(!_stkVal('stk-nombre'))faltan.push('nombre');
+  if(!_stkVal('stk-tel'))faltan.push('teléfono');
+  if(!_stkVal('stk-calle'))faltan.push('calle');
+  if(!_stkVal('stk-numero'))faltan.push('número');
+  if(!stk.comuna)faltan.push('comuna (elígela de la lista)');
+  if(!(_stkNum('stk-kilos')>0))faltan.push('kilos');
+  if(_stkVal('stk-modo')==='reales'){var m=_stkMed();if(!(m.largo&&m.ancho&&m.alto))faltan.push('medidas');}
+  if(!stk.precio)faltan.push('precio de Starken');
+  var el=document.getElementById('stk-faltan');if(el)el.textContent=faltan.length?'Falta: '+faltan.join(', '):'';
+  var b=document.getElementById('stk-btn-emitir');
+  if(b){b.disabled=!!faltan.length;b.textContent=stk.confirmar?'Confirmar: emitir la OF por '+fmtCLP(stk.precio||0):'Emitir orden de flete';}
+}
+async function stkCargarComunas(){
+  if(!stk.comunas){
+    try{
+      var d=await stkLlamar({accion:'destinos'}),out=[];
+      (d.ciudades||[]).forEach(function(ci){(ci.comunas||[]).forEach(function(n){
+        var c=String(n).replace(/\s+DOMICILIO$/i,'').trim();
+        if(!out.some(function(x){return x.c===c&&x.cod===ci.codigo;}))out.push({c:c,ciudad:ci.nombre,cod:ci.codigo});
+      });});
+      out.sort(function(a,b){return a.c.localeCompare(b.c);});
+      stk.comunas=out;
+    }catch(e){var p=document.getElementById('stk-precio');if(p)p.innerHTML='<span style="color:var(--red);font-size:13px">No pude cargar las comunas: '+esc(e.message)+'</span>';return;}
+  }
+  stkPintar();   // por si cambió el modo (aviso de QA)
+  var inp=document.getElementById('stk-comuna');
+  if(inp&&inp.value){   // la comuna de Finanzas: si calza exacto con una sola de Starken, se toma
+    var q=_stkNorm(inp.value),hits=stk.comunas.filter(function(x){return _stkNorm(x.c)===q;});
+    if(hits.length===1)stkElegirComuna(stk.comunas.indexOf(hits[0]));
+  }
+}
+function stkBuscarComuna(txt){
+  stk.comuna=null;stk.precio=null;stk.confirmar=false;stkValidar();
+  var lista=document.getElementById('stk-com-lista');if(!lista)return;
+  var q=_stkNorm(txt);
+  if(q.length<2||!stk.comunas){lista.style.display='none';return;}
+  var hits=stk.comunas.filter(function(x){return _stkNorm(x.c).indexOf(q)===0;});
+  if(hits.length<8)hits=hits.concat(stk.comunas.filter(function(x){return _stkNorm(x.c).indexOf(q)>0;}));
+  hits=hits.slice(0,8);
+  lista.innerHTML=hits.length?hits.map(function(x){
+    return'<div style="padding:9px 11px;cursor:pointer;border-bottom:1px solid var(--border)" onmousedown="stkElegirComuna('+stk.comunas.indexOf(x)+')">'+esc(_stkTit(x.c))+(x.ciudad!==x.c?' <span style="color:var(--text-3);font-size:12px">· '+esc(_stkTit(x.ciudad))+'</span>':'')+'</div>';
+  }).join(''):'<div style="padding:9px 11px;color:var(--text-3);font-size:12.5px">Starken no tiene esa comuna</div>';
+  lista.style.display='block';
+}
+function stkComunaSalir(){var l=document.getElementById('stk-com-lista');if(l)l.style.display='none';}
+function stkElegirComuna(i){
+  var x=stk.comunas&&stk.comunas[i];if(!x)return;
+  stk.comuna=x;
+  var inp=document.getElementById('stk-comuna');if(inp)inp.value=_stkTit(x.c)+(x.ciudad!==x.c?' · '+_stkTit(x.ciudad):'');
+  stkComunaSalir();stkCotizar();
+}
+async function stkCotizar(){
+  stk.precio=null;stkValidar();
+  var p=document.getElementById('stk-precio');if(!p||!stk.comuna)return;
+  var kg=_stkNum('stk-kilos');if(!(kg>0)){p.innerHTML='<span style="color:var(--text-3);font-size:13px">Escribe los kilos</span>';return;}
+  var n=++stk.pedidoN,body={accion:'cotizar',destino:stk.comuna.cod};
+  if(_stkVal('stk-modo')==='reales'){var m=_stkMed();if(!(m.largo&&m.ancho&&m.alto))return;body.bultos=[{largo:m.largo,ancho:m.ancho,alto:m.alto,kilos:kg}];}
+  else body.kilos=kg;
+  p.innerHTML='<span style="color:var(--text-3);font-size:13px">Consultando a Starken…</span>';
+  try{
+    var d=await stkLlamar(body);if(n!==stk.pedidoN)return;
+    var t=(d.tarifas||[]).find(function(x){return/DOMICILIO/i.test(x.entrega);});
+    if(!t){p.innerHTML='<span style="color:var(--red);font-size:13px">Starken no reparte a domicilio en esa comuna</span>';return;}
+    stk.precio=t.total;
+    p.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:26px;font-weight:700">'+fmtCLP(t.total)+'</span><span style="font-size:13px;color:var(--text-3)">'+(t.dias?t.dias+' días · ':'')+'a domicilio</span></div>'+
+      '<div style="font-size:12px;color:var(--text-3)">'+(d.conCuentaCorriente?'Tarifa de tu cuenta corriente':'Tarifa general')+' · IVA incluido · consultado recién</div>';
+  }catch(e){if(n===stk.pedidoN)p.innerHTML='<span style="color:var(--red);font-size:13px">'+esc(e.message)+'</span>';}
+  stkValidar();
+}
+async function stkEmitir(){
+  var b=document.getElementById('stk-btn-emitir');
+  if(!stk.confirmar){stk.confirmar=true;stkValidar();return;}   // segundo clic confirma
+  b.disabled=true;b.textContent='Emitiendo en Starken…';
+  var modo=_stkVal('stk-modo')==='reales'?'reales':'web',m=_stkMed();
+  try{
+    var d=await stkLlamar({accion:'emitir',pedido:stk.num,
+      destinatario:{nombre:_stkVal('stk-nombre'),apellidos:_stkVal('stk-apellidos'),rut:_stkVal('stk-rut'),telefono:_stkVal('stk-tel'),email:_stkVal('stk-email'),
+        calle:_stkVal('stk-calle'),numero:_stkVal('stk-numero'),depto:_stkVal('stk-depto'),comuna:stk.comuna.c},
+      bultos:Math.max(1,Math.round(_stkNum('stk-bultos'))),kilos:_stkNum('stk-kilos'),
+      medidas:{modo:modo,largo:m.largo,ancho:m.ancho,alto:m.alto},
+      valorDeclarado:Math.round(_stkNum('stk-valor')),contenido:_stkVal('stk-contenido'),precioCotizado:stk.precio});
+    stk.envio=d.envio;
+    // El N° de OF también queda en el pedido (PATCH: mezcla, no pisa el resto)
+    if(stk.modo==='produccion'&&d.envio&&d.envio.of_numero&&DB_URL){
+      var o=prodOrders[_prodIdx(stk.num)];if(o)o.of_starken=d.envio.of_numero;
+      api('produccion/'+stk.num,'PATCH',{of_starken:d.envio.of_numero}).catch(function(){});
+    }
+    showToast('✓ OF '+d.envio.of_numero+' emitida');
+    stkPintar();
+  }catch(e){
+    showToast(e.message,true);stk.confirmar=false;
+    b.disabled=false;stkValidar();
+    var f=document.getElementById('stk-faltan');if(f)f.textContent=e.message;
+  }
+}
+async function stkEtiqueta(){
+  var b=document.getElementById('stk-btn-etq');if(b){b.disabled=true;b.textContent='Pidiendo la etiqueta…';}
+  try{
+    var d=await stkLlamar({accion:'etiqueta',of:stk.envio.of_numero});
+    var bin=atob(d.pdfBase64),buf=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)buf[i]=bin.charCodeAt(i);
+    var url=URL.createObjectURL(new Blob([buf],{type:'application/pdf'}));
+    var a=document.createElement('a');a.href=url;a.download='Etiqueta Starken OF '+stk.envio.of_numero+' - pedido '+stk.num+'.pdf';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);
+  }catch(e){showToast(e.message,true);}
+  if(b){b.disabled=false;b.textContent='Imprimir etiqueta (PDF 10 × 10)';}
+}
+function stkCopiarSeguimiento(){
+  var e=stk.envio;if(!e)return;
+  var txt='¡Hola! Tu pedido ya va en camino con Starken.\n\nTu número de seguimiento es '+e.of_numero+'.\n\nPuedes seguirlo en https://www.starken.cl/seguimiento';
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){showToast('✓ Mensaje copiado');},function(){showToast('No pude copiar: '+txt,true);});
+}
+async function stkAnular(){
+  var a=document.getElementById('stk-anular');
+  if(a&&!a.dataset.conf){a.dataset.conf='1';a.textContent='¿Seguro? Toca de nuevo para anular';return;}
+  try{
+    await stkLlamar({accion:'anular',id:stk.envio.id});
+    showToast('Anulada aquí. Anúlala también en Starken PRO si la orden alcanzó a crearse.');
+    stk.envio=null;stkPintar();stkCargarComunas();
+  }catch(e){showToast(e.message,true);}
+}
 function clearProdFilters(){semFiltro.prod='';['prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
 // Los filtros de la pantalla (mes, semana, madera, cliente) definen qué se ve
 // en las tarjetas de madera. La etiqueta de compra tiene que salir del MISMO
@@ -34473,6 +34716,7 @@ function renderProdCards(){
       (meta.length?'<div class="prod-card-meta">'+meta.join('')+'</div>':'')+
       lineasHtml+
       '<button type="button" class="prod-card-add" onclick="agregarPiezaMovil('+nq+')">+ Agregar pieza</button>'+
+      (usuarioRol==='admin'?'<button type="button" class="prod-card-add" onclick="abrirEnvioStarken('+nq+')">🚚 Enviar con Starken</button>':'')+
     '</div>';
   });
   el.innerHTML=html2;
