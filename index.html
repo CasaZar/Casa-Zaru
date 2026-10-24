@@ -33646,7 +33646,8 @@ async function initAllModules(){
 // trigger sobre gestion_documentos (migración 0019); «+ Compra a mano» es
 // para lo que no pasó por la app. El cliente ve su cuenta con un link privado
 // (token) en el sitio del cotizador, que llama a b2b_estado(token).
-var EMP_LINK_BASE='https://cotizador.casazaru.cl/cuenta.html?t=';
+// Link corto por la redirección de Shopify /cuentaempresa → cotizador.casazaru.cl/cuenta.html (24-10; pasa el ?t=).
+var EMP_LINK_BASE='https://www.casazaru.cl/cuentaempresa?t=';
 var empCuentas=[],empCompras=[],empCargado=false,empEditando=null,empFichaId=null,empCompraEmpId=null;
 function _empNormRut(r){var s=String(r||'').toUpperCase().replace(/[^0-9K]/g,'');if(s.length<7)return '';return s.slice(0,-1)+'-'+s.slice(-1);}
 function _empFmtRut(r){var n=_empNormRut(r);if(!n)return r||'';var c=n.split('-');return c[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+c[1];}
