@@ -29373,8 +29373,12 @@ async function stkLlamar(body){
 function _stkNorm(s){return String(s==null?'':s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/Ñ/g,'N').trim();}
 function _stkTit(s){return String(s||'').toLowerCase().replace(/(^|[\s(\/-])\S/g,function(m){return m.toUpperCase();});}
 // "Av. Irarrázaval 2450, depto 304" → calle, número y depto
+// Si hay "#" o "N°", ese es el número ("Pasaje 3 #1420 casa B"); si no, el primer
+// número que cierra la calle: seguido de coma, del final o de depto/casa/oficina.
 function _stkPartirDir(dir){
-  var s=String(dir||'').trim(),m=s.match(/^(.*?)[\s,#]+(\d+[A-Za-z]?)\b[\s,]*(.*)$/);
+  var s=String(dir||'').trim().replace(/\s+/g,' ');
+  var m=s.match(/^(.*?)\s*(?:#|n[°º]\.?|num(?:ero|\.)?)\s*(\d+[A-Za-z]?)\b[\s,]*(.*)$/i)||
+        s.match(/^(.*?)[\s,]+(\d+[A-Za-z]?)(?=\s*(?:,|$|dep|dpto|depto|casa|of|oficina|block|torre|piso|lote|parcela))[\s,]*(.*)$/i);
   return m?{calle:m[1].replace(/[,\s]+$/,''),numero:m[2],depto:m[3].replace(/^[,\s]+/,'')}:{calle:s,numero:'',depto:''};
 }
 // Kilos de las piezas: m² × 30,5 a 4 cm, proporcional al espesor (2 cm = la mitad,
