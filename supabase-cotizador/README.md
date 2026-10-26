@@ -18,3 +18,5 @@ dice el nombre, los secretos que necesita y si hay que apagar «Verify JWT». Lo
 en el panel y **nunca** se escriben en estos archivos: el repo es público.
 
 - `starken-tarifa` — precio del despacho con la API de Cotización de Starken.
+- `respaldo-cotizador` — respaldo diario de todas las tablas a Drive (zip en «Respaldos Cotizador»); lo
+  llaman los crons de `respaldo-diario.sql`. Reemplaza la tarea de Windows del PC (26-10-2026).

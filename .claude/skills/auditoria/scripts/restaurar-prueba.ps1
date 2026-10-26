@@ -41,7 +41,7 @@ function Filas($obj,$n){ $v=$obj.PSObject.Properties[$n].Value; if($v -eq $null)
 # ── 1. Archivo del respaldo ───────────────────────────────────────────────────
 if($Proyecto -eq 'gestion'){
   $dir="$drive\Boletas y Facturas - Ventas 2026\Respaldos Gestion"; $patron='respaldo-gestion-*.json'
-} else { $dir="$drive\Respaldos Cotizador"; $patron='respaldo-cotizador-*.zip' }
+} else { $dir="$drive\Boletas y Facturas - Ventas 2026\Respaldos Cotizador"; $patron='respaldo-cotizador-*.zip' }   # desde 26-10 (Edge Function respaldo-cotizador)
 if(-not $Archivo){ $f=Get-ChildItem "$dir\$patron" | sort LastWriteTime -desc | select -First 1; if(-not $f){ throw "No hay respaldos en $dir" }; $Archivo=$f.FullName }
 $f=Get-Item $Archivo; Copy-Item $f.FullName "$tmp\" ; $local=Join-Path $tmp $f.Name
 if($local -like '*.zip'){ Expand-Archive $local "$tmp\z" -Force; $local=(Get-ChildItem "$tmp\z\*.json" | select -First 1).FullName }
