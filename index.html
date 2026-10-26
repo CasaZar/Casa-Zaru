@@ -26743,7 +26743,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="search-wrap"><span class="search-icon">⌕</span>
       <input type="text" id="emp-search" placeholder="Buscar razón social, RUT o contacto" oninput="renderEmpresas()">
     </div>
-    <select id="emp-orden" onchange="renderEmpresas()"><option value="acum">Más comprado</option><option value="cerca">Más cerca de subir</option><option value="vence">Ciclo por vencer</option></select>
+    <select id="emp-orden" onchange="renderEmpresas()"><option value="acum">Más comprado</option><option value="cerca">Más cerca de subir</option><option value="vence">Próxima baja</option></select>
     <label style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:4px"><input type="checkbox" id="emp-inactivas" onchange="renderEmpresas()"> ver inactivas</label>
   </div>
   <div id="emp-lista"></div>
@@ -26766,7 +26766,6 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div class="form-grid">
       <div class="form-group"><label>Comuna</label><input id="emp-comuna" type="text"></div>
-      <div class="form-group"><label>Inicio del ciclo <span style="color:var(--text-3)">(primera compra)</span></label><input id="emp-inicio" type="date"></div>
     </div>
     <div class="form-grid full"><div class="form-group"><label>Notas</label><textarea id="emp-notas" rows="2" style="width:100%;box-sizing:border-box;font-family:'Inter',sans-serif"></textarea></div></div>
     <div id="emp-activa-wrap" style="display:none;margin-bottom:10px"><label style="font-size:13px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="emp-activa"> Cuenta activa (si se desmarca, deja de sumar y el link del cliente se apaga)</label></div>
@@ -33644,11 +33643,12 @@ async function initAllModules(){
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
 }
 // ── CUENTAS EMPRESA · B2B (22-10-2026) ────────────────────────────────────
-// Una cuenta por RUT. Lo comprado se acumula por ciclos de 12 meses desde
-// `inicio_ciclo`: sobre $1.500.000 → 2 % en las siguientes compras, sobre
-// $3.000.000 → 5 %, además del 5 % por transferencia. Las cifras (ciclo,
-// acumulado, tramo, cuánto falta) vienen de la vista v_b2b_cuentas: acá no se
-// recalcula nada. Las facturas emitidas desde Finanzas se suman solas por un
+// Una cuenta por RUT. El acumulado es lo comprado en los ÚLTIMOS 12 MESES
+// (ventana móvil, migración 0023; antes era un ciclo fijo que volvía a $0):
+// sobre $1.500.000 → 2 % en las siguientes compras, sobre $3.000.000 → 5 %,
+// además del 5 % por transferencia. Cada compra deja de contar sola al cumplir
+// un año. Las cifras (ventana, acumulado, tramo, cuánto falta, próxima baja)
+// vienen de la vista v_b2b_cuentas: acá no se recalcula nada. Las facturas emitidas desde Finanzas se suman solas por un
 // trigger sobre gestion_documentos (migración 0019); «+ Compra a mano» es
 // para lo que no pasó por la app. El cliente ve su cuenta con un link privado
 // (token) en el sitio del cotizador, que llama a b2b_estado(token).
@@ -33685,7 +33685,7 @@ function renderEmpresas(){
   var activas=empCuentas.filter(function(e){return e.activa;});
   var cuenta=function(f){return activas.filter(function(e){return _empEnFiltro(e,f);}).length;};
   var acum=activas.reduce(function(s,e){return s+(Number(e.acumulado)||0);},0);
-  if(st)st.innerHTML='<b>'+activas.length+'</b> cuentas · <b>'+fmtCLP(acum)+'</b> comprado en sus ciclos';
+  if(st)st.innerHTML='<b>'+activas.length+'</b> cuentas · <b>'+fmtCLP(acum)+'</b> comprado en los últimos 12 meses';
   var ch=document.getElementById('emp-chips');
   if(ch)ch.innerHTML=[['todas','Todas',''],['5','5 %','#485B3D'],['2','2 %','#D4AC74'],['0','Sin tramo','#C9B8A3'],['cerca','Cerca de subir','#B5652E']].map(function(c){
     return '<button class="emp-chip'+(empFiltro===c[0]?' on':'')+'" onclick="empFiltro=\''+c[0]+'\';renderEmpresas()">'+(c[2]?'<i style="background:'+c[2]+'"></i>':'')+c[1]+'<b>'+cuenta(c[0])+'</b></button>';
@@ -33701,7 +33701,7 @@ function renderEmpresas(){
   if(!lista.length){
     el.innerHTML='<div class="empty-state"><span class="empty-icon">🏢</span>'+(empCuentas.length?'Ninguna cuenta calza con la búsqueda o el filtro.':'Todavía no hay cuentas. Usa «+ Empresa» para abrir la primera.')+'</div>';return;
   }
-  var esc0='<div class="emp-esc"><span>Empresa</span><div class="emp-sc"><span style="left:0">$0</span><span style="left:50%;transform:translateX(-50%)">$1,5M · 2 %</span><span style="right:0">$3M · 5 %</span></div><span style="text-align:right">Comprado en el ciclo</span></div>';
+  var esc0='<div class="emp-esc"><span>Empresa</span><div class="emp-sc"><span style="left:0">$0</span><span style="left:50%;transform:translateX(-50%)">$1,5M · 2 %</span><span style="right:0">$3M · 5 %</span></div><span style="text-align:right">Últimos 12 meses</span></div>';
   el.innerHTML='<div class="emp-list">'+esc0+lista.map(function(e){
     var s=_empEstado(e);
     var who=[e.contacto?esc(e.contacto):'',e.celular?esc(e.celular):'<span class="sin">sin celular</span>'].filter(Boolean).join(' · ');
@@ -33724,16 +33724,19 @@ function _empBarra2(e){
   return '<div class="emp-bar2"><div class="z2"></div><i class="f'+t+'" style="width:'+p.toFixed(1)+'%"></i><div class="mk"></div>'+over+'</div>';
 }
 function toggleEmp(id){empAbierta=empAbierta===id?null:id;renderEmpresas();}
+// Cuándo deja de contar la compra más antigua de la ventana (viene de la vista).
+function _empSalidaTxt(e){
+  if(!e.salida_fecha)return 'Sin compras en los últimos 12 meses.';
+  var d=Number(e.dias_ciclo);
+  return fmtCLP(e.salida_monto)+' dejan de contar el '+_empFecha(e.salida_fecha)+(d>=0?' <span class="emp-st'+(d<=30?' casi':'')+'">(en '+d+(d===1?' día':' días')+')</span>':'');
+}
 function _empDetalle(e){
   var compras=empCompras.filter(function(k){return k.empresa_id===e.id&&!k.anulada&&k.fecha>=e.ciclo_inicio&&k.fecha<=e.ciclo_fin;});
-  var ini=new Date(String(e.ciclo_inicio).slice(0,10)+'T12:00:00'),fin=new Date(String(e.ciclo_fin).slice(0,10)+'T12:00:00');
-  var pc=Math.max(0,Math.min(100,(Date.now()-ini)/(fin-ini)*100));
-  var dias=Number(e.dias_ciclo);
   var cont=['RUT '+esc(_empFmtRut(e.rut)),e.contacto?esc(e.contacto):'',e.celular?esc(e.celular):'<span style="color:#B5652E">sin celular</span>',e.email?esc(e.email):''].filter(Boolean).join('<br>');
   return '<div class="emp-open" onclick="event.stopPropagation()">'+
     '<div><div class="k">Contacto</div><div class="vv">'+cont+'</div></div>'+
-    '<div><div class="k">Ciclo</div><div class="vv">'+_empFecha(e.ciclo_inicio)+' → '+_empFecha(e.ciclo_fin)+'</div><div class="emp-cic"><i style="width:'+pc.toFixed(0)+'%"></i></div><div class="emp-st'+(dias>=0&&dias<=30?' casi':'')+'">'+(dias>=0?'vence en '+dias+(dias===1?' día':' días'):'')+'</div></div>'+
-    '<div><div class="k">Compras del ciclo · '+compras.length+'</div><div class="vv">'+(compras.length?compras.slice(0,4).map(function(k){return _empFecha(k.fecha)+' · '+(k.tipo==='NC'?'NC':'Factura')+(k.folio?' '+esc(k.folio):'')+' · <b>'+fmtCLP(k.monto)+'</b>';}).join('<br>')+(compras.length>4?'<br><span style="color:var(--text-3)">y '+(compras.length-4)+' más en la ficha</span>':''):'Sin compras en este ciclo.')+'</div></div>'+
+    '<div><div class="k">Próxima baja</div><div class="vv">'+_empSalidaTxt(e)+'</div></div>'+
+    '<div><div class="k">Últimos 12 meses · '+compras.length+'</div><div class="vv">'+(compras.length?compras.slice(0,4).map(function(k){return _empFecha(k.fecha)+' · '+(k.tipo==='NC'?'NC':'Factura')+(k.folio?' '+esc(k.folio):'')+' · <b>'+fmtCLP(k.monto)+'</b>';}).join('<br>')+(compras.length>4?'<br><span style="color:var(--text-3)">y '+(compras.length-4)+' más en la ficha</span>':''):'Sin compras en los últimos 12 meses.')+'</div></div>'+
     '<div class="emp-acciones">'+
       '<button class="btn-emp verde" onclick="copiarLinkEmp('+e.id+')">Copiar link de su cuenta</button>'+
       (e.celular?'<button class="btn-emp ghost" onclick="waEmp('+e.id+')">📱 WhatsApp</button>':'')+
@@ -33753,7 +33756,6 @@ function abrirEmpresa(id){
   document.getElementById('emp-email').value=e?(e.email||''):'';
   document.getElementById('emp-giro').value=e?(e.giro||''):'';
   document.getElementById('emp-comuna').value=e?(e.comuna||''):'';
-  document.getElementById('emp-inicio').value=e?String(e.inicio_ciclo).slice(0,10):new Date().toISOString().slice(0,10);
   document.getElementById('emp-notas').value=e?(e.notas||''):'';
   document.getElementById('emp-activa-wrap').style.display=e?'block':'none';
   document.getElementById('emp-activa').checked=e?!!e.activa:true;
@@ -33786,7 +33788,6 @@ async function guardarEmpresa(){
     email:document.getElementById('emp-email').value.trim()||null,
     giro:document.getElementById('emp-giro').value.trim()||null,
     comuna:document.getElementById('emp-comuna').value.trim()||null,
-    inicio_ciclo:document.getElementById('emp-inicio').value||new Date().toISOString().slice(0,10),
     notas:document.getElementById('emp-notas').value.trim()||null
   };
   if(!d.razon_social){alert('Falta la razón social.');return;}
@@ -33817,21 +33818,21 @@ function renderFichaEmp(){
     return '<tr'+(k.anulada?' class="anulada"':'')+'><td>'+_empFecha(k.fecha)+'<br><span class="emp-src">'+esc(src)+(k.anulada?' · anulada':'')+'</span>'+anular+'</td><td>'+esc(k.detalle||'')+'</td><td class="r">'+fmtCLP(k.monto)+'</td></tr>';
   };
   var dias=Number(e.dias_ciclo);
-  var nota=(e.activa&&dias>=0&&dias<=30)?'<div class="emp-note">El ciclo vence en '+dias+(dias===1?' día':' días')+'. Al renovarse, el acumulado vuelve a $0 y el tramo se pierde si no compra.</div>':'';
+  var nota=(e.activa&&e.salida_fecha&&dias>=0&&dias<=30)?'<div class="emp-note">El '+_empFecha(e.salida_fecha)+' dejan de contar '+fmtCLP(e.salida_monto)+': esa compra cumple un año. Si no compra antes, el acumulado baja a '+fmtCLP(Math.max(0,Number(e.acumulado)-Number(e.salida_monto)))+'.</div>':'';
   var sumAntes=antes.reduce(function(s,k){return s+(Number(k.monto)||0);},0);
   el.innerHTML='<div class="modal-header"><div class="modal-title">'+esc(e.razon_social)+_empPill(t,'vigente')+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+'</div><button class="btn-close" onclick="cerrarFichaEmp()">×</button></div>'+
     '<div class="emp-m">RUT '+esc(_empFmtRut(e.rut))+(e.contacto?' · '+esc(e.contacto):'')+(e.celular?' · '+esc(e.celular):'')+(e.email?' · '+esc(e.email):'')+(e.giro?' · '+esc(e.giro):'')+'</div>'+
     _empBarra(e,true)+
     '<div class="emp-leg" style="margin-top:2px"><span>$0</span><span>$1,5M → 2 %</span><span>$3M → 5 %</span></div>'+
     '<div class="emp-kv">'+
-      '<div><div class="l">Acumulado ciclo</div><div class="v">'+fmtCLP(e.acumulado)+'</div></div>'+
+      '<div><div class="l">Últimos 12 meses</div><div class="v">'+fmtCLP(e.acumulado)+'</div></div>'+
       '<div><div class="l">'+(t===5?'Tramo máximo':(t===2?'Falta para 5 %':'Falta para 2 %'))+'</div><div class="v">'+(t===5?'✓':fmtCLP(t===2?e.falta_5:e.falta_2))+'</div></div>'+
-      '<div><div class="l">Ciclo</div><div class="v" style="font-size:13px">'+_empFecha(e.ciclo_inicio)+' → '+_empFecha(e.ciclo_fin)+'</div></div>'+
+      '<div><div class="l">Próxima baja</div><div class="v" style="font-size:12px">'+_empSalidaTxt(e)+'</div></div>'+
       '<div><div class="l">Descuento próxima compra</div><div class="v" style="color:#485B3D">'+(t?t+' % + '+'5 % transf.':'solo 5 % transf.')+'</div></div>'+
     '</div>'+nota+
-    '<div class="emp-lbl">Compras del ciclo</div>'+
-    (enCiclo.length?'<table class="emp-tabla">'+enCiclo.map(fila).join('')+'</table>':'<div class="emp-m">Sin compras en este ciclo.</div>')+
-    '<div class="emp-lbl">Antes de este ciclo</div>'+
+    '<div class="emp-lbl">Compras de los últimos 12 meses</div>'+
+    (enCiclo.length?'<table class="emp-tabla">'+enCiclo.map(fila).join('')+'</table>':'<div class="emp-m">Sin compras en los últimos 12 meses.</div>')+
+    '<div class="emp-lbl">Más antiguas (ya no cuentan)</div>'+
     (antes.length?'<div class="emp-m">'+antes.length+' documento'+(antes.length===1?'':'s')+' · '+fmtCLP(sumAntes)+' en total<details style="margin-top:4px"><summary style="cursor:pointer;font-size:11px">ver</summary><table class="emp-tabla">'+antes.map(fila).join('')+'</table></details></div>':'<div class="emp-m">Sin compras anteriores registradas.</div>')+
     (e.notas?'<div class="emp-lbl">Notas</div><div class="emp-m">'+esc(e.notas)+'</div>':'')+
     '<div class="emp-acciones">'+
@@ -33853,7 +33854,7 @@ function waEmp(id){
   var tel=String(e.celular).replace(/\D/g,'');if(tel.length===9)tel='56'+tel;
   var t=Number(e.tramo_pct)||0;
   var msg='Hola '+((e.contacto||'').split(' ')[0]||'')+', te escribe '+((usuarioEmail||'').split('@')[0]==='hola'?'Tomás':'César')+' de Casa Zaru.\n\n'+
-    'Tu cuenta Casa Zaru a nombre de '+e.razon_social+' lleva '+fmtCLP(e.acumulado)+' acumulados en este ciclo'+(t?' y tiene el '+t+' % de descuento activo':'')+'.\n\n'+
+    'Tu cuenta Casa Zaru a nombre de '+e.razon_social+' lleva '+fmtCLP(e.acumulado)+' comprados en los últimos 12 meses'+(t?' y tiene el '+(t+5)+' % de descuento por transferencia activo':'')+'.\n\n'+
     'Acá la puedes revisar cuando quieras: '+EMP_LINK_BASE+e.token;
   window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
 }
@@ -33909,7 +33910,7 @@ function b2bAvisoRut(rut,inputId){
   var vp=Number((document.getElementById(inputId==='pp-rut'?'pp-val-prod':'fn-val-prod')||{}).value)||0;
   var salto='';
   if(t<5&&vp>0){var tras=acum+vp;if(tras>=3000000&&t<5)salto=' Con esta compra pasa a <b>5 %</b>.';else if(tras>=1500000&&t<2)salto=' Con esta compra pasa a <b>2 %</b>.';}
-  box.innerHTML='<div class="b2b-aviso">🏢 <b>Cuenta empresa · tramo '+(t?t+' %':'—')+'</b><br>'+esc(e.razon_social)+' lleva '+fmtCLP(acum)+' en su ciclo. '+txt+salto+'</div>';
+  box.innerHTML='<div class="b2b-aviso">🏢 <b>Cuenta empresa · tramo '+(t?t+' %':'—')+'</b><br>'+esc(e.razon_social)+' lleva '+fmtCLP(acum)+' en los últimos 12 meses. '+txt+salto+'</div>';
 }
 
 // ── POST VENTA (16-10-2026) ────────────────────────────────────────────────
