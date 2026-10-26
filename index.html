@@ -28809,7 +28809,10 @@ function handleFile(file){if(!file)return;const apiKey=localStorage.getItem('zar
 async function analyzeImage(dataUrl,file,apiKey){
   document.getElementById('proc').classList.add('on');document.getElementById('prev').classList.remove('on');
   const base64=dataUrl.split(',')[1],mt=file.type||'image/png';
-  const nextNum=prodOrders.length?Math.max(...prodOrders.map(o=>Number(o.pedido)||0))+1:451;
+  // El mayor N° de Producción, Finanzas y Seguimiento: si una venta quedó solo en
+  // una de las tres, el siguiente no la repite.
+  const _nums=prodOrders.map(o=>Number(o.pedido)||0).concat(finRecords.map(r=>Number(r.num)||0),orders.map(o=>Number(o.num)||0));
+  const nextNum=_nums.length?Math.max(..._nums)+1:451;
   const nextOrderId='WTSP'+(307+pixelRecords.length);
   try{
     const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
@@ -28824,7 +28827,10 @@ async function analyzeImage(dataUrl,file,apiKey){
     const txt=data.content.map(i=>i.text||'').join('');
     const parsed=_parsearRespuestaIA(txt);
     const pedidoData=parsed.pedido||parsed;
-    if(!pedidoData.pedido||isNaN(pedidoData.pedido))pedidoData.pedido=nextNum;
+    // El N° lo pone la app, no el pantallazo: todos se guían por el correlativo,
+    // y un número leído de la imagen (orden de Shopify, cotización) dejaba huecos
+    // como la 1579 (26-10-2026). Se puede cambiar a mano en la vista previa.
+    pedidoData.pedido=nextNum;
     pedidoData.fecha=todayStr;
     pedidoData._finanzas=parsed.finanzas||{valor_producto:0,valor_envio:0,valor_comision:0};
     pedidoData._cliente=parsed.cliente||{};
