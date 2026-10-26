@@ -62,6 +62,11 @@ insert into supabase_migrations.schema_migrations (version, name, statements)
 values ('0005', 'nombre_corto', array[$mig$ <contenido del .sql> $mig$]);
 ```
 
+⚠️ La etiqueta de la cita (`$mig$`) **no puede aparecer dentro del archivo**: si la migración la
+menciona en un comentario (todas lo hacen, porque llevan este mismo recordatorio al final), la cita se
+corta ahí y el editor tira `syntax error at or near "archivo"`. Usar una etiqueta propia por
+migración, por ejemplo `$m0023$`. Pasó con la 0023 el 26-10-2026.
+
 **No llevar una tabla de migraciones propia** — ya existe una y duplicarla es pedir que diverjan.
 
 Estado: el 3 sep 2026 estaban aplicadas y registradas `0001`–`0003` y `0005`–`0014`; al 16-10 el
