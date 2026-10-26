@@ -29633,8 +29633,8 @@ async function stkAnular(){
   var a=document.getElementById('stk-anular');
   if(a&&!a.dataset.conf){a.dataset.conf='1';a.textContent='¿Seguro? Toca de nuevo para anular';return;}
   try{
-    await stkLlamar({accion:'anular',id:stk.envio.id});
-    showToast('Anulada aquí. Anúlala también en Starken PRO si la orden alcanzó a crearse.');
+    var d=await stkLlamar({accion:'anular',id:stk.envio.id});
+    showToast(d.enStarken?'✓ Orden anulada en Starken':'Liberada aquí. Si la orden alcanzó a crearse, anúlala en Starken PRO.');
     stk.envio=null;stkPintar();stkCargarComunas();
   }catch(e){showToast(e.message,true);}
 }

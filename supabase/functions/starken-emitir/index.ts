@@ -12,7 +12,7 @@
 //   { accion: 'emitir', pedido, destinatario, bultos, kilos, medidas, valorDeclarado,
 //     contenido, precioCotizado }               → { envio } con of_numero
 //   { accion: 'etiqueta', of }                    → { pdfBase64 }
-//   { accion: 'anular', id }                      → marca la OF anulada (ver nota en la función)
+//   { accion: 'anular', id }                      → anula la OF en Starken y la marca anulada
 //
 // Despliegue: panel de Gestión → Edge Functions → Via Editor, nombre `starken-emitir`.
 // «Verify JWT» PRENDIDO: la Gestión manda el token del usuario (llave anon de formato JWT).
@@ -22,10 +22,17 @@
 //   STARKEN_CTA, STARKEN_CTA_DV         cuenta corriente para emitir (la de la web: 777979-8)
 //   STARKEN_CENTRO_COSTO                centro de costo de esa cuenta (lo da el ejecutivo)
 //   STARKEN_ETIQUETA_USUARIO, STARKEN_ETIQUETA_CLAVE   autenticación básica de la API de etiqueta
+//   STARKEN_PRO_RUN, STARKEN_PRO_RUT_MASTER, STARKEN_PRO_CLAVE
+//                                       usuario de Starken PRO Empresa para anular (con DV, sin
+//                                       puntos). Starken recomienda un usuario solo para esto.
+//   STARKEN_URL_LOGIN, STARKEN_URL_ANULAR   URLs de producción del login y la anulación (la
+//                                       documentación solo trae las de QA; las da el ejecutivo)
 //   STARKEN_REMITENTE                   JSON: {"dv","nombre","direccion","numero","depto","comuna","email","telefono"}
-//   STARKEN_MODO                        'qa' (por defecto) o 'produccion'. En QA usa los datos
-//                                       públicos de ejemplo de la documentación de Starken y
-//                                       nunca crea OF reales.
+//   STARKEN_MODO                        'qa' (por defecto) o 'produccion'. En QA la emisión usa
+//                                       los datos públicos de ejemplo de la documentación de
+//                                       Starken y nunca crea OF reales; etiqueta y anulación usan
+//                                       los mismos secretos con sufijo _QA (también públicos en el
+//                                       portal, pero tras un login: no van al repo).
 // SUPABASE_URL y SUPABASE_ANON_KEY los inyecta Supabase.
 
 class ErrorPublico extends Error {
@@ -42,12 +49,18 @@ const MODO = secreto('STARKEN_MODO') === 'produccion' ? 'produccion' : 'qa';
 const QA = {
   emision: 'https://emisionh2h-qa.starken.cl/starkenh2h/servlet/aemisionh2hremrest',
   etiqueta: 'https://apiqa.starken.cl/apiqa/etiqueta/impresionByOrdenFleteDynamic',
+  login: 'https://apiqa.starkenpro.cl/authentication/auth/login',
+  anular: 'https://apiqa.starken.cl/anulacion/apianular/anularOrdenEmpresas',
   rutEmpresa: '76211240', rutUsuario: '10', clave: 'SOPORTE', cta: '19154', ctaDv: 'K', centroCosto: '0',
 };
 const PRD = {
   emision: 'https://emisionh2h.starken.cl/starkenh2h/servlet/aemisionh2hremrest',
   etiqueta: 'https://apiprd.starken.cl/apiprd/etiqueta/impresionByOrdenFleteDynamic',
+  login: secreto('STARKEN_URL_LOGIN'),
+  anular: secreto('STARKEN_URL_ANULAR'),
 };
+// Secreto de producción, o su gemelo _QA en pruebas.
+function secretoModo(nombre: string) { return secreto(MODO === 'produccion' ? nombre : nombre + '_QA'); }
 
 // La cotización la hace la función del Cotizador (ya probada y con sus credenciales):
 // así hay un solo lugar que calcula el precio, el mismo que vio el cliente.
@@ -103,9 +116,16 @@ function rutPartes(rut: string) {
 // Starken escribe las comunas sin tildes ni ñ (NUNOA, PENALOLEN).
 function comunaStarken(c: string) { return c.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/Ñ/g, 'N').trim(); }
 
-// Busca el número de OF en la respuesta de Starken, se llame como se llame el campo.
+// El número de OF. La respuesta documentada (portal, leído 26-10-2026) es
+// { codigoError: 0, descripcionError: 'OK', nroOrdenFlete: 2.22607751E8, totalOF, ... }:
+// el número viene como decimal en notación científica, por eso se redondea. Si algún día
+// cambia el nombre del campo, se busca uno parecido.
 function numeroOF(d: any): string {
   if (!d || typeof d !== 'object') return '';
+  if (d.nroOrdenFlete != null) {
+    const n = Math.round(Number(d.nroOrdenFlete));
+    return n > 0 ? String(n) : '';
+  }
   for (const [k, v] of Object.entries(d)) {
     if (/orden.?flete|numero.?of|^of$|nro.?of/i.test(k) && v != null && String(v).trim() && !/[a-z]{4}/i.test(String(v))) return String(v).trim();
   }
@@ -219,56 +239,101 @@ async function emitir(req: Request, b: any) {
     // reintentos) hasta que el admin revise en Starken PRO y la marque como error.
     throw new ErrorPublico('Starken no respondió. NO reintentes: revisa en Starken PRO si la OF se creó', 504);
   }
-  let resp: any = null; try { resp = JSON.parse(txt); } catch (_e) { resp = { texto: txt.slice(0, 2000) }; }
+  let resp: any = null; try { resp = JSON.parse(txt); } catch (_e) { /* abajo */ }
+  if (!resp || typeof resp !== 'object') resp = { texto: txt.slice(0, 2000) };
   const of = numeroOF(resp);
-  const ok = res.ok && !!of;
+  // codigoError 0 = emitida. Otro código trae el motivo en descripcionError.
+  const sinError = resp.codigoError === undefined || Number(resp.codigoError) === 0;
+  const ok = res.ok && sinError && !!of;
+  const motivo = texto(resp && (resp.descripcionError || resp.mensajeRespuesta || resp.mensaje || resp.texto) || ('HTTP ' + res.status), 500);
   const upd = await q('envios_starken?id=eq.' + id, {
     method: 'PATCH',
     body: JSON.stringify(ok
       ? { estado: 'emitida', of_numero: of, respuesta: resp }
-      : { estado: 'error', respuesta: resp, error: texto(resp && (resp.mensajeRespuesta || resp.mensaje || resp.texto) || ('HTTP ' + res.status), 500) }),
+      : { estado: 'error', respuesta: resp, error: motivo }),
   });
   if (!upd.ok) console.error('update envios_starken', upd.status, upd.t.slice(0, 300));
-  if (!ok) throw new ErrorPublico('Starken no emitió la OF: ' + texto(resp && (resp.mensajeRespuesta || resp.mensaje || resp.texto), 200), 422);
+  if (!ok) throw new ErrorPublico('Starken no emitió la OF: ' + motivo.slice(0, 200), 422);
   return { envio: upd.ok ? upd.d[0] : { id, of_numero: of, estado: 'emitida' }, modo: MODO };
 }
 
-// PENDIENTE confirmar con la documentación de la API REST Etiqueta: nombres de los
-// parámetros (N° de OF y formato) y cómo viene el PDF. Se deja con los nombres más
-// probables; la prueba en QA lo confirma antes de pasar a producción.
+// Busca un PDF en Base64 dentro de la respuesta, venga suelto, como texto JSON o en un
+// campo (un PDF en Base64 siempre empieza con «JVBER», que es «%PDF»).
+function buscarPdf(d: any): string {
+  if (typeof d === 'string') { const s = d.trim().replace(/^"|"$/g, ''); return /^JVBER/.test(s) ? s : ''; }
+  if (d && typeof d === 'object') { for (const v of Object.values(d)) { const s = buscarPdf(v); if (s) return s; } }
+  return '';
+}
+
+// API REST Etiqueta (portal, leído 26-10-2026): POST sin cuerpo, autenticación básica,
+// parámetros ordenFlete y tipoSalida (1 = PDF en Base64, 2 = Zebra, 3 = URL del PDF).
 async function etiqueta(b: any) {
   const of = texto(b.of, 20).replace(/\D/g, '');
   if (!of) throw new ErrorPublico('Falta el número de OF', 400);
-  const user = MODO === 'produccion' ? secreto('STARKEN_ETIQUETA_USUARIO') : secreto('STARKEN_ETIQUETA_USUARIO_QA');
-  const pass = MODO === 'produccion' ? secreto('STARKEN_ETIQUETA_CLAVE') : secreto('STARKEN_ETIQUETA_CLAVE_QA');
+  const user = secretoModo('STARKEN_ETIQUETA_USUARIO'), pass = secretoModo('STARKEN_ETIQUETA_CLAVE');
   if (!user || !pass) throw new ErrorPublico('Faltan las credenciales de la API de etiqueta', 500);
   const url = (MODO === 'produccion' ? PRD.etiqueta : QA.etiqueta) + '?ordenFlete=' + encodeURIComponent(of) + '&tipoSalida=1';
   const r = await fetch(url, { method: 'POST', headers: { Authorization: 'Basic ' + btoa(user + ':' + pass) }, signal: AbortSignal.timeout(30000) })
     .catch(() => { throw new ErrorPublico('Starken no respondió', 504); });
-  const tipo = r.headers.get('content-type') || '';
   if (!r.ok) throw new ErrorPublico('Starken no entregó la etiqueta (HTTP ' + r.status + ')', 502);
-  if (/pdf|octet/.test(tipo)) {
+  if (/pdf|octet/.test(r.headers.get('content-type') || '')) {   // por si algún día manda el archivo
     const buf = new Uint8Array(await r.arrayBuffer());
     let bin = ''; for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
     return { pdfBase64: btoa(bin) };
   }
-  const d = await r.json().catch(() => null);
-  const b64 = d && (d.pdf || d.etiqueta || d.base64 || d.archivo || (d.data && (d.data.pdf || d.data.base64)));
-  if (!b64) throw new ErrorPublico('Starken respondió sin el PDF de la etiqueta', 502);
-  return { pdfBase64: String(b64) };
+  const t = await r.text();
+  let d: any = t; try { d = JSON.parse(t); } catch (_e) { /* Base64 suelto */ }
+  const b64 = buscarPdf(d);
+  if (!b64) { console.error('etiqueta sin PDF:', t.slice(0, 300)); throw new ErrorPublico('Starken respondió sin el PDF de la etiqueta', 502); }
+  return { pdfBase64: b64 };
 }
 
-// Anular: por ahora SOLO marca la fila (estado 'anulada'). La anulación en Starken
-// (WS AnularOrdenEmpresa) se conecta cuando se lea su documentación; mientras, la OF se
-// anula también en Starken PRO. La fila anulada libera el candado para emitir otra.
+// Anulación (portal, leído 26-10-2026): dos pasos. 1) login con un usuario de Starken PRO
+// Empresa → token (uno nuevo por cada anulación). 2) POST { numerosOrden: [OF] } → data[]
+// con estado 'OK' o 'NO_OK' y el motivo. Solo se anulan OF sin movimientos operativos.
+async function anularEnStarken(of: string) {
+  const login = MODO === 'produccion' ? PRD.login : QA.login, urlAnular = MODO === 'produccion' ? PRD.anular : QA.anular;
+  const run = secretoModo('STARKEN_PRO_RUN'), master = secretoModo('STARKEN_PRO_RUT_MASTER'), clave = secretoModo('STARKEN_PRO_CLAVE');
+  if (!login || !urlAnular || !run || !master || !clave) throw new ErrorPublico('Faltan los secretos para anular en Starken', 500);
+  const l = await fetch(login, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ application: { code: 'PRO' }, run, rut_master: master, password: clave }),
+  }).catch(() => { throw new ErrorPublico('Starken no respondió', 504); });
+  const ld = await l.json().catch(() => ({}));
+  if (!l.ok || !ld.token) throw new ErrorPublico('Starken rechazó el usuario de anulación (HTTP ' + l.status + ')', 502);
+  // La documentación no dice cómo va el token; Bearer es lo estándar (se confirma en QA).
+  const a = await fetch(urlAnular, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ld.token }, signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({ numerosOrden: [Number(of)] }),
+  }).catch(() => { throw new ErrorPublico('Starken no respondió', 504); });
+  const ad = await a.json().catch(() => ({}));
+  const fila = Array.isArray(ad.data) ? ad.data.find((x: any) => String(x.numeroOrden) === of) || ad.data[0] : null;
+  if (!a.ok || !fila) throw new ErrorPublico('Starken no confirmó la anulación (HTTP ' + a.status + ')', 502);
+  if (fila.estado !== 'OK') throw new ErrorPublico('Starken no anuló la OF: ' + texto(fila.mensaje, 200), 422);
+  return ad;
+}
+
+// Una OF emitida se anula PRIMERO en Starken y recién después se marca acá; si Starken
+// dice que no (ya va en camino), la fila sigue emitida. Una fila sin OF (error, o
+// 'emitiendo' que el admin ya revisó en Starken PRO) solo se marca. Marcarla anulada
+// libera el candado para emitir otra.
 async function anular(req: Request, b: any) {
   const id = Math.round(Number(b.id));
   if (!(id > 0)) throw new ErrorPublico('Falta el envío', 400);
-  const r = await db(req)('envios_starken?id=eq.' + id + '&estado=in.(emitida,error,emitiendo)', {
-    method: 'PATCH', body: JSON.stringify({ estado: 'anulada', anulada_at: new Date().toISOString() }),
+  const q = db(req);
+  const g = await q('envios_starken?id=eq.' + id + '&select=id,estado,of_numero,respuesta');
+  const fila = g.ok && Array.isArray(g.d) ? g.d[0] : null;
+  if (!fila) throw new ErrorPublico('No encontré ese envío', 404);
+  if (fila.estado === 'anulada') throw new ErrorPublico('Ya estaba anulada', 409);
+  let respuesta = fila.respuesta;
+  if (fila.estado === 'emitida' && fila.of_numero) {
+    respuesta = { ...(respuesta || {}), anulacion: await anularEnStarken(String(fila.of_numero)) };
+  }
+  const r = await q('envios_starken?id=eq.' + id + '&estado=in.(emitida,error,emitiendo)', {
+    method: 'PATCH', body: JSON.stringify({ estado: 'anulada', anulada_at: new Date().toISOString(), respuesta }),
   });
-  if (!r.ok || !Array.isArray(r.d) || !r.d.length) throw new ErrorPublico('No se pudo anular (¿ya estaba anulada?)', 409);
-  return { envio: r.d[0] };
+  if (!r.ok || !Array.isArray(r.d) || !r.d.length) throw new ErrorPublico('Starken la anuló, pero no pude marcarla aquí: avísale al administrador', 500);
+  return { envio: r.d[0], enStarken: fila.estado === 'emitida' };
 }
 
 Deno.serve(async (req) => {
