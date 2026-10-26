@@ -29025,6 +29025,9 @@ async function confirmOrder(){
   o.vendedor=vendedorSel;
   const tipoSel=(document.getElementById('pp-tipo')||{}).value||'VENTA';
   o.tipo=tipoSel;
+  // Un muestrario es un ítem más para el taller (comanda, tabla, piezas): el
+  // pantallazo no trae medidas, así que se guarda como una pieza «Muestrario».
+  if(tipoSel==='MUESTRARIO'&&!(o.lineas||[]).length){var _nl=_lineaVaciaProd(o);delete _nl._vacia;o.lineas=[_nl];}
   // El número de Shopify se conserva aparte del correlativo interno: sirve
   // para cruzar con la tienda cuando hay que revisar un pedido web.
   if(o.orden_web)o.orden_web=String(o.orden_web);
