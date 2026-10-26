@@ -29409,7 +29409,7 @@ function diasEnTaller(o){var fc=o.fecha_creacion||o.fecha||'';if(!fc)return null
 // emisión en la tabla envios_starken). Mientras la función esté en modo
 // 'qa' no se crea ninguna OF real.
 var STK_FN=SB_URL+'/functions/v1/starken-emitir';
-var STK_KG_M2=30.5;           // madera + embalaje por m² a 4 cm (misma regla del cotizador)
+var STK_KG_M2=26.5;           // madera 26 + embalaje 0,5 por m² a 4 cm (misma regla del cotizador, 26-10-2026)
 var STK_KG_BASE_FIERRO=20;    // base de fierro de mesa (las de la web pesan 18-25 kg)
 var stk={num:'',envio:null,comunas:null,comuna:null,precio:null,modo:'',pedidoN:0,confirmar:false};
 async function stkLlamar(body){
@@ -29430,7 +29430,7 @@ function _stkPartirDir(dir){
         s.match(/^(.*?)[\s,]+(\d+[A-Za-z]?)(?=\s*(?:,|$|dep|dpto|depto|casa|of|oficina|block|torre|piso|lote|parcela))[\s,]*(.*)$/i);
   return m?{calle:m[1].replace(/[,\s]+$/,''),numero:m[2],depto:m[3].replace(/^[,\s]+/,'')}:{calle:s,numero:'',depto:''};
 }
-// Kilos de las piezas: m² × 30,5 a 4 cm, proporcional al espesor (2 cm = la mitad,
+// Kilos de las piezas: m² × 26,5 a 4 cm, proporcional al espesor (2 cm = la mitad,
 // regla del taller), + la base de fierro si la pieza la lleva. Se puede corregir.
 function _stkKilos(o){
   var kg=0;
