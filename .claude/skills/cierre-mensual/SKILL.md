@@ -65,6 +65,19 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
   Point, Link de Pago, Checkout Pro, Mercado Libre) → `mp-AAAA-MM-canal.csv` (`id;plataforma`).
   Sin él, las ventas de feria se separan por la comisión. Ojo: hay `settlement_v2` de otros negocios en
   Descargas; usar solo el que el usuario diga que es de Casa Zaru.
+- **Tarjeta Visa Empresa 8340 de Banco de Chile** (desde el 19-10 paga Google Ads, Meta y el F29): Banco de Chile →
+  Tarjetas → movimientos, export `MovimientosNoFacturados.xls` (y `MovimientosFacturados.xls` cuando haya estado de
+  cuenta) en Descargas. El cargador los lee solo (una reversa anula su cargo). Reglas: FACEBK = Publicidad Meta (suma al
+  gasto real de Meta si falta `meta-AAAA-MM.json`), GOOGLE ADS = pago de factura ya contada, SII RECAUDAC = impuestos.
+  El pago de la tarjeta, cuando llegue, es traspaso. Ojo: lo pagado a Facebook trae IVA; el reporte de Meta no.
+- **Banco de Chile tiene dos cuentas**: la FAN Emprende 75243-30 (caja chica del taller, la que usa el libro) y la
+  cuenta corriente 42159-00 (Profit First / SII, al 19-10 solo traspasos de entrada). Si la cartola no alcanza y la
+  sesión del banco está abierta, los movimientos se leen en la web (solo lectura) y van a
+  `~/.casazaru/movs-extra-AAAA-MM.csv` (Fecha;Cuenta;Glosa;Cargo;Abono;Saldo;Canal;Fuente). Solo cuentan los posteriores
+  a la última fecha de la cartola, así que bajar después una cartola nueva no duplica nada. La sesión se corta sola al
+  cambiar de cuenta: no volver a ingresar con clave, pedir la cartola.
+- **Capturas de Mercado Pago posteriores a la última liquidación**: sus pagos entran igual como salidas de la tarjeta
+  (con aviso), y alargan la fecha hasta la que la semana se da por cubierta.
 - **Cartolas:** desde el 15-10 el script elige solo, por cuenta, la que tiene más movimientos dentro del
   mes (no la más nueva) y avisa si le faltan días o si no trae egresos. Antes tomaba la más nueva y una
   parcial dio un resultado falso de +$5,0M (06-10).

@@ -222,6 +222,17 @@ function MejorCartola($filtro, $leer) {
 }
 $cBci = MejorCartola '*Movimientos_Detallado_Cuenta_7175*.xlsx' ${function:FilasBci}
 $cBdc = MejorCartola 'cartola*.xls' ${function:FilasBdc}
+# Lo leído en la web del banco después de la última fecha de la cartola se suma a la caja del taller (más nuevo primero).
+$fExtra = Join-Path $CZ "movs-extra-$tag.csv"; if (-not (Test-Path $fExtra)) { $fExtra = $null }
+if ($fExtra -and $cBdc.archivo) {
+  $hasta = ($cBdc.filas | ForEach-Object { $_.fecha } | Measure-Object -Maximum).Maximum
+  $extra = @(LeerCsv $fExtra | Where-Object { "$($_.Cuenta)" -match '75243' -and (Fecha $_.Fecha) -gt $hasta } | ForEach-Object {
+    [pscustomobject]@{ fecha = Fecha $_.Fecha; glosa = "$($_.Glosa)"; cargo = (N $_.Cargo); abono = (N $_.Abono); saldo = (N $_.Saldo) } } | Where-Object { EnMes $_.fecha })
+  if ($extra.Count) {
+    $cBdc.filas = @($extra) + @($cBdc.filas)
+    Aviso "Banco de Chile: $($extra.Count) movimientos del $($extra[-1].fecha.ToString('dd-MM')) al $($extra[0].fecha.ToString('dd-MM')) se leyeron en la web del banco (movs-extra-$tag.csv), no de una cartola."
+  }
+}
 foreach ($c in @(@('BCI 7175', $cBci, 'egr'), @('Banco de Chile', $cBdc, 'cargo'))) {
   if (-not $c[1].archivo) { Aviso "Falta la cartola de $($c[0]) de $mesNom en Descargas: la caja y los pagos sin factura quedan incompletos."; continue }
   $fs = @($c[1].filas | ForEach-Object { $_.fecha }); $min = ($fs | Measure-Object -Minimum).Minimum; $max = ($fs | Measure-Object -Maximum).Maximum
@@ -236,6 +247,11 @@ foreach ($c in @(@('BCI 7175', $cBci, 'egr'), @('Banco de Chile', $cBdc, 'cargo'
 $dirCart = Join-Path $env:TEMP ('libro-cartolas-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $dirCart | Out-Null
 foreach ($a in @($cBci.archivo, $cBdc.archivo) | Where-Object { $_ }) { Copy-Item $a.FullName $dirCart }
+# Tarjeta Visa 8340 de Banco de Chile (export "Movimientos[No]Facturados.xls") y movimientos leídos en la web del banco
+# cuando la cartola no alcanza (movs-extra-AAAA-MM.csv, privado).
+$tarjetas = @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'Movimientos*Facturados*.xls' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $iniMes })
+foreach ($a in $tarjetas) { Copy-Item $a.FullName $dirCart }
+if ($fExtra) { Copy-Item $fExtra (Join-Path $dirCart "movs-extra-$tag.csv") }
 $tmpBanco = Join-Path $env:TEMP "banco-$tag.csv"
 & (Join-Path $PLAN 'cargar-cartolas.ps1') -Desde $iniMes.ToString('yyyy-MM-dd') -Descargas $dirCart -Simular -ExportarCsv $tmpBanco *> $null
 Remove-Item $dirCart -Recurse -Force -ErrorAction SilentlyContinue
@@ -327,7 +343,18 @@ $mpNombres = @(LeerCsv (Join-Path $CZ 'mp-nombres.csv') | ForEach-Object { [pscu
 function NombreMP($fecha, $monto) { $x = $mpNombres | Where-Object { $_.fecha -eq $fecha -and [math]::Abs($_.monto - $monto) -le 1 } | Select-Object -First 1; if ($x) { $x.nombre } else { '' } }
 $salidasMP = if ($mp.Count) { @($mp | Where-Object { $_.tipo -in 'Pago', 'Compra' } | ForEach-Object { [pscustomobject]@{ fecha = $_.fecha; monto = -$_.monto; plataforma = $(if ($_.tipo -eq 'Compra') { 'Mercado Libre' } else { '' }) } }) }
              else { @($liq | Where-Object { $_.tipo -eq 'Pago aprobado' -and $_.monto -lt 0 -and $_.medio -eq 'available_money' } | ForEach-Object { [pscustomobject]@{ fecha = $_.fecha; monto = $(if ($_.real) { -$_.real } else { -$_.monto }); plataforma = $_.plataforma } }) }
-$mpMeta = 0; $mpSinNombre = 0; $mpSinNombreN = 0; $mpGastos = @()
+# Lo que las capturas de la actividad muestran DESPUÉS de la última liquidación o estado de cuenta también salió: entra
+# con el nombre de la captura (el 26-10 la liquidación llegaba al 19-10 y Meta cobró dos veces el 26).
+$hastaMP = ((@($mp) + @($liq)) | Where-Object { $_ -and $_.fecha } | ForEach-Object { $_.fecha } | Measure-Object -Maximum).Maximum
+if ($hastaMP) {
+  $tarde = @($mpNombres | Where-Object { $_.fecha -gt $hastaMP -and (EnMes $_.fecha) } | ForEach-Object { [pscustomobject]@{ fecha = $_.fecha; monto = $_.monto; plataforma = $(if ($_.nombre -match 'Mercado Libre') { 'Mercado Libre' } else { '' }) } })
+  if ($tarde.Count) { $salidasMP = @($salidasMP) + $tarde; Aviso "Mercado Pago: $($tarde.Count) pagos posteriores al $($hastaMP.ToString('dd-MM')) salen solo de las capturas de la actividad (mp-nombres.csv); la próxima liquidación los confirma." }
+}
+$mpSinNombre = 0; $mpSinNombreN = 0; $mpGastos = @()
+# Desde el 26-10 Meta también se cobra a la Visa 8340: esos cargos (regla FACEBK) son gasto real de Meta igual que los de Mercado Pago.
+$mpMeta = Suma @($banco | Where-Object { $_.categoria -eq 'Publicidad Meta' -and $_.cuenta -match 'Visa' }) 'neto'
+$visa = @($banco | Where-Object { $_.cuenta -match 'Visa' })
+if ($visa.Count) { Aviso "Tarjeta Visa 8340: $(Plata (Suma $visa 'neto')) cargados en el mes. Es deuda con Banco de Chile: el gasto se cuenta al cargarse y el pago de la tarjeta, cuando llegue, es un traspaso." }
 $MP_TARJETA = 'Mercado Pago (tarjeta)'
 foreach ($s in $salidasMP) {
   $nom = NombreMP $s.fecha $s.monto
@@ -373,9 +400,9 @@ $ajustes = @(LeerCsv (Join-Path $PLAN 'ajustes.csv') | Where-Object { EnMes (Fec
 $meta = LeerJson (Join-Path $CZ "meta-$tag.json")
 $google = Suma @($gastos | Where-Object { $_.categoria -eq 'Publicidad Google' }) 'neto'
 $metaEstimado = $false
-if (-not $meta -and $mpMeta -gt 0) { $meta = [pscustomobject]@{ gasto = $mpMeta; fuente = 'pagos a Facebook con la tarjeta de Mercado Pago' } }
+if (-not $meta -and $mpMeta -gt 0) { $meta = [pscustomobject]@{ gasto = $mpMeta; fuente = 'pagos a Facebook con las tarjetas (Mercado Pago y Visa 8340)' } }
 elseif (-not $meta -and $mpSinNombre -gt 0) { $meta = [pscustomobject]@{ gasto = $mpSinNombre; fuente = 'estimado: pagos sin nombre de la tarjeta de Mercado Pago' }; $metaEstimado = $true }
-if ($meta -and $mpMeta -gt 0 -and -not $metaEstimado -and $meta.fuente -notmatch 'tarjeta' -and [math]::Abs($mpMeta - [double]$meta.gasto) -gt 0.1 * [double]$meta.gasto) { Aviso "Meta: el reporte dice $(Plata ([double]$meta.gasto)) y la tarjeta de Mercado Pago pagó a Facebook $(Plata $mpMeta). Revisar cuál es el gasto del mes." }
+if ($meta -and $mpMeta -gt 0 -and -not $metaEstimado -and $meta.fuente -notmatch 'tarjeta' -and [math]::Abs($mpMeta / 1.19 - [double]$meta.gasto) -gt 0.1 * [double]$meta.gasto) { Aviso "Meta: el reporte dice $(Plata ([double]$meta.gasto)) sin IVA y las tarjetas (Mercado Pago y Visa 8340) pagaron a Facebook $(Plata $mpMeta) con IVA ($(Plata ($mpMeta / 1.19)) sin IVA). Revisar cuál es el gasto del mes." }
 $sii = LeerJson (Join-Path $CZ "sii-$tag.json")
 $kpi = LeerJson (Join-Path $CZ 'kpis-cotizador.json')
 
@@ -482,7 +509,10 @@ if ($esFinal -and (-not $mp.Count -or -not $meta)) { $estadoMes = 'parcial (falt
 # Semanas del cuadre: de lunes a domingo (para que no se pierda ningún pago), recortadas al mes.
 # "completa" = su último día ya está cubierto por los datos (cartola y, si no hay estado de cuenta, liquidaciones de MP).
 function Lunes($d) { $d.Date.AddDays(-(([int]$d.DayOfWeek + 6) % 7)) }
-$datosHasta = $datosAl; if (-not $mp.Count -and $liq.Count -and $liqHasta -lt $datosHasta) { $datosHasta = $liqHasta }
+# Las capturas de la actividad de Mercado Pago (mp-nombres.csv) cubren hasta su fecha más nueva: alargan lo que dicen las liquidaciones.
+$capHasta = ($mpNombres | Where-Object { EnMes $_.fecha } | ForEach-Object { $_.fecha } | Measure-Object -Maximum).Maximum
+$mpHasta = if ($liq.Count) { $liqHasta } else { $null }; if ($capHasta -and (-not $mpHasta -or $capHasta -gt $mpHasta)) { $mpHasta = $capHasta }
+$datosHasta = $datosAl; if (-not $mp.Count -and $mpHasta -and $mpHasta -lt $datosHasta) { $datosHasta = $mpHasta }
 $semanas = @($cuadre | Where-Object { $_.fecha } | Group-Object { (Lunes $_.fecha).ToString('yyyy-MM-dd') } | Sort-Object Name | ForEach-Object {
   $lun = [datetime]::ParseExact($_.Name, 'yyyy-MM-dd', $INV); $d1 = if ($lun -lt $iniMes) { $iniMes } else { $lun }; $d2 = $lun.AddDays(6); if ($d2 -gt $finMes) { $d2 = $finMes }
   $sin = @($_.Group | Where-Object { -not $_.ok })
@@ -692,7 +722,7 @@ if (-not $lFin.Count) { L 'Intereses de créditos' 0 }
 [void]$f.Add(@())
 # Solo plata que de verdad salió de las cuentas. Una factura de activo (la camioneta) no es un pago: va en una nota.
 Sub $f 'Plata que salió y no es gasto del mes'
-$salio = @($todo | Where-Object { -not $_.seccion -and $_.fuente -ne 'Factura' }) + @($banco | Where-Object { $_.conFactura -and $_.categoria -eq $PAGO_FACTURA })
+$salio = @($todo | Where-Object { -not $_.seccion -and $_.fuente -ne 'Factura' -and $_.categoria -ne 'Publicidad Meta' })   # Meta ya está en el resultado como gasto real + @($banco | Where-Object { $_.conFactura -and $_.categoria -eq $PAGO_FACTURA })
 $fuera = @($salio | Group-Object categoria | ForEach-Object { [pscustomobject]@{ cat = $_.Name; monto = (Suma $_.Group 'neto') } })
 if ($mpCuotas) {
   $c = $fuera | Where-Object { $_.cat -eq 'Créditos y deudas (cuotas)' } | Select-Object -First 1
@@ -711,11 +741,13 @@ Hoja 'Resumen' $f @(48, 16, 16, 70)
 
 # ── 1b. Semanas (cuadre semanal: cada peso que salió, con su justificación) ──
 $f = New-Object System.Collections.ArrayList
-Titulo $f "Semanas — $mesNom" 'Cuadre semanal: cada peso que salió de BCI, Banco de Chile y la tarjeta de Mercado Pago, con su justificación (factura, regla o traspaso). Las semanas van de lunes a domingo para que no se pierda ningún pago. Lo único que hay que mirar es lo que dice SIN JUSTIFICAR.'
+Titulo $f "Semanas — $mesNom" 'Cuadre semanal: cada peso que salió de BCI, Banco de Chile, la tarjeta Visa 8340 y la tarjeta de Mercado Pago, con su justificación (factura, regla o traspaso). Las semanas van de lunes a domingo para que no se pierda ningún pago. Lo único que hay que mirar es lo que dice SIN JUSTIFICAR.'
 Sub $f 'Resumen por semana'
 Tabla $f @('Semana', 'Pagos', 'Salió', 'Sin justificar', 'Pagos sin justificar', 'Estado') @($semanas | ForEach-Object { ,@($_.nombre, (C $_.n 7), $_.salio, $_.sinJust, (C $_.nSin 7), $(if ($_.nSin) { 'Revisar' } elseif (-not $_.completa) { 'En curso' } else { 'Cerrada ✓' })) }) @(2, 3)
 $fuentesSem = @("cartolas $((@(@($cBci.archivo, $cBdc.archivo) | Where-Object { $_ } | ForEach-Object { $_.Name })) -join ' y ')")
-$fuentesSem += if ($mp.Count) { 'Mercado Pago: estado de cuenta del mes' } elseif ($liq.Count) { "Mercado Pago: liquidaciones hasta el $($liqHasta.ToString('dd-MM')) ($($liqArchivo.Name))" } else { 'Mercado Pago: SIN DATOS (faltan las liquidaciones en Descargas), los pagos de la tarjeta no están' }
+$fuentesSem += if ($mp.Count) { 'Mercado Pago: estado de cuenta del mes' } elseif ($liq.Count) { "Mercado Pago: liquidaciones hasta el $($liqHasta.ToString('dd-MM')) ($($liqArchivo.Name))$(if ($capHasta -and $capHasta -gt $liqHasta) { " + capturas de la actividad hasta el $($capHasta.ToString('dd-MM'))" })" } else { 'Mercado Pago: SIN DATOS (faltan las liquidaciones en Descargas), los pagos de la tarjeta no están' }
+if ($tarjetas.Count) { $fuentesSem += "tarjeta Visa 8340: $(($tarjetas | ForEach-Object { $_.Name }) -join ' y ')" }
+if ($fExtra) { $fuentesSem += "movimientos leídos en la web del banco (movs-extra-$tag.csv)" }
 Nota $f "Fuentes: $($fuentesSem -join '; '). Datos hasta el $($datosHasta.ToString('dd-MM'))."
 foreach ($s in $semanas) {
   Sub $f "$($s.nombre): $(Plata $s.salio) en $($s.n) pagos$(if ($s.nSin) { " — $($s.nSin) sin justificar por $(Plata $s.sinJust)" } else { ' — todo justificado' })"
