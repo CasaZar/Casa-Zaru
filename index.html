@@ -28935,7 +28935,11 @@ function renderPrevProd(o){
     if(/^\d{4}-\d{2}-\d{2}$/.test(o.fecha_venta))showToast('La fecha del pantallazo ('+o.fecha_venta.split('-').reverse().join('/')+') es futura: se usa la de hoy como fecha de venta',true);
     o.fecha_venta=fechaISO;
   }
-  var fechaInicial=o.fecha_venta||fechaISO;
+  // Lo que se muestra es lo que se guarda: si el pantallazo no trae fecha, el campo
+  // mostraba hoy pero confirmOrder caía al lunes de la semana de producción, y una
+  // venta de octubre con semana 2 NOV quedaba en noviembre (26-10-2026).
+  if(!o.fecha_venta)o.fecha_venta=fechaISO;
+  var fechaInicial=o.fecha_venta;
   document.getElementById('chips').innerHTML=`<div class="chip hi"><label>N° Pedido</label><input type="number" value="${o.pedido}" onchange="prodPending.pedido=Number(this.value)" style="width:70px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:14px;color:var(--wood);font-weight:700"></div><div class="chip hi"><label>Cliente</label><span>${esc(o.comprador)} ${esc(o.apellido)}</span></div><div class="chip"><label>Semana producción</label><input type="text" value="${esc(o.envio)}" onchange="prodPending.envio=this.value" style="width:130px;background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:12px;color:var(--text)"></div><div class="chip"><label>Día de envío</label><input type="date" value="${o.dia_envio||''}" onchange="prodPending.dia_envio=this.value" style="background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:12px;color:var(--text)"></div><div class="chip hi" style="border:1.5px solid var(--wood-light)"><label style="color:var(--wood);font-weight:600">📅 Fecha de venta</label><input type="date" value="${fechaInicial}" onchange="prodPending.fecha_venta=this.value" style="background:var(--beige);border:1px solid var(--bd);border-radius:4px;padding:2px 6px;font-size:13px;color:var(--wood);font-weight:600"></div><div class="chip"><label>Líneas</label><span>${(o.lineas||[]).length}</span></div>`;
   prodPending.fecha_venta=prodPending.fecha_venta||fechaISO;
   var fin=o._finanzas||{};
@@ -29004,8 +29008,10 @@ async function confirmOrder(){
   if(yaExiste){if(!confirm('⚠️ Ya existe un pedido con el N° '+numStr+' en el sistema.\n\n¿Seguro que quieres sobreescribirlo? Si es un pedido nuevo, cambia el número arriba antes de continuar.'))return;}
   var _h=new Date(),_hoyISO=_h.getFullYear()+'-'+String(_h.getMonth()+1).padStart(2,'0')+'-'+String(_h.getDate()).padStart(2,'0');
   if(o.fecha_venta&&o.fecha_venta>_hoyISO){showToast('❌ La fecha de venta no puede ser futura: corrígela arriba',true);return;}
-  if(o.fecha_venta&&o.fecha_venta.indexOf('-')!==-1){var _fv=o.fecha_venta.split('-');o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];}
-  else{o.fecha_creacion=fechaFromSemana(o.envio||'');}
+  // La venta cuenta en el mes en que se vendió, nunca en el de la semana de
+  // producción: sin fecha válida se usa hoy.
+  if(!o.fecha_venta||!/^\d{4}-\d{2}-\d{2}$/.test(o.fecha_venta))o.fecha_venta=_hoyISO;
+  var _fv=o.fecha_venta.split('-');o.fecha_creacion=parseInt(_fv[2],10)+'/'+parseInt(_fv[1],10)+'/'+_fv[0];
   o.fecha=o.fecha_creacion;
   // Vendedor: se guarda en Producción y Finanzas. De acá sale la base para la
   // comisión, así que si el selector quedó vacío se cae al default en vez de
