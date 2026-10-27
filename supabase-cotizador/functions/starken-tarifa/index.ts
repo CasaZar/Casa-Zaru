@@ -54,10 +54,19 @@ const ORIGEN_NOMBRE = (secreto('STARKEN_ORIGEN_NOMBRE') || 'VILLARRICA').toUpper
 const CM3_POR_KG = 2500;
 
 const ORIGEN_PUBLICO = 'https://cotizador.casazaru.cl';
-// Además del sitio, cualquier puerto de localhost: los perfiles de .claude/launch.json
+// La tienda (recuadro «Calcula tu envío» de la ficha de producto, 27-10-2026): el dominio propio
+// con y sin www, y los .myshopify.com, que usan la vista previa y el editor de temas.
+const ORIGENES_TIENDA = [
+  'https://www.casazaru.cl',
+  'https://casazaru.cl',
+  'https://casazaru.myshopify.com',
+  'https://rdnuam-ah.myshopify.com',
+];
+// Además de los sitios, cualquier puerto de localhost: los perfiles de .claude/launch.json
 // (5550 el cotizador, 5560 la vista previa segura de .claude/video) sirven en puertos distintos.
 function origenPermitido(origen: string) {
-  return origen === ORIGEN_PUBLICO || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origen);
+  return origen === ORIGEN_PUBLICO || ORIGENES_TIENDA.includes(origen) ||
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origen);
 }
 
 function cors(req: Request) {
