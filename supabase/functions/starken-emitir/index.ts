@@ -12,7 +12,8 @@
 //   { accion: 'emitir', pedido, destinatario, bultos, kilos, medidas, valorDeclarado,
 //     contenido, precioCotizado }               → { envio } con of_numero
 //   { accion: 'etiqueta', of }                    → { pdfBase64 }
-//   { accion: 'anular', id }                      → anula la OF en Starken y la marca anulada
+//   { accion: 'anular', id, manual? }             → anula la OF en Starken y la marca anulada;
+//     con manual:true solo la marca (el admin ya la anuló en Starken PRO)
 //
 // Despliegue: panel de Gestión → Edge Functions → Via Editor, nombre `starken-emitir`.
 // «Verify JWT» PRENDIDO: la Gestión manda el token del usuario (llave anon de formato JWT).
@@ -155,10 +156,13 @@ async function emitir(req: Request, b: any) {
   const m = b.medidas || {};
   const modo = m.modo === 'reales' ? 'reales' : 'web';
   let largo: number, ancho: number, alto: number;
+  // Medidas en cm ENTEROS, como las manda el plugin de la web: con "47.5" la etiqueta de QA
+  // salió con las tres medidas en 0 (26-10-2026). El cubo se redondea hacia abajo para que
+  // el peso volumétrico nunca pase los kilos declarados y Starken cobre por kilos.
   if (modo === 'web') {   // igual que el plugin de la web: un cubo de 2.500 cm³ por kilo
-    largo = ancho = alto = Math.round(Math.cbrt(kilos * 2500) * 10) / 10;
+    largo = ancho = alto = Math.max(1, Math.floor(Math.cbrt(kilos * 2500)));
   } else {
-    largo = Number(m.largo); ancho = Number(m.ancho); alto = Number(m.alto);
+    largo = Math.round(Number(m.largo)); ancho = Math.round(Number(m.ancho)); alto = Math.round(Number(m.alto));
     if (![largo, ancho, alto].every((x) => x > 0 && x <= 1000)) throw new ErrorPublico('Medidas inválidas', 400);
   }
   const valor = Math.max(0, Math.round(Number(b.valorDeclarado) || 0));
@@ -317,6 +321,9 @@ async function anularEnStarken(of: string) {
 // dice que no (ya va en camino), la fila sigue emitida. Una fila sin OF (error, o
 // 'emitiendo' que el admin ya revisó en Starken PRO) solo se marca. Marcarla anulada
 // libera el candado para emitir otra.
+// Vía manual (manual:true): el admin la anuló él mismo en Starken PRO y acá solo se marca.
+// Existe porque la anulación por API responde 401 (26-10-2026, consultado a Starken) y sin
+// ella una OF equivocada dejaba el pedido trabado: etiqueta vieja y candado sin liberar.
 async function anular(req: Request, b: any) {
   const id = Math.round(Number(b.id));
   if (!(id > 0)) throw new ErrorPublico('Falta el envío', 400);
@@ -325,15 +332,19 @@ async function anular(req: Request, b: any) {
   const fila = g.ok && Array.isArray(g.d) ? g.d[0] : null;
   if (!fila) throw new ErrorPublico('No encontré ese envío', 404);
   if (fila.estado === 'anulada') throw new ErrorPublico('Ya estaba anulada', 409);
+  const manual = b.manual === true;
   let respuesta = fila.respuesta;
   if (fila.estado === 'emitida' && fila.of_numero) {
-    respuesta = { ...(respuesta || {}), anulacion: await anularEnStarken(String(fila.of_numero)) };
+    const anulacion = manual
+      ? { manual: true, fecha: new Date().toISOString(), nota: 'Anulada en Starken PRO por el administrador; aquí solo se marcó' }
+      : await anularEnStarken(String(fila.of_numero));
+    respuesta = { ...(respuesta || {}), anulacion };
   }
   const r = await q('envios_starken?id=eq.' + id + '&estado=in.(emitida,error,emitiendo)', {
     method: 'PATCH', body: JSON.stringify({ estado: 'anulada', anulada_at: new Date().toISOString(), respuesta }),
   });
-  if (!r.ok || !Array.isArray(r.d) || !r.d.length) throw new ErrorPublico('Starken la anuló, pero no pude marcarla aquí: avísale al administrador', 500);
-  return { envio: r.d[0], enStarken: fila.estado === 'emitida' };
+  if (!r.ok || !Array.isArray(r.d) || !r.d.length) throw new ErrorPublico('No pude marcarla anulada aquí: avísale al administrador', 500);
+  return { envio: r.d[0], enStarken: fila.estado === 'emitida' && !manual, manual };
 }
 
 Deno.serve(async (req) => {

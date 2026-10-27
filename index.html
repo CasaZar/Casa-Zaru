@@ -29517,7 +29517,8 @@ function stkPintar(){
       '<div style="font-size:12px;color:var(--text-3)">N° de orden de flete · '+esc(String(e.kilos).replace('.',','))+' kg'+(e.precio_cotizado?' · cotizado '+fmtCLP(e.precio_cotizado):'')+'</div></div>'+
       '<button class="btn-pri" style="width:100%" id="stk-btn-etq" onclick="stkEtiqueta()">Imprimir etiqueta (PDF 10 × 10)</button>'+
       '<button class="btn-sec" style="width:100%;margin-top:8px" onclick="stkCopiarSeguimiento()">Copiar seguimiento para el cliente</button>'+
-      '<div style="text-align:center;margin-top:12px"><a href="#" style="color:var(--red);font-size:12.5px" id="stk-anular" onclick="stkAnular();return false;">Anular esta orden</a></div>';
+      '<div style="text-align:center;margin-top:12px"><a href="#" style="color:var(--red);font-size:12.5px" id="stk-anular" onclick="stkAnular();return false;">Anular esta orden</a></div>'+
+      '<div id="stk-anular-manual-wrap" style="display:none;text-align:center;margin-top:8px"><a href="#" style="color:var(--red);font-size:12.5px" id="stk-anular-manual" onclick="stkAnular(true);return false;">Ya la anulé en Starken PRO: marcarla anulada aquí</a></div>';
     return;
   }
   if(e&&e.estado==='emitiendo'){
@@ -29671,14 +29672,20 @@ function stkCopiarSeguimiento(){
   var txt='¡Hola! Tu pedido ya va en camino con Starken.\n\nTu número de seguimiento es '+e.of_numero+'.\n\nPuedes seguirlo en https://www.starken.cl/seguimiento';
   (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){showToast('✓ Mensaje copiado');},function(){showToast('No pude copiar: '+txt,true);});
 }
-async function stkAnular(){
-  var a=document.getElementById('stk-anular');
-  if(a&&!a.dataset.conf){a.dataset.conf='1';a.textContent='¿Seguro? Toca de nuevo para anular';return;}
+// manual=true: el admin ya la anuló en Starken PRO y aquí solo se marca. Aparece cuando la
+// anulación por API falla (Starken responde 401 desde el 26-10-2026, consultado).
+async function stkAnular(manual){
+  var a=document.getElementById(manual?'stk-anular-manual':'stk-anular');
+  if(a&&!a.dataset.conf){a.dataset.conf='1';a.textContent='¿Seguro? Toca de nuevo para '+(manual?'marcarla anulada aquí':'anular');return;}
   try{
-    var d=await stkLlamar({accion:'anular',id:stk.envio.id});
-    showToast(d.enStarken?'✓ Orden anulada en Starken':'Liberada aquí. Si la orden alcanzó a crearse, anúlala en Starken PRO.');
+    var d=await stkLlamar({accion:'anular',id:stk.envio.id,manual:!!manual});
+    showToast(d.enStarken?'✓ Orden anulada en Starken':d.manual?'✓ Marcada anulada aquí':'Liberada aquí. Si la orden alcanzó a crearse, anúlala en Starken PRO.');
     stk.envio=null;stkPintar();stkCargarComunas();
-  }catch(e){showToast(e.message,true);}
+  }catch(e){
+    showToast(e.message,true);
+    if(a){a.dataset.conf='';a.textContent=manual?'Ya la anulé en Starken PRO: marcarla anulada aquí':'Anular esta orden';}
+    var w=document.getElementById('stk-anular-manual-wrap');if(w&&!manual&&stk.envio&&stk.envio.estado==='emitida')w.style.display='block';
+  }
 }
 function clearProdFilters(){semFiltro.prod='';['prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
 // Los filtros de la pantalla (mes, semana, madera, cliente) definen qué se ve
