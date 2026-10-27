@@ -264,32 +264,42 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
   body.fin-vista-ed #fin-editorial { display: block; }
   body.fin-vista-ed #page-fin .table-card { display: none; }
 }
-.fe { background: #FBF8F3; border-radius: var(--radius-xl); padding: 8px 22px 18px; }
-.fe-sem { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--text); padding: 18px 0 6px; }
-.fe-sem-t { font-family: 'DM Serif Display', serif; font-size: 19px; color: var(--text); }
-.fe-sem-i { font-size: 11px; color: var(--text-3); }
+.fe { background: #F1ECE4; border-radius: var(--radius-xl); padding: 4px 18px 18px; }
+.fe-sem { display: flex; align-items: center; gap: 10px; padding: 18px 0 10px; }
+.fe-sem-dot { width: 8px; height: 8px; border-radius: 50%; background: #485B3D; flex-shrink: 0; }
+.fe-sem-t { font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text); white-space: nowrap; }
+.fe-sem-l { flex: 1; height: 1px; background: #CFC4B5; }
+.fe-sem-i { font-size: 11px; color: #8C8077; white-space: nowrap; }
 .fe-sem-i b { font-family: 'DM Serif Display', serif; font-size: 14px; font-weight: 400; color: var(--text); margin-left: 4px; }
-.fe-g { display: grid; grid-template-columns: 56px minmax(0,1fr) 130px 110px 56px 18px; gap: 12px; align-items: center; }
-.fe-cab { padding: 8px 0 4px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
-.fe-fila { padding: 11px 0; border-top: 0.5px solid #E4DCD0; cursor: pointer; transition: background 0.12s; }
-.fe-fila:hover { background: rgba(181,101,46,0.04); }
-.fe-fila.abierta { background: rgba(181,101,46,0.06); }
-.fe-num { font-family: 'DM Serif Display', serif; font-size: 15px; color: #B5652E; }
+.fe-g { display: grid; grid-template-columns: 38px minmax(0,1fr) 180px 170px 14px; gap: 14px; align-items: center; }
+.fe-lista { display: flex; flex-direction: column; gap: 8px; }
+.fe-fila { background: #fff; border-radius: 12px; padding: 12px 16px; cursor: pointer; transition: box-shadow 0.15s, transform 0.15s; }
+.fe-fila:hover { box-shadow: 0 2px 10px rgba(60,40,20,0.08); }
+.fe-fila.debe { box-shadow: inset 3px 0 0 #B5652E; }
+.fe-fila.debe:hover { box-shadow: inset 3px 0 0 #B5652E, 0 2px 10px rgba(60,40,20,0.08); }
+.fe-fila.abierta { box-shadow: 0 4px 16px rgba(60,40,20,0.10); }
+.fe-fila.debe.abierta { box-shadow: inset 3px 0 0 #B5652E, 0 4px 16px rgba(60,40,20,0.10); }
+.fe-ini { width: 38px; height: 38px; border-radius: 50%; background: #E3E8DD; color: #485B3D; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; }
+.fe-fila.debe .fe-ini { background: #F5E6DA; color: #B5652E; }
+.fe-num { font-size: 11px; color: #8C8077; font-weight: 400; margin-left: 4px; }
+.fe-pagobar { display: flex; justify-content: space-between; align-items: baseline; }
+.fe-pct { font-size: 11px; color: #485B3D; }
+.fe-fila.debe .fe-pct { color: #B5652E; }
+.fe-barra { height: 4px; background: #EEE7DC; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.fe-barra div { height: 100%; background: #485B3D; border-radius: 2px; }
+.fe-fila.debe .fe-barra div { background: #B5652E; }
+.fe-chips { display: flex; gap: 4px; justify-content: flex-end; flex-wrap: wrap; }
+.fe-chip { font-size: 10.5px; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.fe-chip.si { background: #E3E8DD; color: #485B3D; }
+.fe-chip.no { border: 1px dashed #B5652E; color: #B5652E; }
+.fe-debe { color: #B5652E; }
 .fe-cli { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fe-sub { font-size: 11px; color: #8C8077; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
 .fe-tipo { font-size: 9.5px; letter-spacing: 0.08em; color: #B8915A; margin-left: 6px; font-weight: 600; }
-.fe-monto { font-family: 'DM Serif Display', serif; font-size: 16px; text-align: right; color: var(--text); }
-.fe-saldo { text-align: right; font-size: 12px; }
-.fe-saldo.debe { font-family: 'DM Serif Display', serif; font-size: 16px; color: #B5652E; }
-.fe-saldo.ok { color: #485B3D; }
-.fe-saldo.exc { color: var(--blue); }
-.fe-docs { text-align: center; white-space: nowrap; }
-.fe-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 2px; box-sizing: border-box; }
-.fe-dot.si { background: #485B3D; }
-.fe-dot.no { border: 1.5px solid #B5652E; }
+.fe-monto { font-family: 'DM Serif Display', serif; font-size: 16px; color: var(--text); }
 .fe-flecha { color: var(--text-3); font-size: 11px; transition: transform 0.15s; }
 .fe-fila.abierta .fe-flecha { transform: rotate(90deg); }
-.fe-ficha { border-top: 0.5px dashed #E4DCD0; padding: 14px 0 18px 68px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px 24px; background: rgba(181,101,46,0.03); }
+.fe-ficha { border-top: 0.5px dashed #E4DCD0; margin-top: 12px; padding: 14px 0 4px 52px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px 24px; cursor: default; }
 .fe-ficha h4 { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; margin: 0 0 8px; }
 .fe-campo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--text-2); }
 .fe-campo input, .fe-campo select { width: 132px; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: #fff; color: var(--text); }
@@ -30875,7 +30885,8 @@ function renderFin(){
   _bloquearFinLectura();
 }
 // ── Finanzas: vista editorial (escritorio) ────────────────────────────────
-// Lista simple por semana: N°, cliente, total, saldo y dos puntos de documentos.
+// Una tarjeta por pedido, agrupadas por semana: iniciales, cliente, total con
+// barra de cuánto se ha pagado y los documentos como etiquetas (filo terracota = debe).
 // Al tocar una fila se abre su ficha con los MISMOS controles de la tabla de 20
 // columnas (finSet/finSave/_docControls): no hay un camino de guardado nuevo.
 // La tabla completa sigue disponible como "vista detallada".
@@ -30945,21 +30956,27 @@ function renderFinEditorial(list){
     var rs=grupos[sem].slice().sort(function(a,b){return Number(a.num||0)-Number(b.num||0);});
     var ventas=soloVentas(rs),suma=ventas.reduce(function(s,r){return s+(Number(r.total)||0);},0);
     var titulo=sem==='Sin semana'?'Sin semana de producción':(sem.charAt(0)+sem.slice(1).toLowerCase());
-    html+='<div class="fe-sem"><span class="fe-sem-t">'+esc(titulo)+'</span><span class="fe-sem-i">'+rs.length+(rs.length===1?' pedido':' pedidos')+' ·<b>'+fmtCLP(suma)+'</b></span></div>'+
-      '<div class="fe-g fe-cab"><span>N°</span><span>Cliente</span><span style="text-align:right">Total</span><span style="text-align:right">Saldo</span><span style="text-align:center" title="Documento del abono · documento del saldo">Docs</span><span></span></div>';
+    html+='<div class="fe-sem"><span class="fe-sem-dot"></span><span class="fe-sem-t">'+esc(titulo)+'</span><span class="fe-sem-l"></span><span class="fe-sem-i">'+rs.length+(rs.length===1?' pedido':' pedidos')+' ·<b>'+fmtCLP(suma)+'</b></span></div><div class="fe-lista">';
     rs.forEach(function(r){
       var n=String(r.num||''),p=estadoPagoFin(r),abierta=finAbierto===n;
       var tk=tipoDe(r),tipoTxt=tk==='VENTA'?'':'<span class="fe-tipo">'+esc(((TIPOS_REGISTRO.find(function(t){return t.k===tk;})||{}).label||tk).toUpperCase())+'</span>';
+      var ini=((String(r.nombre||'').trim().charAt(0))+(String(r.apellido||'').trim().charAt(0))).toUpperCase()||'#';
       var sub=[r.producto,r.medio_pago?r.medio_pago.charAt(0)+r.medio_pago.slice(1).toLowerCase():'',_fechaCorta(r.fecha_creacion||r.fecha)].filter(Boolean).map(esc).join(' · ');
-      var saldo=p.debe?'<span class="fe-saldo debe">'+fmtCLP(p.saldo)+'</span>':(p.excedente?'<span class="fe-saldo exc" title="Se abonó más que el total">+'+fmtCLP(p.excedente)+'</span>':'<span class="fe-saldo ok">Pagado</span>');
-      var d1=r.doc1_emitida?'si':'no',d2=r.doc2_emitida?'si':'no';
-      html+='<div class="fe-fila'+(abierta?' abierta':'')+'" onclick="finToggleFicha(\''+n+'\')"><div class="fe-g">'+
-        '<span class="fe-num">'+esc(n||'—')+'</span>'+
-        '<div style="min-width:0"><div class="fe-cli">'+esc(r.nombre)+' '+esc(r.apellido)+tipoTxt+'</div><div class="fe-sub">'+sub+'</div></div>'+
-        '<span class="fe-monto">'+fmtCLP(r.total)+'</span>'+saldo+
-        '<span class="fe-docs" title="Doc 1: '+(r.doc1_emitida?'emitido':'pendiente')+' · Doc 2: '+(r.doc2_emitida?'emitido':'pendiente')+'"><span class="fe-dot '+d1+'"></span><span class="fe-dot '+d2+'"></span></span>'+
+      if(p.debe)sub+=' · debe <span class="fe-debe">'+fmtCLP(p.saldo)+'</span>';
+      else if(p.excedente)sub+=' · <span style="color:var(--blue)" title="Se abonó más que el total">excedente +'+fmtCLP(p.excedente)+'</span>';
+      var tot=Number(r.total)||0,pag=tot-p.saldo;
+      var pct=tot?Math.max(0,Math.min(100,Math.round(pag*100/tot))):(p.debe?0:100);
+      var tipoDoc=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'Factura':'Boleta';
+      var chips=(r.doc1_emitida?'<span class="fe-chip si">'+tipoDoc+' 1 ✓</span>':'<span class="fe-chip no">Emitir 1</span>')+
+        (r.doc2_emitida?'<span class="fe-chip si">2 ✓</span>':'<span class="fe-chip no">Emitir 2</span>');
+      html+='<div class="fe-fila'+(p.debe?' debe':'')+(abierta?' abierta':'')+'" onclick="finToggleFicha(\''+n+'\')"><div class="fe-g">'+
+        '<span class="fe-ini">'+esc(ini)+'</span>'+
+        '<div style="min-width:0"><div class="fe-cli">'+esc(r.nombre)+' '+esc(r.apellido)+'<span class="fe-num">#'+esc(n||'—')+'</span>'+tipoTxt+'</div><div class="fe-sub">'+sub+'</div></div>'+
+        '<div><div class="fe-pagobar"><span class="fe-monto">'+fmtCLP(r.total)+'</span><span class="fe-pct">'+pct+'%</span></div><div class="fe-barra"><div style="width:'+pct+'%"></div></div></div>'+
+        '<div class="fe-chips">'+chips+'</div>'+
         '<span class="fe-flecha">▶</span></div>'+(abierta?_finFicha(r):'')+'</div>';
     });
+    html+='</div>';
   });
   el.innerHTML='<div class="fe">'+html+'</div>';
 }
