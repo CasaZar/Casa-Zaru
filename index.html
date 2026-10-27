@@ -29567,6 +29567,7 @@ function stkValidar(){
   if(!_stkVal('stk-numero'))faltan.push('número');
   if(!stk.comuna)faltan.push('comuna (elígela de la lista)');
   if(!(_stkNum('stk-kilos')>0))faltan.push('kilos');
+  if(!(_stkNum('stk-valor')>0))faltan.push('valor declarado (Starken lo exige)');
   if(_stkVal('stk-modo')==='reales'){var m=_stkMed();if(!(m.largo&&m.ancho&&m.alto))faltan.push('medidas');}
   if(!stk.precio)faltan.push('precio de Starken');
   var el=document.getElementById('stk-faltan');if(el)el.textContent=faltan.length?'Falta: '+faltan.join(', '):'';

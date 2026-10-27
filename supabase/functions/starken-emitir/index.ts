@@ -156,16 +156,21 @@ async function emitir(req: Request, b: any) {
   const m = b.medidas || {};
   const modo = m.modo === 'reales' ? 'reales' : 'web';
   let largo: number, ancho: number, alto: number;
-  // Medidas en cm ENTEROS, como las manda el plugin de la web: con "47.5" la etiqueta de QA
-  // salió con las tres medidas en 0 (26-10-2026). El cubo se redondea hacia abajo para que
-  // el peso volumétrico nunca pase los kilos declarados y Starken cobre por kilos.
+  // Medidas en cm ENTEROS, como las manda el plugin de la web. El cubo se redondea hacia
+  // abajo para que el peso volumétrico nunca pase los kilos declarados y Starken cobre por
+  // kilos. (La etiqueta de QA imprime Alto/Ancho/Largo 0 con decimales y con enteros por
+  // igual, 26-10-2026: no depende de esto; el peso sí sale.)
   if (modo === 'web') {   // igual que el plugin de la web: un cubo de 2.500 cm³ por kilo
     largo = ancho = alto = Math.max(1, Math.floor(Math.cbrt(kilos * 2500)));
   } else {
     largo = Math.round(Number(m.largo)); ancho = Math.round(Number(m.ancho)); alto = Math.round(Number(m.alto));
     if (![largo, ancho, alto].every((x) => x > 0 && x <= 1000)) throw new ErrorPublico('Medidas inválidas', 400);
   }
-  const valor = Math.max(0, Math.round(Number(b.valorDeclarado) || 0));
+  // Starken rechaza la OF sin valor declarado («El Valor Declarado es Obligatorio») y, sobre
+  // $50.000, exige adjuntar un documento (boleta o factura): probado en QA el 26-10-2026.
+  // Se valida acá para no dejar filas en 'error' por algo que se sabe de antemano.
+  const valor = Math.round(Number(b.valorDeclarado) || 0);
+  if (!(valor > 0)) throw new ErrorPublico('Falta el valor declarado', 400);
   const contenido = texto(b.contenido, 60) || 'MUEBLE DE MADERA';
 
   const cred = MODO === 'produccion'
