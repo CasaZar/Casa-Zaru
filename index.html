@@ -26440,6 +26440,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-ghost" style="font-size:12px" onclick="exportProdXLSX()">↓ Excel</button>
       <button id="btn-gen-batch" class="btn-add" style="font-size:12px;display:none" onclick="generarEtiquetasBatch()">📄 Etiquetas seleccionadas (<span id="batch-count">0</span>)</button>
+      <button id="btn-doc-batch" class="btn-add" style="font-size:12px;display:none" onclick="cargarComandasDocSel()">📝 Cargar al Doc (<span id="batch-count-doc">0</span>)</button>
     </div>
   </div>
   <div id="prod-filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
@@ -26732,6 +26733,12 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="modal" style="width:min(520px,100%)">
     <div class="modal-header"><div class="modal-title" id="stk-titulo">Enviar con Starken</div><button class="btn-close" onclick="cerrarEnvioStarken()">×</button></div>
     <div id="stk-body"></div>
+  </div>
+</div>
+<div class="modal-bg" id="modal-cmd-bg">
+  <div class="modal" style="width:min(480px,100%)">
+    <div class="modal-header"><div class="modal-title">Cargar al Doc «COMANDA PEDIDO»</div><button class="btn-close" onclick="cerrarComandasDoc()">×</button></div>
+    <div id="cmd-body"></div>
   </div>
 </div>
 
@@ -29367,6 +29374,7 @@ function renderProd(){
   renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   renderProdCards();
   renderMaderaDash();
+  _cmdEstadoSiFalta();
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
   // Un solo filtro para la tabla, las tarjetas del celular, la madera y el Excel.
   var _f=_prodFiltrados(),filteredProd=_f.pedidos;
@@ -29410,7 +29418,7 @@ function renderProd(){
         '<button class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-top:3px" onclick="addProdLineExist(\''+String(o.pedido||'')+'\')" title="Agregar una pieza a este pedido">+ línea</button>'+
         (usuarioRol==='admin'?'<button class="btn-ghost" style="padding:1px 6px;font-size:10px;margin-top:3px;margin-left:3px" onclick="abrirEnvioStarken(\''+esc(String(o.pedido||''))+'\')" title="Enviar con Starken">🚚</button>':''):'';
       const quitarLinea=(o.lineas||[]).length>1?'<button class="btn-ghost" style="padding:3px 6px;font-size:11px;margin-left:2px" onclick="delProdLineExist(\''+String(o.pedido||'')+'\','+li+')" title="Quitar esta pieza del pedido">✕</button>':'';
-      const etqCell=l._vacia?'':'<input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel('+oi+','+li+',this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd('+oi+','+li+')" title="Generar etiqueta individual">📄</button>';
+      const etqCell=l._vacia?'':'<input type="checkbox" class="etq-check" style="margin-right:4px;cursor:pointer;vertical-align:middle" onchange="toggleEtiquetaSel('+oi+','+li+',this.checked)"><button class="btn-ghost" style="padding:3px 7px;font-size:11px" onclick="generarEtiquetaProd('+oi+','+li+')" title="Generar etiqueta individual">📄</button>'+(COMANDAS_URL?'<button class="btn-ghost" style="padding:3px 7px;font-size:11px;margin-left:2px" onclick="cargarComandaDoc(\''+esc(String(o.pedido||''))+'\','+li+')" title="Cargar al Doc COMANDA PEDIDO">📝</button>':'')+_cmdBadge(o,l);
       const envioContent=isFirst?'<input id="psem-'+oi+'" style="'+inS+'font-size:11px;width:110px" value="'+esc(normalizeSemana(o.envio)||'')+'" '+_fo+' onchange="updateProdField('+oi+',\'envio\',this.value)">'+diasBadge:'';
       return`<tr style="background:${rowBg}" class="${isFirst?'group-first':''}"><td style="background:${rowBg}">${pedidoContent}</td><td style="background:${rowBg}">${envioContent}</td><td style="background:${rowBg}">${isFirst?`<input style="${inS}font-weight:600;color:var(--wood);width:115px" value="${esc(o.comprador)}" ${iF} onchange="updateProdField(${oi},'comprador',this.value)"><input style="${inS}width:115px;font-size:11px;margin-top:2px" value="${esc(o.apellido)}" ${iF} onchange="updateProdField(${oi},'apellido',this.value)">`:''}</td><td style="background:${rowBg}"><input style="${inS}min-width:120px" value="${esc(l.producto)}" ${iF} onchange="updateProdField(${oi},'producto',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:45px;text-align:center" value="${l.cantidad||1}" ${iF} onchange="updateProdField(${oi},'cantidad',Number(this.value),${li})"></td><td style="background:${rowBg};min-width:125px"><select style="${inS}min-width:115px" onchange="updateProdField(${oi},'madera',this.value,${li})">${mOptsS}</select></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.largo||''}" ${iF} onchange="updateProdField(${oi},'largo',this.value,${li})"></td><td style="background:${rowBg}"><input type="number" style="${inS}width:55px;font-weight:700" value="${l.ancho||''}" ${iF} onchange="updateProdField(${oi},'ancho',this.value,${li})"></td><td style="background:${rowBg}"><select style="${inS}width:80px" onchange="updateProdField(${oi},'canto',this.value,${li})">${cOptsS}</select></td><td style="background:${rowBg}"><select style="${inS}width:130px" onchange="updateProdField(${oi},'acabado',this.value,${li})">${aOptsS}</select></td><td style="background:${rowBg}"><input type="number" step="0.5" style="${inS}width:50px;text-align:center" value="${l.espesor||4}" ${iF} onchange="updateProdField(${oi},'espesor',this.value,${li})"></td><td style="background:${rowBg};text-align:center">${fierroCell}</td><td style="background:${rowBg}"><input style="${inS}min-width:150px" value="${esc(l.observaciones)}" ${iF} onchange="updateProdField(${oi},'observaciones',this.value,${li})"></td><td id="pm2-${oi}-${li}" style="background:${rowBg};font-family:'DM Serif Display',serif;font-size:12px;color:var(--text-muted);white-space:nowrap">${m2>0?m2.toFixed(2):''}</td><td style="background:${rowBg};text-align:center;vertical-align:middle;white-space:nowrap">${etqCell}${quitarLinea}</td>${isFirst?`<td rowspan="${_lineas.length}" style="background:${rowBg};vertical-align:middle"><button class="btn-del-row" onclick="deleteProdOrder(${oi})" title="Eliminar pedido">🗑</button></td>`:''}</tr>`;
     }).join('');
@@ -33522,10 +33530,15 @@ var etiquetasSeleccionadas=new Set();
 function toggleEtiquetaSel(oi,li,checked){
   var key=oi+'-'+li;
   if(checked)etiquetasSeleccionadas.add(key);else etiquetasSeleccionadas.delete(key);
-  var btn=document.getElementById('btn-gen-batch'),cnt=document.getElementById('batch-count');
+  _etqSelPintar();
+}
+function _etqSelPintar(){
   var n=etiquetasSeleccionadas.size;
-  if(cnt)cnt.textContent=n;
-  if(btn)btn.style.display=n>0?'inline-flex':'none';
+  [['btn-gen-batch','batch-count'],['btn-doc-batch','batch-count-doc']].forEach(function(p){
+    var btn=document.getElementById(p[0]),cnt=document.getElementById(p[1]);
+    if(cnt)cnt.textContent=n;
+    if(btn)btn.style.display=n>0&&(p[0]!=='btn-doc-batch'||COMANDAS_URL)?'inline-flex':'none';
+  });
 }
 function generarEtiquetasBatch(){if(!_docxListo())return;
   var keys=Array.from(etiquetasSeleccionadas);if(!keys.length)return;
@@ -33537,11 +33550,124 @@ function generarEtiquetasBatch(){if(!_docxListo())return;
   try{
     _docxDownload(_docxDoc(allCh),'etiquetas_'+keys.length+'_items.docx');
     showToast('✓ '+keys.length+' etiquetas en un archivo');
-    etiquetasSeleccionadas.clear();
-    var btn=document.getElementById('btn-gen-batch'),cnt=document.getElementById('batch-count');
-    if(cnt)cnt.textContent='0';if(btn)btn.style.display='none';
+    etiquetasSeleccionadas.clear();_etqSelPintar();
     document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});
   }catch(err){showToast('❌ Error: '+err.message,true);console.error(err);}
+}
+// ── Comandas directo al Google Doc «COMANDA PEDIDO» (26-10-2026) ──────────
+// Mismos datos que buildEtiquetaChildren, pero en vez de bajar un .docx los
+// manda al Apps Script de apps-script/comandas-doc, que los escribe en la
+// pestaña de la semana de producción (la crea si falta) y se salta las piezas
+// que ya están. La URL no es secreta: el script valida el JWT de la sesión.
+var COMANDAS_URL='';
+var comandasEnDoc=null,_cmdLeyendo=false,_cmdPend=null;
+function _cmdTxt(s){return String(s==null?'':s).replace(/[\r\n\u000b]+/g,' ').trim();}
+// Misma normalización que norm_ del Apps Script: si cambia una, cambiar la otra.
+function _cmdNorm(s){return String(s==null?'':s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').replace(/\s+/g,' ').trim();}
+function _cmdPieza(o,l,conImagen){
+  var largo=Number(l.largo)||0,ancho=Number(l.ancho)||0,espesor=Number(l.espesor)||0,cant=Number(l.cantidad)||1;
+  var p={pedido:_cmdTxt(o.pedido),semana:_cmdTxt(normalizeSemana(o.envio)||o.envio),
+    nombre:_cmdTxt((o.comprador||'')+' '+(o.apellido||'')),canal:o.canal==='web'?'WEB':'WHATSAPP',
+    producto:_cmdTxt(l.producto),cant:cant+(cant===1?' unidad':' unidades'),dims:largo+' X '+ancho+' CMS',
+    madera:_cmdTxt(l.madera),espesor:String(espesor).replace('.',',')+' CMS',borde:_cmdTxt(l.canto),
+    acabado:_cmdTxt(l.acabado),tenido:_cmdTxt(l.tenido||'NO'),obs:_cmdTxt(l.observaciones)};
+  if(conImagen){try{p.png=generarImagenTablaCanvas(largo,ancho,espesor).split(',')[1];}catch(e){console.warn('canvas:',e);}}
+  return p;
+}
+function _cmdClave(p){return _cmdNorm(p.pedido)+'|'+_cmdNorm(p.producto)+'|'+_cmdNorm(p.dims);}
+function _cmdBadgeInner(k){
+  if(!comandasEnDoc)return'';
+  var tabs=comandasEnDoc[k];
+  return tabs?'<span style="font-size:10px;font-weight:600;color:var(--green-text);margin-left:4px;white-space:nowrap" title="En el Doc: '+esc(tabs.join(', '))+'">✓ Doc</span>'
+    :'<span style="font-size:10px;color:var(--text-3);margin-left:4px;white-space:nowrap" title="No está en el Doc COMANDA PEDIDO">sin Doc</span>';
+}
+function _cmdBadge(o,l){
+  if(!COMANDAS_URL||l._vacia)return'';
+  var k=_cmdClave(_cmdPieza(o,l,false));
+  return'<span class="cmd-doc" data-k="'+esc(k)+'">'+_cmdBadgeInner(k)+'</span>';
+}
+function _cmdPintarBadges(){
+  document.querySelectorAll('.cmd-doc').forEach(function(s){s.innerHTML=_cmdBadgeInner(s.getAttribute('data-k'));});
+}
+async function _cmdLlamar(accion,extra){
+  if(!COMANDAS_URL)throw new Error('Falta configurar el Apps Script (apps-script/comandas-doc/LEEME.md)');
+  if(!await _sesionVigente(300))throw new Error('Tu sesión venció: vuelve a entrar');
+  // Sin Content-Type: va como text/plain y el navegador no hace preflight, que Apps Script no contesta.
+  var r=await fetch(COMANDAS_URL,{method:'POST',body:JSON.stringify(Object.assign({accion:accion,jwt:sesion.access_token,apikey:SB_ANON},extra||{}))});
+  var j=await r.json();
+  if(!j.ok)throw new Error(j.error||'Error del Apps Script');
+  return j;
+}
+async function cargarEstadoComandas(){
+  if(!COMANDAS_URL||_cmdLeyendo)return;
+  _cmdLeyendo=true;
+  try{comandasEnDoc=(await _cmdLlamar('estado')).claves||{};_cmdPintarBadges();}
+  catch(e){console.warn('Estado de comandas:',e.message);}
+  finally{_cmdLeyendo=false;}
+}
+function _cmdEstadoSiFalta(){if(COMANDAS_URL&&comandasEnDoc===null)cargarEstadoComandas();}
+function cargarComandaDoc(numStr,li){_cmdAbrir([{num:String(numStr),li:li}],false);}
+function cargarComandasDocSel(){
+  var refs=Array.from(etiquetasSeleccionadas).map(function(key){
+    var p=key.split('-'),o=prodOrders[Number(p[0])];
+    return o?{num:String(o.pedido||''),li:Number(p[1])}:null;
+  }).filter(Boolean);
+  if(refs.length)_cmdAbrir(refs,true);
+}
+function cerrarComandasDoc(){document.getElementById('modal-cmd-bg').classList.remove('open');_cmdPend=null;}
+async function _cmdAbrir(refs,deSeleccion){
+  var body=document.getElementById('cmd-body'),piezas=[],faltan=[];
+  refs.forEach(function(r){
+    var o=prodOrders[_prodIdx(r.num)],l=o&&(o.lineas||[])[r.li];
+    if(!o||!l||l._vacia)return;
+    var p=_cmdPieza(o,l,false);
+    if(!p.semana)faltan.push(p.pedido);else piezas.push({ref:r,p:p});
+  });
+  if(faltan.length){showToast('Sin semana de producción: pedido '+faltan.join(', ')+'. Ponla antes de cargar.',true);return;}
+  if(!piezas.length)return;
+  body.innerHTML='<div style="padding:18px;color:var(--text-3)">Revisando el Doc…</div>';
+  document.getElementById('modal-cmd-bg').classList.add('open');
+  var plan;
+  try{plan=(await _cmdLlamar('revisar',{piezas:piezas.map(function(x){return x.p;})})).plan;}
+  catch(e){body.innerHTML='<div style="padding:18px;color:var(--red)">No pude revisar el Doc: '+esc(e.message)+'</div>';return;}
+  var nuevas=[],semanas={};
+  var filas=plan.map(function(it,i){
+    if(!it.ya){nuevas.push(piezas[i]);semanas[it.semana]=it.tabExiste;}
+    var txt=esc(it.pedido)+' · '+esc(it.producto)+' <span style="color:var(--text-3)">'+esc(it.dims)+'</span>';
+    return it.ya?'<div style="padding:4px 0;color:var(--text-3)">⛔ '+txt+' — ya está en '+esc(it.ya)+', se salta</div>'
+      :'<div style="padding:4px 0">✓ '+txt+'</div>';
+  }).join('');
+  var tabsHtml=Object.keys(semanas).map(function(s){
+    return'<div style="margin:2px 0"><b>'+esc(s)+'</b> '+(semanas[s]?'<span style="color:var(--text-3);font-size:12px">existe</span>':'<span style="background:#FEF3C7;color:#92400E;border-radius:6px;padding:1px 6px;font-size:11px">se crea</span>')+'</div>';
+  }).join('');
+  _cmdPend={nuevas:nuevas,deSeleccion:deSeleccion};
+  body.innerHTML='<div style="padding:4px 2px;font-size:13px">'+
+    (tabsHtml?'<div style="color:var(--text-3);font-size:12px;margin-bottom:2px">Pestaña</div>'+tabsHtml+'<div style="height:8px"></div>':'')+
+    filas+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+      '<button class="btn-ghost" onclick="cerrarComandasDoc()">Cancelar</button>'+
+      (nuevas.length?'<button class="btn-add" id="cmd-ok" onclick="_cmdConfirmar()">Cargar '+nuevas.length+(nuevas.length===1?' página':' páginas')+'</button>':'')+
+    '</div></div>';
+}
+async function _cmdConfirmar(){
+  var pend=_cmdPend;if(!pend||!pend.nuevas.length)return;
+  var btn=document.getElementById('cmd-ok');if(btn){btn.disabled=true;btn.textContent='Cargando…';}
+  var piezas=pend.nuevas.map(function(x){var o=prodOrders[_prodIdx(x.ref.num)];return _cmdPieza(o,o.lineas[x.ref.li],true);});
+  var body=document.getElementById('cmd-body');
+  try{
+    var r=await _cmdLlamar('cargar',{piezas:piezas});
+    var n=(r.cargadas||[]).length,tabs={};
+    (r.cargadas||[]).forEach(function(c){tabs[c.semana]=1;});
+    body.innerHTML='<div style="padding:12px 4px;font-size:13px">✓ '+n+(n===1?' comanda cargada':' comandas cargadas')+' en '+esc(Object.keys(tabs).join(', ')||'—')+'.'+
+      ((r.saltadas||[]).length?'<div style="color:var(--text-3);margin-top:6px">'+r.saltadas.length+' ya estaban y se saltaron.</div>':'')+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn-ghost" onclick="cerrarComandasDoc()">Cerrar</button></div></div>';
+    showToast('✓ '+n+(n===1?' comanda cargada':' comandas cargadas')+' en el Doc');
+    if(pend.deSeleccion){etiquetasSeleccionadas.clear();_etqSelPintar();document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});}
+    comandasEnDoc=null;cargarEstadoComandas();
+  }catch(e){
+    body.innerHTML='<div style="padding:18px;color:var(--red)">No se cargó: '+esc(e.message)+'</div>';
+  }
+  _cmdPend=null;
 }
 function buildEnvioChildren(r,pageBreak){
   if(!r)return[];
@@ -34811,12 +34937,13 @@ function renderProdCards(){
       var m2=calcM2(l.largo,l.ancho,l.cantidad);
       var specs=[(Number(l.cantidad)||1)>1?(l.cantidad+'×'):'',esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',m2>0?m2.toFixed(2)+' m²':'',esc(l.canto),esc(l.acabado),l.espesor?esc(l.espesor)+' cm esp.':'',l.fierro?'base fierro':''].filter(Boolean).join(' · ');
       return'<div class="prod-linea">'+
-        '<div class="prod-linea-prod">'+esc(l.producto||'(sin nombre)')+'</div>'+
+        '<div class="prod-linea-prod">'+esc(l.producto||'(sin nombre)')+_cmdBadge(o,l)+'</div>'+
         '<div class="prod-linea-specs">'+specs+'</div>'+
         (l.observaciones?'<div class="prod-linea-obs">📝 '+esc(l.observaciones)+'</div>':'')+
         '<div class="prod-linea-acc">'+
           '<button type="button" onclick="abrirEditorLinea('+nq+','+li+')">✏️ Editar</button>'+
           '<button type="button" onclick="generarEtiquetaProd(_prodIdx('+nq+'),'+li+')">📄 Etiqueta</button>'+
+          (COMANDAS_URL?'<button type="button" onclick="cargarComandaDoc('+nq+','+li+')">📝 Doc</button>':'')+
           (lineas.length>1?'<button type="button" class="quitar" onclick="delProdLineExist('+nq+','+li+')">✕ Quitar</button>':'')+
         '</div></div>';
     }).join('');
