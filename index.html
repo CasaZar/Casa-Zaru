@@ -33769,7 +33769,7 @@ function _cmdPieza(o,l,conImagen){
   var largo=Number(l.largo)||0,ancho=Number(l.ancho)||0,espesor=Number(l.espesor)||0,cant=Number(l.cantidad)||1;
   var p={pedido:_cmdTxt(o.pedido),semana:_cmdTxt(normalizeSemana(o.envio)||o.envio),
     nombre:_cmdTxt((o.comprador||'')+' '+(o.apellido||'')),canal:o.canal==='web'?'WEB':'WHATSAPP',
-    producto:_cmdTxt(l.producto),cant:cant+(cant===1?' unidad':' unidades'),dims:largo+' X '+ancho+' CMS',
+    producto:_cmdTxt(l.producto),cant:cant+(cant===1?' unidad':' unidades'),dims:largo||ancho?largo+' X '+ancho+' CMS':'',
     madera:_cmdTxt(l.madera),espesor:String(espesor).replace('.',',')+' CMS',borde:_cmdTxt(l.canto),
     acabado:_cmdTxt(l.acabado),tenido:_cmdTxt(l.tenido||'NO'),obs:_cmdTxt(l.observaciones)};
   if(conImagen){try{p.png=generarImagenTablaCanvas(largo,ancho,espesor).split(',')[1];}catch(e){console.warn('canvas:',e);}}

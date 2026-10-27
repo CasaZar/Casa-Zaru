@@ -67,90 +67,80 @@ function normSemana_(t) {
 }
 
 // ── Lectura del Doc ───────────────────────────────────────────────────────
-// Se pide solo el texto (sin imágenes): el Doc completo pesa ~5 MB. La API
-// rechaza («invalid argument») una sub-máscara dentro de table(...), así que
-// la tabla va entera; son tablas chicas de texto.
-var CONT_ = 'documentTab(body(content(startIndex,endIndex,paragraph(elements(textRun(content))),table)))';
-var CAMPOS_ = 'revisionId,tabs(tabProperties,' + CONT_ + ',childTabs(tabProperties,' + CONT_ + '))';
-
-function leerDoc_(docId) {
-  return Docs.Documents.get(docId, { includeTabsContent: true, fields: CAMPOS_ });
+// Con DocumentApp y getText() por pestaña: ~3 s para todo el Doc. La API de
+// Docs con máscara de campos tardaba 12–36 s (y rechaza sub-máscaras dentro de
+// table(...)). En el texto, cada celda de tabla es una línea, así que una página
+// se lee: PEDIDO: N / semana / NOMBRE: … / canal / producto / … / medida «… X … CMS».
+function tabsDeDoc_(doc) {
+  var out = [];
+  (function rec(ts) { ts.forEach(function (t) { out.push(t); rec(t.getChildTabs()); }); })(doc.getTabs());
+  return out;
 }
+function comandasDeTexto_(texto) {
+  var L = texto.split(/[\n\t]/).map(function (s) { return s.trim(); });
+  var out = [];
+  for (var i = 0; i < L.length; i++) {
+    var m = /^PEDIDO:\s*(.+)$/i.exec(L[i]);
+    if (!m) continue;
+    var c = { pedido: m[1].trim(), producto: '', dims: '' };
+    var j = i + 1, fin = Math.min(L.length, i + 14);
+    while (j < fin && !/^NOMBRE:/i.test(L[j])) j++;
+    if (j < fin) c.producto = L[j + 2] || '';   // NOMBRE → canal → producto
+    for (var k = j + 3; k < fin; k++) {
+      if (/^PEDIDO:/i.test(L[k])) break;
+      if (/\sX\s.*CMS$/i.test(L[k])) { c.dims = L[k]; break; }
+    }
+    out.push(c);
+  }
+  return out;
+}
+// Índice fresco: pestañas (id, título) y claves → títulos de pestaña donde están.
+function leerIndice_(docId) {
+  var doc = DocumentApp.openById(docId), tabs = [], claves = {};
+  tabsDeDoc_(doc).forEach(function (t) {
+    var titulo = t.getTitle();
+    tabs.push({ id: t.getId(), titulo: titulo });
+    comandasDeTexto_(t.asDocumentTab().getBody().getText()).forEach(function (c) {
+      var ck = clave_(c.pedido, c.producto, c.dims);
+      (claves[ck] = claves[ck] || []).push(titulo);
+    });
+  });
+  // Cerrar para que el próximo openById (el de las imágenes) vea lo que se escriba por la API.
+  doc.saveAndClose();
+  return { tabs: tabs, claves: claves };
+}
+// Para «estado» y «revisar»: 10 min de caché. «cargar» siempre lee fresco.
+function indice_(docId, fresco) {
+  var cache = CacheService.getScriptCache(), k = 'idx_' + docId, hit = fresco ? null : cache.get(k);
+  if (hit) return JSON.parse(hit);
+  var idx = leerIndice_(docId), s = JSON.stringify(idx);
+  if (s.length < 95000) cache.put(k, s, 600);
+  return idx;
+}
+// Pestañas planas de una respuesta de la API de Docs (para finDeTab_).
 function tabsPlanas_(doc) {
   var out = [];
   (function rec(ts) { (ts || []).forEach(function (t) { out.push(t); rec(t.childTabs); }); })(doc.tabs);
   return out;
 }
-function textoPar_(p) {
-  return ((p && p.elements) || []).map(function (el) { return el.textRun ? el.textRun.content : ''; }).join('')
-    .replace(/[\n\u000b]/g, ' ').trim();
-}
-function textoCelda_(c) {
-  return ((c && c.content) || []).map(function (x) { return textoPar_(x.paragraph); }).join(' ').trim();
-}
-// Recorre una pestaña y devuelve sus comandas: cada una empieza en la tabla
-// «PEDIDO: N»; el primer párrafo con texto después es el producto, y el primero
-// que termina en «CMS» con una X es la medida.
-function comandasDeTab_(tab) {
-  var cont = (((tab.documentTab || {}).body || {}).content) || [];
-  var out = [], cur = null;
-  cont.forEach(function (el) {
-    if (el.table) {
-      var fila0 = (el.table.tableRows || [])[0];
-      var c0 = textoCelda_(fila0 && fila0.tableCells ? fila0.tableCells[0] : null);
-      var m = /^PEDIDO:\s*(.+)$/i.exec(c0);
-      if (m) { cur = { pedido: m[1].trim(), producto: '', dims: '' }; out.push(cur); }
-      return;
-    }
-    if (!cur || !el.paragraph) return;
-    var t = textoPar_(el.paragraph);
-    if (!t) return;
-    if (!cur.producto) { cur.producto = t; return; }
-    if (!cur.dims && /\sX\s.*CMS$/i.test(t)) cur.dims = t;
-  });
-  return out;
-}
-function indice_(docId) {
-  var cache = CacheService.getScriptCache(), k = 'idx_' + docId, hit = cache.get(k);
-  if (hit) return JSON.parse(hit);
-  var doc = leerDoc_(docId), claves = {};
-  tabsPlanas_(doc).forEach(function (t) {
-    comandasDeTab_(t).forEach(function (c) {
-      var ck = clave_(c.pedido, c.producto, c.dims);
-      (claves[ck] = claves[ck] || []).push(t.tabProperties.title);
-    });
-  });
-  var idx = { claves: claves };
-  var s = JSON.stringify(idx);
-  if (s.length < 90000) cache.put(k, s, 600);
-  return idx;
-}
 
 // ── Plan: a qué pestaña va cada pieza y cuáles ya están ───────────────────
 // Una clave repetida N veces en el Doc cubre N piezas iguales del pedido.
-function planificar_(docId, piezas, doc) {
-  doc = doc || leerDoc_(docId);
-  var tabs = tabsPlanas_(doc), enDoc = {};
-  tabs.forEach(function (t) {
-    comandasDeTab_(t).forEach(function (c) {
-      var ck = clave_(c.pedido, c.producto, c.dims);
-      (enDoc[ck] = enDoc[ck] || []).push(t.tabProperties.title);
-    });
-  });
-  var usadas = {}, items = [];
+function planificar_(docId, piezas, fresco) {
+  var idx = indice_(docId, fresco), usadas = {}, items = [];
   piezas.forEach(function (p) {
     var ck = clave_(p.pedido, p.producto, p.dims);
     var n = usadas[ck] = (usadas[ck] || 0) + 1;
-    var ya = enDoc[ck] && enDoc[ck].length >= n ? enDoc[ck][n - 1] : '';
+    var ya = idx.claves[ck] && idx.claves[ck].length >= n ? idx.claves[ck][n - 1] : '';
     var tab = null, ns = normSemana_(p.semana);
-    tabs.forEach(function (t) { if (!tab && normSemana_(t.tabProperties.title) === ns) tab = t; });
+    idx.tabs.forEach(function (t) { if (!tab && normSemana_(t.titulo) === ns) tab = t; });
     items.push({ p: p, ya: ya, tab: tab });
   });
   var resumen = items.map(function (it) {
     return { pedido: it.p.pedido, producto: it.p.producto, dims: it.p.dims, semana: it.p.semana,
       ya: it.ya, tabExiste: !!it.tab };
   });
-  return { doc: doc, items: items, resumen: resumen };
+  return { items: items, resumen: resumen };
 }
 
 // ── Escritura ─────────────────────────────────────────────────────────────
@@ -158,7 +148,7 @@ function cargar_(docId, piezas, usuario) {
   var lock = LockService.getScriptLock();
   if (!lock.tryLock(30000)) throw new Error('Otra carga está en curso; prueba en un minuto');
   try {
-    var plan = planificar_(docId, piezas);
+    var plan = planificar_(docId, piezas, true);
     var porSemana = {}, orden = [];
     plan.items.forEach(function (it) {
       if (it.ya) return;
@@ -169,7 +159,7 @@ function cargar_(docId, piezas, usuario) {
     var cargadas = [], creadas = [];
     orden.forEach(function (ns) {
       var g = porSemana[ns], tabId;
-      if (g.tab) tabId = g.tab.tabProperties.tabId;
+      if (g.tab) tabId = g.tab.id;
       else {
         var r = Docs.Documents.batchUpdate({ requests: [{ addDocumentTab: { tabProperties: { title: g.titulo } } }] }, docId);
         tabId = r.replies[0].addDocumentTab.tabProperties.tabId;
