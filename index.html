@@ -244,6 +244,21 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
   transition: border-color 0.15s;
 }
 .stat-card:hover { border-color: var(--border-md); }
+/* Finanzas: bandeja de pendientes. Cada caja es también el filtro de la tabla. */
+#fin-stats { margin-bottom: 14px; }
+.fb-cajas { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.fb-caja { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--fb-c); border-radius: 0; padding: 14px 16px; cursor: pointer; text-align: left; font: inherit; color: var(--text); transition: background 0.15s; }
+.fb-caja:hover { background: var(--fb-dim); }
+.fb-caja.on { background: var(--fb-dim); outline: 2px solid var(--fb-c); outline-offset: -2px; }
+.fb-cab { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; color: var(--fb-c); text-transform: uppercase; letter-spacing: 0.04em; }
+.fb-n { font-size: 13px; font-weight: 700; }
+.fb-val { font-family: 'DM Serif Display', serif; font-size: 24px; margin: 6px 0 4px; }
+.fb-sub { font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-barra { height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 2px 0 6px; }
+.fb-barra div { height: 100%; background: var(--green); }
+.fb-resumen { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--text-2); margin-top: 10px; }
+.fb-resumen b { color: var(--text); font-weight: 600; }
+.fb-ver { background: none; border: none; padding: 0; font: inherit; font-size: 12px; color: var(--brand); text-decoration: underline; cursor: pointer; margin-left: auto; }
 .stat-label {
   font-size: 11px;
   font-weight: 500;
@@ -26476,9 +26491,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <div class="page" id="page-fin">
 <div class="main">
   <div id="fin-aviso-lectura">👁 Solo lectura: puedes ver ventas, pagos y documentos, pero los cambios los hace administración.</div>
-  <div class="stats-grid" id="fin-stats"></div>
+  <div id="fin-stats"></div>
   <div class="toolbar">
-    <div class="filter-group">
+    <div class="filter-group" id="fin-filtros" style="display:none">
       <button class="filter-btn active" onclick="setFinFilter('todos',this)">Todos</button>
       <button class="filter-btn" onclick="setFinFilter('saldo',this)" title="Ventas con plata por cobrar">Deben saldo</button>
       <button class="filter-btn" onclick="setFinFilter('pendiente',this)" title="Falta emitir la boleta o factura">Docs pendientes</button>
@@ -30097,7 +30112,28 @@ function renderFinStats(){
   const excedentes=base.reduce((s,r)=>s+estadoPagoFin(r).excedente,0);
   const nExc=base.filter(r=>saldoFin(r)<0).length;
   const docsPend=base.filter(r=>!r.doc1_emitida||!r.doc2_emitida).length;
-  document.getElementById('fin-stats').innerHTML='<div class="stat-card"><div class="stat-label">Registros</div><div class="stat-val wood">'+tot+'</div></div><div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(totalVal)+'</div></div><div class="stat-card"><div class="stat-label">Solo productos</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalProd)+'</div></div><div class="stat-card"><div class="stat-label">Envíos</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalEnvio)+'</div></div><div class="stat-card"><div class="stat-label">Comisiones</div><div class="stat-val" style="font-size:15px;color:var(--text)">'+fmtCLP(totalCom)+'</div></div><div class="stat-card"><div class="stat-label">Abonos recibidos</div><div class="stat-val green" style="font-size:15px">'+fmtCLP(abonos)+'</div></div><div class="stat-card"><div class="stat-label">Saldo pendiente</div><div class="stat-val amber" style="font-size:15px">'+fmtCLP(saldosPend)+'</div></div>'+(excedentes?'<div class="stat-card" title="Pedidos donde se abonó más que el total: hay que devolver o descontar"><div class="stat-label">Excedentes ('+nExc+')</div><div class="stat-val" style="font-size:15px;color:var(--blue)">+'+fmtCLP(excedentes)+'</div></div>':'')+'<div class="stat-card"><div class="stat-label">Docs. pend.</div><div class="stat-val '+(docsPend?'pink':'green')+'">'+docsPend+'</div></div>'+(_excluidos?'<div class="stat-card" title="Muestrarios y devoluciones: quedan registrados pero no cuentan como venta"><div class="stat-label">Fuera del cálculo</div><div class="stat-val" style="color:var(--text-3)">'+_excluidos+'</div></div>':'');
+  // Bandeja: lo pendiente primero. Cada caja cuenta con el MISMO filtro que
+  // getFilteredFin, así el número de la caja es el de filas que muestra al tocarla.
+  var periodo=finRecords.filter(function(r){return enPeriodo('fin',r);});
+  var gCobrar=periodo.filter(function(r){return tipoDe(r)==='VENTA'&&saldoFin(r)>0;}).sort(function(a,b){return saldoFin(b)-saldoFin(a);});
+  var gEmitir=periodo.filter(function(r){return!r.doc1_emitida||!r.doc2_emitida;});
+  var gListos=periodo.filter(function(r){return r.doc1_emitida&&r.doc2_emitida;});
+  function _nombres(g,conMonto){
+    var s=g.slice(0,3).map(function(r){return esc(r.apellido||r.nombre||('N° '+r.num))+(conMonto?' '+fmtCLP(saldoFin(r)):'');}).join(' · ');
+    return (s||'Nada pendiente')+(g.length>3?' · +'+(g.length-3):'');
+  }
+  var pctCobrado=totalVal?Math.min(100,Math.round(abonos*100/totalVal)):0;
+  function _caja(f,c,dim,titulo,n,val,sub,extra){
+    return '<button type="button" class="fb-caja'+(finFilter===f?' on':'')+'" style="--fb-c:'+c+';--fb-dim:'+dim+'" onclick="setFinBandeja(\''+f+'\')" title="'+(finFilter===f?'Volver a ver todos':'Ver solo estos en la tabla')+'"><div class="fb-cab"><span>'+titulo+'</span><span class="fb-n">'+n+'</span></div><div class="fb-val">'+val+'</div>'+(extra||'')+'<div class="fb-sub">'+sub+'</div></button>';
+  }
+  document.getElementById('fin-stats').innerHTML='<div class="fb-cajas">'+
+    _caja('saldo','var(--red)','var(--red-dim)','Por cobrar',gCobrar.length,fmtCLP(saldosPend),_nombres(gCobrar,true))+
+    _caja('pendiente','var(--amber)','var(--amber-dim)','Por emitir',gEmitir.length,gEmitir.length+(gEmitir.length===1?' documento':' documentos'),_nombres(gEmitir,false))+
+    _caja('listo','var(--green)','var(--green-dim)','Listos',gListos.length,fmtCLP(abonos),'Cobrado: '+pctCobrado+'% de lo vendido','<div class="fb-barra"><div style="width:'+pctCobrado+'%"></div></div>')+
+    '</div><div class="fb-resumen"><span>Vendido <b>'+fmtCLP(totalVal)+'</b> en '+tot+(tot===1?' venta':' ventas')+'</span><span>Productos <b>'+fmtCLP(totalProd)+'</b></span><span>Envíos <b>'+fmtCLP(totalEnvio)+'</b></span><span>Comisiones <b>'+fmtCLP(totalCom)+'</b></span>'+
+    (excedentes?'<span title="Pedidos donde se abonó más que el total: hay que devolver o descontar" style="color:var(--blue)">Excedentes ('+nExc+') <b style="color:var(--blue)">+'+fmtCLP(excedentes)+'</b></span>':'')+
+    (_excluidos?'<span title="Muestrarios y devoluciones: quedan registrados pero no cuentan como venta">Fuera del cálculo <b>'+_excluidos+'</b></span>':'')+
+    (finFilter!=='todos'?'<button type="button" class="fb-ver" onclick="setFinBandeja(\'todos\')">Ver todos</button>':'')+'</div>';
 }
 // Filtro único de Finanzas: lo usan la tabla, las tarjetas del celular y el Excel.
 function getFilteredFin(){
@@ -30116,6 +30152,12 @@ function getFilteredFin(){
   return list;
 }
 function setFinFilter(f,btn){finFilter=f;document.querySelectorAll('#page-fin .filter-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');renderFin();}
+// Tocar una caja de la bandeja filtra la tabla; tocarla de nuevo vuelve a "todos".
+function setFinBandeja(f){
+  var nuevo=(f===finFilter)?'todos':f;
+  var btn=document.querySelector('#fin-filtros .filter-btn[onclick*="\''+nuevo+'\'"]');
+  if(btn)setFinFilter(nuevo,btn);else{finFilter=nuevo;renderFin();}
+}
 function _limpiarRut(v){return String(v||'').replace(/[^0-9kK]/g,'').toUpperCase();}
 function _rutValido(v){
   var rut=_limpiarRut(v);if(rut.length<2)return false;
