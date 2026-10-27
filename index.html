@@ -258,6 +258,48 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .fb-barra div { height: 100%; background: var(--green); }
 .fb-resumen { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--text-2); margin-top: 10px; }
 .fb-resumen b { color: var(--text); font-weight: 600; }
+/* Finanzas: vista editorial (escritorio). La tabla de 20 columnas queda como "vista detallada". */
+#fin-editorial { display: none; }
+@media (min-width: 769px) {
+  body.fin-vista-ed #fin-editorial { display: block; }
+  body.fin-vista-ed #page-fin .table-card { display: none; }
+}
+.fe { background: #FBF8F3; border-radius: var(--radius-xl); padding: 8px 22px 18px; }
+.fe-sem { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--text); padding: 18px 0 6px; }
+.fe-sem-t { font-family: 'DM Serif Display', serif; font-size: 19px; color: var(--text); }
+.fe-sem-i { font-size: 11px; color: var(--text-3); }
+.fe-sem-i b { font-family: 'DM Serif Display', serif; font-size: 14px; font-weight: 400; color: var(--text); margin-left: 4px; }
+.fe-g { display: grid; grid-template-columns: 56px minmax(0,1fr) 130px 110px 56px 18px; gap: 12px; align-items: center; }
+.fe-cab { padding: 8px 0 4px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); }
+.fe-fila { padding: 11px 0; border-top: 0.5px solid #E4DCD0; cursor: pointer; transition: background 0.12s; }
+.fe-fila:hover { background: rgba(181,101,46,0.04); }
+.fe-fila.abierta { background: rgba(181,101,46,0.06); }
+.fe-num { font-family: 'DM Serif Display', serif; font-size: 15px; color: #B5652E; }
+.fe-cli { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fe-sub { font-size: 11px; color: #8C8077; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.fe-tipo { font-size: 9.5px; letter-spacing: 0.08em; color: #B8915A; margin-left: 6px; font-weight: 600; }
+.fe-monto { font-family: 'DM Serif Display', serif; font-size: 16px; text-align: right; color: var(--text); }
+.fe-saldo { text-align: right; font-size: 12px; }
+.fe-saldo.debe { font-family: 'DM Serif Display', serif; font-size: 16px; color: #B5652E; }
+.fe-saldo.ok { color: #485B3D; }
+.fe-saldo.exc { color: var(--blue); }
+.fe-docs { text-align: center; white-space: nowrap; }
+.fe-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin: 0 2px; box-sizing: border-box; }
+.fe-dot.si { background: #485B3D; }
+.fe-dot.no { border: 1.5px solid #B5652E; }
+.fe-flecha { color: var(--text-3); font-size: 11px; transition: transform 0.15s; }
+.fe-fila.abierta .fe-flecha { transform: rotate(90deg); }
+.fe-ficha { border-top: 0.5px dashed #E4DCD0; padding: 14px 0 18px 68px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px 24px; background: rgba(181,101,46,0.03); }
+.fe-ficha h4 { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; margin: 0 0 8px; }
+.fe-campo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--text-2); }
+.fe-campo input, .fe-campo select { width: 132px; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: #fff; color: var(--text); }
+.fe-campo input[type=date] { width: 120px; font-size: 11px; }
+.fe-pago { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+.fe-pago input { width: 100%; box-sizing: border-box; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: #fff; }
+.fe-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.fe-vacio { padding: 30px 0; text-align: center; color: var(--text-3); font-size: 13px; }
+@media (max-width: 768px) { .fb-vista { display: none; } }
+.fb-vista { background: none; border: 1px solid var(--border-md); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 11px; color: var(--text-2); cursor: pointer; }
 .fb-ver { background: none; border: none; padding: 0; font: inherit; font-size: 12px; color: var(--brand); text-decoration: underline; cursor: pointer; margin-left: auto; }
 .stat-label {
   font-size: 11px;
@@ -26513,6 +26555,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <input type="text" id="fin-search" placeholder="Buscar cliente, N°, RUT, celular, producto..." oninput="renderFin()">
   </div>
   <div id="fin-mobile-cards" class="mobile-cards"></div>
+  <div id="fin-editorial"></div>
   <div class="table-card"><div class="table-wrap">
     <table class="fin">
       <thead><tr>
@@ -29951,7 +29994,7 @@ function activarFinLectura(){
 // Tras cada dibujo: nada editable dentro de Finanzas.
 function _bloquearFinLectura(){
   if(!finLectura)return;
-  document.querySelectorAll('#page-fin table.fin tbody input:not(.envio-check),#page-fin table.fin tbody select,#fin-mobile-cards input,#fin-mobile-cards select').forEach(function(el){el.disabled=true;});
+  document.querySelectorAll('#page-fin table.fin tbody input:not(.envio-check),#page-fin table.fin tbody select,#fin-mobile-cards input,#fin-mobile-cards select,#fin-editorial input:not(.envio-check),#fin-editorial select').forEach(function(el){el.disabled=true;});
 }
 async function loadFin(){
   if(!DB_URL)return;
@@ -30141,7 +30184,8 @@ function renderFinStats(){
     '</div><div class="fb-resumen"><span>Vendido <b>'+fmtCLP(totalVal)+'</b> en '+tot+(tot===1?' venta':' ventas')+'</span><span>Productos <b>'+fmtCLP(totalProd)+'</b></span><span>Envíos <b>'+fmtCLP(totalEnvio)+'</b></span><span>Comisiones <b>'+fmtCLP(totalCom)+'</b></span>'+
     (excedentes?'<span title="Pedidos donde se abonó más que el total: hay que devolver o descontar" style="color:var(--blue)">Excedentes ('+nExc+') <b style="color:var(--blue)">+'+fmtCLP(excedentes)+'</b></span>':'')+
     (_excluidos?'<span title="Muestrarios y devoluciones: quedan registrados pero no cuentan como venta">Fuera del cálculo <b>'+_excluidos+'</b></span>':'')+
-    (finFilter!=='todos'?'<button type="button" class="fb-ver" onclick="setFinBandeja(\'todos\')">Ver todos</button>':'')+'</div>';
+    (finFilter!=='todos'?'<button type="button" class="fb-ver" onclick="setFinBandeja(\'todos\')">Ver todos</button>':'')+
+    '<button type="button" class="fb-vista"'+(finFilter!=='todos'?'':' style="margin-left:auto"')+' onclick="setFinVista('+(_finVistaEd()?'false':'true')+')" title="Cambiar entre la lista simple y la tabla con todas las columnas">'+(_finVistaEd()?'Vista detallada':'Vista simple')+'</button></div>';
 }
 // Filtro único de Finanzas: lo usan la tabla, las tarjetas del celular y el Excel.
 function getFilteredFin(){
@@ -30808,6 +30852,7 @@ function _docControls(numStr,docNum){
 function renderFin(){
   renderFinStats();renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);},'fin');renderFinCards();
   const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
+  renderFinEditorial(list);
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
   const ni=`background:transparent;border:none;border-bottom:1px solid transparent;border-radius:0;padding:2px 4px;font-size:12px;color:var(--text);width:100%;outline:none;`;
   const iF=`onfocus="this.style.borderBottomColor='var(--brand)'" onblur="this.style.borderBottomColor='transparent'"`;
@@ -30828,6 +30873,95 @@ function renderFin(){
     return`<tr class="${listo?'fin-listo':''} ${_tipoK!=='VENTA'?'fin-no-venta':''}" ><td class="pedido-num" style="background:${bg}">${r.num||'—'}${_tipoBadge}<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('${numStr}')">🏷️</button></td><td style="background:${bg};font-size:11px;min-width:110px"><input type="date" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:2px 4px;width:108px" value="${(function(){var f=r.fecha_creacion||r.fecha||'';if(!f)return'';var p=f.split('/');return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):f;})()}" onchange="(function(v){var p=v.split('-');var fd=parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];finSet('${numStr}','fecha_creacion',fd,null);finSet('${numStr}','fecha',fd,null);finSave('${numStr}');})(this.value)"></td><td style="background:${bg}"><input style="${ni}min-width:110px" value="${esc(r.semana)}" placeholder="SEMANA 29 JUNIO" ${iF} onchange="finSet('${numStr}','semana',this.value,null);${saveStr}"></td><td style="background:${bg}"><div style="font-weight:600;white-space:nowrap">${esc(r.nombre)} ${esc(r.apellido)}</div></td><td style="background:${bg};font-size:11px;min-width:110px"><input style="${ni}" value="${esc(r.celular)}" placeholder="9XXXXXXXX" ${iF} onchange="finSet('${numStr}','celular',this.value,null);finSave('${numStr}')"></td><td style="background:${bg};min-width:130px"><input style="${ni}font-size:11px" value="${esc(r.producto)}" ${iF} onchange="finSet('${numStr}','producto',this.value,null);${saveStr}"></td><td style="background:${bg}"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finRecords[${idx}].medio_pago=this.value;${saveStr}">${['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return'<option'+((r.medio_pago||'')=== m?' selected':'')+'>'+m+'</option>';}).join('')}</select></td><td style="background:${bg};min-width:130px"><select style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px" onchange="finSet('${numStr}','como',this.value,null);${saveStr}">${_opcionesCanal(r.como)}</select></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_prod)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" value="${r.val_prod||0}" onchange="finSet('${numStr}','val_prod',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_envio)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_envio||0}" onchange="finSet('${numStr}','val_envio',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.val_comision)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:90px" value="${r.val_comision||0}" onchange="finSet('${numStr}','val_comision',Number(this.value),this);finRecalcTotal('${numStr}');${saveStr}"></td><td style="background:${bg};min-width:110px"><div class="monto" style="font-size:12px;color:var(--text-muted)">${fmtCLP(r.total)}</div><input type="number" style="${ni}border:0.5px solid var(--border-mid);border-radius:4px;padding:3px 5px;width:100px" id="fintot-${numStr}" value="${r.total||0}" onchange="finSet('${numStr}','total',Number(this.value),this);${saveStr}"></td>${_abonoCell('abono1',r.abono1,r.fecha_abono1)}${_abonoCell('abono2',r.abono2,r.fecha_abono2)}${_abonoCell('abono3',r.abono3,r.fecha_abono3)}<td style="background:${bg};min-width:100px">${_pendCellHTML(r)}</td>${_docCell(1)}${_docCell(2)}<td style="background:${bg}"><span class="${listo?'listo-badge':'pend-badge'}">${listo?'✓ Listo':'Pendiente'}</span>${prodEstado?`<div style="font-size:10px;font-weight:600;color:${_peColor};margin-top:4px">🪵 ${prodEstado}</div>`:''}</td><td style="background:${bg}"><input type="checkbox" class="envio-check" style="margin-right:5px;cursor:pointer;vertical-align:middle" onchange="toggleEnvioSel('${numStr}',this.checked)"><button class="btn-ghost" style="padding:4px 8px;font-size:11px;margin:0 4px 0 0;white-space:nowrap" onclick="generarEtiqueta('${numStr}')" title="Generar etiqueta envío">📦</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('${numStr}')">🗑</button></td></tr>`;
   }).join('');
   _bloquearFinLectura();
+}
+// ── Finanzas: vista editorial (escritorio) ────────────────────────────────
+// Lista simple por semana: N°, cliente, total, saldo y dos puntos de documentos.
+// Al tocar una fila se abre su ficha con los MISMOS controles de la tabla de 20
+// columnas (finSet/finSave/_docControls): no hay un camino de guardado nuevo.
+// La tabla completa sigue disponible como "vista detallada".
+var finAbierto=null;
+function _finVistaEd(){try{return localStorage.getItem('zaru_fin_vista')!=='detalle';}catch(e){return true;}}
+function setFinVista(ed){try{localStorage.setItem('zaru_fin_vista',ed?'editorial':'detalle');}catch(e){}renderFin();}
+function finToggleFicha(numStr){finAbierto=(finAbierto===numStr)?null:numStr;renderFin();}
+function _fechaCorta(f){
+  var p=String(f||'').split('/');if(p.length!==3)return '';
+  var m=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][Number(p[1])-1]||'';
+  return String(p[0]).padStart(2,'0')+' '+m;
+}
+function _isoDeFecha(f){var p=String(f||'').split(/[\/-]/);if(p.length===3&&p[0].length===4)return f;return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):'';}
+function _fechaDeIso(v){var p=String(v||'').split('-');return p.length===3?parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0]:'';}
+function finAbonoEd(numStr,k,val){
+  finSet(numStr,'abono'+k,Number(val)||0,null);
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  // Mismo formato que el resto de las fechas guardadas (d/m/aaaa); todayStr es dd-mm-aaaa.
+  var _h=new Date();
+  if(r&&Number(val)>0&&!r['fecha_abono'+k])finSet(numStr,'fecha_abono'+k,_h.getDate()+'/'+(_h.getMonth()+1)+'/'+_h.getFullYear(),null);
+  finSave(numStr);renderFin();
+}
+function finMontoEd(numStr,campo,val){finSet(numStr,campo,Number(val)||0,null);finRecalcTotal(numStr);finSave(numStr);renderFin();}
+function finCampoEd(numStr,campo,val){finSet(numStr,campo,val,null);finSave(numStr);renderFin();}
+function finFechaVentaEd(numStr,iso){var f=_fechaDeIso(iso);if(!f)return;finSet(numStr,'fecha_creacion',f,null);finSet(numStr,'fecha',f,null);finSave(numStr);renderFin();}
+function _finFicha(r){
+  var n=String(r.num||''),q="'"+n+"'";
+  var pagos='';
+  for(var k=1;k<=3;k++){
+    pagos+='<div class="fe-pago"><input type="number" title="Abono '+k+'" placeholder="Abono '+k+'" value="'+(Number(r['abono'+k])||'')+'" onchange="finAbonoEd('+q+','+k+',this.value)">'+
+      '<input type="date" title="Fecha del abono '+k+'" value="'+_isoDeFecha(r['fecha_abono'+k])+'" onchange="finCampoEd('+q+',\'fecha_abono'+k+'\',_fechaDeIso(this.value))"></div>';
+  }
+  var p=estadoPagoFin(r);
+  var montos=[['val_prod','Producto'],['val_envio','Envío'],['val_comision','Comisión']].map(function(m){
+    return '<div class="fe-campo"><span>'+m[1]+'</span><input type="number" value="'+(Number(r[m[0]])||0)+'" onchange="finMontoEd('+q+',\''+m[0]+'\',this.value)"></div>';
+  }).join('')+'<div class="fe-campo"><span>Total</span><b style="font-family:\'DM Serif Display\',serif;font-size:15px;font-weight:400;color:var(--text)">'+fmtCLP(r.total)+'</b></div>';
+  var medios=['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return '<option'+((r.medio_pago||'')===m?' selected':'')+'>'+m+'</option>';}).join('');
+  var datos='<div class="fe-campo"><span>Medio de pago</span><select onchange="finCampoEd('+q+',\'medio_pago\',this.value)">'+medios+'</select></div>'+
+    '<div class="fe-campo"><span>¿Cómo nos conoció?</span><select onchange="finCampoEd('+q+',\'como\',this.value)">'+_opcionesCanal(r.como)+'</select></div>'+
+    '<div class="fe-campo"><span>Fecha de venta</span><input type="date" value="'+_isoDeFecha(r.fecha_creacion||r.fecha)+'" onchange="finFechaVentaEd('+q+',this.value)"></div>'+
+    '<div class="fe-campo"><span>Semana</span><input value="'+esc(r.semana)+'" placeholder="SEMANA 29 JUNIO" onchange="finCampoEd('+q+',\'semana\',this.value)"></div>'+
+    '<div class="fe-campo"><span>Celular</span><input value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',this.value)"></div>';
+  var prodO=prodOrders.find(function(o){return String(o.pedido||'')===n;});
+  var acc='<div class="fe-acc">'+(prodO&&prodO.estado?'<span style="font-size:11px;color:var(--text-2)">🪵 '+esc(prodO.estado)+'</span>':'')+
+    '<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('+q+')">🏷️ Tipo</button>'+
+    '<label style="font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:4px"><input type="checkbox" class="envio-check"'+(envioSeleccionados.has(n)?' checked':'')+' onchange="toggleEnvioSel('+q+',this.checked)">Etiqueta en lote</label>'+
+    '<button class="btn-ghost" style="padding:4px 10px;font-size:11px;margin:0" onclick="generarEtiqueta('+q+')">📦 Etiqueta envío</button>'+
+    '<button class="btn-del" style="padding:4px 10px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('+q+')">🗑 Eliminar</button></div>';
+  return '<div class="fe-ficha" onclick="event.stopPropagation()">'+
+    '<div><h4>Pagos · monto y fecha</h4>'+pagos+'<div class="fe-campo"><span>Pendiente</span>'+_pendCellHTML(r)+'</div></div>'+
+    '<div><h4>Montos</h4>'+montos+'</div>'+
+    '<div><h4>Datos de la venta</h4>'+datos+'</div>'+
+    '<div><h4>Documento 1 · abono</h4>'+_docControls(n,1)+'<h4 style="margin-top:14px">Documento 2 · saldo</h4>'+_docControls(n,2)+'</div>'+
+    '<div style="grid-column:1/-1">'+acc+'</div></div>';
+}
+function renderFinEditorial(list){
+  var el=document.getElementById('fin-editorial');if(!el)return;
+  var ed=_finVistaEd();
+  document.body.classList.toggle('fin-vista-ed',ed);
+  if(!ed){el.innerHTML='';return;}
+  if(!list.length){el.innerHTML='<div class="fe"><div class="fe-vacio">No hay registros con este filtro.</div></div>';return;}
+  var grupos={};
+  list.forEach(function(r){var s=normalizeSemana(r.semana)||'Sin semana';(grupos[s]=grupos[s]||[]).push(r);});
+  var claves=Object.keys(grupos).sort(function(a,b){return ordenSemana(a)-ordenSemana(b);});
+  var html='';
+  claves.forEach(function(sem){
+    var rs=grupos[sem].slice().sort(function(a,b){return Number(a.num||0)-Number(b.num||0);});
+    var ventas=soloVentas(rs),suma=ventas.reduce(function(s,r){return s+(Number(r.total)||0);},0);
+    var titulo=sem==='Sin semana'?'Sin semana de producción':(sem.charAt(0)+sem.slice(1).toLowerCase());
+    html+='<div class="fe-sem"><span class="fe-sem-t">'+esc(titulo)+'</span><span class="fe-sem-i">'+rs.length+(rs.length===1?' pedido':' pedidos')+' ·<b>'+fmtCLP(suma)+'</b></span></div>'+
+      '<div class="fe-g fe-cab"><span>N°</span><span>Cliente</span><span style="text-align:right">Total</span><span style="text-align:right">Saldo</span><span style="text-align:center" title="Documento del abono · documento del saldo">Docs</span><span></span></div>';
+    rs.forEach(function(r){
+      var n=String(r.num||''),p=estadoPagoFin(r),abierta=finAbierto===n;
+      var tk=tipoDe(r),tipoTxt=tk==='VENTA'?'':'<span class="fe-tipo">'+esc(((TIPOS_REGISTRO.find(function(t){return t.k===tk;})||{}).label||tk).toUpperCase())+'</span>';
+      var sub=[r.producto,r.medio_pago?r.medio_pago.charAt(0)+r.medio_pago.slice(1).toLowerCase():'',_fechaCorta(r.fecha_creacion||r.fecha)].filter(Boolean).map(esc).join(' · ');
+      var saldo=p.debe?'<span class="fe-saldo debe">'+fmtCLP(p.saldo)+'</span>':(p.excedente?'<span class="fe-saldo exc" title="Se abonó más que el total">+'+fmtCLP(p.excedente)+'</span>':'<span class="fe-saldo ok">Pagado</span>');
+      var d1=r.doc1_emitida?'si':'no',d2=r.doc2_emitida?'si':'no';
+      html+='<div class="fe-fila'+(abierta?' abierta':'')+'" onclick="finToggleFicha(\''+n+'\')"><div class="fe-g">'+
+        '<span class="fe-num">'+esc(n||'—')+'</span>'+
+        '<div style="min-width:0"><div class="fe-cli">'+esc(r.nombre)+' '+esc(r.apellido)+tipoTxt+'</div><div class="fe-sub">'+sub+'</div></div>'+
+        '<span class="fe-monto">'+fmtCLP(r.total)+'</span>'+saldo+
+        '<span class="fe-docs" title="Doc 1: '+(r.doc1_emitida?'emitido':'pendiente')+' · Doc 2: '+(r.doc2_emitida?'emitido':'pendiente')+'"><span class="fe-dot '+d1+'"></span><span class="fe-dot '+d2+'"></span></span>'+
+        '<span class="fe-flecha">▶</span></div>'+(abierta?_finFicha(r):'')+'</div>';
+    });
+  });
+  el.innerHTML='<div class="fe">'+html+'</div>';
 }
 // El total es producto − descuento + envío + comisión. Antes era un campo suelto:
 // si se corregía el envío (pasa seguido, cuando aparece un flete más barato), el
