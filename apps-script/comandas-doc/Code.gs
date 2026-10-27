@@ -67,11 +67,11 @@ function normSemana_(t) {
 }
 
 // ── Lectura del Doc ───────────────────────────────────────────────────────
-// Se pide solo el texto (sin imágenes ni estilos): el Doc completo pesa ~5 MB.
-var CAMPOS_ = 'revisionId,tabs(tabProperties,childTabs(tabProperties,documentTab(body(content(startIndex,endIndex,' +
-  'paragraph(elements(textRun(content))),table(tableRows(tableCells(content(paragraph(elements(textRun(content)))))))))),' +
-  'documentTab(body(content(startIndex,endIndex,paragraph(elements(textRun(content))),' +
-  'table(tableRows(tableCells(content(paragraph(elements(textRun(content))))))))))';
+// Se pide solo el texto (sin imágenes): el Doc completo pesa ~5 MB. La API
+// rechaza («invalid argument») una sub-máscara dentro de table(...), así que
+// la tabla va entera; son tablas chicas de texto.
+var CONT_ = 'documentTab(body(content(startIndex,endIndex,paragraph(elements(textRun(content))),table)))';
+var CAMPOS_ = 'revisionId,tabs(tabProperties,' + CONT_ + ',childTabs(tabProperties,' + CONT_ + '))';
 
 function leerDoc_(docId) {
   return Docs.Documents.get(docId, { includeTabsContent: true, fields: CAMPOS_ });
