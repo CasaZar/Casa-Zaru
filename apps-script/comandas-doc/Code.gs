@@ -182,10 +182,13 @@ function cargar_(docId, piezas, usuario) {
       escribirEnTab_(docId, tabId, g.piezas);
       g.piezas.forEach(function (p) { cargadas.push({ pedido: p.pedido, producto: p.producto, semana: g.titulo }); });
     });
-    CacheService.getScriptCache().remove('idx_' + docId);
     console.log('cargar: ' + usuario + ' → ' + cargadas.length + ' páginas');
     return { ok: true, cargadas: cargadas, creadas: creadas, saltadas: plan.resumen.filter(function (x) { return x.ya; }) };
-  } finally { lock.releaseLock(); }
+  } finally {
+    // Aunque falle a medias, el Doc pudo cambiar: la caché ya no sirve.
+    CacheService.getScriptCache().remove('idx_' + docId);
+    lock.releaseLock();
+  }
 }
 
 // Fin del cuerpo de una pestaña (índice del último salto de línea).
