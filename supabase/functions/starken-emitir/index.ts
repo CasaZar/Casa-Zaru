@@ -10,7 +10,8 @@
 //   { accion: 'destinos' }                       → comunas de Starken (vía starken-tarifa)
 //   { accion: 'cotizar', destino, kilos | bultos } → precio, igual que el cotizador
 //   { accion: 'emitir', pedido, destinatario, bultos, kilos, medidas, valorDeclarado,
-//     contenido, precioCotizado }               → { envio } con of_numero
+//     contenido, precioCotizado, documentos: [{ tipo: 'BOLETA'|'FACTURA', numero }] }
+//                                                → { envio } con of_numero
 //   { accion: 'etiqueta', of }                    → { pdfBase64 }
 //   { accion: 'anular', id, manual? }             → anula la OF en Starken y la marca anulada;
 //     con manual:true solo la marca (el admin ya la anuló en Starken PRO)
@@ -60,6 +61,10 @@ const PRD = {
   login: secreto('STARKEN_URL_LOGIN'),
   anular: secreto('STARKEN_URL_ANULAR'),
 };
+// Códigos de tipo de documento de Starken (tabla propia, no la del SII). Factura viene en la
+// documentación; el de boleta está PEDIDO a Starken (26-10-2026): hasta tenerlo, una OF con
+// boleta falla con un mensaje claro en vez de mandar un código inventado.
+const DOC_TIPO: Record<string, string> = { FACTURA: '26', BOLETA: '' };
 // Secreto de producción, o su gemelo _QA en pruebas.
 function secretoModo(nombre: string) { return secreto(MODO === 'produccion' ? nombre : nombre + '_QA'); }
 
@@ -171,6 +176,19 @@ async function emitir(req: Request, b: any) {
   // Se valida acá para no dejar filas en 'error' por algo que se sabe de antemano.
   const valor = Math.round(Number(b.valorDeclarado) || 0);
   if (!(valor > 0)) throw new ErrorPublico('Falta el valor declarado', 400);
+  // Documentos: la OF admite hasta 5 (tipoDocumento1..5). Starken valida el código del tipo
+  // (26 = factura, documentado; 39 «no homologado», 99 «no válido», probado en QA el 26-10).
+  // El dueño decidió adjuntar SIEMPRE la boleta o factura del pedido: cobertura por el valor real.
+  const docs: { tipo: string; numero: string }[] = [];
+  for (const d of Array.isArray(b.documentos) ? b.documentos.slice(0, 5) : []) {
+    const tipo = String(d && d.tipo || '').toUpperCase() === 'FACTURA' ? 'FACTURA' : 'BOLETA';
+    const numero = texto(d && d.numero, 20).replace(/\D/g, '');
+    if (!numero || numero.length > 10) throw new ErrorPublico('Folio de documento inválido (hasta 10 dígitos)', 400);
+    const codigo = DOC_TIPO[tipo];
+    if (!codigo) throw new ErrorPublico('Starken todavía no nos da el código de ' + tipo.toLowerCase() + ' (pendiente en la función)', 500);
+    docs.push({ tipo: codigo, numero });
+  }
+  if (valor > 50000 && !docs.length) throw new ErrorPublico('Sobre $50.000 Starken exige la boleta o factura emitida', 400);
   const contenido = texto(b.contenido, 60) || 'MUEBLE DE MADERA';
 
   const cred = MODO === 'produccion'
@@ -212,10 +230,15 @@ async function emitir(req: Request, b: any) {
     kilosTotal: String(Math.round(kilos * 100) / 100),
     alto: String(alto), ancho: String(ancho), largo: String(largo),
     tipoServicio: '0',
-    tipoDocumento1: '', numeroDocumento1: '', generaEtiquetaDocumento1: '',
     tipoEncargo1: '29', cantidadEncargo1: String(bultos),   // 29 = el tipo del ejemplo de Starken
     observacion: ('PEDIDO ' + pedido).slice(0, 60),
   };
+  for (let i = 1; i <= 5; i++) {
+    const d = docs[i - 1];
+    solicitud['tipoDocumento' + i] = d ? d.tipo : '';
+    solicitud['numeroDocumento' + i] = d ? d.numero : '';
+    solicitud['generaEtiquetaDocumento' + i] = d ? 'N' : '';
+  }
 
   // 1) CANDADO: la fila se crea ANTES de llamar a Starken.
   const fila = {

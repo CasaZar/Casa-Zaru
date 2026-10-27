@@ -29514,6 +29514,17 @@ async function stkLlamar(body){
   return d;
 }
 function _stkNorm(s){return String(s==null?'':s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/Ñ/g,'N').trim();}
+// Boleta o factura emitidas del pedido (doc 1 y doc 2 de Finanzas), para adjuntarlas a la
+// OF: Starken las exige con valor declarado sobre $50.000 y el dueño decidió mandarlas
+// SIEMPRE (26-10-2026). «Incluido en boleta N» no es un folio y se salta.
+function _stkDocs(f){
+  var out=[];
+  [1,2].forEach(function(n){
+    var num=f['doc'+n+'_num'];
+    if(f['doc'+n+'_emitida']&&_folioReal(num))out.push({tipo:(f['doc'+n+'_tipo']||'BOLETA')==='FACTURA'?'FACTURA':'BOLETA',numero:String(num).trim()});
+  });
+  return out;
+}
 function _stkTit(s){return String(s||'').toLowerCase().replace(/(^|[\s(\/-])\S/g,function(m){return m.toUpperCase();});}
 // "Av. Irarrázaval 2450, depto 304" → calle, número y depto
 // Si hay "#" o "N°", ese es el número ("Pasaje 3 #1420 casa B"); si no, el primer
@@ -29542,7 +29553,7 @@ function _stkMedidas(o){
 async function abrirEnvioStarken(numStr){
   if(usuarioRol!=='admin'){showToast('Solo el administrador puede enviar con Starken',true);return;}
   var o=prodOrders[_prodIdx(numStr)];if(!o){showToast('No encontré el pedido '+numStr,true);return;}
-  stk={num:String(numStr),envio:null,comunas:stk.comunas,comuna:null,precio:null,modo:stk.modo,pedidoN:0,confirmar:false};
+  stk={num:String(numStr),envio:null,comunas:stk.comunas,comuna:null,precio:null,modo:stk.modo,pedidoN:0,confirmar:false,docs:[]};
   document.getElementById('stk-titulo').textContent='Enviar con Starken · Pedido '+numStr;
   document.getElementById('stk-body').innerHTML='<div style="padding:18px;color:var(--text-3)">Cargando…</div>';
   document.getElementById('modal-stk-bg').classList.add('open');
@@ -29583,6 +29594,7 @@ function stkPintar(){
   var o=prodOrders[_prodIdx(stk.num)]||{},f=finRecords.find(function(r){return String(r.num||'')===stk.num;})||{};
   var dir=_stkPartirDir(f.direccion),med=_stkMedidas(o);
   var prod=((o.lineas||[])[0]||{}).producto||f.producto||'Mueble de madera';
+  stk.docs=_stkDocs(f);
   function campo(id,lbl,val,extra){return'<div class="form-group"><label>'+lbl+'</label><input id="'+id+'" type="text" value="'+esc(val==null?'':String(val))+'" '+(extra||'')+' oninput="stkCambio(\''+id+'\')"></div>';}
   body.innerHTML=stkBanner()+
     '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:2px 0 6px">Destinatario</div>'+
@@ -29598,6 +29610,7 @@ function stkPintar(){
     '<div class="form-grid"><div class="form-group"><label>Medidas</label><select id="stk-modo" onchange="stkCambio(\'stk-modo\')"><option value="web">Como la web (solo kilos)</option><option value="reales">Reales (largo × ancho × alto)</option></select></div>'+
       campo('stk-medidas','Medidas embalado (cm)',med.largo+' × '+med.ancho+' × '+med.alto)+'</div>'+
     '<div class="form-grid">'+campo('stk-valor','Valor declarado ($)',Math.round(Number(f.total)||Number(f.val_prod)||0),'inputmode="numeric"')+campo('stk-contenido','Contenido',prod)+'</div>'+
+    '<div style="font-size:12px;color:var(--text-3);margin:-4px 0 8px">'+(stk.docs.length?'Se adjuntan: '+esc(stk.docs.map(function(d){return _stkTit(d.tipo)+' '+d.numero;}).join(', ')):'Sin boleta ni factura emitida en Finanzas')+'</div>'+
     '<div id="stk-precio" style="background:var(--surface2,#F5F1EA);border-radius:12px;padding:12px 14px;margin:12px 0"><span style="color:var(--text-3);font-size:13px">Elige la comuna para ver el precio</span></div>'+
     '<div id="stk-faltan" style="font-size:12px;color:#92400E;margin-bottom:8px"></div>'+
     '<div style="font-size:12px;color:#92400E;background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:8px 10px;margin-bottom:10px">Una vez emitida, la orden no se puede modificar: solo anular.</div>'+
@@ -29621,6 +29634,7 @@ function stkValidar(){
   if(!stk.comuna)faltan.push('comuna (elígela de la lista)');
   if(!(_stkNum('stk-kilos')>0))faltan.push('kilos');
   if(!(_stkNum('stk-valor')>0))faltan.push('valor declarado (Starken lo exige)');
+  if(_stkNum('stk-valor')>50000&&!(stk.docs&&stk.docs.length))faltan.push('boleta o factura emitida (Starken la exige sobre $50.000)');
   if(_stkVal('stk-modo')==='reales'){var m=_stkMed();if(!(m.largo&&m.ancho&&m.alto))faltan.push('medidas');}
   if(!stk.precio)faltan.push('precio de Starken');
   var el=document.getElementById('stk-faltan');if(el)el.textContent=faltan.length?'Falta: '+faltan.join(', '):'';
@@ -29695,7 +29709,7 @@ async function stkEmitir(){
         calle:_stkVal('stk-calle'),numero:_stkVal('stk-numero'),depto:_stkVal('stk-depto'),comuna:stk.comuna.c},
       bultos:Math.max(1,Math.round(_stkNum('stk-bultos'))),kilos:_stkNum('stk-kilos'),
       medidas:{modo:modo,largo:m.largo,ancho:m.ancho,alto:m.alto},
-      valorDeclarado:Math.round(_stkNum('stk-valor')),contenido:_stkVal('stk-contenido'),precioCotizado:stk.precio});
+      valorDeclarado:Math.round(_stkNum('stk-valor')),contenido:_stkVal('stk-contenido'),precioCotizado:stk.precio,documentos:stk.docs||[]});
     stk.envio=d.envio;
     // El N° de OF también queda en el pedido (PATCH: mezcla, no pisa el resto)
     if(stk.modo==='produccion'&&d.envio&&d.envio.of_numero&&DB_URL){
