@@ -33776,9 +33776,21 @@ function _cmdPieza(o,l,conImagen){
   return p;
 }
 function _cmdClave(p){return _cmdNorm(p.pedido)+'|'+_cmdNorm(p.producto)+'|'+_cmdNorm(p.dims);}
+// Igual que parecida_ del Apps Script: mismo pedido y producto con la medida
+// vacía o repetida en el Doc (páginas pegadas a mano) cuenta como cargada.
+function _cmdBuscar(k){
+  if(comandasEnDoc[k])return comandasEnDoc[k];
+  var p=k.split('|'),pref=p[0]+'|'+p[1]+'|',dims=p[2];
+  for(var c in comandasEnDoc){
+    if(c.indexOf(pref)!==0)continue;
+    var d=c.slice(pref.length);
+    if(!d||(dims&&d.indexOf(dims)>=0))return comandasEnDoc[c];
+  }
+  return null;
+}
 function _cmdBadgeInner(k){
   if(!comandasEnDoc)return'';
-  var tabs=comandasEnDoc[k];
+  var tabs=_cmdBuscar(k);
   return tabs?'<span style="font-size:10px;font-weight:600;color:var(--green-text);margin-left:4px;white-space:nowrap" title="En el Doc: '+esc(tabs.join(', '))+'">✓ Doc</span>'
     :'<span style="font-size:10px;color:var(--text-3);margin-left:4px;white-space:nowrap" title="No está en el Doc COMANDA PEDIDO">sin Doc</span>';
 }

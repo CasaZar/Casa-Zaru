@@ -124,6 +124,19 @@ function tabsPlanas_(doc) {
   return out;
 }
 
+// Páginas pegadas a mano a veces traen la medida vacía o repetida («120 X 30 CMS
+// 120 X 30 CMS»). Mismo pedido y producto con una medida así cuenta como cargada:
+// es preferible saltarse una página a duplicarla. Igual que _cmdBuscar en index.html.
+function parecida_(claves, ck) {
+  var p = ck.split('|'), pref = p[0] + '|' + p[1] + '|', dims = p[2];
+  for (var k in claves) {
+    if (k.indexOf(pref) !== 0) continue;
+    var d = k.slice(pref.length);
+    if (!d || (dims && d.indexOf(dims) >= 0)) return claves[k][0];
+  }
+  return '';
+}
+
 // ── Plan: a qué pestaña va cada pieza y cuáles ya están ───────────────────
 // Una clave repetida N veces en el Doc cubre N piezas iguales del pedido.
 function planificar_(docId, piezas, fresco) {
@@ -132,6 +145,7 @@ function planificar_(docId, piezas, fresco) {
     var ck = clave_(p.pedido, p.producto, p.dims);
     var n = usadas[ck] = (usadas[ck] || 0) + 1;
     var ya = idx.claves[ck] && idx.claves[ck].length >= n ? idx.claves[ck][n - 1] : '';
+    if (!ya && n === 1) ya = parecida_(idx.claves, ck);
     var tab = null, ns = normSemana_(p.semana);
     idx.tabs.forEach(function (t) { if (!tab && normSemana_(t.titulo) === ns) tab = t; });
     items.push({ p: p, ya: ya, tab: tab });
