@@ -1,0 +1,262 @@
+{%- comment -%}
+  Recuadro «Calcula tu envío» en la ficha de producto (27-10-2026).
+  Se renderiza desde snippets/buy-buttons.liquid, justo debajo de «Agregar al carrito».
+
+  Cotiza con la Edge Function starken-tarifa del proyecto del Cotizador, la misma que usa
+  cotizador.casazaru.cl: solo por kilos, con la cuenta 777979-8, igual que el plugin de Starken
+  del checkout. Por eso el número coincide con lo que se cobra al pagar.
+  La llave es la publicable (pública por diseño); las credenciales de Starken viven como
+  secretos de la función y nunca llegan acá.
+
+  Peso = el de la variante elegida (en gramos en Shopify) × la cantidad.
+  Si la variante pesa 0 kg el recuadro no aparece: sin peso no hay precio honesto.
+  Copia de lo publicado en el tema: .claude/tema/cz-envio.liquid del repo.
+{%- endcomment -%}
+<div
+  class="czenv"
+  id="czenv-{{ section_id }}"
+  data-section="{{ section_id }}"
+  data-pesos='{ {%- for v in product.variants -%}"{{ v.id }}":{{ v.weight | default: 0 }}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%} }'
+  data-variante="{{ product.selected_or_first_available_variant.id }}"
+  hidden
+>
+  <div class="czenv__t">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+    Calcula tu envío
+  </div>
+  <div class="czenv__buscar">
+    <input type="text" class="czenv__in" placeholder="Escribe tu comuna" autocomplete="off" aria-label="Comuna de entrega" aria-autocomplete="list">
+    <div class="czenv__lst" role="listbox" hidden></div>
+    <div class="czenv__sub">Despachamos con Starken a todo Chile.</div>
+  </div>
+  <div class="czenv__res" hidden></div>
+</div>
+
+<style>
+  .czenv{margin:14px 0 6px;border:1px solid #d9d2c5;border-radius:10px;background:#F1ECE4;padding:14px 14px 12px;font-family:Poppins,sans-serif;color:#1f1d24}
+  .czenv[hidden]{display:none}
+  .czenv__t{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#485B3D;margin-bottom:10px;letter-spacing:0}
+  .czenv__t svg{flex:none}
+  .czenv__in{width:100%;box-sizing:border-box;height:46px;border:1px solid rgba(31,29,36,.35);border-radius:8px;padding:0 14px;font:15px Poppins,sans-serif;background:#fff;color:#1f1d24;-webkit-appearance:none}
+  .czenv__in:focus{outline:2px solid #485B3D;outline-offset:0;border-color:transparent}
+  .czenv__in::placeholder{color:rgba(31,29,36,.5)}
+  .czenv__lst{margin-top:4px;background:#fff;border:1px solid rgba(31,29,36,.2);border-radius:8px;overflow:hidden;box-shadow:0 6px 18px rgba(0,0,0,.08)}
+  .czenv__lst[hidden]{display:none}
+  .czenv__op{display:block;width:100%;text-align:left;background:#fff;border:0;border-top:1px solid #eee;padding:11px 14px;font:14.5px Poppins,sans-serif;color:#1f1d24;cursor:pointer}
+  .czenv__op:first-child{border-top:0}
+  .czenv__op.is-act,.czenv__op:hover{background:#f7f4ee}
+  .czenv__op small{color:rgba(31,29,36,.55);font-size:13px}
+  .czenv__vacio{padding:11px 14px;font-size:14px;color:rgba(31,29,36,.6)}
+  .czenv__sub{font-size:13px;color:rgba(31,29,36,.7);margin-top:8px;line-height:1.45}
+  .czenv__caja{display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:#fff;border-radius:8px;padding:12px 14px;border:1px solid #e3dccf}
+  .czenv__caja .c{font-size:14.5px}
+  .czenv__caja .c b{font-weight:600}
+  .czenv__caja .p{font-size:20px;font-weight:700;white-space:nowrap}
+  .czenv__fila{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px}
+  .czenv__fila .czenv__sub{margin:0}
+  .czenv__cambiar{background:none;border:0;padding:0;color:#B5652E;text-decoration:underline;font:13px Poppins,sans-serif;cursor:pointer;white-space:nowrap}
+  .czenv__espera{font-size:14px;color:rgba(31,29,36,.7);padding:6px 0}
+  .czenv__err{font-size:14px;color:#8a3b12;padding:4px 0}
+</style>
+
+<script>
+  (function () {
+    var caja = document.getElementById('czenv-{{ section_id }}');
+    if (!caja || caja.dataset.listo) return;
+    caja.dataset.listo = '1';
+
+    var URL_FN = 'https://cmxqorsyxoltrakxawro.supabase.co/functions/v1/starken-tarifa';
+    var LLAVE = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';
+    var K_COMUNA = 'cz_envio_comuna';
+    var K_DESTINOS = 'cz_envio_destinos';
+
+    var pesos = {};
+    try { pesos = JSON.parse(caja.dataset.pesos); } catch (e) {}
+    var inp = caja.querySelector('.czenv__in');
+    var lst = caja.querySelector('.czenv__lst');
+    var buscar = caja.querySelector('.czenv__buscar');
+    var res = caja.querySelector('.czenv__res');
+    var comunas = null, comuna = null, pedido = 0, activa = -1, opciones = [];
+
+    function leer(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+    function guardar(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+    function norm(s) { return String(s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+    function titulo(s) { return String(s).toLowerCase().replace(/(^|[\s(\/-])\S/g, function (m) { return m.toUpperCase(); }); }
+    function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
+    function pesos$(n) { return '$' + Math.round(n).toLocaleString('es-CL'); }
+
+    function form() {
+      return document.querySelector('#product-form-{{ section_id }}') ||
+        (caja.closest('product-info') || document).querySelector('form[action*="/cart/add"]');
+    }
+    function varianteId() {
+      var f = form();
+      var id = f && f.querySelector('[name="id"]');
+      return (id && id.value) || caja.dataset.variante;
+    }
+    function cantidad() {
+      var q = document.querySelector('#Quantity-{{ section_id }}') ||
+        (caja.closest('product-info') || document).querySelector('input[name="quantity"]');
+      var n = q ? parseInt(q.value, 10) : 1;
+      return n > 0 ? n : 1;
+    }
+    function kilos() {
+      var g = Number(pesos[varianteId()]) || 0;
+      return g / 1000 * cantidad();
+    }
+
+    function llamar(cuerpo) {
+      return fetch(URL_FN, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': LLAVE },
+        body: JSON.stringify(cuerpo)
+      }).then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) { return { ok: r.ok, status: r.status, d: d || {} }; });
+      });
+    }
+
+    function destinos() {
+      if (comunas) return Promise.resolve(comunas);
+      function armar(ciudades) {
+        var out = [];
+        ciudades.forEach(function (ci) {
+          (ci.comunas || []).forEach(function (nombre) {
+            var n = String(nombre).replace(/\s+DOMICILIO$/i, '').trim();
+            if (!out.some(function (o) { return o.c === n && o.cod === ci.codigo; })) out.push({ c: n, ciudad: ci.nombre, cod: ci.codigo });
+          });
+        });
+        out.sort(function (a, b) { return a.c.localeCompare(b.c); });
+        return out;
+      }
+      var cache = leer(K_DESTINOS);
+      if (cache && cache.ciudades && Date.now() - (cache.t || 0) < 86400000) {
+        comunas = armar(cache.ciudades);
+        return Promise.resolve(comunas);
+      }
+      return llamar({ accion: 'destinos' }).then(function (r) {
+        if (!r.ok || !r.d.ciudades) throw new Error('destinos');
+        guardar(K_DESTINOS, { t: Date.now(), ciudades: r.d.ciudades });
+        comunas = armar(r.d.ciudades);
+        return comunas;
+      });
+    }
+
+    function etiqueta(o) {
+      var c = titulo(o.c);
+      return norm(o.ciudad) !== norm(o.c) ? c + ' · ' + titulo(o.ciudad) : c;
+    }
+
+    function pintarLista(q) {
+      var t = norm(q.trim());
+      if (t.length < 2) { lst.hidden = true; return; }
+      destinos().then(function (todas) {
+        var empiezan = todas.filter(function (o) { return norm(o.c).indexOf(t) === 0; });
+        var contienen = todas.filter(function (o) { return norm(o.c).indexOf(t) > 0; });
+        opciones = empiezan.concat(contienen).slice(0, 6);
+        activa = opciones.length ? 0 : -1;
+        if (!opciones.length) {
+          lst.innerHTML = '<div class="czenv__vacio">No encontramos esa comuna en Starken</div>';
+        } else {
+          lst.innerHTML = opciones.map(function (o, i) {
+            var c = esc(titulo(o.c));
+            var extra = norm(o.ciudad) !== norm(o.c) ? ' <small>· ' + esc(titulo(o.ciudad)) + '</small>' : '';
+            return '<button type="button" role="option" class="czenv__op' + (i === 0 ? ' is-act' : '') + '" data-i="' + i + '">' + c + extra + '</button>';
+          }).join('');
+        }
+        lst.hidden = false;
+      }).catch(function () {
+        lst.innerHTML = '<div class="czenv__vacio">No pudimos cargar las comunas; te cotizamos el envío por WhatsApp</div>';
+        lst.hidden = false;
+      });
+    }
+
+    function marcar(i) {
+      activa = i;
+      Array.prototype.forEach.call(lst.querySelectorAll('.czenv__op'), function (b, j) { b.classList.toggle('is-act', j === i); });
+    }
+
+    function elegir(o) {
+      comuna = o;
+      guardar(K_COMUNA, o);
+      lst.hidden = true;
+      inp.value = '';
+      cotizar();
+    }
+
+    function cotizar() {
+      var kg = kilos();
+      caja.hidden = !(kg > 0);
+      if (!comuna || !(kg > 0)) { buscar.hidden = false; res.hidden = true; return; }
+      buscar.hidden = true;
+      res.hidden = false;
+      var n = ++pedido;
+      res.innerHTML = '<div class="czenv__espera">Consultando a Starken…</div>';
+      llamar({ accion: 'tarifa', destino: comuna.cod, kilos: Math.round(kg * 1000) / 1000 }).then(function (r) {
+        if (n !== pedido) return;
+        var t = (r.d.tarifas || []).filter(function (x) { return x.entrega === 'DOMICILIO'; })[0];
+        if (!r.ok || r.d.error || !t) {
+          var msg = r.status === 422 ? 'Starken no tiene reparto a domicilio en esa comuna' :
+            r.status === 429 ? 'Demasiadas consultas seguidas; prueba en un minuto' :
+            'No pudimos calcular el envío ahora; te lo confirmamos por WhatsApp';
+          res.innerHTML = '<div class="czenv__err">' + msg + '</div>' + filaCambiar('');
+          return;
+        }
+        var dias = Number(t.dias) || 0;
+        var plazo = dias ? 'Starken · ' + dias + (dias === 1 ? ' día hábil' : ' días hábiles') + ' de viaje' : 'Starken';
+        res.innerHTML =
+          '<div class="czenv__caja"><span class="c">A domicilio en <b>' + esc(titulo(comuna.c)) + '</b></span><span class="p">' + pesos$(t.total) + '</span></div>' +
+          filaCambiar(plazo) +
+          '<div class="czenv__sub">Se suma al pagar. Si llevas más de un producto, el total exacto lo ves al pagar.</div>';
+      }).catch(function () {
+        if (n !== pedido) return;
+        res.innerHTML = '<div class="czenv__err">No pudimos calcular el envío ahora; te lo confirmamos por WhatsApp</div>' + filaCambiar('');
+      });
+    }
+
+    function filaCambiar(texto) {
+      return '<div class="czenv__fila"><span class="czenv__sub">' + esc(texto) + '</span><button type="button" class="czenv__cambiar">Cambiar</button></div>';
+    }
+
+    inp.addEventListener('input', function () { pintarLista(inp.value); });
+    inp.addEventListener('focus', function () { destinos().catch(function () {}); });
+    inp.addEventListener('keydown', function (e) {
+      if (lst.hidden || !opciones.length) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); marcar(Math.min(activa + 1, opciones.length - 1)); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); marcar(Math.max(activa - 1, 0)); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (activa >= 0) elegir(opciones[activa]); }
+      else if (e.key === 'Escape') { lst.hidden = true; }
+    });
+    lst.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    lst.addEventListener('click', function (e) {
+      var b = e.target.closest('.czenv__op');
+      if (b) elegir(opciones[Number(b.dataset.i)]);
+    });
+    res.addEventListener('click', function (e) {
+      if (!e.target.closest('.czenv__cambiar')) return;
+      comuna = null;
+      buscar.hidden = false;
+      res.hidden = true;
+      inp.focus();
+    });
+    document.addEventListener('click', function (e) { if (!caja.contains(e.target)) lst.hidden = true; });
+
+    /* Cambio de variante o de cantidad: Dawn actualiza el input name="id" del formulario y
+       avisa por su pubsub; se escuchan las dos vías y se recotiza con el peso nuevo. */
+    var ultimo = '';
+    function revisar() {
+      var clave = varianteId() + '|' + cantidad();
+      if (clave === ultimo) return;
+      ultimo = clave;
+      cotizar();
+    }
+    document.addEventListener('change', function () { setTimeout(revisar, 60); });
+    document.addEventListener('click', function (e) { if (e.target.closest('.quantity__button')) setTimeout(revisar, 60); });
+    if (typeof subscribe === 'function' && typeof PUB_SUB_EVENTS !== 'undefined' && PUB_SUB_EVENTS.variantChange) {
+      subscribe(PUB_SUB_EVENTS.variantChange, function () { setTimeout(revisar, 60); });
+    }
+
+    var previa = leer(K_COMUNA);
+    if (previa && typeof previa.c === 'string' && Number(previa.cod) > 0) comuna = { c: previa.c, ciudad: String(previa.ciudad || previa.c), cod: Number(previa.cod) };
+    revisar();
+  })();
+</script>
