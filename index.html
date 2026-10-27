@@ -33608,7 +33608,7 @@ function generarEtiquetasBatch(){if(!_docxListo())return;
 // manda al Apps Script de apps-script/comandas-doc, que los escribe en la
 // pestaña de la semana de producción (la crea si falta) y se salta las piezas
 // que ya están. La URL no es secreta: el script valida el JWT de la sesión.
-var COMANDAS_URL='';
+var COMANDAS_URL='https://script.google.com/macros/s/AKfycbxDDkilr9raUKL9wvWHUF2KCbHa_bPil30NmZgklx1TvytZJtdWga53GGJSTTQgMndXrw/exec';
 var comandasEnDoc=null,_cmdLeyendo=false,_cmdPend=null;
 function _cmdTxt(s){return String(s==null?'':s).replace(/[\r\n\u000b]+/g,' ').trim();}
 // Misma normalización que norm_ del Apps Script: si cambia una, cambiar la otra.
