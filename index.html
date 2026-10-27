@@ -299,13 +299,18 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .fe-monto { font-family: 'DM Serif Display', serif; font-size: 16px; color: var(--text); }
 .fe-flecha { color: var(--text-3); font-size: 11px; transition: transform 0.15s; }
 .fe-fila.abierta .fe-flecha { transform: rotate(90deg); }
-.fe-ficha { border-top: 0.5px dashed #E4DCD0; margin-top: 12px; padding: 14px 0 4px 52px; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 18px 24px; cursor: default; }
-.fe-ficha h4 { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); font-weight: 600; margin: 0 0 8px; }
-.fe-campo { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; font-size: 12px; color: var(--text-2); }
-.fe-campo input, .fe-campo select { width: 132px; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: #fff; color: var(--text); }
-.fe-campo input[type=date] { width: 120px; font-size: 11px; }
-.fe-pago { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
-.fe-pago input { width: 100%; box-sizing: border-box; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 4px 6px; font-size: 12px; background: #fff; }
+.fe-ficha { border-top: 0.5px dashed #E4DCD0; margin-top: 12px; padding: 14px 0 4px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; cursor: default; }
+.fe-box { background: #FBF8F3; border-radius: 10px; padding: 12px 14px; }
+.fe-ficha h4 { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #8C8077; font-weight: 600; margin: 0 0 10px; }
+.fe-r { display: grid; grid-template-columns: 108px minmax(0,1fr); align-items: center; gap: 8px; margin-bottom: 7px; font-size: 12px; color: var(--text-2); }
+.fe-r.pago { grid-template-columns: 58px minmax(0,1fr) 118px; }
+.fe-r input, .fe-r select { width: 100%; box-sizing: border-box; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 5px 8px; font-size: 12px; background: #fff; color: var(--text); }
+.fe-r input[type=date] { font-size: 11px; padding: 4px 6px; }
+.fe-pesos { text-align: right; font-variant-numeric: tabular-nums; }
+.fe-tot { display: grid; grid-template-columns: 108px minmax(0,1fr); gap: 8px; border-top: 0.5px solid #E4DCD0; padding-top: 8px; margin-top: 4px; font-size: 12px; color: var(--text-2); }
+.fe-tot b { text-align: right; font-family: 'DM Serif Display', serif; font-size: 16px; font-weight: 400; color: var(--text); }
+.fe-tot b.rojo { color: #B5652E; }
+.fe-tot b.ok { color: #485B3D; }
 .fe-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .fe-vacio { padding: 30px 0; text-align: center; color: var(--text-3); font-size: 13px; }
 @media (max-width: 768px) { .fb-vista { display: none; } }
@@ -30915,34 +30920,41 @@ function _fechaCorta(f){
 }
 function _isoDeFecha(f){var p=String(f||'').split(/[\/-]/);if(p.length===3&&p[0].length===4)return f;return p.length===3?p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0'):'';}
 function _fechaDeIso(v){var p=String(v||'').split('-');return p.length===3?parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0]:'';}
+// Los montos se escriben y se ven como "$1.116.460": se guarda solo el número.
+function _pesosDe(v){return Number(String(v||'').replace(/[^\d]/g,''))||0;}
+function _inpPesos(v,js,ph){return '<input type="text" inputmode="numeric" class="fe-pesos" value="'+(Number(v)?fmtCLP(v):'')+'" placeholder="'+(ph||'$0')+'" onfocus="this.select()" onchange="'+js+'">';}
 function finAbonoEd(numStr,k,val){
-  finSet(numStr,'abono'+k,Number(val)||0,null);
+  val=_pesosDe(val);
+  finSet(numStr,'abono'+k,val,null);
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   // Mismo formato que el resto de las fechas guardadas (d/m/aaaa); todayStr es dd-mm-aaaa.
   var _h=new Date();
   if(r&&Number(val)>0&&!r['fecha_abono'+k])finSet(numStr,'fecha_abono'+k,_h.getDate()+'/'+(_h.getMonth()+1)+'/'+_h.getFullYear(),null);
   finSave(numStr);renderFin();
 }
-function finMontoEd(numStr,campo,val){finSet(numStr,campo,Number(val)||0,null);finRecalcTotal(numStr);finSave(numStr);renderFin();}
+function finMontoEd(numStr,campo,val){finSet(numStr,campo,_pesosDe(val),null);finRecalcTotal(numStr);finSave(numStr);renderFin();}
 function finCampoEd(numStr,campo,val){finSet(numStr,campo,val,null);finSave(numStr);renderFin();}
 function finFechaVentaEd(numStr,iso){var f=_fechaDeIso(iso);if(!f)return;finSet(numStr,'fecha_creacion',f,null);finSet(numStr,'fecha',f,null);finSave(numStr);renderFin();}
 function _finFicha(r){
   var n=String(r.num||''),q="'"+n+"'";
+  var p=estadoPagoFin(r),tot=Number(r.total)||0;
   var pagos='';
   for(var k=1;k<=3;k++){
-    pagos+='<div class="fe-pago"><input type="number" title="Abono '+k+'" placeholder="Abono '+k+'" value="'+(Number(r['abono'+k])||'')+'" onchange="finAbonoEd('+q+','+k+',this.value)">'+
-      '<input type="date" title="Fecha del abono '+k+'" value="'+_isoDeFecha(r['fecha_abono'+k])+'" onchange="finCampoEd('+q+',\'fecha_abono'+k+'\',_fechaDeIso(this.value))"></div>';
+    pagos+='<div class="fe-r pago"><span>Abono '+k+'</span>'+_inpPesos(r['abono'+k],'finAbonoEd('+q+','+k+',this.value)','$0')+
+      '<input type="date" title="Fecha en que llegó el abono '+k+'" value="'+_isoDeFecha(r['fecha_abono'+k])+'" onchange="finCampoEd('+q+',\'fecha_abono'+k+'\',_fechaDeIso(this.value))"></div>';
   }
-  var p=estadoPagoFin(r);
+  pagos+='<div class="fe-tot"><span>Pagado</span><b>'+fmtCLP(tot-p.saldo)+'</b></div>'+
+    '<div class="fe-tot" style="border-top:none;padding-top:0"><span>'+(p.excedente?'Excedente':'Pendiente')+'</span><b class="'+(p.debe?'rojo':'ok')+'">'+(p.excedente?'+'+fmtCLP(p.excedente):(p.debe?fmtCLP(p.saldo):'$0'))+'</b></div>';
   var montos=[['val_prod','Producto'],['val_envio','Envío'],['val_comision','Comisión']].map(function(m){
-    return '<div class="fe-campo"><span>'+m[1]+'</span><input type="number" value="'+(Number(r[m[0]])||0)+'" onchange="finMontoEd('+q+',\''+m[0]+'\',this.value)"></div>';
-  }).join('')+'<div class="fe-campo"><span>Total</span><b style="font-family:\'DM Serif Display\',serif;font-size:15px;font-weight:400;color:var(--text)">'+fmtCLP(r.total)+'</b></div>';
+    return '<div class="fe-r"><span>'+m[1]+'</span>'+_inpPesos(r[m[0]],'finMontoEd('+q+',\''+m[0]+'\',this.value)','$0')+'</div>';
+  }).join('')+(Number(r.descuento_monto)?'<div class="fe-r"><span>Descuento</span><span style="text-align:right">−'+fmtCLP(r.descuento_monto)+'</span></div>':'')+
+    '<div class="fe-tot"><span>Total</span><b>'+fmtCLP(tot)+'</b></div>';
   var medios=['BCI','MERCADO PAGO','EFECTIVO','TRANSFERENCIA','OTRO'].map(function(m){return '<option'+((r.medio_pago||'')===m?' selected':'')+'>'+m+'</option>';}).join('');
-  var datos='<div class="fe-campo"><span>Medio de pago</span><select onchange="finCampoEd('+q+',\'medio_pago\',this.value)">'+medios+'</select></div>'+
-    '<div class="fe-campo"><span>¿Cómo nos conoció?</span><select onchange="finCampoEd('+q+',\'como\',this.value)">'+_opcionesCanal(r.como)+'</select></div>'+
-    '<div class="fe-campo"><span>Fecha de venta</span><input type="date" value="'+_isoDeFecha(r.fecha_creacion||r.fecha)+'" onchange="finFechaVentaEd('+q+',this.value)"></div>'+
-    '<div class="fe-campo"><span>Semana</span><input value="'+esc(r.semana)+'" placeholder="SEMANA 29 JUNIO" onchange="finCampoEd('+q+',\'semana\',this.value)"></div>'+
-    '<div class="fe-campo"><span>Celular</span><input value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',this.value)"></div>';
+  var datos='<div class="fe-r"><span>Medio de pago</span><select onchange="finCampoEd('+q+',\'medio_pago\',this.value)">'+medios+'</select></div>'+
+    '<div class="fe-r"><span>Nos conoció por</span><select onchange="finCampoEd('+q+',\'como\',this.value)">'+_opcionesCanal(r.como)+'</select></div>'+
+    '<div class="fe-r"><span>Fecha de venta</span><input type="date" value="'+_isoDeFecha(r.fecha_creacion||r.fecha)+'" onchange="finFechaVentaEd('+q+',this.value)"></div>'+
+    '<div class="fe-r"><span>Semana</span><input value="'+esc(r.semana)+'" placeholder="SEMANA 29 JUNIO" onchange="finCampoEd('+q+',\'semana\',this.value)"></div>'+
+    '<div class="fe-r"><span>Celular</span><input value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',this.value)"></div>';
   var prodO=prodOrders.find(function(o){return String(o.pedido||'')===n;});
   var acc='<div class="fe-acc">'+(prodO&&prodO.estado?'<span style="font-size:11px;color:var(--text-2)">🪵 '+esc(prodO.estado)+'</span>':'')+
     '<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('+q+')">🏷️ Tipo</button>'+
@@ -30950,10 +30962,10 @@ function _finFicha(r){
     '<button class="btn-ghost" style="padding:4px 10px;font-size:11px;margin:0" onclick="generarEtiqueta('+q+')">📦 Etiqueta envío</button>'+
     '<button class="btn-del" style="padding:4px 10px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('+q+')">🗑 Eliminar</button></div>';
   return '<div class="fe-ficha" onclick="event.stopPropagation()">'+
-    '<div><h4>Pagos · monto y fecha</h4>'+pagos+'<div class="fe-campo"><span>Pendiente</span>'+_pendCellHTML(r)+'</div></div>'+
-    '<div><h4>Montos</h4>'+montos+'</div>'+
-    '<div><h4>Datos de la venta</h4>'+datos+'</div>'+
-    '<div><h4>Documento 1 · abono</h4>'+_docControls(n,1)+'<h4 style="margin-top:14px">Documento 2 · saldo</h4>'+_docControls(n,2)+'</div>'+
+    '<div class="fe-box"><h4>Venta</h4>'+montos+'</div>'+
+    '<div class="fe-box"><h4>Pagos recibidos</h4>'+pagos+'</div>'+
+    '<div class="fe-box"><h4>Datos</h4>'+datos+'</div>'+
+    '<div class="fe-box"><h4>Documento 1 · abono</h4>'+_docControls(n,1)+'<h4 style="margin-top:14px">Documento 2 · saldo</h4>'+_docControls(n,2)+'</div>'+
     '<div style="grid-column:1/-1">'+acc+'</div></div>';
 }
 function renderFinEditorial(list){
