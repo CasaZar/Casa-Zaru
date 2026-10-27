@@ -313,6 +313,36 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .fe-tot b.ok { color: #485B3D; }
 .fe-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .fe-vacio { padding: 30px 0; text-align: center; color: var(--text-3); font-size: 13px; }
+/* Producción: misma vista simple, pensada para el pantallazo al jefe de taller. */
+#prod-editorial { display: none; }
+@media (min-width: 769px) {
+  body.prod-vista-ed #prod-editorial { display: block; }
+  body.prod-vista-ed #page-prod .table-card { display: none; }
+}
+.pe-f { display: grid; grid-template-columns: 170px minmax(0,1fr); gap: 18px; align-items: start; }
+.pe-num { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--wood); line-height: 1.1; margin-bottom: 2px; }
+.pe-est { display: inline-block; font-size: 10.5px; padding: 2px 9px; border-radius: 999px; margin-top: 6px; white-space: nowrap; }
+.pe-est.taller { background: #FAEEDA; color: #854F0B; }
+.pe-est.atraso { background: #F5E6DA; color: #B5652E; font-weight: 600; }
+.pe-est.listo { background: #E3E8DD; color: #485B3D; }
+.pe-est.entregado { background: #EEE9E3; color: #8C8077; }
+.pe-p { display: grid; grid-template-columns: minmax(0,1.5fr) 44px 92px 132px 84px minmax(0,1.2fr) 52px; gap: 10px; align-items: baseline; padding: 6px 0; border-bottom: 0.5px dashed #E8E1D4; font-size: 12.5px; color: var(--text); }
+.pe-p:last-child { border-bottom: none; }
+.pe-h { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: #A39787; padding: 0 0 4px; border-bottom: 0.5px solid #E8E1D4; }
+.pe-fuerte { font-weight: 700; font-size: 14px; white-space: nowrap; }
+.pe-m2 { text-align: right; color: #8C8077; }
+.pe-obs { grid-column: 1 / -1; font-size: 12px; color: #B5652E; margin-top: -2px; }
+.pe-fierro { font-size: 10.5px; color: #485B3D; font-weight: 600; white-space: nowrap; }
+.pe-ficha { display: flex; flex-direction: column; }
+.pe-cab, .pe-ed { display: grid; gap: 8px; }
+.pe-cab { grid-template-columns: 140px 170px minmax(0,1fr) minmax(0,1fr); }
+.pe-ed { grid-template-columns: minmax(0,1.6fr) 60px 120px 70px 70px 60px 110px minmax(0,1.2fr); }
+.pe-ed2 { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 8px; }
+.pe-ed2 > label:first-child { flex: 1; min-width: 220px; }
+.pe-ficha label { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; color: #8C8077; }
+.pe-ficha label.pe-chk { flex-direction: row; align-items: center; gap: 5px; font-size: 12px; color: var(--text-2); padding-bottom: 6px; }
+.pe-ficha input:not([type=checkbox]), .pe-ficha select { width: 100%; box-sizing: border-box; border: 0.5px solid var(--border-md); border-radius: 6px; padding: 5px 8px; font-size: 12px; background: #fff; color: var(--text); font-family: inherit; }
+.pe-ficha .btn-ghost { padding: 4px 9px; font-size: 12px; }
 @media (max-width: 768px) { .fb-vista { display: none; } }
 .fb-vista { background: none; border: 1px solid var(--border-md); border-radius: 999px; padding: 2px 10px; font: inherit; font-size: 11px; color: var(--text-2); cursor: pointer; }
 .fb-ver { background: none; border: none; padding: 0; font: inherit; font-size: 12px; color: var(--brand); text-decoration: underline; cursor: pointer; margin-left: auto; }
@@ -26529,8 +26559,10 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button id="prod-clear-filters" onclick="clearProdFilters()" style="display:none;border:1px solid var(--border-md);border-radius:6px;padding:7px 12px;font-size:12px;font-family:'Inter',sans-serif;color:var(--red);background:none;cursor:pointer">✕ Limpiar</button>
   </div>
   <div id="prod-month-bar" class="month-bar"></div>
+  <div id="prod-bandeja" style="margin-bottom:14px"></div>
   <div id="prod-madera-dash" style="margin-bottom:14px"></div>
   <div id="prod-mobile-cards" class="mobile-cards"></div>
+  <div id="prod-editorial"></div>
   <div class="table-card"><div class="table-wrap">
     <table class="prod">
       <thead><tr>
@@ -29452,16 +29484,133 @@ async function deleteProdOrder(oi){
   showToast('✓ Pedido #'+numStr+' eliminado de todas las secciones');
 }
 const PROD_COLORS=['#FDFAF7','#EEE9E3'];
+// ── Producción: vista simple (27-10-2026), mismo diseño que Finanzas ──────
+// Pensada para el pantallazo al jefe de taller: cada pedido es una tarjeta con
+// TODAS sus piezas como texto (sin casillas), agrupadas por semana. Se edita
+// abriendo la tarjeta. La tabla de siempre queda como «Vista detallada».
+var prodAbierto=null,prodEstFiltro='todos';
+function _prodVistaEd(){try{return localStorage.getItem('zaru_prod_vista')!=='detalle';}catch(e){return true;}}
+function setProdVista(ed){try{localStorage.setItem('zaru_prod_vista',ed?'editorial':'detalle');}catch(e){}renderProd();}
+function prodToggleFicha(numStr){prodAbierto=(prodAbierto===numStr)?null:numStr;renderProd();}
+function setProdBandeja(f){prodEstFiltro=(prodEstFiltro===f)?'todos':f;renderProd();}
+// Más de 14 días en taller = atrasado (el mismo umbral rojo del contador de días).
+function _prodGrupo(o){
+  if(o.estado==='Listo')return'listo';
+  if(o.estado==='Entregado')return'entregado';
+  var d=diasEnTaller(o);
+  return d!==null&&d>14?'atraso':'taller';
+}
+function _prodM2(o){return(o.lineas||[]).reduce(function(s,l){return s+calcM2(l.largo,l.ancho,l.cantidad);},0);}
+function _m2Txt(m){return m.toFixed(2).replace('.',',');}
+function _titMay(s){s=String(s||'');return s.charAt(0)+s.slice(1).toLowerCase();}
+function prodCampoEd(numStr,field,val,li){var oi=_prodIdx(numStr);if(oi<0)return;updateProdField(oi,field,val,li);renderProd();}
+function prodEstadoEd(numStr,val){var oi=_prodIdx(numStr);if(oi<0)return;updateProdEstado(oi,val);renderProd();}
+function prodEtqEd(numStr,li,ch){var oi=_prodIdx(numStr);if(oi<0)return;toggleEtiquetaSel(oi,li,ch);}
+function renderProdBandeja(base){
+  var el=document.getElementById('prod-bandeja');if(!el)return;
+  var tall=base.filter(function(o){var g=_prodGrupo(o);return g==='taller'||g==='atraso';});
+  var listos=base.filter(function(o){return _prodGrupo(o)==='listo';});
+  var atr=base.filter(function(o){return _prodGrupo(o)==='atraso';});
+  function m2(g){return _m2Txt(g.reduce(function(s,o){return s+_prodM2(o);},0))+' m²';}
+  function nombres(g){var s=g.slice(0,3).map(function(o){return'#'+esc(o.pedido)+' '+esc(o.comprador||'');}).join(' · ');return(s||'Nada por ahora')+(g.length>3?' · +'+(g.length-3):'');}
+  function caja(f,c,dim,tit,n,val,sub){
+    return'<button type="button" class="fb-caja'+(prodEstFiltro===f?' on':'')+'" style="--fb-c:'+c+';--fb-dim:'+dim+'" onclick="setProdBandeja(\''+f+'\')" title="'+(prodEstFiltro===f?'Volver a ver todos':'Ver solo estos')+'"><div class="fb-cab"><span>'+tit+'</span><span class="fb-n">'+n+'</span></div><div class="fb-val">'+val+'</div><div class="fb-sub">'+sub+'</div></button>';
+  }
+  el.innerHTML='<div class="fb-cajas">'+
+    caja('taller','var(--amber)','var(--amber-dim)','En taller',tall.length,m2(tall),nombres(tall))+
+    caja('listo','var(--green)','var(--green-dim)','Listos para despachar',listos.length,m2(listos),nombres(listos))+
+    caja('atraso','var(--red)','var(--red-dim)','Más de 14 días',atr.length,atr.length+(atr.length===1?' pedido':' pedidos'),nombres(atr))+
+    '</div><div class="fb-resumen">'+
+    (prodEstFiltro!=='todos'?'<button type="button" class="fb-ver" onclick="setProdBandeja(\'todos\')">Ver todos</button>':'')+
+    '<button type="button" class="fb-vista"'+(prodEstFiltro!=='todos'?'':' style="margin-left:auto"')+' onclick="setProdVista('+(_prodVistaEd()?'false':'true')+')" title="Cambiar entre la lista simple y la tabla con todas las columnas">'+(_prodVistaEd()?'Vista detallada':'Vista simple')+'</button></div>';
+}
+function _prodPiezaTxt(l){
+  var cant=Number(l.cantidad)||1,m2=calcM2(l.largo,l.ancho,l.cantidad);
+  var med=(l.largo||l.ancho)?(l.largo||'?')+' × '+(l.ancho||'?')+' · '+String(l.espesor||4).replace('.',','):'—';
+  var prod=esc(l.producto||'(sin producto)')+(l.fierro?' <span class="pe-fierro">+ fierro</span>':'');
+  return'<div class="pe-p"><span>'+prod+'</span><span class="pe-fuerte">'+cant+'</span><span>'+esc(_titMay(l.madera)||'—')+'</span>'+
+    '<span class="pe-fuerte">'+med+'</span><span>'+esc(_titMay(l.canto)||'—')+'</span><span>'+esc(_titMay(l.acabado)||'—')+'</span>'+
+    '<span class="pe-m2">'+(m2>0?_m2Txt(m2):'')+'</span>'+
+    (l.observaciones?'<div class="pe-obs">Obs: '+esc(l.observaciones)+'</div>':'')+'</div>';
+}
+function _prodFicha(o){
+  var n=String(o.pedido||''),q="'"+esc(n)+"'",oi=_prodIdx(n);
+  function opts(lista,val,norm){
+    var vN=norm?_normMad(val||''):(val||''),ok=lista.some(function(x){return(norm?_normMad(x):x)===vN;});
+    return(!ok?'<option selected>'+esc(val||'')+'</option>':'')+lista.map(function(x){return'<option'+((norm?_normMad(x):x)===vN?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+  }
+  var h='<div class="fe-ficha pe-ficha" onclick="event.stopPropagation()"><div class="fe-box"><h4>Pedido</h4><div class="pe-cab">'+
+    '<label>Estado<select onchange="prodEstadoEd('+q+',this.value)">'+opts(PROD_ESTADOS,o.estado||'En taller')+'</select></label>'+
+    '<label>Semana<input value="'+esc(normalizeSemana(o.envio)||'')+'" onchange="prodCampoEd('+q+',\'envio\',this.value)"></label>'+
+    '<label>Nombre<input value="'+esc(o.comprador||'')+'" onchange="prodCampoEd('+q+',\'comprador\',this.value)"></label>'+
+    '<label>Apellido<input value="'+esc(o.apellido||'')+'" onchange="prodCampoEd('+q+',\'apellido\',this.value)"></label></div></div>';
+  var lineas=(o.lineas||[]).length?o.lineas:[_lineaVaciaProd(o)];
+  lineas.forEach(function(l,li){
+    var c="prodCampoEd("+q+",'",e="',this.value,"+li+")";
+    h+='<div class="fe-box"><h4>Pieza '+(li+1)+'</h4><div class="pe-ed">'+
+      '<label>Producto<input value="'+esc(l.producto||'')+'" onchange="'+c+'producto'+e+'"></label>'+
+      '<label>Cant.<input type="number" min="1" value="'+(l.cantidad||1)+'" onchange="prodCampoEd('+q+',\'cantidad\',Number(this.value),'+li+')"></label>'+
+      '<label>Madera<select onchange="'+c+'madera'+e+'">'+opts(MADERAS,l.madera,true)+'</select></label>'+
+      '<label>Largo<input type="number" value="'+(l.largo||'')+'" onchange="'+c+'largo'+e+'"></label>'+
+      '<label>Ancho<input type="number" value="'+(l.ancho||'')+'" onchange="'+c+'ancho'+e+'"></label>'+
+      '<label>Esp.<input type="number" step="0.5" value="'+(l.espesor||4)+'" onchange="'+c+'espesor'+e+'"></label>'+
+      '<label>Canto<select onchange="'+c+'canto'+e+'">'+opts(CANTOS_PROD,l.canto)+'</select></label>'+
+      '<label>Acabado<select onchange="'+c+'acabado'+e+'">'+opts(ACABADOS_PROD,l.acabado)+'</select></label>'+
+      '</div><div class="pe-ed2"><label>Observaciones<input value="'+esc(l.observaciones||'')+'" onchange="'+c+'observaciones'+e+'"></label>'+
+      (categoriaProducto(l.producto)==='Cubierta mesa'?'<label class="pe-chk"><input type="checkbox" '+(l.fierro?'checked ':'')+'onchange="prodCampoEd('+q+',\'fierro\',this.checked,'+li+')"> Base de fierro</label>':'')+
+      (l._vacia?'':'<label class="pe-chk" title="Para «Etiquetas seleccionadas» y «Cargar al Doc»"><input type="checkbox" class="etq-check" '+(etiquetasSeleccionadas.has(oi+'-'+li)?'checked ':'')+'onchange="prodEtqEd('+q+','+li+',this.checked)"> En lote</label>'+
+        '<button class="btn-ghost" onclick="generarEtiquetaProd('+oi+','+li+')" title="Generar etiqueta individual">📄</button>'+
+        (COMANDAS_URL?'<button class="btn-ghost" onclick="cargarComandaDoc('+q+','+li+')" title="Cargar al Doc COMANDA PEDIDO">📝</button>':'')+_cmdBadge(o,l))+
+      ((o.lineas||[]).length>1?'<button class="btn-ghost" onclick="delProdLineExist('+q+','+li+')" title="Quitar esta pieza del pedido">✕ Quitar</button>':'')+
+      '</div></div>';
+  });
+  h+='<div class="fe-acc"><button class="btn-ghost" onclick="addProdLineExist('+q+')">+ Agregar pieza</button>'+
+    (usuarioRol==='admin'?'<button class="btn-ghost" onclick="abrirEnvioStarken('+q+')">🚚 Enviar con Starken</button>':'')+
+    '<button class="btn-ghost" style="color:var(--red);margin-left:auto" onclick="deleteProdOrder(_prodIdx('+q+'))">🗑 Eliminar pedido</button></div></div>';
+  return h;
+}
+function renderProdEditorial(list){
+  var el=document.getElementById('prod-editorial');if(!el)return;
+  var ed=_prodVistaEd();
+  document.body.classList.toggle('prod-vista-ed',ed);
+  if(!ed){el.innerHTML='';return;}
+  if(!list.length){el.innerHTML='<div class="fe"><div class="fe-vacio">'+(prodOrders.length?'No hay pedidos con este filtro.':'Sube el primer pantallazo para comenzar.')+'</div></div>';return;}
+  var grupos={};
+  list.forEach(function(o){var s=normalizeSemana(o.envio)||'Sin semana';(grupos[s]=grupos[s]||[]).push(o);});
+  var claves=Object.keys(grupos).sort(function(a,b){return ordenSemana(a)-ordenSemana(b);});
+  var html='';
+  claves.forEach(function(sem){
+    var os=grupos[sem].slice().sort(function(a,b){return Number(a.pedido||0)-Number(b.pedido||0);});
+    var m2=os.reduce(function(s,o){return s+_prodM2(o);},0);
+    var titulo=sem==='Sin semana'?'Sin semana de producción':_titMay(sem);
+    html+='<div class="fe-sem"><span class="fe-sem-dot"></span><span class="fe-sem-t">'+esc(titulo)+'</span><span class="fe-sem-l"></span><span class="fe-sem-i">'+os.length+(os.length===1?' pedido':' pedidos')+' ·<b>'+_m2Txt(m2)+' m²</b></span></div><div class="fe-lista">';
+    os.forEach(function(o){
+      var n=String(o.pedido||''),g=_prodGrupo(o),abierta=prodAbierto===n,d=diasEnTaller(o);
+      var est=g==='listo'?'<span class="pe-est listo">Listo</span>':g==='entregado'?'<span class="pe-est entregado">Entregado</span>':
+        '<span class="pe-est '+g+'">En taller'+(d!==null?' · '+d+(d===1?' día':' días'):'')+'</span>';
+      var tk=o.tipo&&o.tipo!=='VENTA'?'<div class="fe-tipo" style="margin:2px 0 0">'+esc(((TIPOS_REGISTRO.find(function(t){return t.k===o.tipo;})||{}).label||o.tipo).toUpperCase())+'</div>':'';
+      var lineas=(o.lineas||[]).length?o.lineas:[_lineaVaciaProd(o)];
+      html+='<div class="fe-fila'+(g==='atraso'?' debe':'')+(abierta?' abierta':'')+'" onclick="prodToggleFicha(\''+esc(n)+'\')"><div class="pe-f">'+
+        '<div style="min-width:0"><div class="pe-num">#'+esc(n||'—')+'</div><div class="fe-cli">'+esc(o.comprador||'')+' '+esc(o.apellido||'')+'</div>'+tk+est+'</div>'+
+        '<div style="min-width:0"><div class="pe-p pe-h"><span>Producto</span><span>Cant.</span><span>Madera</span><span>Medidas (cm)</span><span>Canto</span><span>Acabado</span><span class="pe-m2">m²</span></div>'+
+        lineas.map(_prodPiezaTxt).join('')+'</div></div>'+(abierta?_prodFicha(o):'')+'</div>';
+    });
+    html+='</div>';
+  });
+  el.innerHTML='<div class="fe">'+html+'</div>';
+}
 function renderProd(){
   const tbody=document.getElementById('prod-tbody');
   renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   renderProdCards();
   renderMaderaDash();
   _cmdEstadoSiFalta();
+  var _f=_prodFiltrados(),filteredProd=_f.pedidos;
+  renderProdBandeja(_f.base);
+  renderProdEditorial(filteredProd);
   if(!prodOrders.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">📋</span>Sube el primer pantallazo para comenzar</td></tr>';return;}
   // Un solo filtro para la tabla, las tarjetas del celular, la madera y el Excel.
-  var _f=_prodFiltrados(),filteredProd=_f.pedidos;
-  var hasFilter=_f.fSemana||_f.fMadera||_f.fCliente;
+  var hasFilter=_f.fSemana||_f.fMadera||_f.fCliente||_f.fEstado!=='todos';
   var clearBtn=document.getElementById('prod-clear-filters');if(clearBtn)clearBtn.style.display=hasFilter?'block':'none';
   if(!filteredProd.length){tbody.innerHTML='<tr><td colspan="16" class="empty-state"><span class="empty-icon">🔍</span>Sin resultados para este filtro</td></tr>';return;}
   tbody.innerHTML=filteredProd.map((o,_oi)=>{
@@ -29770,7 +29919,7 @@ async function stkAnular(manual){
     var w=document.getElementById('stk-anular-manual-wrap');if(w&&!manual&&stk.envio&&stk.envio.estado==='emitida')w.style.display='block';
   }
 }
-function clearProdFilters(){semFiltro.prod='';['prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
+function clearProdFilters(){semFiltro.prod='';prodEstFiltro='todos';['prod-filter-madera','prod-filter-cliente'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});var btn=document.getElementById('prod-clear-filters');if(btn)btn.style.display='none';renderProd();}
 // Los filtros de la pantalla (mes, semana, madera, cliente) definen qué se ve
 // en las tarjetas de madera. La etiqueta de compra tiene que salir del MISMO
 // conjunto: antes leía todos los pedidos de la semana ignorando los filtros,
@@ -29801,7 +29950,11 @@ function _prodFiltrados(){
   if(fCliente)fp=fp.filter(function(o){return _calza(fCliente,[o.pedido,o.comprador,o.apellido].join(' '));});
   // fMadera se devuelve porque además hay que descartar línea por línea: un
   // pedido mixto pasa el filtro pero sus piezas de otra madera no van.
-  return{pedidos:fp,fMadera:fMadera,fSemana:fSemana,fCliente:fCliente};
+  // Las cajas de arriba (En taller / Listos / Más de 14 días) filtran por estado;
+  // base es la lista antes de ese filtro, para que las cajas no se cuenten a sí mismas.
+  var base=fp,fEstado=prodEstFiltro;
+  if(fEstado!=='todos')fp=fp.filter(function(o){var g=_prodGrupo(o);return g===fEstado||(fEstado==='taller'&&g==='atraso');});
+  return{pedidos:fp,base:base,fMadera:fMadera,fSemana:fSemana,fCliente:fCliente,fEstado:fEstado};
 }
 // Capacidad del taller: cuántos m² se pueden producir en una semana. Sirve
 // para ver de un vistazo si una semana quedó floja o sobrecargada — la carga
