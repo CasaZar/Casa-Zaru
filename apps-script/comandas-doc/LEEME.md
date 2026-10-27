@@ -21,6 +21,8 @@ la Gestión. Lo comprueba contra Supabase y además exige un rol en `gestion_usu
 6. Copiar la URL que termina en `/exec` y ponerla en `COMANDAS_URL` de `index.html`.
 
 Para pasar de la copia al Doc real basta cambiar `DOC_ID`. La URL no cambia.
+**Estado:** desde el 26-10-2026 `DOC_ID` apunta al Doc real. El proyecto se llama «Comandas al Doc» y es de
+hola@casazaru.cl.
 Si se edita `Code.gs`: **Implementar → Gestionar implementaciones → editar → Versión nueva**. Si no se
 hace, sigue corriendo la versión anterior.
 
