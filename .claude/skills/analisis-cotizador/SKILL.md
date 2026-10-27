@@ -93,7 +93,8 @@ hay que decirlo.
 
 ## 4. Cadencia
 
-La cadencia definida es **1-3-7-14-30 días**. Con `crudo\toques.json` puedes
+La cadencia definida es **1-3-13 días** (desde el 26-10-2026; antes 1-3-7-14, y antes
+1-3-7-14-30). Si el cliente contesta sale de la cadencia. Con `crudo\toques.json` puedes
 contar, por cotización viva, cuántos toques lleva y cuántos días pasaron desde el
 último, y compararlo con el escalón que le tocaría. Reporta cuántas están
 atrasadas, no el detalle de cada una.
