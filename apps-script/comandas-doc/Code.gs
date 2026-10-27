@@ -175,7 +175,7 @@ function cargar_(docId, piezas, usuario) {
       var g = porSemana[ns], tabId;
       if (g.tab) tabId = g.tab.id;
       else {
-        var r = Docs.Documents.batchUpdate({ requests: [{ addDocumentTab: { tabProperties: { title: g.titulo } } }] }, docId);
+        var r = Docs.Documents.batchUpdate({ requests: [{ addDocumentTab: { tabProperties: { title: g.titulo.replace(/\b0(\d)/, '$1')} } }] }, docId);
         tabId = r.replies[0].addDocumentTab.tabProperties.tabId;
         creadas.push(g.titulo);
       }
@@ -274,7 +274,8 @@ function armarRequests_(TAB, cursor, piezas, tabVacia) {
     var obsTxt = m.obs ? 'OBS: ' + m.obs + '\n' : '\n';
     Ins(c, obsTxt);
     var pObs = c, pImg = c + obsTxt.length;
-    var marca = '[[IMG-' + Utilities.getUuid().slice(0, 8) + ']]';
+    // Solo letras y números: findText() la toma como expresión regular (con [[ ]] fallaba).
+    var marca = 'ZZIMG' + Utilities.getUuid().replace(/-/g, '').slice(0, 10) + 'ZZ';
     Ins(pImg, marca);
     marcas.push({ marca: marca, png: m.png || '' });
     c = pImg + marca.length;

@@ -31,4 +31,4 @@ hace, sigue corriendo la versión anterior.
 - `_cmdNorm` (index.html) y `norm_` (Code.gs) tienen que normalizar igual, o la marca «✓ Doc» falla.
 - El estado se guarda 10 min en caché del script. Si alguien pega páginas a mano, la marca tarda eso en verse.
 - La API de Docs no inserta imágenes sin URL pública, así que el dibujo entra con DocumentApp: se deja una
-  marca de texto `[[IMG-…]]` y se reemplaza. Si queda una marca a la vista, falló ese paso.
+  marca de texto `ZZIMG…ZZ` y se reemplaza. Si queda una marca a la vista, falló ese paso.
