@@ -1,0 +1,250 @@
+{%- comment -%}
+  Ficha de Peldaños (28-10-2026) — piezas que van DENTRO de la columna de compra del
+  main-product, cada una en su bloque «Liquid personalizado» de la plantilla
+  product.peldanos-v2:
+    {% render 'cz-peldanos-compra', product: product, parte: 'eyebrow' %}   antes del título (trae el CSS)
+    {% render 'cz-peldanos-compra', product: product, parte: 'resumen' %}   después del precio
+    {% render 'cz-peldanos-compra', product: product, parte: 'selector' %}  antes del selector de variantes
+    {% render 'cz-peldanos-compra', product: product, parte: 'despues' %}   después de los medios de pago
+
+  El selector NO reemplaza el formulario del tema: mueve los <select> de variantes y el
+  input de cantidad de Dawn y dispara su evento «change», así el precio, el carrito y el
+  recuadro de envío (cz-envio) siguen funcionando igual que siempre. Si algo no calza
+  (otro tema, opciones renombradas) el selector se esconde y quedan los controles del tema.
+
+  Datos reales que lo justifican (cotizador, 196 cotizaciones de peldaños al 28-10-2026):
+  mediana de 13 peldaños por escalera; solo 91 de 200 medidas tienen fondo de 25-30 cm.
+{%- endcomment -%}
+{%- liquid
+  assign parte = parte | default: 'selector'
+  assign cant_base = 13
+  assign wa_web = '56956375558'
+  for o in product.options_with_values
+    if o.name == 'Tipo de madera'
+      assign opt_m = o
+      assign idx_m = forloop.index0
+    endif
+    if o.name == 'Medidas'
+      assign opt_a = o
+      assign idx_a = forloop.index0
+    endif
+  endfor
+-%}
+
+{%- if parte == 'eyebrow' -%}
+<style>
+  .czp{--czp-cafe:#8A5A3B;--czp-verde:#485B3D;--czp-crema:#F1ECE4;--czp-gris:#6b6670;--czp-banda:#efefef;--czp-naranjo:#CE6718}
+  .czp-eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--czp-verde);margin:6px 0 -4px;display:flex;align-items:center;gap:6px}
+  .czi{width:30px;height:30px;fill:none;stroke:var(--czp-cafe);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 7px}
+  .czi.s{width:16px;height:16px;margin:0;display:inline-block;vertical-align:-3px;flex:none}
+  .czp-desde{font-size:14px;color:var(--czp-gris);margin:2px 0 0;line-height:1.4}
+  .czp-desde b{color:#1F1D24;font-size:20px;display:block}
+  .czp-banda{display:grid;grid-template-columns:1fr 1fr;gap:18px 8px;background:var(--czp-banda);border-radius:12px;padding:18px 10px;margin:16px 0 4px}
+  .czp-banda.tres{grid-template-columns:repeat(3,1fr)}
+  .czp-banda div{text-align:center;font-size:12.5px;font-weight:700;line-height:1.3;color:#1F1D24}
+  .czp-tabs{display:grid;grid-template-columns:1fr 1fr;background:#f2eee8;border-radius:12px;padding:4px;margin:16px 0 4px}
+  .czp-tabs>*{text-align:center;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:600;color:var(--czp-gris);line-height:1.25;text-decoration:none}
+  .czp-tabs small{display:block;font-weight:400;font-size:11px}
+  .czp-tabs .on{background:#fff;color:#1F1D24;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .czp-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 8px;display:flex;justify-content:space-between;gap:8px;color:#1F1D24}
+  .czp-lbl span{font-weight:400;text-transform:none;letter-spacing:0;color:var(--czp-gris)}
+  .czp-mad{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .czp-m{border:1.5px solid #e2dbd0;border-radius:12px;overflow:hidden;cursor:pointer;position:relative;background:#fff;padding:0;text-align:left;font:inherit;color:inherit}
+  .czp-m.on{border-color:#C27C3A;box-shadow:0 0 0 1px #C27C3A}
+  .czp-m img{width:100%;height:56px;object-fit:cover;display:block}
+  .czp-m .tx{display:block;padding:7px 9px 9px}
+  .czp-m b{font-size:14px;display:flex;justify-content:space-between;align-items:baseline;gap:4px}
+  .czp-m b em{font-style:normal;font-weight:500;font-size:11.5px;color:var(--czp-gris);white-space:nowrap}
+  .czp-m small{font-size:11.5px;color:var(--czp-gris);display:block;line-height:1.3;margin-top:3px}
+  .czp-m .rec{position:absolute;top:6px;left:6px;background:var(--czp-verde);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px}
+  .czp-chips{display:flex;flex-wrap:wrap;gap:7px}
+  .czp-chips button{border:1.5px solid #d6cfc4;border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;cursor:pointer;background:#fff;color:#1F1D24}
+  .czp-chips button.on{border-color:#1F1D24;background:#1F1D24;color:#fff}
+  .czp-calc{background:var(--czp-crema);border-radius:14px;padding:14px;margin:16px 0 6px}
+  .czp-calc .czp-lbl{margin-top:0}
+  .czp-step{display:flex;align-items:center;gap:10px}
+  .czp-step button{width:42px;height:42px;border-radius:10px;border:1.5px solid #cbbfae;background:#fff;font-size:20px;cursor:pointer;color:#1F1D24;line-height:1}
+  .czp-step output{font-size:22px;font-weight:600;min-width:36px;text-align:center}
+  .czp-step span{font-size:12px;color:var(--czp-gris);line-height:1.3}
+  .czp-tot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:12px;padding-top:12px;border-top:1px dashed #cbbfae;font-size:14px}
+  .czp-tot b{font-size:24px;display:block;text-align:right;line-height:1.1}
+  .czp-tot small{font-size:12px;color:var(--czp-gris);display:block;text-align:right}
+  .czp-alts{display:flex;gap:8px;margin-top:12px}
+  .czp-alts a{flex:1;border:1px solid #e2dbd0;border-radius:10px;padding:10px 8px;font-size:12px;line-height:1.3;text-align:center;color:var(--czp-gris);text-decoration:none}
+  .czp-alts b{display:flex;gap:5px;justify-content:center;align-items:center;font-size:12.5px;color:#1F1D24}
+  .czp-medida{border:1.5px solid #D4AC74;background:#fffdf9;border-radius:14px;padding:14px;margin-top:12px}
+  .czp-medida h4{margin:0 0 6px;font-size:15px;font-family:inherit;letter-spacing:0}
+  .czp-medida ul{margin:0 0 4px;padding-left:18px;font-size:13px;line-height:1.5;color:var(--czp-gris)}
+  .czp-btn2{display:flex;justify-content:center;align-items:center;gap:6px;width:100%;border:1.5px solid #1F1D24;border-radius:12px;padding:13px;font-weight:600;font-size:15px;text-align:center;margin-top:12px;color:#1F1D24;text-decoration:none;background:#fff}
+  .czp-btn2 .czi{stroke:#1F1D24}
+  /* Con el selector funcionando se esconden los controles equivalentes del tema */
+  .czp-ok variant-selects,.czp-ok .product-form__quantity{display:none!important}
+</style>
+<div class="czp czp-eyebrow">{% render 'cz-icono', i: 'montana', clase: 'czi s' %}Madera nativa del sur de Chile</div>
+{%- endif -%}
+
+{%- if parte == 'resumen' -%}
+  {%- assign desde = product.price_min | times: cant_base -%}
+<div class="czp">
+  <p class="czp-desde">Tu escalera de {{ cant_base }} peldaños, desde<b data-czp-desde="{{ desde }}">${{ desde | money_without_currency | remove: '.00' | replace: ',', '.' }}</b></p>
+  <div class="czp-banda">
+    <div>{% render 'cz-icono', i: 'capas' %}Madera maciza<br>de 4 cm</div>
+    <div>{% render 'cz-icono', i: 'sello' %}Llega terminada,<br>sin barnizar</div>
+    <div>{% render 'cz-icono', i: 'escudo' %}Garantía 5 años</div>
+    <div>{% render 'cz-icono', i: 'repone' %}Si llega con daño,<br>la reponemos</div>
+  </div>
+</div>
+{%- endif -%}
+
+{%- if parte == 'selector' and opt_m and opt_a -%}
+<div class="czp czp-sel" data-czp hidden>
+  <div class="czp-tabs">
+    <span class="on">Medida estándar<small>{{ opt_a.values.first | split: ' x ' | first }}–{{ opt_a.values.last | split: ' x ' | first }} × 30 cm · compra aquí</small></span>
+    <a href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">A tu medida<small>cualquier medida · precio al instante</small></a>
+  </div>
+
+  <div class="czp-lbl">Madera <span data-czp-madn></span></div>
+  <div class="czp-mad">
+    {%- for w in opt_m.values -%}
+      {%- liquid
+        assign pmin = 0
+        for v in product.variants
+          if v.options[idx_m] == w
+            if pmin == 0 or v.price < pmin
+              assign pmin = v.price
+            endif
+          endif
+        endfor
+        case w
+          when 'Castaño'
+            assign d = 'Veta grande y marcada, dorado miel. De las más duras.'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/63996d4c-c673-4f40-96bf-5e93575358fd_1.jpg?v=1778022268&width=300'
+          when 'Coihue'
+            assign d = 'La más dura que trabajamos: ideal para alto tráfico.'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/dfa122a9-8e49-4afb-a7a0-b3a0d22d887c.jpg?v=1779452067&width=300'
+          when 'Raulí'
+            assign d = 'Un clásico del sur. Veta rojiza profunda.'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/RAUL.jpg?v=1785500758&width=300'
+          when 'Lenga'
+            assign d = 'Del extremo sur patagónico. Veta fina, tonos suaves.'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/IMG-20260206-WA0056.jpg?v=1778020745&width=300'
+          when 'Mañío'
+            assign d = 'Textura fina y pareja, de tono cálido y particular.'
+            assign img = ''
+          else
+            assign d = ''
+            assign img = ''
+        endcase
+      -%}
+      <button type="button" class="czp-m" data-v="{{ w | escape }}">
+        {%- if img != blank -%}<img src="{{ img }}" alt="Madera de {{ w | escape }}" width="300" height="56" loading="lazy">{%- endif -%}
+        {%- if w == 'Castaño' -%}<span class="rec">Recomendada</span>{%- endif -%}
+        <span class="tx"><b>{{ w }} <em>desde ${{ pmin | money_without_currency | remove: '.00' | replace: ',', '.' }}</em></b><small>{{ d }}</small></span>
+      </button>
+    {%- endfor -%}
+  </div>
+
+  <div class="czp-lbl">Ancho del peldaño <span>fondo 30 cm · espesor 4 cm</span></div>
+  <div class="czp-chips">
+    {%- for a in opt_a.values -%}
+      <button type="button" data-v="{{ a | escape }}">{{ a | split: ' x ' | first }} cm</button>
+    {%- endfor -%}
+  </div>
+
+  <div class="czp-calc">
+    <div class="czp-lbl">¿Cuántos peldaños? <span>cuenta los escalones</span></div>
+    <div class="czp-step">
+      <button type="button" data-czp-q="-1" aria-label="Un peldaño menos">−</button>
+      <output data-czp-cant>{{ cant_base }}</output>
+      <button type="button" data-czp-q="1" aria-label="Un peldaño más">+</button>
+      <span>peldaños<br>× <b data-czp-unit></b></span>
+    </div>
+    <div class="czp-tot"><span>Total de tu escalera</span><div><b data-czp-total></b><small data-czp-cuotas></small></div></div>
+  </div>
+  <script type="application/json" data-czp-variantes>{{ product.variants | json }}</script>
+</div>
+<script>
+(function () {
+  var root = document.querySelector('[data-czp]');
+  if (!root) return;
+  var info = root.closest('product-info') || document;
+  var selM = info.querySelector('select[name="options[{{ opt_m.name }}]"]');
+  var selA = info.querySelector('select[name="options[{{ opt_a.name }}]"]');
+  var qty = info.querySelector('input[name="quantity"]');
+  var IM = {{ idx_m }}, IA = {{ idx_a }};
+  if (!selM || !selA || !qty) return;          /* sin los controles del tema: se queda lo de siempre */
+  var vars;
+  try { vars = JSON.parse(root.querySelector('[data-czp-variantes]').textContent); } catch (e) { return; }
+
+  function pesos(c) { return '$' + Math.round(c / 100).toLocaleString('es-CL'); }
+  function cant() { var n = parseInt(qty.value, 10); return n > 0 ? n : 1; }
+  function variante() {
+    for (var i = 0; i < vars.length; i++) {
+      if (vars[i].options[IM] === selM.value && vars[i].options[IA] === selA.value) return vars[i];
+    }
+    return null;
+  }
+  function pintar() {
+    var v = variante(), n = cant();
+    root.querySelectorAll('.czp-m').forEach(function (b) { b.classList.toggle('on', b.dataset.v === selM.value); });
+    root.querySelectorAll('.czp-chips button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === selA.value); });
+    root.querySelector('[data-czp-madn]').textContent = selM.value;
+    root.querySelector('[data-czp-cant]').textContent = n;
+    if (!v) return;
+    var t = v.price * n;
+    root.querySelector('[data-czp-unit]').textContent = pesos(v.price);
+    root.querySelector('[data-czp-total]').textContent = pesos(t);
+    root.querySelector('[data-czp-cuotas]').textContent = 'o 3 cuotas sin interés de ' + pesos(Math.floor(t / 3 / 100) * 100);
+    var comp = document.querySelector('[data-czp-compartir]');
+    if (comp) {
+      var txt = 'Peldaños Casa Zaru: ' + n + ' de ' + v.options[IM] + ', ' + v.options[IA] + ', 4 cm macizos.\n\n' +
+                'Total ' + pesos(t) + ' + envío.\n\n' + location.origin + location.pathname + '?variant=' + v.id;
+      comp.href = 'https://wa.me/?text=' + encodeURIComponent(txt);
+    }
+  }
+  function elegir(sel, val) {
+    if (sel.value === val) return;
+    sel.value = val;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function fijarCant(n) {
+    qty.value = Math.max(1, Math.min(99, n));
+    qty.dispatchEvent(new Event('change', { bubbles: true }));
+    pintar();
+  }
+
+  root.querySelectorAll('.czp-m').forEach(function (b) { b.addEventListener('click', function () { elegir(selM, b.dataset.v); pintar(); }); });
+  root.querySelectorAll('.czp-chips button').forEach(function (b) { b.addEventListener('click', function () { elegir(selA, b.dataset.v); pintar(); }); });
+  root.querySelectorAll('[data-czp-q]').forEach(function (b) { b.addEventListener('click', function () { fijarCant(cant() + Number(b.dataset.czpQ)); }); });
+  document.addEventListener('change', function () { setTimeout(pintar, 80); });
+
+  root.hidden = false;
+  if (info.classList) info.classList.add('czp-ok');
+  if (cant() === 1) fijarCant({{ cant_base }}); else pintar();
+})();
+</script>
+{%- endif -%}
+
+{%- if parte == 'despues' -%}
+<div class="czp">
+  <div class="czp-banda tres">
+    <div>{% render 'cz-icono', i: 'escudo' %}Garantía<br>5 años</div>
+    <div>{% render 'cz-icono', i: 'reloj' %}Fabricación 7 a 15 días hábiles</div>
+    <div>{% render 'cz-icono', i: 'camion' %}Despacho a todo Chile</div>
+  </div>
+  <div class="czp-alts">
+    <a href="https://wa.me/?text={{ 'Peldaños Casa Zaru: ' | append: shop.url | append: product.url | url_encode }}" target="_blank" rel="noopener" data-czp-compartir><b>{% render 'cz-icono', i: 'compartir', clase: 'czi s' %} Compartir este total</b>para tu arquitecto o para decidir después</a>
+    <a href="https://wa.me/{{ wa_web }}?text={{ 'Hola, quiero ayuda para elegir peldaños.' | url_encode }}" target="_blank" rel="noopener"><b>{% render 'cz-icono', i: 'mensaje', clase: 'czi s' %} Hablar con nosotros</b>te ayudamos a elegir</a>
+  </div>
+  <div class="czp-medida">
+    <h4>¿Tu escalera no es estándar? La mayoría no lo es.</h4>
+    <ul>
+      <li>Fondo distinto a 30 cm o ancho bajo 80 cm</li>
+      <li>Peldaños de distinto largo, descanso o abanico</li>
+      <li>Revestir una escalera de hormigón (2 cm)</li>
+      <li>Con contrahuellas a juego</li>
+    </ul>
+    <a class="czp-btn2" href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">Cotizar a mi medida, precio al instante {% render 'cz-icono', i: 'flecha', clase: 'czi s' %}</a>
+  </div>
+</div>
+{%- endif -%}
