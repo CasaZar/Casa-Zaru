@@ -82,7 +82,9 @@ $lin = Get-Tabla 'cotizacion_lineas'
 $toq = Get-Tabla 'toques'
 Write-Host "  cotizaciones: $($cot.Count)  lineas: $($lin.Count)  toques: $($toq.Count)"
 
-$vivas = @($cot | Where-Object { -not $_.eliminada })
+# los leads creados a mano (lead_manual, 28-10-2026) no cotizaron: fuera de los conteos.
+# Siguen en crudo\cotizaciones.json.
+$vivas = @($cot | Where-Object { -not $_.eliminada -and -not $_.lead_manual })
 
 # ── ventanas de tiempo ──
 $ahora = Get-Date

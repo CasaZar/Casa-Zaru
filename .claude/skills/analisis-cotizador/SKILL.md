@@ -23,6 +23,11 @@ Get-Content C:\Users\dell\.casazaru\snapshots\ultimo.txt   # ruta del snapshot m
 Lee el `resumen.json` de esa carpeta. Si necesitas detalle que no está agregado,
 está el crudo en `crudo\cotizaciones.json`, `crudo\lineas.json` y `crudo\toques.json`.
 
+**Leads creados a mano (desde el 28-10-2026):** las filas con `lead_manual` no nulo
+(`'Claude'` = revisión de WhatsApp) son clientes que escribieron sin cotizar en la
+web. El resumen ya las excluye; si cuentas desde el crudo, sácalas tú también
+(`-not $_.lead_manual`), igual que las eliminadas y las pruebas.
+
 **Si el snapshot tiene más de 8 días o no existe**, dilo de entrada y ofrece correr
 el script a mano antes de analizar — un análisis sobre datos viejos es peor que
 ninguno.

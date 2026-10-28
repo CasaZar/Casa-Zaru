@@ -155,7 +155,8 @@ if (Test-Path $kpiPath) {
   if (Test-Path $cotPath) {
     # En PS 5.1 ConvertFrom-Json entrega el arreglo como UN objeto: se guarda primero y recién ahí se filtra.
     $cotRaw = [IO.File]::ReadAllText($cotPath, [Text.Encoding]::UTF8) | ConvertFrom-Json
-    $cot = @($cotRaw | Where-Object { -not $_.eliminada })
+    # sin los leads creados a mano (lead_manual, 28-10-2026): no cotizaron en el Cotizador
+    $cot = @($cotRaw | Where-Object { -not $_.eliminada -and -not $_.lead_manual })
     function Tel($s) { $d = ("$s" -replace '\D', ''); if ($d.Length -ge 8) { $d.Substring($d.Length - 8) } else { '' } }
     function Mail($s) { if ("$s" -match '[\w\.\-+]+@[\w\-]+\.[\w\.\-]+') { $matches[0].ToLower() } else { '' } }
     $idx = @{}
