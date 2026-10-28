@@ -172,34 +172,44 @@
 })(function () {
   var root = document.querySelector('[data-czp]');
   if (!root) return;
-  var info = root.closest('product-info') || document;
-  var selM = info.querySelector('select[name="options[{{ opt_m.name }}]"]');
-  var selA = info.querySelector('select[name="options[{{ opt_a.name }}]"]');
-  var qty = info.querySelector('input[name="quantity"]');
   var IM = {{ idx_m }}, IA = {{ idx_a }};
-  if (!selM || !selA || !qty) return;          /* sin los controles del tema: se queda lo de siempre */
+  /* Dawn redibuja partes del formulario al cambiar de variante (la cantidad vuelve a 1):
+     por eso los controles se buscan de nuevo cada vez y la cantidad elegida se guarda acá. */
+  function info() { return root.closest('product-info') || document.querySelector('product-info') || document; }
+  function selM() { return info().querySelector('select[name="options[{{ opt_m.name }}]"]'); }
+  function selA() { return info().querySelector('select[name="options[{{ opt_a.name }}]"]'); }
+  function qty() { return info().querySelector('input[name="quantity"]'); }
+  if (!selM() || !selA() || !qty()) return;    /* sin los controles del tema: se queda lo de siempre */
   var vars;
   try { vars = JSON.parse(root.querySelector('[data-czp-variantes]').textContent); } catch (e) { return; }
+  var n = parseInt(qty().value, 10) > 1 ? parseInt(qty().value, 10) : {{ cant_base }};
 
   function pesos(c) { return '$' + Math.round(c / 100).toLocaleString('es-CL'); }
-  function cant() { var n = parseInt(qty.value, 10); return n > 0 ? n : 1; }
+  function poner(sel, txt) { var e = root.querySelector(sel); if (e && e.textContent !== String(txt)) e.textContent = txt; }
   function variante() {
+    var m = selM().value, a = selA().value;
     for (var i = 0; i < vars.length; i++) {
-      if (vars[i].options[IM] === selM.value && vars[i].options[IA] === selA.value) return vars[i];
+      if (vars[i].options[IM] === m && vars[i].options[IA] === a) return vars[i];
     }
     return null;
   }
   function pintar() {
-    var v = variante(), n = cant();
-    root.querySelectorAll('.czp-m').forEach(function (b) { b.classList.toggle('on', b.dataset.v === selM.value); });
-    root.querySelectorAll('.czp-chips button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === selA.value); });
-    root.querySelector('[data-czp-madn]').textContent = selM.value;
-    root.querySelector('[data-czp-cant]').textContent = n;
+    var q = qty(), m = selM(), a = selA();
+    if (!q || !m || !a) return;
+    if (parseInt(q.value, 10) !== n) {           /* el tema la reseteó: se repone la elegida */
+      q.value = n;
+      q.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    root.querySelectorAll('.czp-m').forEach(function (b) { b.classList.toggle('on', b.dataset.v === m.value); });
+    root.querySelectorAll('.czp-chips button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === a.value); });
+    poner('[data-czp-madn]', m.value);
+    poner('[data-czp-cant]', n);
+    var v = variante();
     if (!v) return;
     var t = v.price * n;
-    root.querySelector('[data-czp-unit]').textContent = pesos(v.price);
-    root.querySelector('[data-czp-total]').textContent = pesos(t);
-    root.querySelector('[data-czp-cuotas]').textContent = 'o 3 cuotas sin interés de ' + pesos(Math.floor(t / 3 / 100) * 100);
+    poner('[data-czp-unit]', pesos(v.price));
+    poner('[data-czp-total]', pesos(t));
+    poner('[data-czp-cuotas]', 'o 3 cuotas sin interés de ' + pesos(Math.floor(t / 3 / 100) * 100));
     var comp = document.querySelector('[data-czp-compartir]');
     if (comp) {
       var txt = 'Peldaños Casa Zaru: ' + n + ' de ' + v.options[IM] + ', ' + v.options[IA] + ', 4 cm macizos.\n\n' +
@@ -208,24 +218,25 @@
     }
   }
   function elegir(sel, val) {
-    if (sel.value === val) return;
+    if (!sel || sel.value === val) return;
     sel.value = val;
     sel.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  function fijarCant(n) {
-    qty.value = Math.max(1, Math.min(99, n));
-    qty.dispatchEvent(new Event('change', { bubbles: true }));
-    pintar();
-  }
 
-  root.querySelectorAll('.czp-m').forEach(function (b) { b.addEventListener('click', function () { elegir(selM, b.dataset.v); pintar(); }); });
-  root.querySelectorAll('.czp-chips button').forEach(function (b) { b.addEventListener('click', function () { elegir(selA, b.dataset.v); pintar(); }); });
-  root.querySelectorAll('[data-czp-q]').forEach(function (b) { b.addEventListener('click', function () { fijarCant(cant() + Number(b.dataset.czpQ)); }); });
+  root.querySelectorAll('.czp-m').forEach(function (b) { b.addEventListener('click', function () { elegir(selM(), b.dataset.v); pintar(); }); });
+  root.querySelectorAll('.czp-chips button').forEach(function (b) { b.addEventListener('click', function () { elegir(selA(), b.dataset.v); pintar(); }); });
+  root.querySelectorAll('[data-czp-q]').forEach(function (b) {
+    b.addEventListener('click', function () { n = Math.max(1, Math.min(99, n + Number(b.dataset.czpQ))); pintar(); });
+  });
   document.addEventListener('change', function () { setTimeout(pintar, 80); });
+  /* cuando el tema termina de redibujar (llega por fetch, sin evento «change») */
+  var espera;
+  new MutationObserver(function () { clearTimeout(espera); espera = setTimeout(pintar, 120); })
+    .observe(info(), { childList: true, subtree: true });
 
   root.hidden = false;
-  if (info.classList) info.classList.add('czp-ok');
-  if (cant() === 1) fijarCant({{ cant_base }}); else pintar();
+  if (info().classList) info().classList.add('czp-ok');
+  pintar();
 });
 </script>
 {%- endif -%}
