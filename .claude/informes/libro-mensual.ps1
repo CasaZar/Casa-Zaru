@@ -220,7 +220,12 @@ function MejorCartola($filtro, $leer) {
   }
   [pscustomobject]@{ archivo = $mejor; filas = $filas }
 }
-$cBci = MejorCartola '*Movimientos_Detallado_Cuenta_7175*.xlsx' ${function:FilasBci}
+# BCI: se juntan TODAS las cartolas del mes sin repetir movimientos (fecha, hora, montos y saldo). Cada export cubre un
+# rango distinto: el del 28-10 empezaba el 02-10 y, tomando solo una, se perdían los pagos del 01-10 ($3,7M el 28-10).
+$bciArchivos = @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter '*Movimientos_Detallado_Cuenta_7175*.xlsx' | Where-Object { $_.LastWriteTime -ge $iniMes } | Sort-Object LastWriteTime -Descending)
+$bciVistos = @{}; $bciFilas = @()
+foreach ($a in $bciArchivos) { foreach ($x in @(FilasBci $a.FullName)) { $k = "$($x.fecha.ToString('yyyyMMdd'))|$($x.hora)|$($x.ing)|$($x.egr)|$($x.saldo)"; if (-not $bciVistos.ContainsKey($k)) { $bciVistos[$k] = 1; $bciFilas += $x } } }
+$cBci = [pscustomobject]@{ archivo = $(if ($bciArchivos.Count) { $bciArchivos[0] } else { $null }); filas = $bciFilas; archivos = $bciArchivos }
 $cBdc = MejorCartola 'cartola*.xls' ${function:FilasBdc}
 # Lo leído en la web del banco después de la última fecha de la cartola se suma a la caja del taller (más nuevo primero).
 $fExtra = Join-Path $CZ "movs-extra-$tag.csv"; if (-not (Test-Path $fExtra)) { $fExtra = $null }
@@ -246,7 +251,7 @@ foreach ($c in @(@('BCI 7175', $cBci, 'egr'), @('Banco de Chile', $cBdc, 'cargo'
 # cargar-cartolas.ps1 toma la cartola más nueva de la carpeta que se le pasa: se le pasa una con las dos elegidas.
 $dirCart = Join-Path $env:TEMP ('libro-cartolas-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $dirCart | Out-Null
-foreach ($a in @($cBci.archivo, $cBdc.archivo) | Where-Object { $_ }) { Copy-Item $a.FullName $dirCart }
+foreach ($a in @(@($cBci.archivos) + @($cBdc.archivo)) | Where-Object { $_ }) { Copy-Item $a.FullName $dirCart }
 # Tarjeta Visa 8340 de Banco de Chile (export "Movimientos[No]Facturados.xls") y movimientos leídos en la web del banco
 # cuando la cartola no alcanza (movs-extra-AAAA-MM.csv, privado).
 $tarjetas = @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'Movimientos*Facturados*.xls' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $iniMes })
@@ -744,7 +749,7 @@ $f = New-Object System.Collections.ArrayList
 Titulo $f "Semanas — $mesNom" 'Cuadre semanal: cada peso que salió de BCI, Banco de Chile, la tarjeta Visa 8340 y la tarjeta de Mercado Pago, con su justificación (factura, regla o traspaso). Las semanas van de lunes a domingo para que no se pierda ningún pago. Lo único que hay que mirar es lo que dice SIN JUSTIFICAR.'
 Sub $f 'Resumen por semana'
 Tabla $f @('Semana', 'Pagos', 'Salió', 'Sin justificar', 'Pagos sin justificar', 'Estado') @($semanas | ForEach-Object { ,@($_.nombre, (C $_.n 7), $_.salio, $_.sinJust, (C $_.nSin 7), $(if ($_.nSin) { 'Revisar' } elseif (-not $_.completa) { 'En curso' } else { 'Cerrada ✓' })) }) @(2, 3)
-$fuentesSem = @("cartolas $((@(@($cBci.archivo, $cBdc.archivo) | Where-Object { $_ } | ForEach-Object { $_.Name })) -join ' y ')")
+$fuentesSem = @("cartolas BCI $((@($cBci.archivos) | ForEach-Object { $_.Name }) -join ', ') (unidas sin repetir) y $(if ($cBdc.archivo) { $cBdc.archivo.Name } else { 'sin Banco de Chile' })")
 $fuentesSem += if ($mp.Count) { 'Mercado Pago: estado de cuenta del mes' } elseif ($liq.Count) { "Mercado Pago: liquidaciones hasta el $($liqHasta.ToString('dd-MM')) ($($liqArchivo.Name))$(if ($capHasta -and $capHasta -gt $liqHasta) { " + capturas de la actividad hasta el $($capHasta.ToString('dd-MM'))" })" } else { 'Mercado Pago: SIN DATOS (faltan las liquidaciones en Descargas), los pagos de la tarjeta no están' }
 if ($tarjetas.Count) { $fuentesSem += "tarjeta Visa 8340: $(($tarjetas | ForEach-Object { $_.Name }) -join ' y ')" }
 if ($fExtra) { $fuentesSem += "movimientos leídos en la web del banco (movs-extra-$tag.csv)" }
