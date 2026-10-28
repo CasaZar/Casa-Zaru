@@ -13,31 +13,36 @@
   .czs .czi{width:30px;height:30px;fill:none;stroke:var(--czp-cafe);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 7px}
   .czs .czi.s{width:16px;height:16px;margin:0;display:inline-block;vertical-align:-3px}
   .czs-in{max-width:720px;margin:0 auto;padding:0 16px}
-  .czs-blk{padding:36px 0}
+  /* 28-10 (usuario): más aire entre secciones y frases centradas. Las listas
+     (pasos, proceso, preguntas) siguen a la izquierda, pero como bloque al centro */
+  .czs-blk{padding:56px 0}
+  @media (min-width:750px){.czs-blk{padding:80px 0}}
   .czs-blk.alt{background:#faf8f5}
-  .czs-eb{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--czp-verde)}
-  .czs h2{font-family:var(--font-heading-family);font-size:26px;line-height:1.2;margin:6px 0 8px;letter-spacing:0}
-  .czs .lead{font-size:14px;color:var(--czp-gris);margin:0 0 16px;line-height:1.5}
+  .czs-eb{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--czp-verde);text-align:center}
+  .czs h2{font-family:var(--font-heading-family);font-size:26px;line-height:1.2;margin:8px auto 10px;letter-spacing:0;text-align:center;max-width:560px}
+  .czs .lead{font-size:14px;color:var(--czp-gris);margin:0 auto 28px;line-height:1.5;text-align:center;max-width:520px}
   .czs-sur{background:var(--czp-verde);color:#F1ECE4}
   .czs-sur img{width:100%;height:260px;object-fit:cover;display:block}
-  .czs-sur .czs-in{padding-top:24px;padding-bottom:30px}
+  @media (min-width:750px){.czs-sur img{height:380px}}
+  .czs-sur .czs-in{padding-top:44px;padding-bottom:52px}
+  @media (min-width:750px){.czs-sur .czs-in{padding-top:64px;padding-bottom:72px}}
   .czs-sur .czs-eb{color:#D4AC74}
   .czs-sur h2{color:#fff}
-  .czs-sur p{font-size:14px;line-height:1.65;margin:0 0 14px;opacity:.95}
-  .czs-esp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0;max-width:420px}
+  .czs-sur p{font-size:14px;line-height:1.65;margin:0 auto 14px;opacity:.95;text-align:center;max-width:560px}
+  .czs-esp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:28px auto;max-width:420px}
   .czs-esp div{text-align:center;font-size:12px}
   .czs-esp img{width:100%;height:auto;aspect-ratio:1;object-fit:cover;border-radius:50%;border:2px solid #D4AC74;margin-bottom:5px;display:block}
-  .czs-arbol{background:rgba(241,236,228,.12);border-radius:10px;padding:11px 13px;font-size:13px;display:flex;gap:8px;align-items:center}
+  .czs-arbol{background:rgba(241,236,228,.12);border-radius:10px;padding:11px 13px;font-size:13px;display:flex;gap:8px;align-items:center;justify-content:center;text-align:center;max-width:520px;margin:0 auto}
   .czs-arbol .czi{stroke:#F1ECE4}
   .czs-band{display:grid;grid-template-columns:1fr 1fr;gap:22px 12px;background:var(--czp-banda);border-radius:14px;padding:22px 14px}
   @media (min-width:750px){.czs-band{grid-template-columns:repeat(4,1fr)}}
   .czs-band div{text-align:center;font-size:12.5px;line-height:1.4;color:var(--czp-gris)}
   .czs-band b{display:block;font-size:13.5px;color:#1F1D24;margin-bottom:2px}
-  .czs-cita{margin-top:12px;background:var(--czp-crema);border-left:4px solid var(--czp-verde);padding:11px 13px;border-radius:8px;font-size:14px}
+  .czs-cita{margin-top:20px;background:var(--czp-crema);padding:13px 16px;border-radius:10px;font-size:14px;text-align:center}
   .czs-plano{background:var(--czp-banda);border-radius:14px;padding:12px 14px 6px;margin-bottom:12px}
   .czs-plano svg{width:100%;height:auto;display:block;max-width:520px;margin:0 auto}
   .czs-pt{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--czp-cafe)}
-  .czs-pasos{list-style:none;padding:0;margin:14px 0 0}
+  .czs-pasos{list-style:none;padding:0;margin:22px auto 0;max-width:520px}
   .czs-pasos li{display:flex;gap:10px;margin-bottom:12px;font-size:14px;line-height:1.45;color:var(--czp-gris)}
   .czs-pasos li>span{flex:none;width:22px;height:22px;border-radius:50%;background:var(--czp-naranjo);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
   .czs-pasos b{display:block;color:#1F1D24;font-size:14.5px}
@@ -48,13 +53,14 @@
   .czs td{padding:10px 6px;border-bottom:1px solid #eee;text-align:center;line-height:1.3;color:var(--czp-gris)}
   .czs td:first-child{text-align:left;color:#1F1D24;font-weight:500}
   .czs td.cz{background:#eef1ea;font-weight:600;color:var(--czp-verde)}
-  .czs-proc{position:relative;padding-left:32px;margin-top:14px}
+  .czs-proc{position:relative;padding-left:32px;margin:24px auto 0;max-width:460px}
   .czs-proc div{position:relative;padding-bottom:16px;font-size:13.5px;color:var(--czp-gris);line-height:1.45}
   .czs-proc div:before{content:attr(data-n);position:absolute;left:-32px;top:0;width:22px;height:22px;border-radius:50%;background:#C27C3A;color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
   .czs-proc div:after{content:'';position:absolute;left:-22px;top:24px;bottom:2px;border-left:2px dotted #d8c7b0}
   .czs-proc div:last-child:after{display:none}
   .czs-proc b{display:block;color:#1F1D24;font-size:14.5px}
-  .czs-faq details{border-bottom:1px solid #e7e2da;padding:14px 0}
+  .czs-faq h2{margin-bottom:22px}
+  .czs-faq details{border-bottom:1px solid #e7e2da;padding:14px 0;max-width:620px;margin:0 auto}
   .czs-faq summary{font-weight:500;font-size:15px;list-style:none;display:flex;justify-content:space-between;gap:12px;cursor:pointer}
   .czs-faq summary::-webkit-details-marker{display:none}
   .czs-faq summary:after{content:'+';color:#C27C3A;font-size:20px;line-height:1}
@@ -155,7 +161,7 @@
       <li><span>2</span><div><b>Fondo</b>Desde atrás hasta el borde de adelante. Si quieres que sobresalga (nariz), súmalo.</div></li>
       <li><span>3</span><div><b>Cuántos</b>Cuenta los escalones, sin contar el piso de arriba.</div></li>
     </ol>
-    <p style="font-size:14px;margin:6px 0 0">¿Dudas? <a class="czs-lk" href="https://wa.me/{{ wa_web }}?text={{ 'Hola, les mando una foto de mi escalera para que me ayuden con las medidas de los peldaños.' | url_encode }}" target="_blank" rel="noopener">Mándanos una foto de tu escalera</a> y te ayudamos.</p>
+    <p style="font-size:14px;margin:14px 0 0;text-align:center">¿Dudas? <a class="czs-lk" href="https://wa.me/{{ wa_web }}?text={{ 'Hola, les mando una foto de mi escalera para que me ayuden con las medidas de los peldaños.' | url_encode }}" target="_blank" rel="noopener">Mándanos una foto de tu escalera</a> y te ayudamos.</p>
   </div></div>
 
   {%- comment -%} 4. Maciza vs. imitación {%- endcomment -%}
