@@ -49,11 +49,13 @@
   .czp-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 8px;display:flex;justify-content:space-between;gap:8px;color:#1F1D24}
   .czp-lbl span{font-weight:400;text-transform:none;letter-spacing:0;color:var(--czp-gris)}
   .czp-mad{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .czp-m{border:1.5px solid #e2dbd0;border-radius:12px;overflow:hidden;cursor:pointer;position:relative;background:#fff;padding:0;text-align:left;font:inherit;color:inherit}
+  /* <button> centra su contenido en vertical: sin flex en columna, la tarjeta con la
+     descripción más corta (Raulí) quedaba corrida respecto de su vecina */
+  .czp-m{border:1.5px solid #e2dbd0;border-radius:12px;overflow:hidden;cursor:pointer;position:relative;background:#fff;padding:0;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;min-width:0}
   .czp-m.on{border-color:#C27C3A;box-shadow:0 0 0 1px #C27C3A}
-  .czp-m img{width:100%;height:56px;object-fit:cover;display:block}
-  .czp-m .tx{display:block;padding:7px 9px 9px}
-  .czp-m b{font-size:14px;display:flex;justify-content:space-between;align-items:baseline;gap:4px}
+  .czp-m img{width:100%;height:auto;aspect-ratio:5/2;object-fit:cover;display:block;flex:none}
+  .czp-m .tx{display:block;padding:8px 10px 10px}
+  .czp-m b{font-size:14px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 6px}
   .czp-m b em{font-style:normal;font-weight:500;font-size:11.5px;color:var(--czp-gris);white-space:nowrap}
   .czp-m small{font-size:11.5px;color:var(--czp-gris);display:block;line-height:1.3;margin-top:3px}
   .czp-m .rec{position:absolute;top:6px;left:6px;background:var(--czp-verde);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px}
