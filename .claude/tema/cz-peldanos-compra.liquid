@@ -164,7 +164,12 @@
   <script type="application/json" data-czp-variantes>{{ product.variants | json }}</script>
 </div>
 <script>
-(function () {
+/* Corre cuando la página terminó de cargar: este bloque va ANTES del selector de variantes
+   y de la cantidad del tema, así que al leer el script todavía no existen. */
+(function (init) {
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})(function () {
   var root = document.querySelector('[data-czp]');
   if (!root) return;
   var info = root.closest('product-info') || document;
@@ -221,7 +226,7 @@
   root.hidden = false;
   if (info.classList) info.classList.add('czp-ok');
   if (cant() === 1) fijarCant({{ cant_base }}); else pintar();
-})();
+});
 </script>
 {%- endif -%}
 
