@@ -497,6 +497,25 @@ foreach ($v in $vMes) {
   if ($v.vendedor -eq '(sin asignar)') { Aviso "Venta #$($v.num) ($($v.cliente)) sin vendedor." }
 }
 
+# ── Renatte (madera): factura el último día del mes y cobra a los ~30 días ──
+# La madera entra al mes de la factura; el pago llega uno o dos meses después, en mitades que citan el folio o el mes
+# de la factura ("50 abono factura 978 agosto", "Pago final factura agosto"). Lo facturado y no pagado en BCI al cierre
+# del mes va a por pagar. La cartola BCI más nueva suele traer varios meses: se lee completa, sin filtrar por mes.
+$RUT_RENATTE = '77.194.395-0'
+$renPend = @()
+$renFact = @($planilla | Where-Object { "$($_.RUT)" -eq $RUT_RENATTE -and (Fecha $_.Fecha) -le $finMes })
+if ($renFact.Count -and $cBci.archivo) {
+  $renPagos = @(Read-XlsxRows $cBci.archivo.FullName | Select-Object -Skip 1 | Where-Object { $_.Count -gt 17 -and $_[0] -match '^\d' -and "$($_[11])" -match '(?i)renatte' } | ForEach-Object {
+    [pscustomobject]@{ fecha = [datetime]::FromOADate([double]::Parse($_[0], $INV)).Date; egr = (N $_[9]); nota = "$($_[17])" } } | Where-Object { $_.fecha -le $finMes })
+  foreach ($g in @($renFact | Group-Object { (Fecha $_.Fecha).ToString('yyyy-MM') })) {
+    $mesF = $MESES[[int]$g.Name.Substring(5) - 1]; $folios = @($g.Group | ForEach-Object { "$($_.Folio)" })
+    $pagado = Suma @($renPagos | Where-Object { $n = $_.nota; $n -match "(?i)$mesF" -or @($folios | Where-Object { $n -match "\b$_\b" }).Count }) 'egr'
+    $saldo = (Suma $g.Group 'Monto') - $pagado
+    if ($saldo -gt 1000) { $renPend += ,@("Renatte, madera de $($mesF.ToLower()) (factura $($folios -join ' y '))", $saldo, "facturada el $((Fecha $g.Group[0].Fecha).ToString('dd-MM')), con IVA; pagado en BCI $(Plata $pagado)") }
+  }
+}
+if ($finMes -lt (Get-Date).Date.AddDays(3) -and -not @($renFact | Where-Object { EnMes (Fecha $_.Fecha) }).Count) { Aviso "Renatte factura el último día del mes: su factura de $mesNom todavía no está en la planilla de gastos. Si hubo despachos de madera, el costo del mes queda corto hasta que llegue." }
+
 # ═════════════════════════════ INDICADORES, SEMÁFORO E HISTORIAL ═════════════════════════════
 $metas = @{ VentaNetaMes = 0; MargenBrutoMin = 0.55; CACMaxPct = 0.10; PorCobrarMaxPct = 0.25; MesesCajaMin = 1 }
 foreach ($m in LeerCsv (Join-Path $PLAN 'metas.csv')) { if ("$($m.Indicador)") { $metas["$($m.Indicador)"] = [double]::Parse("$($m.Valor)".Replace(',', '.'), $INV) } }
@@ -815,6 +834,7 @@ $suel = Suma @($sinFactura | Where-Object { $_.categoria -eq 'Sueldos y remunera
 if ($suel) { $pagar += ,@("Sueldos de $mesNom (estimado)", $suel, "igual a lo pagado este mes; ya incluye la comisión de César ($(Plata $comCesar))") }
 if ($prev) { $pagar += ,@('Previred (estimado)', $prev, 'igual a lo pagado este mes') }
 $pagar += ,@('IVA del mes', [math]::Max(0, $ivaMes), $(if ($ivaMes -lt 0) { "crédito a favor de $(Plata (-$ivaMes)) para el mes siguiente" } else { 'incluye el IVA de las ventas de feria; ver hoja IVA' }))
+$pagar += $renPend
 foreach ($m in LeerCsv (Join-Path $PLAN 'por-pagar-manual.csv')) { $pagar += ,@($m.Concepto, (N $m.Monto), $m.Nota) }
 Tabla $f @('Concepto', 'Monto', 'Nota') $pagar @(1)
 Hoja 'Por cobrar y pagar' $f @(30, 12, 30, 14, 14, 14, 30)
