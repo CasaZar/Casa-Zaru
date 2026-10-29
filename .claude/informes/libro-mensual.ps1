@@ -339,6 +339,13 @@ if ($mp.Count -and $mpSaldos) {
   $calc = $mpSaldos.saldo_inicial + $ing - $egr
   if ([math]::Abs($calc - $mpSaldos.saldo_final) -gt 1) { Aviso "Mercado Pago no cuadra: saldo calculado $(Plata $calc) vs informado $(Plata $mpSaldos.saldo_final)." }
 }
+# Cuentas sin cartola que leer (la cuenta corriente de BancoEstado, abierta en octubre de 2026): saldos informados
+# a mano en cuentas-extra-AAAA-MM.csv (Cuenta;Inicial;Entradas;Salidas;Final;Fuente). Sus movimientos no entran al cuadre.
+foreach ($x in LeerCsv (Join-Path $CZ "cuentas-extra-$tag.csv")) {
+  $caja += [pscustomobject]@{ cuenta = "$($x.Cuenta)"; inicial = (N $x.Inicial); ent = (N $x.Entradas); sal = (N $x.Salidas); final = (N $x.Final); trI = 0; trE = 0 }
+  Aviso "$($x.Cuenta): saldo $(Plata (N $x.Final)) informado a mano ($($x.Fuente)), sin cartola: sus movimientos no están en el cuadre semanal."
+}
+$cajaCuentas = (@($caja | ForEach-Object { $_.cuenta -replace '\s*\(.*$', '' -replace '\s+\d+$', '' }) | Select-Object -Unique) -join ' + '
 # ── Salidas de Mercado Pago: la tarjeta prepago y las compras ──
 # Con la tarjeta prepago de Mercado Pago se paga Facebook (Meta), Claude, Manychat, bencina, cursos y compras en Mercado
 # Libre. Ni el estado de cuenta ni las liquidaciones traen el nombre del comercio: lo traen las capturas de la actividad
@@ -681,7 +688,7 @@ $kp = @(
   @('Venta neta', $ventaNeta, (Ant 'VentaNeta'), "$($vMes.Count) pedidos + $($ventasML.Count) Mercado Libre + $($ventasFeria.Count) ventas de feria"),
   @('Margen bruto', $margenBruto, (Ant 'MargenBruto'), "venta − materiales ($([math]::Round($pctMB * 100)) % de la venta)"),
   @('Resultado del mes', $resultado, (Ant 'Resultado'), 'después de todos los gastos del mes'),
-  @('Caja al cierre', $cajaFin, (Ant 'Caja'), 'BCI + Banco de Chile + Mercado Pago'),
+  @('Caja al cierre', $cajaFin, (Ant 'Caja'), $cajaCuentas),
   @('Por cobrar', $porCobrar, (Ant 'PorCobrar'), "$($cobrar.Count) pedidos con saldo"),
   @('Publicidad por pedido (CAC)', [math]::Round($cac), (Ant 'CAC'), 'Meta + Google ÷ pedidos del mes'),
   @('Madera por m² vendido', $(if ($m2Mes -gt 0) { [math]::Round($maderaTot / $m2Mes) } else { 0 }), '', "$($m2Mes.ToString('N1', $cl)) m² vendidos")
@@ -773,7 +780,7 @@ if ($mp.Count) {
   Sub $f 'Mercado Pago por tipo de movimiento'
   Tabla $f @('Movimiento', 'Cantidad', 'Monto', 'Comisión') @($mp | Group-Object tipo | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'monto'), (Suma $_.Group 'comision')) }) @(1, 2, 3)
 }
-Nota $f 'BCI y Banco de Chile: saldos tomados de la cartola. Mercado Pago: saldos del estado de cuenta.'
+Nota $f 'BCI y Banco de Chile: saldos tomados de la cartola. Mercado Pago: saldos del estado de cuenta. BancoEstado: saldo informado a mano (cuentas-extra-AAAA-MM.csv).'
 Hoja 'Caja' $f @(38, 15, 15, 15, 15, 17, 17)
 
 # ── 3. Ventas ──

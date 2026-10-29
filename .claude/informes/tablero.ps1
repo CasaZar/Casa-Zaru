@@ -52,7 +52,7 @@ function Tablero($ruta) {
   $tiles = (Tile 'Venta neta' (Plata $ventaNeta) (Delta $ventaNeta 'VentaNeta') "$($vMes.Count) pedidos + Mercado Libre + ferias") +
            (Tile 'Resultado del mes' (Plata $resultado) (Delta $resultado 'Resultado') 'después de todos los gastos') +
            (Tile 'Margen bruto' "$([math]::Round($pctMB * 100)) %" (Delta $margenBruto 'MargenBruto') "$(Plata $margenBruto), venta menos materiales") +
-           (Tile 'Caja' (Plata $cajaFin) (Delta $cajaFin 'Caja') 'BCI + Banco de Chile + Mercado Pago') +
+           (Tile 'Caja' (Plata $cajaFin) (Delta $cajaFin 'Caja') $cajaCuentas) +
            (Tile 'Por cobrar' (Plata $porCobrar) (Delta $porCobrar 'PorCobrar' $false) "$($cobrar.Count) pedidos con saldo") +
            (Tile 'Publicidad por pedido' (Plata ([math]::Round($cac))) (Delta $cac 'CAC' $false) "$(Plata $ads) en Meta y Google")
   $luces = ($semaforo | ForEach-Object { "<li class=`"$($_.estado)`"><span class=`"ic`" aria-hidden=`"true`">$($_.icono)</span><div><b>$(Hx $_.nombre)</b> <span class=`"est`">$(Hx $_.estado.ToUpper())</span><div class=`"d`">$(Hx $_.valor). $(Hx $_.accion)</div></div></li>" }) -join ''
