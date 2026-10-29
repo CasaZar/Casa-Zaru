@@ -588,6 +588,7 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .sc.late { background:#FCEBEB;border-color:#E24B4A;color:#A32D2D; }
 .seg-cambio { display:inline-block;margin-left:5px;font-size:10.5px;font-weight:700;background:#FDECEF;color:#993556;border:1px solid #E4C3CE;border-radius:10px;padding:1px 7px;cursor:pointer; }
 .seg-nota { cursor:help;margin-left:4px;font-size:11px; }
+.seg-web { display:inline-block;margin-right:6px;font-size:9.5px;font-weight:700;letter-spacing:.04em;background:#E8EEE3;color:#485B3D;border:1px solid #C5D1BC;border-radius:10px;padding:1px 6px;vertical-align:1px; }
 .seg-edit { background:none;border:none;cursor:pointer;color:var(--text-3);font-size:14px;padding:2px 6px; }
 .seg-edit:hover { color:var(--brand); }
 @media (max-width:768px){
@@ -28415,8 +28416,13 @@ function _filaSeg(o,fr,hoy){
   });
   var nota=notas.length?'<span class="seg-nota" title="'+esc(notas.join('\n'))+'">📝</span>':'';
   var nom=((o.nombre||'')+' '+(o.apellido||'')).trim();
+  // Distintivo de compra por la web: el canal del pedido o la marca de Finanzas
+  // (orden web, cobro Shopify o vendedor «Web»). Va antes del nombre para que la
+  // elipsis no lo esconda.
+  var fin=finRecords.find(function(r){return String(r.num||'')===numStr;});
+  var web=(o.canal==='web'||esVentaWeb(fin))?'<span class="seg-web" title="Compró por la web">WEB</span>':'';
   return '<tr class="seg-fila"><td class="l num sticky1" style="border-left:5px solid '+fr.borde+'">'+esc(numStr||'—')+'</td>'+
-    '<td class="l cli sticky2" title="'+esc(nom)+'">'+esc(nom)+nota+'</td>'+
+    '<td class="l cli sticky2" title="'+esc(nom)+'">'+web+esc(nom)+nota+'</td>'+
     '<td class="l prod" title="'+esc(o.producto)+'">'+esc(o.producto)+'</td>'+
     '<td class="env">'+env+'</td>'+celdas+
     '<td><button class="seg-edit" title="Editar pedido" onclick="openModal(\''+numStr+'\')">✎</button></td></tr>';
