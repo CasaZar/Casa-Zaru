@@ -26362,7 +26362,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
   <div class="api-ok" id="api-ok">✓ API Key guardada — listo para analizar pantallazos<button class="api-cambiar" onclick="cambiarApiKey()">Cambiar</button></div>
   <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:24px">
-    <div class="stat-card"><div class="stat-label">Pedidos cargados</div><div class="stat-val wood" id="p-ped">0</div></div>
+    <div class="stat-card"><div class="stat-label" title="Ventas cuya semana de producción cae en el período. El Dashboard cuenta por fecha de venta.">Pedidos en producción</div><div class="stat-val wood" id="p-ped">0</div></div>
     <div class="stat-card"><div class="stat-label">Líneas producción</div><div class="stat-val" id="p-lin">0</div></div>
   </div>
   <div class="uzone" id="dz">
@@ -30120,7 +30120,9 @@ async function generarEtiquetaCompra(sem){
   var a=document.createElement('a');a.href=URL.createObjectURL(buf);a.download=fname;a.click();
   showToast('Descargado: '+fname);
 }
-function updateProdStats(){var fp=prodOrders.filter(function(o){return enPeriodo('prod',o);});document.getElementById('p-ped').textContent=fp.length;document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
+// Pedidos = solo ventas (esVenta), igual que el Dashboard: los muestrarios y la
+// post venta pasan por el taller pero no son pedidos (29-10-2026). Se muestran aparte.
+function updateProdStats(){var fp=prodOrders.filter(function(o){return enPeriodo('prod',o);});var nv=soloVentas(fp).length,otros=fp.length-nv;document.getElementById('p-ped').innerHTML=nv+(otros?' <span style="font-size:12px;font-weight:400;color:var(--text-3)">+ '+otros+' muestrario o post venta</span>':'');document.getElementById('p-lin').textContent=fp.reduce((s,o)=>s+(o.lineas||[]).length,0);}
 function exportProdCSV(){
   if(!prodOrders.length){showToast('No hay pedidos para exportar');return;}
   const rows=[['PEDIDO','ENVÍO','COMPRADOR','APELLIDO','PRODUCTO','CANTIDAD','MADERA','LARGO','ANCHO','CANTO','ACABADO','ESPESOR','OBSERVACIONES','MTRS2'].join(',')];
