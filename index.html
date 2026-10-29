@@ -313,6 +313,35 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .fe-tot b.ok { color: #485B3D; }
 .fe-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .fe-vacio { padding: 30px 0; text-align: center; color: var(--text-3); font-size: 13px; }
+/* Botones con nombre (29-10-2026): cada acción dice lo que hace, con un ícono de
+   línea al lado. Reemplazan los 📄 📝 ✏️ y el «anular» chiquito de las fichas. */
+.zb { display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 12.5px; font-weight: 600; border: 1px solid #D9CFC2; background: #fff; color: var(--text); cursor: pointer; text-decoration: none; white-space: nowrap; line-height: 1.2; }
+.zb:hover { border-color: #B8A994; background: #FBF8F3; }
+.zb svg { width: 15px; height: 15px; flex-shrink: 0; }
+.zb.pri { background: #B5652E; border-color: #B5652E; color: #fff; }
+.zb.pri:hover { background: #9E5525; border-color: #9E5525; }
+.zb.rojo { color: #A32D2D; }
+.zb.lote.on { background: #E3E8DD; border-color: #C5D1BC; color: #3A4A31; }
+.zb[disabled] { opacity: .6; cursor: default; }
+.zl { background: none; border: none; padding: 0; font: inherit; font-size: 12px; color: #8C8077; text-decoration: underline; cursor: pointer; }
+.zl:hover { color: var(--text); }
+.zl.rojo { color: #A32D2D; }
+.zp { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+.zp.ok { background: #E3E8DD; color: #3A4A31; }
+.zp.pe { background: #F5E6DA; color: #8A4A20; }
+.zp.proc { background: #FAEEDA; color: #854F0B; }
+.zp.gris { background: #EEE9E3; color: #8C8077; font-weight: 500; }
+.zdoc { background: #fff; border: 1px solid #ECE4D8; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.zdoc:last-child { margin-bottom: 0; }
+.zdoc-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 13px; }
+.zdoc-sub { font-size: 12px; color: #8C8077; margin: 4px 0 10px; }
+.zdoc-acc { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.zdoc-lnk { margin-top: 8px; display: flex; gap: 14px; flex-wrap: wrap; }
+.zseg { display: inline-flex; border: 1px solid #D9CFC2; border-radius: 8px; overflow: hidden; margin: 8px 0 10px; }
+.zseg button { background: #fff; border: none; padding: 6px 14px; font: inherit; font-size: 12px; color: var(--text-2); cursor: pointer; }
+.zseg button + button { border-left: 1px solid #D9CFC2; }
+.zseg button.on { background: #485B3D; color: #fff; font-weight: 600; }
+.zcmd-nota { font-size: 11.5px; color: #8C8077; margin-top: 6px; }
 /* Producción: misma vista simple, pensada para el pantallazo al jefe de taller. */
 #prod-editorial { display: none; }
 @media (min-width: 769px) {
@@ -26543,8 +26572,8 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-ghost" style="font-size:12px" onclick="exportProdXLSX()">↓ Excel</button>
-      <button id="btn-gen-batch" class="btn-add" style="font-size:12px;display:none" onclick="generarEtiquetasBatch()">📄 Etiquetas seleccionadas (<span id="batch-count">0</span>)</button>
-      <button id="btn-doc-batch" class="btn-add" style="font-size:12px;display:none" onclick="cargarComandasDocSel()">📝 Cargar al Doc (<span id="batch-count-doc">0</span>)</button>
+      <button id="btn-gen-batch" class="btn-add" style="font-size:12px;display:none" onclick="generarEtiquetasBatch()">Bajar etiquetas del lote (<span id="batch-count">0</span>)</button>
+      <button id="btn-doc-batch" class="btn-add" style="font-size:12px;display:none" onclick="cargarComandasDocSel()">Cargar lote al Doc (<span id="batch-count-doc">0</span>)</button>
     </div>
   </div>
   <div id="prod-filtros" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
@@ -26594,7 +26623,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="tbtn" onclick="syncFinFromProd()" style="background:var(--amber);color:#fff;border-color:transparent;font-size:12px">⟳ Sincronizar</button>
       <button class="btn-ghost" id="btn-boletas-web" style="font-size:12px" onclick="traerBoletasWeb(true)" title="Trae de Wasabil las boletas que Shopify emitió para las ventas web">🔎 Boletas web</button>
       <button class="btn-ghost" style="font-size:12px" onclick="exportFinCSV()">↓ Excel</button>
-      <button id="btn-envio-batch" class="btn-add" style="font-size:12px;display:none;background:var(--wood)" onclick="generarEtiquetasEnvioBatch()">📦 Etiquetas envío (<span id="envio-batch-count">0</span>)</button>
+      <button id="btn-envio-batch" class="btn-add" style="font-size:12px;display:none;background:var(--wood)" onclick="generarEtiquetasEnvioBatch()">Bajar lote de envío (<span id="envio-batch-count">0</span>)</button>
       <button class="btn-add" onclick="openFinModal()">+ Agregar registro</button>
     </div>
   </div>
@@ -29513,6 +29542,32 @@ function _titMay(s){s=String(s||'');return s.charAt(0)+s.slice(1).toLowerCase();
 function prodCampoEd(numStr,field,val,li){var oi=_prodIdx(numStr);if(oi<0)return;updateProdField(oi,field,val,li);renderProd();}
 function prodEstadoEd(numStr,val){var oi=_prodIdx(numStr);if(oi<0)return;updateProdEstado(oi,val);renderProd();}
 function prodEtqEd(numStr,li,ch){var oi=_prodIdx(numStr);if(oi<0)return;toggleEtiquetaSel(oi,li,ch);}
+// Caja «Comanda del taller» de cada pieza: si ya está en el Doc, y los botones
+// con nombre para bajar la etiqueta, cargarla al Doc o sumarla al lote.
+function _prodComandaCaja(o,l,oi,li,q){
+  var sel=etiquetasSeleccionadas.has(oi+'-'+li);
+  return '<div class="zdoc" style="margin-top:10px"><div class="zdoc-h"><b>Comanda del taller</b>'+_cmdBadge(o,l,true)+'</div>'+
+    '<div class="zdoc-acc" style="margin-top:10px">'+
+    '<button class="zb" onclick="generarEtiquetaProd('+oi+','+li+')" title="Baja el .docx de esta pieza">'+_zIco('bajar')+'Bajar etiqueta</button>'+
+    (COMANDAS_URL?'<button class="zb" onclick="cargarComandaDoc('+q+','+li+')" title="La escribe en el Doc COMANDA PEDIDO, en la pestaña de su semana">'+_zIco('subir')+'Cargar al Doc</button>':'')+
+    '<button class="zb lote'+(sel?' on':'')+'" onclick="prodLoteBtn('+q+','+li+',this)">'+_prodLoteTxt(sel)+'</button></div>'+
+    '<div class="zcmd-nota">El lote junta varias piezas para bajarlas o cargarlas al Doc de una vez, con los botones de arriba de la página.</div></div>';
+}
+function _prodLoteTxt(sel){var n=etiquetasSeleccionadas.size;return sel?_zIco('lote')+'En el lote ('+n+')':_zIco('caja')+'Agregar al lote';}
+function prodLoteBtn(numStr,li,btn){
+  var oi=_prodIdx(numStr);if(oi<0)return;
+  var sel=!etiquetasSeleccionadas.has(oi+'-'+li);
+  toggleEtiquetaSel(oi,li,sel);
+  // El conteo cambia en todos los botones del lote que estén a la vista.
+  document.querySelectorAll('#prod-editorial .zb.lote.on').forEach(function(b){b.innerHTML=_prodLoteTxt(true);});
+  btn.classList.toggle('on',sel);btn.innerHTML=_prodLoteTxt(sel);
+}
+function finLoteEnvio(numStr,btn){
+  var sel=!envioSeleccionados.has(String(numStr));
+  toggleEnvioSel(String(numStr),sel);
+  btn.classList.toggle('on',sel);
+  btn.innerHTML=_zIco(sel?'lote':'caja')+(sel?'En el lote de envío':'Agregar al lote de envío');
+}
 function renderProdBandeja(base){
   var el=document.getElementById('prod-bandeja');if(!el)return;
   var tall=base.filter(function(o){var g=_prodGrupo(o);return g==='taller'||g==='atraso';});
@@ -29565,11 +29620,9 @@ function _prodFicha(o){
       '<label>Acabado<select onchange="'+c+'acabado'+e+'">'+opts(ACABADOS_PROD,l.acabado)+'</select></label>'+
       '</div><div class="pe-ed2"><label>Observaciones<input value="'+esc(l.observaciones||'')+'" onchange="'+c+'observaciones'+e+'"></label>'+
       (categoriaProducto(l.producto)==='Cubierta mesa'?'<label class="pe-chk"><input type="checkbox" '+(l.fierro?'checked ':'')+'onchange="prodCampoEd('+q+',\'fierro\',this.checked,'+li+')"> Base de fierro</label>':'')+
-      (l._vacia?'':'<label class="pe-chk" title="Para «Etiquetas seleccionadas» y «Cargar al Doc»"><input type="checkbox" class="etq-check" '+(etiquetasSeleccionadas.has(oi+'-'+li)?'checked ':'')+'onchange="prodEtqEd('+q+','+li+',this.checked)"> En lote</label>'+
-        '<button class="btn-ghost" onclick="generarEtiquetaProd('+oi+','+li+')" title="Generar etiqueta individual">📄</button>'+
-        (COMANDAS_URL?'<button class="btn-ghost" onclick="cargarComandaDoc('+q+','+li+')" title="Cargar al Doc COMANDA PEDIDO">📝</button>':'')+_cmdBadge(o,l))+
-      ((o.lineas||[]).length>1?'<button class="btn-ghost" onclick="delProdLineExist('+q+','+li+')" title="Quitar esta pieza del pedido">✕ Quitar</button>':'')+
-      '</div></div>';
+      '</div>'+(l._vacia?'':_prodComandaCaja(o,l,oi,li,q))+
+      ((o.lineas||[]).length>1?'<div style="text-align:right;margin-top:8px"><button class="zl rojo" onclick="delProdLineExist('+q+','+li+')">Quitar esta pieza</button></div>':'')+
+      '</div>';
   });
   h+='<div class="fe-acc"><button class="btn-ghost" onclick="addProdLineExist('+q+')">+ Agregar pieza</button>'+
     (usuarioRol==='admin'?'<button class="btn-ghost" onclick="abrirEnvioStarken('+q+')">🚚 Enviar con Starken</button>':'')+
@@ -31050,6 +31103,59 @@ function _docControls(numStr,docNum){
   var numInput='<input type="text" '+(emitiendo?'disabled':'')+' value="'+(r[numKey]||'')+'" placeholder="N°" onchange="finRecords['+idx+'].'+numKey+'=this.value;'+saveStr+'" style="width:50px;font-size:10px;padding:2px 4px;border:0.5px solid var(--border-mid);border-radius:4px">';
   return btnHtml+pdfLink+mLbl+'<div style="display:flex;gap:4px;align-items:center">'+selectHtml+numInput+'</div>';
 }
+// Íconos de línea para los botones con nombre (.zb). Trazo en currentColor.
+var _Z_ICO={
+  pdf:'M14 3v4a1 1 0 0 0 1 1h4M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2zM9 13h6M9 17h4',
+  anular:'M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18zM10 10l4 4m0-4l-4 4',
+  emitir:'M10 14L21 3M21 3l-6.5 18a.55.55 0 0 1-1 0L10 14l-7-3.5a.55.55 0 0 1 0-1L21 3',
+  verificar:'M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4',
+  bajar:'M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5l5-5M12 4v12',
+  subir:'M14 3v4a1 1 0 0 0 1 1h4M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2zM12 11v6M9.5 13.5L12 11l2.5 2.5',
+  lote:'M9 11l3 3l8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9',
+  caja:'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',
+  tipo:'M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0M3 6v5.17a2 2 0 0 0 .59 1.42l7.71 7.71a2.41 2.41 0 0 0 3.41 0l5.17-5.17a2.41 2.41 0 0 0 0-3.41L12.17 3.59A2 2 0 0 0 10.76 3H6a3 3 0 0 0-3 3',
+  envio:'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3M12 12l8-4.5M12 12v9M12 12L4 7.5',
+  borrar:'M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3'
+};
+function _zIco(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+_Z_ICO[n]+'"/></svg>';}
+// Tarjeta de un documento en la ficha de Finanzas: estado arriba, la acción que
+// toca como botón con nombre, y las correcciones como enlaces de texto. Llama a
+// las mismas funciones que _docControls (revisión antes de emitir, candado
+// antiduplicado, anulación con NC); la tabla detallada sigue usando _docControls.
+function _docTarjeta(numStr,docNum,titulo){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  if(!r)return'';
+  var cab='<div class="zdoc-h"><b>'+titulo+'</b>';
+  if(finLectura)return '<div class="zdoc">'+cab+'</div><div style="margin-top:6px">'+_docControls(numStr,docNum)+'</div></div>';
+  var tipoKey='doc'+docNum+'_tipo',numKey='doc'+docNum+'_num',emitidaKey='doc'+docNum+'_emitida',pdfKey='doc'+docNum+'_pdf_url',procKey='doc'+docNum+'_procesando';
+  var q="'"+numStr+"',"+docNum,tipoK=(r[tipoKey]||'BOLETA')==='FACTURA'?'FACTURA':'BOLETA',tipo=tipoK==='FACTURA'?'Factura':'Boleta';
+  var mDoc=Number(r['doc'+docNum+'_monto'])||0,mTxt=mDoc?' · '+fmtCLP(mDoc):'';
+  var pill,cuerpo,acc,lnk='';
+  if(finEmitiendo[numStr+'_'+docNum]){
+    pill='<span class="zp proc">Emitiendo…</span>';
+    cuerpo='<div class="zdoc-sub">'+tipo+mTxt+'</div>';
+    acc='<button class="zb pri" disabled>'+_zIco('emitir')+'Emitiendo…</button>';
+  }else if(r[emitidaKey]){
+    pill='<span class="zp ok">✓ Emitida</span>';
+    cuerpo='<div class="zdoc-sub">'+tipo+(r[numKey]?' N° '+esc(r[numKey]):'')+mTxt+'</div>';
+    acc=(r[pdfKey]?'<a class="zb" href="'+esc(r[pdfKey])+'" target="_blank" rel="noopener">'+_zIco('pdf')+'Ver PDF</a>':'')+
+      '<button class="zb rojo" onclick="anularDocumento('+q+')" title="Registrar la nota de crédito con que se anuló. Libera el cupo para volver a emitir.">'+_zIco('anular')+'Anular con NC</button>';
+    lnk='<button class="zl" onclick="toggleFinDoc('+q+')" title="Solo corrige el estado acá; no anula nada en el SII">Corregir: volver a «sin emitir»</button>';
+  }else if(r[procKey]){
+    pill='<span class="zp proc">En proceso</span>';
+    cuerpo='<div class="zdoc-sub">'+tipo+mTxt+' · Wasabil todavía no confirma</div>';
+    acc='<button class="zb pri" onclick="verificarFinDoc('+q+')">'+_zIco('verificar')+'Verificar en Wasabil</button>';
+    lnk='<button class="zl" onclick="marcarFinDocManual('+q+')">Ya lo vi en Wasabil: anotar el N°</button>';
+  }else{
+    pill='<span class="zp pe">Sin emitir</span>';
+    cuerpo='<div class="zseg" role="group" aria-label="Tipo de documento">'+
+      ['BOLETA','FACTURA'].map(function(t){return '<button class="'+(t===tipoK?'on':'')+'" onclick="finCampoEd(\''+numStr+'\',\''+tipoKey+'\',\''+t+'\')">'+(t==='FACTURA'?'Factura':'Boleta')+'</button>';}).join('')+
+      '</div>'+(mDoc?'<div class="zdoc-sub" style="margin-top:-4px">Facturado: '+fmtCLP(mDoc)+'</div>':'');
+    acc='<button class="zb pri" onclick="emitirConRevision('+q+')" title="Abre la revisión: ves el producto y la glosa antes de mandarlo al SII">'+_zIco('emitir')+'Revisar y emitir '+tipo.toLowerCase()+'</button>';
+    lnk='<button class="zl" onclick="marcarFinDocManual('+q+')">Ya la emití afuera: anotar el N°</button>';
+  }
+  return '<div class="zdoc">'+cab+pill+'</div>'+cuerpo+'<div class="zdoc-acc">'+acc+'</div>'+(lnk?'<div class="zdoc-lnk">'+lnk+'</div>':'')+'</div>';
+}
 function renderFin(){
   renderFinStats();renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);},'fin');renderFinCards();
   const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
@@ -31128,16 +31234,18 @@ function _finFicha(r){
     '<div class="fe-r"><span>Semana</span><input value="'+esc(r.semana)+'" placeholder="SEMANA 29 JUNIO" onchange="finCampoEd('+q+',\'semana\',this.value)"></div>'+
     '<div class="fe-r"><span>Celular</span><input value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',this.value)"></div>';
   var prodO=prodOrders.find(function(o){return String(o.pedido||'')===n;});
-  var acc='<div class="fe-acc">'+(prodO&&prodO.estado?'<span style="font-size:11px;color:var(--text-2)">🪵 '+esc(prodO.estado)+'</span>':'')+
-    '<button class="tipo-btn" title="Cambiar tipo: venta / muestrario / devolución" onclick="ciclarTipoFin('+q+')">🏷️ Tipo</button>'+
-    '<label style="font-size:11px;color:var(--text-2);display:flex;align-items:center;gap:4px"><input type="checkbox" class="envio-check"'+(envioSeleccionados.has(n)?' checked':'')+' onchange="toggleEnvioSel('+q+',this.checked)">Etiqueta en lote</label>'+
-    '<button class="btn-ghost" style="padding:4px 10px;font-size:11px;margin:0" onclick="generarEtiqueta('+q+')">📦 Etiqueta envío</button>'+
-    '<button class="btn-del" style="padding:4px 10px;font-size:11px;margin:0" onclick="deleteFinRecord_inline('+q+')">🗑 Eliminar</button></div>';
+  var tipoLbl=(TIPOS_REGISTRO.find(function(t){return t.k===tipoDe(r);})||{}).label||'Venta';
+  var enLote=envioSeleccionados.has(n);
+  var acc='<div class="fe-acc">'+(prodO&&prodO.estado?'<span class="zp gris">Taller: '+esc(prodO.estado)+'</span>':'')+
+    '<button class="zb" title="Cambia entre venta, muestrario y post venta" onclick="ciclarTipoFin('+q+')">'+_zIco('tipo')+'Tipo: '+esc(tipoLbl)+'</button>'+
+    '<button class="zb" onclick="generarEtiqueta('+q+')">'+_zIco('bajar')+'Bajar etiqueta de envío</button>'+
+    '<button class="zb lote'+(enLote?' on':'')+'" title="Junta varias etiquetas de envío para bajarlas de una vez con el botón de arriba" onclick="finLoteEnvio('+q+',this)">'+_zIco(enLote?'lote':'caja')+(enLote?'En el lote de envío':'Agregar al lote de envío')+'</button>'+
+    '<button class="zl rojo" style="margin-left:auto" onclick="deleteFinRecord_inline('+q+')">Eliminar registro</button></div>';
   return '<div class="fe-ficha" onclick="event.stopPropagation()">'+
     '<div class="fe-box"><h4>Venta</h4>'+montos+'</div>'+
     '<div class="fe-box"><h4>Pagos recibidos</h4>'+pagos+'</div>'+
     '<div class="fe-box"><h4>Datos</h4>'+datos+'</div>'+
-    '<div class="fe-box"><h4>Documento 1 · abono</h4>'+_docControls(n,1)+'<h4 style="margin-top:14px">Documento 2 · saldo</h4>'+_docControls(n,2)+'</div>'+
+    '<div class="fe-box"><h4>Documentos</h4>'+_docTarjeta(n,1,'Abono')+_docTarjeta(n,2,'Saldo')+'</div>'+
     '<div style="grid-column:1/-1">'+acc+'</div></div>';
 }
 function renderFinEditorial(list){
@@ -33986,19 +34094,21 @@ function _cmdBuscar(k){
   }
   return null;
 }
-function _cmdBadgeInner(k){
+function _cmdBadgeInner(k,largo){
   if(!comandasEnDoc)return'';
   var tabs=_cmdBuscar(k);
+  if(largo)return tabs?'<span class="zp ok" title="En el Doc: '+esc(tabs.join(', '))+'">✓ En el Doc · '+esc(tabs.map(function(t){return _titMay(String(t).replace(/^SEMANA\s+/i,''));}).join(', '))+'</span>'
+    :'<span class="zp pe">Aún no está en el Doc</span>';
   return tabs?'<span style="font-size:10px;font-weight:600;color:var(--green-text);margin-left:4px;white-space:nowrap" title="En el Doc: '+esc(tabs.join(', '))+'">✓ Doc</span>'
     :'<span style="font-size:10px;color:var(--text-3);margin-left:4px;white-space:nowrap" title="No está en el Doc COMANDA PEDIDO">sin Doc</span>';
 }
-function _cmdBadge(o,l){
+function _cmdBadge(o,l,largo){
   if(!COMANDAS_URL||l._vacia)return'';
   var k=_cmdClave(_cmdPieza(o,l,false));
-  return'<span class="cmd-doc" data-k="'+esc(k)+'">'+_cmdBadgeInner(k)+'</span>';
+  return'<span class="cmd-doc"'+(largo?' data-largo="1"':'')+' data-k="'+esc(k)+'">'+_cmdBadgeInner(k,largo)+'</span>';
 }
 function _cmdPintarBadges(){
-  document.querySelectorAll('.cmd-doc').forEach(function(s){s.innerHTML=_cmdBadgeInner(s.getAttribute('data-k'));});
+  document.querySelectorAll('.cmd-doc').forEach(function(s){s.innerHTML=_cmdBadgeInner(s.getAttribute('data-k'),!!s.getAttribute('data-largo'));});
 }
 async function _cmdLlamar(accion,extra){
   if(!COMANDAS_URL)throw new Error('Falta configurar el Apps Script (apps-script/comandas-doc/LEEME.md)');
@@ -34073,7 +34183,7 @@ async function _cmdConfirmar(){
       ((r.saltadas||[]).length?'<div style="color:var(--text-3);margin-top:6px">'+r.saltadas.length+' ya estaban y se saltaron.</div>':'')+
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn-ghost" onclick="cerrarComandasDoc()">Cerrar</button></div></div>';
     showToast('✓ '+n+(n===1?' comanda cargada':' comandas cargadas')+' en el Doc');
-    if(pend.deSeleccion){etiquetasSeleccionadas.clear();_etqSelPintar();document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});}
+    if(pend.deSeleccion){etiquetasSeleccionadas.clear();_etqSelPintar();document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});document.querySelectorAll('#prod-editorial .zb.lote.on').forEach(function(b){b.classList.remove('on');b.innerHTML=_prodLoteTxt(false);});}
     comandasEnDoc=null;cargarEstadoComandas();
   }catch(e){
     body.innerHTML='<div style="padding:18px;color:var(--red)">No se cargó: '+esc(e.message)+'</div>';
