@@ -34568,7 +34568,7 @@ function b2bAvisoRut(rut,inputId){
   if(!n||usuarioRol==='taller'){box.innerHTML='';return;}
   var e=_empPorRut(n);
   if(!e){
-    box.innerHTML='<div class="b2b-aviso nueva">🏢 Este RUT no tiene cuenta empresa. <a href="#" onclick="abrirEmpresaDesde(\''+inputId+'\');return false" style="color:#485B3D;font-weight:600">Abrir una</a> para que esta compra empiece a acumular.</div>';
+    box.innerHTML='<div class="b2b-aviso nueva">🏢 Este RUT no tiene cuenta empresa todavía. Si es RUT de empresa, se abre sola al emitir la factura; si quieres verla antes, <a href="#" onclick="abrirEmpresaDesde(\''+inputId+'\');return false" style="color:#485B3D;font-weight:600">ábrela ahora</a>.</div>';
     return;
   }
   var t=Number(e.tramo_pct)||0,acum=Number(e.acumulado)||0;
