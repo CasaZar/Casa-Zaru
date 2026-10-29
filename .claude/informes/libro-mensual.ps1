@@ -129,6 +129,9 @@ $mp = @(LeerCsv (Join-Path $CZ "mp-$tag.csv"))
 $mp = @($mp | ForEach-Object { [pscustomobject]@{ fecha = Fecha $_.fecha; mov = $_.mov; tipo = $_.tipo; id = "$($_.id)"; monto = (N $_.monto); comision = -(N $_.otros) } })
 $mpSaldos = LeerJson (Join-Path $CZ "mp-$tag.json")
 if (-not $mp.Count) { Aviso "Falta el movimiento de Mercado Pago de $mesNom (mp-$tag.csv): la caja y las ventas de feria quedan incompletas." }
+# Un estado de cuenta bajado antes de fin de mes se marca "PARCIAL" en el json: el mes no se da por cerrado con él.
+$mpParcial = $mpSaldos -and "$($mpSaldos.fuente)" -match 'PARCIAL'
+if ($mpParcial) { Aviso "Mercado Pago: el estado de cuenta es parcial ($($mpSaldos.fuente.Split(':')[0])). Bajar el del mes completo y reemplazar mp-$tag.csv/.json." }
 
 # ── Liquidaciones de Mercado Pago (settlement_v2-<cuenta>-*.xlsx en Descargas) ──
 # El usuario lo baja los lunes. Trae el canal de cada cobro (Point, Link de Pago, Checkout Pro, Mercado Libre) y las
@@ -339,10 +342,11 @@ if ($mp.Count -and $mpSaldos) {
   $calc = $mpSaldos.saldo_inicial + $ing - $egr
   if ([math]::Abs($calc - $mpSaldos.saldo_final) -gt 1) { Aviso "Mercado Pago no cuadra: saldo calculado $(Plata $calc) vs informado $(Plata $mpSaldos.saldo_final)." }
 }
-# Cuentas sin cartola que leer (la cuenta corriente de BancoEstado, abierta en octubre de 2026): saldos informados
-# a mano en cuentas-extra-AAAA-MM.csv (Cuenta;Inicial;Entradas;Salidas;Final;Fuente). Sus movimientos no entran al cuadre.
+# Cuentas sin cartola que leer (la cuenta corriente nueva de Banco de Chile, abierta en octubre de 2026): saldos informados
+# a mano en cuentas-extra-AAAA-MM.csv (Cuenta;Inicial;Entradas;Salidas;Final;Traspasos;Fuente; Traspasos = parte de las
+# entradas que vino de otra cuenta propia). Sus movimientos no entran al cuadre.
 foreach ($x in LeerCsv (Join-Path $CZ "cuentas-extra-$tag.csv")) {
-  $caja += [pscustomobject]@{ cuenta = "$($x.Cuenta)"; inicial = (N $x.Inicial); ent = (N $x.Entradas); sal = (N $x.Salidas); final = (N $x.Final); trI = 0; trE = 0 }
+  $caja += [pscustomobject]@{ cuenta = "$($x.Cuenta)"; inicial = (N $x.Inicial); ent = (N $x.Entradas); sal = (N $x.Salidas); final = (N $x.Final); trI = (N $x.Traspasos); trE = 0 }
   Aviso "$($x.Cuenta): saldo $(Plata (N $x.Final)) informado a mano ($($x.Fuente)), sin cartola: sus movimientos no están en el cuadre semanal."
 }
 $cajaCuentas = (@($caja | ForEach-Object { $_.cuenta -replace '\s*\(.*$', '' -replace '\s+\d+$', '' }) | Select-Object -Unique) -join ' + '
@@ -516,7 +520,7 @@ $hoy = (Get-Date).Date
 $esFinal = ($finMes -lt $hoy)
 $datosAl = if ($esFinal) { $finMes } elseif ($cBci.filas.Count) { ($cBci.filas | ForEach-Object { $_.fecha } | Measure-Object -Maximum).Maximum } else { $hoy }
 $estadoMes = if ($esFinal) { 'final' } else { "parcial (datos al $($datosAl.ToString('dd-MM')))" }
-if ($esFinal -and (-not $mp.Count -or -not $meta)) { $estadoMes = 'parcial (faltan ' + ((@($(if (-not $mp.Count) { 'Mercado Pago' }), $(if (-not $meta) { 'gasto real de Meta' })) | Where-Object { $_ }) -join ' y ') + ')' }
+if ($esFinal -and (-not $mp.Count -or $mpParcial -or -not $meta)) { $estadoMes = 'parcial (faltan ' + ((@($(if (-not $mp.Count -or $mpParcial) { 'Mercado Pago' }), $(if (-not $meta) { 'gasto real de Meta' })) | Where-Object { $_ }) -join ' y ') + ')' }
 
 # Semanas del cuadre: de lunes a domingo (para que no se pierda ningún pago), recortadas al mes.
 # "completa" = su último día ya está cubierto por los datos (cartola y, si no hay estado de cuenta, liquidaciones de MP).
@@ -780,7 +784,7 @@ if ($mp.Count) {
   Sub $f 'Mercado Pago por tipo de movimiento'
   Tabla $f @('Movimiento', 'Cantidad', 'Monto', 'Comisión') @($mp | Group-Object tipo | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'monto'), (Suma $_.Group 'comision')) }) @(1, 2, 3)
 }
-Nota $f 'BCI y Banco de Chile: saldos tomados de la cartola. Mercado Pago: saldos del estado de cuenta. BancoEstado: saldo informado a mano (cuentas-extra-AAAA-MM.csv).'
+Nota $f 'BCI y Banco de Chile: saldos tomados de la cartola. Mercado Pago: saldos del estado de cuenta. Cuenta corriente nueva de Banco de Chile: saldo informado a mano (cuentas-extra-AAAA-MM.csv).'
 Hoja 'Caja' $f @(38, 15, 15, 15, 15, 17, 17)
 
 # ── 3. Ventas ──
