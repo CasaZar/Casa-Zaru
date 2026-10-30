@@ -84,7 +84,7 @@
   /* Con el selector funcionando se esconden los controles equivalentes del tema */
   .czp-ok variant-selects,.czp-ok .product-form__quantity{display:none!important}
 </style>
-<div class="czp czp-eyebrow">{% render 'cz-icono', i: 'montana', clase: 'czi s' %}Madera nativa del sur de Chile</div>
+<div class="czp czp-eyebrow">{% render 'cz-icono', i: 'montana', clase: 'czi s' %}Madera noble del sur de Chile</div>
 {%- endif -%}
 
 {%- if parte == 'resumen' -%}
@@ -93,7 +93,7 @@
   <p class="czp-desde">Tu escalera de {{ cant_base }} peldaños, desde<b data-czp-desde="{{ desde }}">${{ desde | money_without_currency | remove: '.00' | replace: ',', '.' }}</b></p>
   <div class="czp-banda">
     <div>{% render 'cz-icono', i: 'capas' %}Madera maciza<br>de 4 cm</div>
-    <div>{% render 'cz-icono', i: 'sello' %}Llega terminada,<br>sin barnizar</div>
+    <div>{% render 'cz-icono', i: 'sello' %}Llegan terminados,<br>no tienes que barnizar</div>
     <div>{% render 'cz-icono', i: 'escudo' %}Garantía 5 años</div>
     <div>{% render 'cz-icono', i: 'repone' %}Si llega con daño,<br>la reponemos</div>
   </div>
