@@ -1,11 +1,15 @@
 {%- comment -%}
-  Ficha de Peldaños (28-10-2026) — piezas que van DENTRO de la columna de compra del
-  main-product, cada una en su bloque «Liquid personalizado» de la plantilla
-  product.peldanos-v2:
-    {% render 'cz-peldanos-compra', product: product, parte: 'eyebrow' %}   antes del título (trae el CSS)
-    {% render 'cz-peldanos-compra', product: product, parte: 'resumen' %}   después del precio
+  Ficha de Peldaños — piezas que van DENTRO de la columna de compra del main-product, cada
+  una en su bloque «Liquid personalizado» de la plantilla product.peldanos-v2:
+    {% render 'cz-peldanos-compra', product: product, parte: 'eyebrow' %}   arriba de todo: CSS + eyebrow + H1
+    {% render 'cz-peldanos-compra', product: product, parte: 'resumen' %}   precio «desde» + ficha en líneas
     {% render 'cz-peldanos-compra', product: product, parte: 'selector' %}  antes del selector de variantes
-    {% render 'cz-peldanos-compra', product: product, parte: 'despues' %}   después de los medios de pago
+    {% render 'cz-peldanos-compra', product: product, parte: 'despues' %}   después del recuadro de envío
+
+  30-10-2026: rediseño aprobado en boceto (Playfair en títulos, líneas finas en vez de
+  tarjetas, todo a la izquierda, un solo verde de marca). El H1 va acá y el bloque «título»
+  del tema queda apagado en la plantilla: así el nombre del producto (carrito, Google Shopping)
+  no cambia. NUNCA «madera nativa»: no todas lo son; se dice «madera noble».
 
   El selector NO reemplaza el formulario del tema: mueve los <select> de variantes y el
   input de cantidad de Dawn y dispara su evento «change», así el precio, el carrito y el
@@ -32,82 +36,102 @@
 -%}
 
 {%- if parte == 'eyebrow' -%}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400&display=swap" rel="stylesheet">
 <style>
-  .czp{--czp-cafe:#8A5A3B;--czp-verde:#485B3D;--czp-crema:#F1ECE4;--czp-gris:#6b6670;--czp-banda:#efefef;--czp-naranjo:#CE6718}
-  .czp-eyebrow{font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--czp-verde);margin:6px 0 -4px;display:flex;align-items:center;gap:6px}
-  .czi{width:30px;height:30px;fill:none;stroke:var(--czp-cafe);stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;display:block;margin:0 auto 7px}
-  .czi.s{width:16px;height:16px;margin:0;display:inline-block;vertical-align:-3px;flex:none}
-  .czp-desde{font-size:14px;color:var(--czp-gris);margin:2px 0 0;line-height:1.4}
-  .czp-desde b{color:#1F1D24;font-size:20px;display:block}
-  .czp-banda{display:grid;grid-template-columns:1fr 1fr;gap:18px 8px;background:var(--czp-banda);border-radius:12px;padding:18px 10px;margin:16px 0 4px}
-  .czp-banda.tres{grid-template-columns:repeat(3,1fr)}
-  .czp-banda div{text-align:center;font-size:12.5px;font-weight:700;line-height:1.3;color:#1F1D24}
-  .czp-tabs{display:grid;grid-template-columns:1fr 1fr;background:#f2eee8;border-radius:12px;padding:4px;margin:16px 0 4px}
-  .czp-tabs>*{text-align:center;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:600;color:var(--czp-gris);line-height:1.25;text-decoration:none}
-  .czp-tabs small{display:block;font-weight:400;font-size:11px}
-  .czp-tabs .on{background:#fff;color:#1F1D24;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-  .czp-lbl{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 8px;display:flex;justify-content:space-between;gap:8px;color:#1F1D24}
-  .czp-lbl span{font-weight:400;text-transform:none;letter-spacing:0;color:var(--czp-gris)}
-  .czp-mad{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  /* <button> centra su contenido en vertical: sin flex en columna, la tarjeta con la
-     descripción más corta (Raulí) quedaba corrida respecto de su vecina */
-  .czp-m{border:1.5px solid #e2dbd0;border-radius:12px;overflow:hidden;cursor:pointer;position:relative;background:#fff;padding:0;text-align:left;font:inherit;color:inherit;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch;min-width:0}
-  .czp-m.on{border-color:#C27C3A;box-shadow:0 0 0 1px #C27C3A}
-  .czp-m img{width:100%;height:auto;aspect-ratio:5/2;object-fit:cover;display:block;flex:none}
-  .czp-m .tx{display:block;padding:8px 10px 10px}
-  /* el precio va siempre bajo el nombre: al lado, en el celular unas tarjetas lo
-     bajaban de línea y otras no según el largo del nombre */
-  .czp-m b{font-size:14px;display:block;line-height:1.25}
-  .czp-m b em{display:block;font-style:normal;font-weight:500;font-size:12px;color:var(--czp-gris);white-space:nowrap;margin-top:1px}
-  .czp-m small{font-size:11.5px;color:var(--czp-gris);display:block;line-height:1.3;margin-top:3px}
-  .czp-m .rec{position:absolute;top:6px;left:6px;background:var(--czp-verde);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px}
-  .czp-chips{display:flex;flex-wrap:wrap;gap:7px}
-  .czp-chips button{border:1.5px solid #d6cfc4;border-radius:10px;padding:9px 12px;font:inherit;font-size:14px;cursor:pointer;background:#fff;color:#1F1D24}
-  .czp-chips button.on{border-color:#1F1D24;background:#1F1D24;color:#fff}
-  .czp-calc{background:var(--czp-crema);border-radius:14px;padding:14px;margin:16px 0 6px}
-  .czp-calc .czp-lbl{margin-top:0}
-  .czp-step{display:flex;align-items:center;gap:10px}
-  .czp-step button{width:42px;height:42px;border-radius:10px;border:1.5px solid #cbbfae;background:#fff;font-size:20px;cursor:pointer;color:#1F1D24;line-height:1}
-  .czp-step output{font-size:22px;font-weight:600;min-width:36px;text-align:center}
-  .czp-step span{font-size:12px;color:var(--czp-gris);line-height:1.3}
-  .czp-tot{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-top:12px;padding-top:12px;border-top:1px dashed #cbbfae;font-size:14px}
-  .czp-tot b{font-size:24px;display:block;text-align:right;line-height:1.1}
-  .czp-tot small{font-size:12px;color:var(--czp-gris);display:block;text-align:right}
-  .czp-alts{display:flex;gap:8px;margin-top:12px}
-  .czp-alts a{flex:1;border:1px solid #e2dbd0;border-radius:10px;padding:10px 8px;font-size:12px;line-height:1.3;text-align:center;color:var(--czp-gris);text-decoration:none}
-  .czp-alts b{display:flex;gap:5px;justify-content:center;align-items:center;font-size:12.5px;color:#1F1D24}
-  .czp-medida{border:1.5px solid #D4AC74;background:#fffdf9;border-radius:14px;padding:14px;margin-top:12px}
-  .czp-medida h4{margin:0 0 6px;font-size:15px;font-family:inherit;letter-spacing:0}
-  .czp-medida ul{margin:0 0 4px;padding-left:18px;font-size:13px;line-height:1.5;color:var(--czp-gris)}
-  .czp-btn2{display:flex;justify-content:center;align-items:center;gap:6px;width:100%;border:1.5px solid #1F1D24;border-radius:12px;padding:13px;font-weight:600;font-size:15px;text-align:center;margin-top:12px;color:#1F1D24;text-decoration:none;background:#fff}
-  .czp-btn2 .czi{stroke:#1F1D24}
-  /* Con el selector funcionando se esconden los controles equivalentes del tema */
+  .czp{--tinta:#1F1D24;--sec:#57524B;--linea:#E4DDD2;--borde:#948A7C;--papel:#FBF9F6;--verde:#485B3D;--terra:#B5652E;--terra-tx:#9A5224;color:var(--tinta);font-size:15px;line-height:1.6}
+  .czp-serif,.czp h1,.czp-m .n,.czp-med h3{font-family:'Playfair Display',Georgia,serif;font-weight:400}
+  .czp .num{font-variant-numeric:tabular-nums}
+  .czp-eb{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--sec);margin:4px 0 0}
+  .czp h1{font-size:40px;line-height:1.08;letter-spacing:-.015em;margin:10px 0 14px;color:var(--tinta)}
+  @media (min-width:990px){.czp h1{font-size:52px}}
+  .czp-precio{font-size:15px;color:var(--sec);margin:0}
+  .czp-precio b{color:var(--tinta);font-weight:600}
+  .czp-spec{margin:24px 0 0;border-top:1px solid var(--linea)}
+  .czp-spec div{display:grid;grid-template-columns:104px 1fr;gap:12px;padding:12px 0;border-bottom:1px solid var(--linea)}
+  .czp-spec dt{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--sec);padding-top:2px}
+  .czp-spec dd{margin:0;font-size:15px;line-height:1.45}
+
+  .czp-sel{padding-top:36px}
+  .czp-tabs{display:flex;gap:24px;border-bottom:1px solid var(--linea)}
+  .czp-tabs>*{padding:0 0 10px;font-size:15px;color:var(--sec);text-decoration:none;min-height:44px;display:flex;align-items:flex-end}
+  .czp-tabs .on{color:var(--tinta);font-weight:500;box-shadow:inset 0 -2px 0 var(--tinta)}
+  .czp-tabs a:hover{color:var(--tinta)}
+  .czp-lbl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:26px 0 6px}
+  .czp-lbl b{font-size:12px;font-weight:500;letter-spacing:.08em;text-transform:uppercase}
+  .czp-lbl span{font-size:13px;color:var(--sec)}
+  .czp-mad{border-top:1px solid var(--linea)}
+  /* fila de madera: un <button> por madera (las cuatro alineadas igual, sin tarjetas) */
+  .czp-m{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;width:100%;padding:12px 0;border:0;border-bottom:1px solid var(--linea);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;position:relative}
+  .czp-m img{width:56px;height:56px;object-fit:cover;border-radius:2px;display:block}
+  .czp-m .n{display:block;font-size:20px;line-height:1.2}
+  .czp-m .d{display:block;font-size:13px;color:var(--sec);line-height:1.4}
+  .czp-m .p{font-size:14px;text-align:right;white-space:nowrap}
+  .czp-m .p small{display:block;font-size:11px;color:var(--sec)}
+  .czp-m .rec{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--terra-tx);display:block;margin-top:2px}
+  .czp-m.on{box-shadow:inset 3px 0 0 var(--verde);padding-left:14px;background:var(--papel)}
+  .czp-m:focus-visible,.czp-chips button:focus-visible,.czp-step button:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
+  .czp-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .czp-chips button{min-width:62px;height:44px;padding:0 10px;border:1px solid var(--borde);border-radius:4px;background:#fff;font:inherit;font-size:15px;color:var(--tinta);cursor:pointer;font-variant-numeric:tabular-nums}
+  .czp-chips button.on{background:var(--tinta);border-color:var(--tinta);color:#fff}
+  .czp-cant{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:26px;padding:16px 0;border-top:1px solid var(--linea);border-bottom:1px solid var(--linea)}
+  .czp-cant .q{font-size:13px;color:var(--sec);line-height:1.35}
+  .czp-step{display:flex;align-items:center;border:1px solid var(--borde);border-radius:4px}
+  .czp-step button{width:44px;height:44px;border:0;background:none;font-size:20px;line-height:1;color:var(--tinta);cursor:pointer}
+  .czp-step output{width:44px;text-align:center;font-size:17px;font-weight:500;font-variant-numeric:tabular-nums}
+  .czp-tot{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin:18px 0 4px}
+  .czp-tot b{font-size:30px;font-weight:500;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .czp-cuo{font-size:13px;color:var(--sec);text-align:right;margin:0;font-variant-numeric:tabular-nums}
+  .czp-links{display:flex;flex-wrap:wrap;gap:4px 22px;margin-top:6px;font-size:14px}
+  .czp-links a{color:var(--tinta);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--borde);min-height:44px;display:inline-flex;align-items:center}
+  .czp-med{margin-top:40px}
+  .czp-med h3{font-size:24px;line-height:1.2;margin:0 0 8px;letter-spacing:0;color:var(--tinta)}
+  .czp-med p{margin:0;color:var(--sec)}
+  .czp-btn2{display:flex;align-items:center;justify-content:center;min-height:48px;border:1px solid var(--tinta);border-radius:4px;font-weight:500;font-size:15px;margin-top:14px;color:var(--tinta);text-decoration:none;background:#fff}
+  .czp-btn2:hover{background:var(--tinta);color:#fff}
+
+  /* Piezas del tema que esta ficha reemplaza (solo en esta plantilla: el CSS vive acá) */
+  product-info [id^="price-template"]{display:none!important}
   .czp-ok variant-selects,.czp-ok .product-form__quantity{display:none!important}
+  product-info .product-form__submit{background:var(--verde,#485B3D)!important;border-radius:4px!important;min-height:52px;font-weight:500;font-size:16px;margin-top:18px}
+  product-info .product-form__submit:before,product-info .product-form__submit:after{border-radius:4px!important;box-shadow:none!important}
+  product-info .czenv{background:none;border:0;border-top:1px solid #E4DDD2;border-bottom:1px solid #E4DDD2;border-radius:0;padding:14px 0;margin:18px 0 0}
+  product-info .czenv__t{color:#1F1D24;font-weight:500}
+  @media (max-width:749px){
+    /* foto a todo el ancho del celular */
+    .product__media-list .product__media-item{margin-left:0!important;width:100%!important}
+    .product__media-list .product-media-container{width:100%!important;max-width:100%!important}
+    .product__media-list .product__media{padding-top:0!important;height:min(440px,113vw)}
+  }
 </style>
-<div class="czp czp-eyebrow">{% render 'cz-icono', i: 'montana', clase: 'czi s' %}Madera noble del sur de Chile</div>
+<div class="czp">
+  <p class="czp-eb">Madera noble del sur · Villarrica</p>
+  <h1>Peldaños de madera noble, a tu medida</h1>
+</div>
 {%- endif -%}
 
 {%- if parte == 'resumen' -%}
   {%- assign desde = product.price_min | times: cant_base -%}
 <div class="czp">
-  <p class="czp-desde">Tu escalera de {{ cant_base }} peldaños, desde<b data-czp-desde="{{ desde }}">${{ desde | money_without_currency | remove: '.00' | replace: ',', '.' }}</b></p>
-  <div class="czp-banda">
-    <div>{% render 'cz-icono', i: 'capas' %}Madera maciza<br>de 4 cm</div>
-    <div>{% render 'cz-icono', i: 'sello' %}Llegan terminados,<br>no tienes que barnizar</div>
-    <div>{% render 'cz-icono', i: 'escudo' %}Garantía 5 años</div>
-    <div>{% render 'cz-icono', i: 'repone' %}Si llega con daño,<br>la reponemos</div>
-  </div>
+  <p class="czp-precio num">Desde <b>${{ product.price_min | money_without_currency | remove: '.00' | replace: ',', '.' }}</b> el peldaño. Una escalera de {{ cant_base }}, desde <b>${{ desde | money_without_currency | remove: '.00' | replace: ',', '.' }}</b>.</p>
+  <dl class="czp-spec">
+    <div><dt>Espesor</dt><dd>4 cm de madera maciza, sin enchapado</dd></div>
+    <div><dt>Terminación</dt><dd>Llegan terminados, no tienes que barnizar</dd></div>
+    <div><dt>Plazo</dt><dd class="num">7 a 15 días hábiles de fabricación</dd></div>
+    <div><dt>Garantía</dt><dd>5 años. Si llegan con daño, los reponemos</dd></div>
+  </dl>
 </div>
 {%- endif -%}
 
 {%- if parte == 'selector' and opt_m and opt_a -%}
 <div class="czp czp-sel" data-czp hidden>
   <div class="czp-tabs">
-    <span class="on">Medida estándar<small>{{ opt_a.values.first | split: ' x ' | first }}–{{ opt_a.values.last | split: ' x ' | first }} × 30 cm · compra aquí</small></span>
-    <a href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">A tu medida<small>cualquier medida · precio al instante</small></a>
+    <span class="on">Medida estándar</span>
+    <a href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">A tu medida</a>
   </div>
 
-  <div class="czp-lbl">Madera <span data-czp-madn></span></div>
+  <div class="czp-lbl"><b>Madera</b><span data-czp-madn></span></div>
   <div class="czp-mad">
     {%- for w in opt_m.values -%}
       {%- liquid
@@ -121,19 +145,19 @@
         endfor
         case w
           when 'Castaño'
-            assign d = 'Veta grande y marcada, dorado miel. De las más duras.'
-            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/63996d4c-c673-4f40-96bf-5e93575358fd_1.jpg?v=1778022268&width=300'
+            assign d = 'Veta grande, dorado miel'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/63996d4c-c673-4f40-96bf-5e93575358fd_1.jpg?v=1778022268&width=160'
           when 'Coihue'
-            assign d = 'La más dura que trabajamos: ideal para alto tráfico.'
-            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/dfa122a9-8e49-4afb-a7a0-b3a0d22d887c.jpg?v=1779452067&width=300'
+            assign d = 'La más dura que trabajamos'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/dfa122a9-8e49-4afb-a7a0-b3a0d22d887c.jpg?v=1779452067&width=160'
           when 'Raulí'
-            assign d = 'Un clásico del sur. Veta rojiza profunda.'
-            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/RAUL.jpg?v=1785500758&width=300'
+            assign d = 'Veta rojiza y profunda'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/RAUL.jpg?v=1785500758&width=160'
           when 'Lenga'
-            assign d = 'Del extremo sur patagónico. Veta fina, tonos suaves.'
-            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/IMG-20260206-WA0056.jpg?v=1778020745&width=300'
+            assign d = 'Veta fina, tonos suaves'
+            assign img = 'https://cdn.shopify.com/s/files/1/0800/2283/1138/files/IMG-20260206-WA0056.jpg?v=1778020745&width=160'
           when 'Mañío'
-            assign d = 'Textura fina y pareja, de tono cálido y particular.'
+            assign d = 'Textura fina y pareja'
             assign img = ''
           else
             assign d = ''
@@ -141,30 +165,30 @@
         endcase
       -%}
       <button type="button" class="czp-m" data-v="{{ w | escape }}">
-        {%- if img != blank -%}<img src="{{ img }}" alt="Madera de {{ w | escape }}" width="300" height="56" loading="lazy">{%- endif -%}
-        {%- if w == 'Castaño' -%}<span class="rec">Recomendada</span>{%- endif -%}
-        <span class="tx"><b>{{ w }} <em>desde ${{ pmin | money_without_currency | remove: '.00' | replace: ',', '.' }}</em></b><small>{{ d }}</small></span>
+        {%- if img != blank -%}<img src="{{ img }}" alt="Madera de {{ w | escape }}" width="56" height="56" loading="lazy">{%- else -%}<span></span>{%- endif -%}
+        <span><span class="n">{{ w }}</span><span class="d">{{ d }}</span>{%- if w == 'Castaño' -%}<span class="rec">Recomendada para escaleras</span>{%- endif -%}</span>
+        <span class="p num">${{ pmin | money_without_currency | remove: '.00' | replace: ',', '.' }}<small>desde</small></span>
       </button>
     {%- endfor -%}
   </div>
 
-  <div class="czp-lbl">Ancho del peldaño <span>fondo 30 cm · espesor 4 cm</span></div>
+  <div class="czp-lbl"><b>Largo</b><span>fondo 30 cm · espesor 4 cm</span></div>
   <div class="czp-chips">
     {%- for a in opt_a.values -%}
       <button type="button" data-v="{{ a | escape }}">{{ a | split: ' x ' | first }} cm</button>
     {%- endfor -%}
   </div>
 
-  <div class="czp-calc">
-    <div class="czp-lbl">¿Cuántos peldaños? <span>cuenta los escalones</span></div>
+  <div class="czp-cant">
+    <div class="q">Cuántos peldaños<br>cuenta los escalones</div>
     <div class="czp-step">
       <button type="button" data-czp-q="-1" aria-label="Un peldaño menos">−</button>
       <output data-czp-cant>{{ cant_base }}</output>
       <button type="button" data-czp-q="1" aria-label="Un peldaño más">+</button>
-      <span>peldaños<br>× <b data-czp-unit></b></span>
     </div>
-    <div class="czp-tot"><span>Total de tu escalera</span><div><b data-czp-total></b><small data-czp-cuotas></small></div></div>
   </div>
+  <div class="czp-tot"><span>Total de tu escalera</span><b data-czp-total></b></div>
+  <p class="czp-cuo" data-czp-cuotas></p>
   <script type="application/json" data-czp-variantes>{{ product.variants | json }}</script>
 </div>
 <script>
@@ -204,14 +228,21 @@
       q.value = n;
       q.dispatchEvent(new Event('change', { bubbles: true }));
     }
-    root.querySelectorAll('.czp-m').forEach(function (b) { b.classList.toggle('on', b.dataset.v === m.value); });
-    root.querySelectorAll('.czp-chips button').forEach(function (b) { b.classList.toggle('on', b.dataset.v === a.value); });
+    root.querySelectorAll('.czp-m').forEach(function (b) {
+      var on = b.dataset.v === m.value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on);
+    });
+    root.querySelectorAll('.czp-chips button').forEach(function (b) {
+      var on = b.dataset.v === a.value;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-pressed', on);
+    });
     poner('[data-czp-madn]', m.value);
     poner('[data-czp-cant]', n);
     var v = variante();
     if (!v) return;
     var t = v.price * n;
-    poner('[data-czp-unit]', pesos(v.price));
     poner('[data-czp-total]', pesos(t));
     poner('[data-czp-cuotas]', 'o 3 cuotas sin interés de ' + pesos(Math.floor(t / 3 / 100) * 100));
     var comp = document.querySelector('[data-czp-compartir]');
@@ -247,24 +278,14 @@
 
 {%- if parte == 'despues' -%}
 <div class="czp">
-  <div class="czp-banda tres">
-    <div>{% render 'cz-icono', i: 'escudo' %}Garantía<br>5 años</div>
-    <div>{% render 'cz-icono', i: 'reloj' %}Fabricación 7 a 15 días hábiles</div>
-    <div>{% render 'cz-icono', i: 'camion' %}Despacho a todo Chile</div>
+  <div class="czp-links">
+    <a href="https://wa.me/{{ wa_web }}?text={{ 'Hola, quiero ayuda para elegir peldaños.' | url_encode }}" target="_blank" rel="noopener">Hablar por WhatsApp</a>
+    <a href="https://wa.me/?text={{ 'Peldaños Casa Zaru: ' | append: shop.url | append: product.url | url_encode }}" target="_blank" rel="noopener" data-czp-compartir>Compartir este total</a>
   </div>
-  <div class="czp-alts">
-    <a href="https://wa.me/?text={{ 'Peldaños Casa Zaru: ' | append: shop.url | append: product.url | url_encode }}" target="_blank" rel="noopener" data-czp-compartir><b>{% render 'cz-icono', i: 'compartir', clase: 'czi s' %} Compartir este total</b>para tu arquitecto o para decidir después</a>
-    <a href="https://wa.me/{{ wa_web }}?text={{ 'Hola, quiero ayuda para elegir peldaños.' | url_encode }}" target="_blank" rel="noopener"><b>{% render 'cz-icono', i: 'mensaje', clase: 'czi s' %} Hablar con nosotros</b>te ayudamos a elegir</a>
-  </div>
-  <div class="czp-medida">
-    <h4>¿Tu escalera no es estándar? La mayoría no lo es.</h4>
-    <ul>
-      <li>Fondo distinto a 30 cm o ancho bajo 80 cm</li>
-      <li>Peldaños de distinto largo, descanso o abanico</li>
-      <li>Revestir una escalera de hormigón (2 cm)</li>
-      <li>Con contrahuellas a juego</li>
-    </ul>
-    <a class="czp-btn2" href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">Cotizar a mi medida, precio al instante {% render 'cz-icono', i: 'flecha', clase: 'czi s' %}</a>
+  <div class="czp-med">
+    <h3>¿Otro fondo, largos distintos o revestir hormigón?</h3>
+    <p>En el cotizador pones cada peldaño con su medida, en 2 o 4 cm, con o sin contrahuella. El precio sale al instante.</p>
+    <a class="czp-btn2" href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">Cotizar a mi medida</a>
   </div>
 </div>
 {%- endif -%}
