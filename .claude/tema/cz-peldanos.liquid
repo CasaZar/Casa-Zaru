@@ -1,14 +1,14 @@
 {%- comment -%}
-  Sección de la ficha de Peldaños, debajo del main-product de la plantilla product.peldanos-v2.
-  30-10-2026: rediseño aprobado en boceto. Foto del taller a todo el ancho, el origen (bloque
-  verde), qué llega en la caja, cómo medir, por qué maciza + cómo funciona, preguntas y ayuda.
-  Todo a la izquierda, líneas finas en vez de tarjetas, números en Playfair terracota.
-  En PC cada bloque va en dos columnas: título a la izquierda, contenido a la derecha.
-  NUNCA «madera nativa»: no todas lo son; se dice «madera noble».
-  Textos confirmados por el usuario: «no tienes que barnizar», «si llega con daño lo
-  reponemos» (avisar en 12 h), cera 100 cc, 7 a 15 días hábiles, garantía 5 años,
-  instalación en algunas ciudades que se cotiza aparte. NUNCA «envío seguro» (no hay seguro).
-  Se sacaron (boceto 30-10): la tabla «maciza vs. imitación» y la línea del árbol plantado.
+  SecciÃ³n de la ficha de PeldaÃ±os, debajo del main-product de la plantilla product.peldanos-v2.
+  30-10-2026: rediseÃ±o aprobado en boceto. Foto del taller a todo el ancho, el origen (bloque
+  verde), quÃ© llega en la caja, cÃ³mo medir, por quÃ© maciza + cÃ³mo funciona, preguntas y ayuda.
+  Todo a la izquierda, lÃ­neas finas en vez de tarjetas, nÃºmeros en Playfair terracota.
+  En PC cada bloque va en dos columnas: tÃ­tulo a la izquierda, contenido a la derecha.
+  NUNCA Â«madera nativaÂ»: no todas lo son; se dice Â«madera nobleÂ».
+  Textos confirmados por el usuario: Â«no tienes que barnizarÂ», Â«si llega con daÃ±o lo
+  reponemosÂ» (avisar en 12 h), cera 100 cc, 7 a 15 dÃ­as hÃ¡biles, garantÃ­a 5 aÃ±os,
+  instalaciÃ³n en algunas ciudades que se cotiza aparte. NUNCA Â«envÃ­o seguroÂ» (no hay seguro).
+  Se sacaron (boceto 30-10): la tabla Â«maciza vs. imitaciÃ³nÂ» y la lÃ­nea del Ã¡rbol plantado.
 {%- endcomment -%}
 {%- assign wa_web = '56956375558' -%}
 <style>
@@ -20,7 +20,7 @@
   .czs-blk.corto{padding:48px 0}
   @media (min-width:990px){.czs-blk,.czs-blk.corto{padding:104px 0}}
   .czs-blk.papel{background:var(--papel)}
-  /* PC: título a la izquierda, contenido a la derecha */
+  /* PC: tÃ­tulo a la izquierda, contenido a la derecha */
   @media (min-width:990px){
     .czs-dos{display:grid;grid-template-columns:5fr 7fr;gap:72px;align-items:start}
     .czs-dos>:first-child{position:sticky;top:110px}
@@ -50,7 +50,8 @@
   .czs-lista li{display:grid;grid-template-columns:44px 1fr;padding:16px 0;border-bottom:1px solid var(--linea)}
   .czs-lista.suelta{border-top:0}
   .czs-lista.suelta li{border-bottom:0;padding:0 0 16px}
-  .czs .nn{font-size:22px;color:var(--terra);line-height:1.1}
+  /* 24 px = texto grande para AA: el terracota sobre blanco da 4,3:1 (sirve desde 3:1) */
+  .czs .nn{font-size:24px;color:var(--terra);line-height:1.05}
   .czs-lista b{display:block;font-weight:500}
   .czs-lista span{font-size:14px;color:var(--sec)}
 
@@ -68,7 +69,7 @@
   .czs-faq summary{list-style:none;display:flex;justify-content:space-between;gap:16px;padding:16px 0;min-height:44px;cursor:pointer;font-size:15px}
   .czs-faq summary::-webkit-details-marker{display:none}
   .czs-faq summary:after{content:'+';color:var(--sec);font-size:20px;line-height:1.2}
-  .czs-faq details[open] summary:after{content:'−'}
+  .czs-faq details[open] summary:after{content:'âˆ’'}
   .czs-faq summary:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
   .czs-faq details p{margin:-6px 0 16px;font-size:14px;color:var(--sec)}
 
@@ -81,8 +82,8 @@
 <div class="czs">
   {%- comment -%} 1. Foto del taller a todo el ancho {%- endcomment -%}
   <figure class="czs-foto" style="margin:64px 0 0">
-    <img src="https://cdn.shopify.com/s/files/1/0800/2283/1138/files/edcc8aa9-52cb-490a-a3bc-3fcca1a30a78.jpg?v=1792603261&width=1600" alt="Peldaños de madera noble recién terminados en el taller de Casa Zaru en Villarrica" loading="lazy" width="1600" height="520">
-    <figcaption class="czs-in czs-pie">Peldaños recién terminados en el taller, Villarrica.</figcaption>
+    <img src="https://cdn.shopify.com/s/files/1/0800/2283/1138/files/edcc8aa9-52cb-490a-a3bc-3fcca1a30a78.jpg?v=1792603261&width=1600" alt="PeldaÃ±os de madera noble reciÃ©n terminados en el taller de Casa Zaru en Villarrica" loading="lazy" width="1600" height="520">
+    <figcaption class="czs-in czs-pie">PeldaÃ±os reciÃ©n terminados en el taller, Villarrica.</figcaption>
   </figure>
 
   {%- comment -%} 2. El origen {%- endcomment -%}
@@ -92,35 +93,35 @@
       <h2>Madera noble del sur, trabajada en Villarrica</h2>
     </div>
     <div>
-      <p>Castaño, Coihue, Raulí y Lenga. Cada peldaño se corta, se arma y se termina en nuestro taller, a pedido. No trabajamos con stock: el tuyo empieza cuando lo pides.</p>
-      <div class="czs-mad4"><div>Castaño</div><div>Coihue</div><div>Raulí</div><div>Lenga</div></div>
+      <p>CastaÃ±o, Coihue, RaulÃ­ y Lenga. Cada peldaÃ±o se corta, se arma y se termina en nuestro taller, a pedido. No trabajamos con stock: el tuyo empieza cuando lo pides.</p>
+      <div class="czs-mad4"><div>CastaÃ±o</div><div>Coihue</div><div>RaulÃ­</div><div>Lenga</div></div>
     </div>
   </div></div>
 
-  {%- comment -%} 3. Qué llega en la caja {%- endcomment -%}
+  {%- comment -%} 3. QuÃ© llega en la caja {%- endcomment -%}
   <div class="czs-blk corto"><div class="czs-in czs-dos">
     <div>
-      <div class="czs-eb">Qué llega en la caja</div>
+      <div class="czs-eb">QuÃ© llega en la caja</div>
       <h2>Llegan terminados. No tienes que barnizar.</h2>
     </div>
     <ol class="czs-lista">
-      <li><span class="nn">1</span><div><b>Los peldaños, terminados</b><span>Vitrificado semibrillo, hidrorrepelente y antimanchas.</span></div></li>
-      <li><span class="nn">2</span><div><b>Cera natural, 100 cc</b><span>Para mantenerlos con los años.</span></div></li>
+      <li><span class="nn">1</span><div><b>Los peldaÃ±os, terminados</b><span>Vitrificado semibrillo, hidrorrepelente y antimanchas.</span></div></li>
+      <li><span class="nn">2</span><div><b>Cera natural, 100 cc</b><span>Para mantenerlos con los aÃ±os.</span></div></li>
       <li><span class="nn">3</span><div><b>Embalaje reforzado</b><span>Viajan por Starken a todo Chile.</span></div></li>
     </ol>
   </div></div>
 
-  {%- comment -%} 4. Cómo medir {%- endcomment -%}
+  {%- comment -%} 4. CÃ³mo medir {%- endcomment -%}
   <div class="czs-blk papel"><div class="czs-in czs-dos">
     <div>
       <div class="czs-eb">Antes de comprar</div>
-      <h2>Cómo medir tu escalera</h2>
+      <h2>CÃ³mo medir tu escalera</h2>
       <p class="sec">Tres datos. Con una huincha basta.</p>
     </div>
     <div>
       <div class="czs-plano">
-        <div class="czs-pt">Un peldaño</div>
-        <svg viewBox="0 44 340 116" xmlns="http://www.w3.org/2000/svg" font-family="Poppins, sans-serif" role="img" aria-label="Peldaño de 4 centímetros de espesor con su largo y su fondo">
+        <div class="czs-pt">Un peldaÃ±o</div>
+        <svg viewBox="0 44 340 116" xmlns="http://www.w3.org/2000/svg" font-family="Poppins, sans-serif" role="img" aria-label="PeldaÃ±o de 4 centÃ­metros de espesor con su largo y su fondo">
           <defs>
             <marker id="czs-fl" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 1 L9 5 L0 9" fill="none" stroke="#1F1D24" stroke-width="1.6"/></marker>
             <marker id="czs-pt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 1 L9 5 L0 9" fill="none" stroke="#1F1D24" stroke-width="1.6"/></marker>
@@ -135,34 +136,34 @@
           <text x="24" y="60" text-anchor="middle" font-size="11" font-weight="600" fill="#1F1D24">4 cm</text>
           <line x1="40" y1="97" x2="40" y2="113" stroke="#8a8590" stroke-width="1"/><line x1="280" y1="97" x2="280" y2="113" stroke="#8a8590" stroke-width="1"/>
           <line x1="44" y1="107" x2="276" y2="107" stroke="#1F1D24" stroke-width="1.4" marker-start="url(#czs-fl)" marker-end="url(#czs-fl)"/>
-          <text x="160" y="130" text-anchor="middle" font-size="18" fill="#B5652E" font-family="Playfair Display, Georgia, serif">1</text>
+          <text x="160" y="130" text-anchor="middle" font-size="18" fill="#9A5224" font-family="Playfair Display, Georgia, serif">1</text>
           <text x="160" y="150" text-anchor="middle" font-size="12" font-weight="500" fill="#1F1D24">Largo</text>
           <line x1="290" y1="95" x2="322" y2="76" stroke="#1F1D24" stroke-width="1.4" marker-start="url(#czs-fl)" marker-end="url(#czs-fl)"/>
-          <text x="306" y="120" text-anchor="middle" font-size="18" fill="#B5652E" font-family="Playfair Display, Georgia, serif">2</text>
+          <text x="306" y="120" text-anchor="middle" font-size="18" fill="#9A5224" font-family="Playfair Display, Georgia, serif">2</text>
           <text x="306" y="140" text-anchor="middle" font-size="12" font-weight="500" fill="#1F1D24">Fondo</text>
         </svg>
       </div>
       <ol class="czs-lista suelta" style="margin-top:22px">
         <li><span class="nn">1</span><div><b>Largo</b><span>De muro a muro, o hasta el borde si un lado queda abierto. En escaleras antiguas no todos miden igual: mide cada uno.</span></div></li>
-        <li><span class="nn">2</span><div><b>Fondo</b><span>Desde atrás hasta el borde de adelante. Si quieres que sobresalga, súmale la nariz.</span></div></li>
-        <li><span class="nn">3</span><div><b>Cuántos</b><span>Cuenta los escalones, sin el piso de arriba.</span></div></li>
+        <li><span class="nn">2</span><div><b>Fondo</b><span>Desde atrÃ¡s hasta el borde de adelante. Si quieres que sobresalga, sÃºmale la nariz.</span></div></li>
+        <li><span class="nn">3</span><div><b>CuÃ¡ntos</b><span>Cuenta los escalones, sin el piso de arriba.</span></div></li>
       </ol>
-      <p style="font-size:14px;margin:6px 0 0">¿No estás seguro? <a class="lk" href="https://wa.me/{{ wa_web }}?text={{ 'Hola, les mando una foto de mi escalera para que me ayuden con las medidas de los peldaños.' | url_encode }}" target="_blank" rel="noopener">Mándanos una foto de tu escalera</a>.</p>
+      <p style="font-size:14px;margin:6px 0 0">Â¿No estÃ¡s seguro? <a class="lk" href="https://wa.me/{{ wa_web }}?text={{ 'Hola, les mando una foto de mi escalera para que me ayuden con las medidas de los peldaÃ±os.' | url_encode }}" target="_blank" rel="noopener">MÃ¡ndanos una foto de tu escalera</a>.</p>
     </div>
   </div></div>
 
-  {%- comment -%} 5. Por qué maciza + cómo funciona {%- endcomment -%}
+  {%- comment -%} 5. Por quÃ© maciza + cÃ³mo funciona {%- endcomment -%}
   <div class="czs-blk"><div class="czs-in czs-dos">
     <div>
-      <div class="czs-eb">Por qué maciza</div>
+      <div class="czs-eb">Por quÃ© maciza</div>
       <h2>4 cm de madera, de arriba abajo</h2>
-      <p class="sec">Un peldaño macizo se puede lijar y volver a terminar las veces que haga falta. Con los años se renueva, no se cambia.</p>
+      <p class="sec">Un peldaÃ±o macizo se puede lijar y volver a terminar las veces que haga falta. Con los aÃ±os se renueva, no se cambia.</p>
     </div>
     <div class="czs-pasos">
-      <div><span class="k">Compras</span><span>Aquí, o cotizas a tu medida.</span></div>
-      <div><span class="k">Fabricamos</span><span class="num">En Villarrica, 7 a 15 días hábiles.</span></div>
+      <div><span class="k">Compras</span><span>AquÃ­, o cotizas a tu medida.</span></div>
+      <div><span class="k">Fabricamos</span><span class="num">En Villarrica, 7 a 15 dÃ­as hÃ¡biles.</span></div>
       <div><span class="k">Despachamos</span><span>Por Starken a todo Chile, o retiras en el taller.</span></div>
-      <div><span class="k">Recibes</span><span class="num">Revisa la caja. Si llegó con daño, avísanos dentro de 12 horas y lo reponemos.</span></div>
+      <div><span class="k">Recibes</span><span class="num">Revisa la caja. Si llegÃ³ con daÃ±o, avÃ­sanos dentro de 12 horas y lo reponemos.</span></div>
     </div>
   </div></div>
 
@@ -170,26 +171,26 @@
   <div class="czs-blk papel corto"><div class="czs-in czs-dos">
     <div><h2 style="margin-top:0">Preguntas</h2></div>
     <div class="czs-faq">
-      <details open><summary>¿Instalan los peldaños?</summary><p>Llegan listos para instalar. En algunas ciudades tenemos instalación, que se cotiza aparte: escríbenos con tu comuna.</p></details>
-      <details><summary>¿Sirven para revestir una escalera de hormigón?</summary><p>Sí, en 2 cm de espesor. <a class="lk" href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">Cotízalos a tu medida</a>.</p></details>
-      <details><summary>Mis peldaños no miden todos lo mismo</summary><p>Es lo más común. En el cotizador puedes poner cada largo por separado.</p></details>
-      <details><summary>¿La madera se mueve con el tiempo?</summary><p>Es madera natural: sus vetas, nudos y pequeños movimientos son parte de ella. Los defectos de fabricación los cubre la garantía de 5 años.</p></details>
-      <details><summary>¿Cómo se mantienen?</summary><p>Con la cera natural de 100 cc que viene en la caja.</p></details>
+      <details open><summary>Â¿Instalan los peldaÃ±os?</summary><p>Llegan listos para instalar. En algunas ciudades tenemos instalaciÃ³n, que se cotiza aparte: escrÃ­benos con tu comuna.</p></details>
+      <details><summary>Â¿Sirven para revestir una escalera de hormigÃ³n?</summary><p>SÃ­, en 2 cm de espesor. <a class="lk" href="https://cotizador.casazaru.cl/?prod=peldanos" target="_blank" rel="noopener">CotÃ­zalos a tu medida</a>.</p></details>
+      <details><summary>Mis peldaÃ±os no miden todos lo mismo</summary><p>Es lo mÃ¡s comÃºn. En el cotizador puedes poner cada largo por separado.</p></details>
+      <details><summary>Â¿La madera se mueve con el tiempo?</summary><p>Es madera natural: sus vetas, nudos y pequeÃ±os movimientos son parte de ella. Los defectos de fabricaciÃ³n los cubre la garantÃ­a de 5 aÃ±os.</p></details>
+      <details><summary>Â¿CÃ³mo se mantienen?</summary><p>Con la cera natural de 100 cc que viene en la caja.</p></details>
     </div>
   </div></div>
 
   {%- comment -%} 7. Ayuda {%- endcomment -%}
   <div class="czs-in"><div class="czs-contacto">
-    <h2>¿Dudas con tu escalera?</h2>
-    <p class="sec" style="margin:0;max-width:520px">Escríbenos por WhatsApp con una foto y te ayudamos a elegir madera y medidas.</p>
-    <a class="czs-btn" href="https://wa.me/{{ wa_web }}?text={{ 'Hola, quiero ayuda para elegir peldaños.' | url_encode }}" target="_blank" rel="noopener">Escribir por WhatsApp</a>
+    <h2>Â¿Dudas con tu escalera?</h2>
+    <p class="sec" style="margin:0;max-width:520px">EscrÃ­benos por WhatsApp con una foto y te ayudamos a elegir madera y medidas.</p>
+    <a class="czs-btn" href="https://wa.me/{{ wa_web }}?text={{ 'Hola, quiero ayuda para elegir peldaÃ±os.' | url_encode }}" target="_blank" rel="noopener">Escribir por WhatsApp</a>
   </div></div>
 </div>
 
 {% schema %}
 {
-  "name": "CZ · Peldaños",
+  "name": "CZ Â· PeldaÃ±os",
   "settings": [],
-  "presets": [{ "name": "CZ · Peldaños" }]
+  "presets": [{ "name": "CZ Â· PeldaÃ±os" }]
 }
 {% endschema %}
