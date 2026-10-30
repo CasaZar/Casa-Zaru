@@ -100,7 +100,12 @@
   product-info .product-form__submit:before,product-info .product-form__submit:after{border-radius:4px!important;box-shadow:none!important}
   product-info .czenv{background:none;border:0;border-top:1px solid #E4DDD2;border-bottom:1px solid #E4DDD2;border-radius:0;padding:14px 0;margin:18px 0 0}
   product-info .czenv__t{color:#1F1D24;font-weight:500}
+  .product__info-wrapper{border:0!important}
   @media (max-width:749px){
+    /* margen de 20 px a cada lado, como en el boceto (el tema dejaba 25 con un borde) */
+    .product__info-wrapper{padding-left:6px!important;padding-right:6px!important}
+    .czp-chips{gap:6px}
+    .czp-chips button{flex:1 1 0;min-width:0;padding:0 2px}
     /* foto a todo el ancho del celular */
     .product__media-list .product__media-item{margin-left:0!important;width:100%!important}
     .product__media-list .product-media-container{width:100%!important;max-width:100%!important}
