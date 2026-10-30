@@ -61,10 +61,13 @@ const PRD = {
   login: secreto('STARKEN_URL_LOGIN'),
   anular: secreto('STARKEN_URL_ANULAR'),
 };
-// Códigos de tipo de documento de Starken (tabla propia, no la del SII). Factura viene en la
-// documentación; el de boleta está PEDIDO a Starken (26-10-2026): hasta tenerlo, una OF con
-// boleta falla con un mensaje claro en vez de mandar un código inventado.
-const DOC_TIPO: Record<string, string> = { FACTURA: '26', BOLETA: '' };
+// Códigos de tipo de documento de Starken (tabla propia, no la del SII). La FAQ de «Crea tu
+// envío» en developers.starken.cl dice que el documento «asociado a la compra» se manda SIEMPRE
+// como factura (tipoDocumento1:26), sea lo que sea; su plugin de Shopify hace lo mismo con el
+// N° de pedido. Por eso la boleta también va con 26 (decidido 30-10-2026): en la etiqueta sale
+// como «FA <folio>». Si soporte de Starken entrega un código propio de boleta (pedido el 29-10),
+// se cambia solo aquí. 39 y 99 probados en QA: «no homologado» / «no válido».
+const DOC_TIPO: Record<string, string> = { FACTURA: '26', BOLETA: '26' };
 // Secreto de producción, o su gemelo _QA en pruebas.
 function secretoModo(nombre: string) { return secreto(MODO === 'produccion' ? nombre : nombre + '_QA'); }
 
