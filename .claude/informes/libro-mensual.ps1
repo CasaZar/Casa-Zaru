@@ -6,7 +6,8 @@
 # reglas-cierre.csv; este script no inventa categorías ni escribe números a mano.
 #
 # El repo es PÚBLICO: este script no lleva datos. Los datos viven en:
-#   C:\Users\dell\Casa Zaru Planillas  planilla de gastos, reglas-cierre.csv, ferias.csv, por-pagar-manual.csv
+#   C:\Users\dell\Casa Zaru Planillas  planilla de gastos, reglas-cierre.csv, ferias.csv, por-pagar-manual.csv,
+#                                       creditos.csv, cuotas-creditos.csv
 #   %USERPROFILE%\.casazaru             mp-AAAA-MM.csv/.json, emitidas-AAAA-MM.csv, meta-AAAA-MM.json,
 #                                       sii-AAAA-MM.json, kpis-cotizador.json
 #   Descargas                           cartolas BCI 7175 y Banco de Chile
@@ -516,6 +517,44 @@ if ($renFact.Count -and $cBci.archivo) {
 }
 if ($finMes -lt (Get-Date).Date.AddDays(3) -and -not @($renFact | Where-Object { EnMes (Fecha $_.Fecha) }).Count) { Aviso "Renatte factura el último día del mes: su factura de $mesNom todavía no está en la planilla de gastos. Si hubo despachos de madera, el costo del mes queda corto hasta que llegue." }
 
+# ── Starken (cuenta corriente): una factura por cuenta (777978 y 777979) el último día del mes, pagadas ~45 días después ──
+# La transferencia cita los folios ("Facturas 2764386 2764387") o el mes, o a veces nada ("Febrero"): una factura cuenta
+# como pagada si un pago cita su folio o calza (±$20) con ella sola o con todas las del mismo mes. Solo se miran las
+# facturas que la cartola puede haber pagado (desde 50 días antes de su primer movimiento).
+$RUT_STARKEN = '96.794.750-4'
+$stkPend = @()
+$stkFact = @($planilla | Where-Object { "$($_.RUT)" -eq $RUT_STARKEN -and (Fecha $_.Fecha) -le $finMes })
+if ($stkFact.Count -and $cBci.archivo) {
+  $stkPagos = @(Read-XlsxRows $cBci.archivo.FullName | Select-Object -Skip 1 | Where-Object { $_.Count -gt 17 -and $_[0] -match '^\d' } | ForEach-Object {
+    [pscustomobject]@{ fecha = [datetime]::FromOADate([double]::Parse($_[0], $INV)).Date; egr = (N $_[9]); nombre = "$($_[11])"; rut = "$($_[12])"; nota = "$($_[17])" } })
+  $desdeCart = ($stkPagos.fecha | Measure-Object -Minimum).Minimum
+  $stkPagos = @($stkPagos | Where-Object { $_.fecha -le $finMes -and "$($_.nombre) $($_.rut)" -match '(?i)starken|96\.?794\.?750' })
+  foreach ($g in @($stkFact | Where-Object { (Fecha $_.Fecha) -ge $desdeCart.AddDays(-50) } | Group-Object { (Fecha $_.Fecha).ToString('yyyy-MM') })) {
+    $totMes = Suma $g.Group 'Monto'
+    $todoMes = @($stkPagos | Where-Object { [math]::Abs($_.egr - $totMes) -le 20 }).Count
+    foreach ($fa in $g.Group) {
+      $pagada = $todoMes -or @($stkPagos | Where-Object { $_.nota -match "\b$($fa.Folio)\b" -or [math]::Abs($_.egr - (N $fa.Monto)) -le 20 }).Count
+      if (-not $pagada) { $stkPend += ,@("Starken, factura $($fa.Folio) ($($MESES[[int]$g.Name.Substring(5) - 1].ToLower()))", (N $fa.Monto), "cuenta corriente, con IVA; facturada el $((Fecha $fa.Fecha).ToString('dd-MM')), se paga ~45 días después por BCI") }
+    }
+  }
+}
+if ($finMes -lt (Get-Date).Date.AddDays(3) -and @($stkFact | Where-Object { EnMes (Fecha $_.Fecha) }).Count -lt 2) { Aviso "Starken factura el último día del mes (una por cada cuenta, 777978 y 777979): falta(n) la(s) de $mesNom en la planilla de gastos. Lo que falte no está en el costo de fletes ni en por pagar." }
+
+# ── Cuotas de créditos del mes siguiente (cuotas-creditos.csv, privado) ──
+# Acreedor;Cuota;Dia;PrimeraCuota;UltimaCuota;Medio;Nota. Fechas AAAA-MM-DD; vacías = sin límite conocido. Va a por pagar
+# la cuota que vence el mes siguiente al cierre. Sin monto, no se puede sumar: aviso.
+$cuotasPend = @()
+$sigMes = $finMes.AddDays(1)
+foreach ($c in LeerCsv (Join-Path $PLAN 'cuotas-creditos.csv')) {
+  if (-not "$($c.Acreedor)") { continue }
+  $dia = if ("$($c.Dia)") { [math]::Min([int]$c.Dia, [datetime]::DaysInMonth($sigMes.Year, $sigMes.Month)) } else { 1 }
+  $vence = Get-Date -Year $sigMes.Year -Month $sigMes.Month -Day $dia -Hour 0 -Minute 0 -Second 0 -Millisecond 0
+  if ("$($c.PrimeraCuota)" -and $vence -lt (Fecha $c.PrimeraCuota).AddDays(-27)) { continue }
+  if ("$($c.UltimaCuota)" -and $vence -gt (Fecha $c.UltimaCuota).AddDays(27)) { continue }
+  if (-not (N $c.Cuota)) { Aviso "Crédito $($c.Acreedor): falta el monto de la cuota en cuotas-creditos.csv. No está en por pagar."; continue }
+  $cuotasPend += ,@("Cuota $($c.Acreedor)$(if ("$($c.Dia)") { ", vence el $($vence.ToString('dd-MM'))" })", (N $c.Cuota), "$($c.Medio); $($c.Nota)".Trim('; '))
+}
+
 # ═════════════════════════════ INDICADORES, SEMÁFORO E HISTORIAL ═════════════════════════════
 $metas = @{ VentaNetaMes = 0; MargenBrutoMin = 0.55; CACMaxPct = 0.10; PorCobrarMaxPct = 0.25; MesesCajaMin = 1 }
 foreach ($m in LeerCsv (Join-Path $PLAN 'metas.csv')) { if ("$($m.Indicador)") { $metas["$($m.Indicador)"] = [double]::Parse("$($m.Valor)".Replace(',', '.'), $INV) } }
@@ -835,6 +874,8 @@ if ($suel) { $pagar += ,@("Sueldos de $mesNom (estimado)", $suel, "igual a lo pa
 if ($prev) { $pagar += ,@('Previred (estimado)', $prev, 'igual a lo pagado este mes') }
 $pagar += ,@('IVA del mes', [math]::Max(0, $ivaMes), $(if ($ivaMes -lt 0) { "crédito a favor de $(Plata (-$ivaMes)) para el mes siguiente" } else { 'incluye el IVA de las ventas de feria; ver hoja IVA' }))
 $pagar += $renPend
+$pagar += $stkPend
+$pagar += $cuotasPend
 foreach ($m in LeerCsv (Join-Path $PLAN 'por-pagar-manual.csv')) { $pagar += ,@($m.Concepto, (N $m.Monto), $m.Nota) }
 Tabla $f @('Concepto', 'Monto', 'Nota') $pagar @(1)
 Hoja 'Por cobrar y pagar' $f @(30, 12, 30, 14, 14, 14, 30)
