@@ -342,6 +342,12 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .zseg button + button { border-left: 1px solid #D9CFC2; }
 .zseg button.on { background: #485B3D; color: #fff; font-weight: 600; }
 .zcmd-nota { font-size: 11.5px; color: #8C8077; margin-top: 6px; }
+@media (max-width: 768px) {
+  .zb { min-height: 40px; padding: 8px 12px; }
+  .zdoc-acc .zb { flex: 1 1 auto; justify-content: center; }
+  .zseg button { padding: 9px 18px; }
+  .zl { padding: 6px 0; }
+}
 /* Producción: misma vista simple, pensada para el pantallazo al jefe de taller. */
 #prod-editorial { display: none; }
 @media (min-width: 769px) {
@@ -29559,7 +29565,7 @@ function prodLoteBtn(numStr,li,btn){
   var sel=!etiquetasSeleccionadas.has(oi+'-'+li);
   toggleEtiquetaSel(oi,li,sel);
   // El conteo cambia en todos los botones del lote que estén a la vista.
-  document.querySelectorAll('#prod-editorial .zb.lote.on').forEach(function(b){b.innerHTML=_prodLoteTxt(true);});
+  document.querySelectorAll('#page-prod .zb.lote.on').forEach(function(b){b.innerHTML=_prodLoteTxt(true);});
   btn.classList.toggle('on',sel);btn.innerHTML=_prodLoteTxt(sel);
 }
 function finLoteEnvio(numStr,btn){
@@ -31115,7 +31121,8 @@ var _Z_ICO={
   caja:'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',
   tipo:'M7.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0-2 0M3 6v5.17a2 2 0 0 0 .59 1.42l7.71 7.71a2.41 2.41 0 0 0 3.41 0l5.17-5.17a2.41 2.41 0 0 0 0-3.41L12.17 3.59A2 2 0 0 0 10.76 3H6a3 3 0 0 0-3 3',
   envio:'M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3M12 12l8-4.5M12 12v9M12 12L4 7.5',
-  borrar:'M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3'
+  borrar:'M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3',
+  editar:'M4 20h4L18.5 9.5a2.83 2.83 0 0 0-4-4L4 16v4M13.5 6.5l4 4'
 };
 function _zIco(n){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+_Z_ICO[n]+'"/></svg>';}
 // Tarjeta de un documento en la ficha de Finanzas: estado arriba, la acción que
@@ -34183,7 +34190,7 @@ async function _cmdConfirmar(){
       ((r.saltadas||[]).length?'<div style="color:var(--text-3);margin-top:6px">'+r.saltadas.length+' ya estaban y se saltaron.</div>':'')+
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn-ghost" onclick="cerrarComandasDoc()">Cerrar</button></div></div>';
     showToast('✓ '+n+(n===1?' comanda cargada':' comandas cargadas')+' en el Doc');
-    if(pend.deSeleccion){etiquetasSeleccionadas.clear();_etqSelPintar();document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});document.querySelectorAll('#prod-editorial .zb.lote.on').forEach(function(b){b.classList.remove('on');b.innerHTML=_prodLoteTxt(false);});}
+    if(pend.deSeleccion){etiquetasSeleccionadas.clear();_etqSelPintar();document.querySelectorAll('.etq-check').forEach(function(cb){cb.checked=false;});document.querySelectorAll('#page-prod .zb.lote.on').forEach(function(b){b.classList.remove('on');b.innerHTML=_prodLoteTxt(false);});}
     comandasEnDoc=null;cargarEstadoComandas();
   }catch(e){
     body.innerHTML='<div style="padding:18px;color:var(--red)">No se cargó: '+esc(e.message)+'</div>';
@@ -35442,7 +35449,7 @@ function renderFinCards(){
   var el=document.getElementById('fin-mobile-cards');if(!el)return;
   var list=getFilteredFin();if(!list.length){el.innerHTML='<div class="empty-state"><span class="empty-icon">💰</span>No hay registros.</div>';return;}
   var html2='';
-  list.forEach(function(r){var idx2=finRecords.indexOf(r),_p=estadoPagoFin(r),listo=r.doc1_emitida&&r.doc2_emitida;html2+='<div class="fin-card"><div class="fin-card-header"><div><div class="fin-card-num">#'+(r.num||'—')+'</div><div class="fin-card-semana">'+(r.semana||'')+'</div>'+(tipoDe(r)!=='VENTA'?'<div class="tipo-badge" style="background:'+((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).color||'var(--text-3)')+'">'+esc((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).label||'')+'</div>':'')+'</div><span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span></div><div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+esc(r.producto)+(r.vendedor?' · <span style="font-weight:600;color:var(--wood)">👤 '+esc(r.vendedor)+'</span>':'')+'</div><div class="fin-card-montos"><div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">'+(_p.excedente?'Excedente':'Pendiente')+'</div><div class="fin-card-monto-val" style="color:'+(_p.debe?'var(--amber)':_p.color)+'">'+_p.txt+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div></div><div class="fin-card-docs"><div class="fin-card-docs-title">Documentos</div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 1</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),1)+'</div></div><div class="fin-card-doc"><span class="fin-card-doc-lbl">Doc 2</span><div class="fin-card-doc-ctrl">'+_docControls(String(r.num||''),2)+'</div></div></div>'+(finLectura?'':'<button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button>')+'</div>';});
+  list.forEach(function(r){var idx2=finRecords.indexOf(r),_p=estadoPagoFin(r),listo=r.doc1_emitida&&r.doc2_emitida;html2+='<div class="fin-card"><div class="fin-card-header"><div><div class="fin-card-num">#'+(r.num||'—')+'</div><div class="fin-card-semana">'+(r.semana||'')+'</div>'+(tipoDe(r)!=='VENTA'?'<div class="tipo-badge" style="background:'+((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).color||'var(--text-3)')+'">'+esc((TIPOS_REGISTRO.filter(function(t){return t.k===tipoDe(r);})[0]||{}).label||'')+'</div>':'')+'</div><span class="'+(listo?'listo-badge':'pend-badge')+'">'+(listo?'✓ Listo':'Pendiente')+'</span></div><div style="font-size:14px;font-weight:600;color:var(--text)">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3);margin-bottom:8px">'+esc(r.producto)+(r.vendedor?' · <span style="font-weight:600;color:var(--wood)">👤 '+esc(r.vendedor)+'</span>':'')+'</div><div class="fin-card-montos"><div class="fin-card-monto-item"><div class="fin-card-monto-label">Total</div><div class="fin-card-monto-val" style="color:var(--green)">'+fmtCLP(r.total)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">'+(_p.excedente?'Excedente':'Pendiente')+'</div><div class="fin-card-monto-val" style="color:'+(_p.debe?'var(--amber)':_p.color)+'">'+_p.txt+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 1</div><div class="fin-card-monto-val">'+fmtCLP(r.abono1)+'</div></div><div class="fin-card-monto-item"><div class="fin-card-monto-label">Abono 2</div><div class="fin-card-monto-val">'+fmtCLP(r.abono2)+'</div></div></div><div class="fin-card-docs"><div class="fin-card-docs-title">Documentos</div>'+_docTarjeta(String(r.num||''),1,'Abono')+_docTarjeta(String(r.num||''),2,'Saldo')+'</div>'+(finLectura?'':'<button class="btn-edit" style="width:100%;margin-top:10px;text-align:center;display:block" onclick="openFinModal('+idx2+')">Ver / Editar</button>')+'</div>';});
   el.innerHTML=html2;
   _bloquearFinLectura();
 }
@@ -35471,15 +35478,13 @@ function renderProdCards(){
       var m2=calcM2(l.largo,l.ancho,l.cantidad);
       var specs=[(Number(l.cantidad)||1)>1?(l.cantidad+'×'):'',esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',m2>0?m2.toFixed(2)+' m²':'',esc(l.canto),esc(l.acabado),l.espesor?esc(l.espesor)+' cm esp.':'',l.fierro?'base fierro':''].filter(Boolean).join(' · ');
       return'<div class="prod-linea">'+
-        '<div class="prod-linea-prod">'+esc(l.producto||'(sin nombre)')+_cmdBadge(o,l)+'</div>'+
+        '<div class="prod-linea-prod">'+esc(l.producto||'(sin nombre)')+'</div>'+
         '<div class="prod-linea-specs">'+specs+'</div>'+
-        (l.observaciones?'<div class="prod-linea-obs">📝 '+esc(l.observaciones)+'</div>':'')+
-        '<div class="prod-linea-acc">'+
-          '<button type="button" onclick="abrirEditorLinea('+nq+','+li+')">✏️ Editar</button>'+
-          '<button type="button" onclick="generarEtiquetaProd(_prodIdx('+nq+'),'+li+')">📄 Etiqueta</button>'+
-          (COMANDAS_URL?'<button type="button" onclick="cargarComandaDoc('+nq+','+li+')">📝 Doc</button>':'')+
-          (lineas.length>1?'<button type="button" class="quitar" onclick="delProdLineExist('+nq+','+li+')">✕ Quitar</button>':'')+
-        '</div></div>';
+        (l.observaciones?'<div class="prod-linea-obs">Obs: '+esc(l.observaciones)+'</div>':'')+
+        '<div style="margin-top:8px"><button type="button" class="zb" onclick="abrirEditorLinea('+nq+','+li+')">'+_zIco('editar')+'Editar pieza</button></div>'+
+        _prodComandaCaja(o,l,_prodIdx(n),li,nq)+
+        (lineas.length>1?'<div style="text-align:right;margin-top:8px"><button type="button" class="zl rojo" onclick="delProdLineExist('+nq+','+li+')">Quitar esta pieza</button></div>':'')+
+        '</div>';
     }).join('');
     html2+='<div class="prod-card">'+
       '<div class="prod-card-header"><div style="min-width:0"><div class="prod-card-num">#'+esc(n||'—')+'</div>'+
