@@ -7,6 +7,8 @@ try {
   & (Join-Path $PSScriptRoot 'cierre-mensual.ps1')
   # Libro Excel y tablero del mes que acaba de cerrar (día 2 → mes anterior)
   & (Join-Path $PSScriptRoot 'libro-mensual.ps1') -Mes (Get-Date).AddMonths(-1).ToString('yyyy-MM')
+  # Planillas "por mes" (madera, Starken, sueldos, bencina, publicidad) del año del mes cerrado → Planillas y Drive/Finanzas
+  & (Join-Path $PSScriptRoot 'por-mes\todas.ps1') -Anio (Get-Date).AddMonths(-1).Year
 } catch {
   Write-Output "ERROR: $($_.Exception.Message)"
   $code = 1

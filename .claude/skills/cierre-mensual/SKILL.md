@@ -134,3 +134,23 @@ factura, Mercado Pago sin detalle, IVA de ferias). Todo número sale del script,
   fechas de cada feria (`ferias.csv`).
 - Comisión de César: tramo según valor producto con IVA, % aplicado sobre el valor sin IVA.
 - La hoja Sueldos tiene datos por persona: el archivo no se comparte.
+
+## Planillas «por mes» (desde el 31-10-2026)
+
+Cinco libros con la misma estructura — **Resumen + una hoja por mes**, filas marcadas en rojo sobre crema — que el
+día 2 regenera `correr-cierre.ps1` vía `.claude/informes/por-mes/todas.ps1` (también a mano: `todas.ps1 -Anio 2026`).
+Salen a `Casa Zaru Planillas\<nombre> AAAA por mes.xlsx` y se copian a `G:\Mi unidad\Casa Zaru\Finanzas\`.
+
+| Libro | Fila = | Rojo = | Fuente que hay que mantener |
+|---|---|---|---|
+| Compras madera | una compra | sin factura | `Casa Zaru Planillas\Compras madera AAAA - cruce.csv` (lo arma el cruce a mano: Wasabil + bancos + chat del taller) |
+| Starken | una OF del portal | OF sin pedido | `Casa Zaru Planillas\por-mes\starken\` (exports del portal, `map_ano.csv`, `fin_all.csv`, `facturas-starken.csv`) |
+| Sueldos | un pago BCI al equipo o Previred | glosa que no dice sueldo | `$EQUIPO` en `Casa Zaru Planillas\por-mes\config.ps1` (RUT → nombre) |
+| Bencina | una carga | sin factura | cartolas en Descargas + `~/.casazaru/mp-AAAA-MM.csv` y `mp-nombres.csv` |
+| Publicidad | un cobro de Meta o Google | cobro de Meta sin factura | `Casa Zaru Planillas\por-mes\wasabil-pub.csv` (facturas de Meta y Google bajadas de Wasabil) + la planilla de gastos |
+
+Reglas: el motor Excel es `engine.ps1` (copia del de `libro-mensual.ps1` + estilo 16 «pesos en rojo»); todo lo privado
+(RUT, nombres, carpetas de datos) va en `config.ps1`, **fuera del repo**. `fuentes.ps1` une todas las cartolas de
+Descargas en un caché (`%LOCALAPPDATA%\CasaZaru\por-mes`) que se rehace solo cuando aparece una cartola nueva. El primer
+semestre sale de `Gastos 1er Semestre AAAA Clasificado.xlsx` (ya clasificado); de ahí en adelante, de cartolas y tarjetas.
+Si el usuario edita un libro en Google Sheets, la siguiente corrida lo pisa: lo que haya que corregir va en la fuente.
