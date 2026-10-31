@@ -474,6 +474,20 @@ foreach ($k in $mesesRatio) { [void]$resumenHojas.Add(('razon precio/costo {0}: 
 function Suma($lista, $campo) { $s = (@($lista) | Measure-Object $campo -Sum).Sum; if ($s) { return [double]$s } return 0.0 }
 $histPath = 'C:\Users\dell\Casa Zaru Planillas\historial-mensual.csv'
 $libro = @{}; if (Test-Path $histPath) { foreach ($r in (Import-Csv $histPath -Delimiter ';' -Encoding UTF8)) { $libro["$($r.Mes)"] = [double]("0" + ("$($r.VentaNeta)" -replace '[^\d\.-]', '')) } }
+# SII: resumen del Registro de Ventas por mes y tipo de documento (sii-ventas-mensual.csv: periodo;tipo;docs;exento;neto;iva;total).
+# Documentado = facturas (33) + boletas (39) + boletas exentas (41) + comprobantes de pago electronico (48) - notas de credito (61).
+$sii = @{}
+$siiPath = Join-Path $Salida 'sii-ventas-mensual.csv'
+if (Test-Path -LiteralPath $siiPath) {
+  foreach ($r in (Import-Csv -LiteralPath $siiPath -Delimiter ';' -Encoding UTF8)) {
+    $p = "$($r.periodo)"; if ($p.Length -ne 6) { continue }
+    $m = $p.Substring(0, 4) + '-' + $p.Substring(4, 2)
+    if (-not $sii.ContainsKey($m)) { $sii[$m] = @{ docs = 0; neto = 0.0; total = 0.0; nc = 0.0; ncDocs = 0; facturas = 0.0; boletas = 0.0 } }
+    $t = [int]$r.tipo; $docs = [int]("0" + $r.docs); $neto = [double]("0" + $r.neto); $tot = [double]("0" + $r.total)
+    if ($t -eq 61) { $sii[$m].nc += $tot; $sii[$m].ncDocs += $docs; $sii[$m].neto -= $neto; $sii[$m].total -= $tot }
+    elseif ($t -in @(33, 39, 41, 48)) { $sii[$m].docs += $docs; $sii[$m].neto += $neto; $sii[$m].total += $tot; if ($t -eq 33) { $sii[$m].facturas += $tot } else { $sii[$m].boletas += $tot } }
+  }
+}
 $meses = @(); $d0 = Get-Date -Year 2021 -Month 7 -Day 1; $d1 = Get-Date -Year 2026 -Month 10 -Day 1
 for ($d = $d0; $d -le $d1; $d = $d.AddMonths(1)) { $meses += $d.ToString('yyyy-MM') }
 $resumen = @()
@@ -503,6 +517,13 @@ foreach ($m in $meses) {
     taller_pedidos = $pedidosT; taller_piezas = $piezas; taller_piezas_con_precio = $conPrecio; taller_m2 = [math]::Round($m2, 2); taller_costo = [math]::Round($costo); taller_venta_piezas = [math]::Round($precioT); taller_venta_estimada = [math]::Round($ventaEst); taller_venta_pedidos = [math]::Round($ventaPed); taller_precio_tipo = $tipos
     serie_bruta = $(if ($null -ne $serie) { [math]::Round($serie) } else { $null }); serie_neta = $(if ($null -ne $serie) { [math]::Round($serie / (1 + $IVA)) } else { $null }); calidad = $calidad
     libro_venta_neta = $(if ($libro.ContainsKey($m)) { [math]::Round($libro[$m]) } else { $null })
+    sii_docs = $(if ($sii.ContainsKey($m)) { [int]$sii[$m].docs } else { $null })
+    sii_facturas = $(if ($sii.ContainsKey($m)) { [math]::Round($sii[$m].facturas) } else { $null })
+    sii_boletas = $(if ($sii.ContainsKey($m)) { [math]::Round($sii[$m].boletas) } else { $null })
+    sii_notas_credito = $(if ($sii.ContainsKey($m)) { [math]::Round($sii[$m].nc) } else { $null })
+    sii_total = $(if ($sii.ContainsKey($m)) { [math]::Round($sii[$m].total) } else { $null })
+    sii_neto = $(if ($sii.ContainsKey($m)) { [math]::Round($sii[$m].neto) } else { $null })
+    pct_documentado = $(if ($sii.ContainsKey($m) -and $null -ne $serie -and $serie -gt 0) { [math]::Round($sii[$m].total / $serie, 3) } else { $null })
   }
 }
 $porAnio = @()
@@ -512,6 +533,8 @@ foreach ($g in ($resumen | Group-Object { $_.mes.Substring(0, 4) })) {
     anio = $g.Name; meses_con_datos = $con.Count; meses = (($con | ForEach-Object { $_.mes.Substring(5) }) -join ' ')
     ventas_n = (Suma $con 'ventas_n'); venta_bruta_planillas = [math]::Round((Suma $con 'venta_bruta')); serie_bruta = [math]::Round((Suma $con 'serie_bruta')); serie_neta = [math]::Round((Suma $con 'serie_neta'))
     taller_pedidos = (Suma $con 'taller_pedidos'); taller_piezas = (Suma $con 'taller_piezas'); taller_m2 = [math]::Round((Suma $con 'taller_m2'), 1); taller_costo = [math]::Round((Suma $con 'taller_costo')); taller_venta_estimada = [math]::Round((Suma $con 'taller_venta_estimada'))
+    sii_docs = (Suma $con 'sii_docs'); sii_total = [math]::Round((Suma $con 'sii_total')); sii_neto = [math]::Round((Suma $con 'sii_neto'))
+    pct_documentado = $(if ((Suma $con 'serie_bruta') -gt 0) { [math]::Round((Suma $con 'sii_total') / (Suma $con 'serie_bruta'), 3) } else { $null })
     calidades = ((@($con | ForEach-Object { $_.calidad }) | Sort-Object -Unique) -join ' | ')
   }
 }
@@ -576,21 +599,22 @@ $NOTAS = @(
   'Fuentes: VENTAS CASA ZARU 2024 .xlsx (sep 2024-jun 2025), VENTAS CASA ZARU 2025 (1).xlsx (jul-sep 2025; octubre incompleto y noviembre vacío), VENTAS GENERAL 2025 - 2026 (4).xlsx (ago 2025-ago 2026; agosto-noviembre 2025 en formato Meta con WTSP), PEDIDOS CASA ZARU TALLER 2024.xlsx (semanas del 20-11-2023 al 14-07-2025 y la hoja PEDIDOS CUBIERTAS con el registro desde julio 2021), respaldo diario de Gestión (may-oct 2026).',
   'Cuando dos fuentes cubren el mismo mes, manda una (columna principal = 1) y la otra queda en Ventas alternativas para cruzar: julio 2025 manda la planilla 2025; agosto-septiembre 2025 manda la planilla 2025 (la general trae lo mismo en formato Meta); octubre 2025 en adelante manda la general; mayo-agosto 2026 manda la general y Gestión queda de cruce; septiembre 2026 en adelante manda Gestión.',
   'Taller: una fila por pieza. Las piezas que aparecen en dos hojas (la maestra y la semanal, o una semana y la siguiente como pendiente) se marcan duplicado = 1 y no se cuentan. m² normalizado (las hojas viejas anotaban cm²).',
-  'No está: enero-agosto 2024 como ventas (solo taller), ni lo documentado en el SII. Devoluciones y muestrarios no suman como venta.',
+  'No está: enero-agosto 2024 como ventas (solo taller). Devoluciones y muestrarios no suman como venta.',
+  'SII (columnas SII y % documentado): Registro de Ventas del SII de Muvale Diseño SpA leído el 31-10-2026 mes a mes (sii-ventas-mensual.csv): facturas electrónicas (33) + boletas electrónicas (39) + boletas exentas (41) + comprobantes de pago electrónico (48) menos notas de crédito (61), en estado Registro. % documentado = SII total con IVA / serie bruta del mes. Es lo que el SII tiene registrado, no necesariamente lo declarado en el F29.',
   'Generado el ' + $gen + ' con scratchpad\ventas-hist\scripts\consolidar.ps1. Privado: trae nombres, correos y celulares. No va al repo.'
 )
 $f = New-Object System.Collections.ArrayList
 Titulo $f 'Casa Zaru - Histórico de ventas 2021-2026' "Resumen por mes. serie_bruta = venta del mes con IVA según la mejor fuente disponible (ver columna calidad y la hoja Fuentes y notas). Generado $gen."
-$colsR = @('Mes', 'Ventas (n)', 'Venta bruta planilla', 'Venta neta planilla', 'Total pagado', 'Envío', 'Fuente', 'Taller pedidos', 'Taller piezas', 'Piezas con precio', 'Taller m²', 'Costo Cristián', 'Taller venta piezas', 'Taller venta estimada', 'Taller venta pedidos', 'Tipo precio taller', 'Serie bruta', 'Serie neta', 'Calidad', 'Libro mensual (neto, con ML y ferias)')
-$datosR = foreach ($r in $resumen) { ,@((C $r.mes), (C ([int]$r.ventas_n)), (C ([double]$r.venta_bruta) 2), (C ([double]$r.venta_neta) 2), (C ([double]$r.total_pagado) 2), (C ([double]$r.envio) 2), (C $r.fuente_ventas), (C ([int]$r.taller_pedidos)), (C ([int]$r.taller_piezas)), (C ([int]$r.taller_piezas_con_precio)), (C ([double]$r.taller_m2) 8), (C ([double]$r.taller_costo) 2), (C ([double]$r.taller_venta_piezas) 2), (C ([double]$r.taller_venta_estimada) 2), (C ([double]$r.taller_venta_pedidos) 2), (C $r.taller_precio_tipo), (C $(if ($null -ne $r.serie_bruta) { [double]$r.serie_bruta } else { '' }) 2), (C $(if ($null -ne $r.serie_neta) { [double]$r.serie_neta } else { '' }) 2), (C $r.calidad), (C $(if ($null -ne $r.libro_venta_neta) { [double]$r.libro_venta_neta } else { '' }) 2)) }
-Tabla $f $colsR $datosR @(1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17)
-Hoja 'Resumen mensual' $f @(9, 9, 15, 15, 13, 10, 12, 9, 9, 9, 9, 13, 14, 14, 14, 30, 14, 14, 44, 14) 4
+$colsR = @('Mes', 'Ventas (n)', 'Venta bruta planilla', 'Venta neta planilla', 'Total pagado', 'Envío', 'Fuente', 'Taller pedidos', 'Taller piezas', 'Piezas con precio', 'Taller m²', 'Costo Cristián', 'Taller venta piezas', 'Taller venta estimada', 'Taller venta pedidos', 'Tipo precio taller', 'Serie bruta', 'Serie neta', 'Calidad', 'Libro mensual (neto, con ML y ferias)', 'SII docs', 'SII facturas', 'SII boletas y comprobantes', 'SII notas de crédito', 'SII total (con IVA)', 'SII neto', '% documentado')
+$datosR = foreach ($r in $resumen) { ,@((C $r.mes), (C ([int]$r.ventas_n)), (C ([double]$r.venta_bruta) 2), (C ([double]$r.venta_neta) 2), (C ([double]$r.total_pagado) 2), (C ([double]$r.envio) 2), (C $r.fuente_ventas), (C ([int]$r.taller_pedidos)), (C ([int]$r.taller_piezas)), (C ([int]$r.taller_piezas_con_precio)), (C ([double]$r.taller_m2) 8), (C ([double]$r.taller_costo) 2), (C ([double]$r.taller_venta_piezas) 2), (C ([double]$r.taller_venta_estimada) 2), (C ([double]$r.taller_venta_pedidos) 2), (C $r.taller_precio_tipo), (C $(if ($null -ne $r.serie_bruta) { [double]$r.serie_bruta } else { '' }) 2), (C $(if ($null -ne $r.serie_neta) { [double]$r.serie_neta } else { '' }) 2), (C $r.calidad), (C $(if ($null -ne $r.libro_venta_neta) { [double]$r.libro_venta_neta } else { '' }) 2), (C $(if ($null -ne $r.sii_docs) { [int]$r.sii_docs } else { '' })), (C $(if ($null -ne $r.sii_facturas) { [double]$r.sii_facturas } else { '' }) 2), (C $(if ($null -ne $r.sii_boletas) { [double]$r.sii_boletas } else { '' }) 2), (C $(if ($null -ne $r.sii_notas_credito) { [double]$r.sii_notas_credito } else { '' }) 2), (C $(if ($null -ne $r.sii_total) { [double]$r.sii_total } else { '' }) 2), (C $(if ($null -ne $r.sii_neto) { [double]$r.sii_neto } else { '' }) 2), (C $(if ($null -ne $r.pct_documentado) { [double]$r.pct_documentado } else { '' }) 4)) }
+Tabla $f $colsR $datosR @(1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12, 13, 14, 16, 17, 20, 21, 22, 23, 24, 25)
+Hoja 'Resumen mensual' $f @(9, 9, 15, 15, 13, 10, 12, 9, 9, 9, 9, 13, 14, 14, 14, 30, 14, 14, 44, 14, 8, 13, 14, 13, 14, 14, 10) 4
 $f = New-Object System.Collections.ArrayList
 Titulo $f 'Por año' 'Suma de los meses con datos. Un año parcial (2021, 2026) se nota en la columna meses.'
-$colsA = @('Año', 'Meses con datos', 'Meses', 'Ventas (n)', 'Venta bruta planillas', 'Serie bruta', 'Serie neta', 'Taller pedidos', 'Taller piezas', 'Taller m²', 'Costo Cristián', 'Taller venta estimada', 'Calidad')
-$datosA = foreach ($r in $porAnio) { ,@((C $r.anio), (C ([int]$r.meses_con_datos)), (C $r.meses), (C ([int]$r.ventas_n)), (C ([double]$r.venta_bruta_planillas) 2), (C ([double]$r.serie_bruta) 2), (C ([double]$r.serie_neta) 2), (C ([int]$r.taller_pedidos)), (C ([int]$r.taller_piezas)), (C ([double]$r.taller_m2) 8), (C ([double]$r.taller_costo) 2), (C ([double]$r.taller_venta_estimada) 2), (C $r.calidades 14)) }
-Tabla $f $colsA $datosA @(3, 4, 5, 6, 7, 8, 9, 10, 11)
-Hoja 'Por año' $f @(8, 9, 34, 9, 16, 15, 15, 9, 9, 9, 14, 14, 60) 4
+$colsA = @('Año', 'Meses con datos', 'Meses', 'Ventas (n)', 'Venta bruta planillas', 'Serie bruta', 'Serie neta', 'Taller pedidos', 'Taller piezas', 'Taller m²', 'Costo Cristián', 'Taller venta estimada', 'SII docs', 'SII total (con IVA)', 'SII neto', '% documentado', 'Calidad')
+$datosA = foreach ($r in $porAnio) { ,@((C $r.anio), (C ([int]$r.meses_con_datos)), (C $r.meses), (C ([int]$r.ventas_n)), (C ([double]$r.venta_bruta_planillas) 2), (C ([double]$r.serie_bruta) 2), (C ([double]$r.serie_neta) 2), (C ([int]$r.taller_pedidos)), (C ([int]$r.taller_piezas)), (C ([double]$r.taller_m2) 8), (C ([double]$r.taller_costo) 2), (C ([double]$r.taller_venta_estimada) 2), (C ([int]$r.sii_docs)), (C ([double]$r.sii_total) 2), (C ([double]$r.sii_neto) 2), (C $(if ($null -ne $r.pct_documentado) { [double]$r.pct_documentado } else { '' }) 4), (C $r.calidades 14)) }
+Tabla $f $colsA $datosA @(3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14)
+Hoja 'Por año' $f @(8, 9, 34, 9, 16, 15, 15, 9, 9, 9, 14, 14, 8, 15, 14, 10, 60) 4
 $f = New-Object System.Collections.ArrayList
 Titulo $f 'Ventas (fuente principal de cada mes)' 'Una fila por venta o por ítem (item_extra = 1 cuando la planilla traía una segunda línea para la misma venta). valor = producto con IVA, sin envío ni comisiones cuando la planilla lo separaba.'
 $colsVx = @('Mes', 'N°', 'Fecha', 'Semana', 'Cliente', 'Vendedor', 'Canal', 'Medio pago', 'Producto', 'Cómo nos conoció', 'Valor', 'Total pagado', 'Envío', 'Comisión', 'Abonos', 'Pendiente', 'Documento', 'Estado', 'Tipo', 'Correo', 'Celular', 'Ítem extra', 'Nota', 'Fuente', 'Hoja', 'Fila')
@@ -641,7 +665,10 @@ Write-Output ''
 Write-Output ('{0,-8} {1,4} {2,14} {3,5} {4,4} {5,4} {6,7} {7,12} {8,12} {9,14}  {10}' -f 'Mes', 'n', 'venta_bruta', 'tPed', 'tPz', 'cP', 'm2', 'costo', 'taller_est', 'serie_bruta', 'calidad')
 foreach ($r in $resumen) { Write-Output ('{0,-8} {1,4} {2,14:N0} {3,5} {4,4} {5,4} {6,7:N1} {7,12:N0} {8,12:N0} {9,14:N0}  {10}' -f $r.mes, $r.ventas_n, $r.venta_bruta, $r.taller_pedidos, $r.taller_piezas, $r.taller_piezas_con_precio, $r.taller_m2, $r.taller_costo, $r.taller_venta_estimada, $r.serie_bruta, $r.calidad) }
 Write-Output ''
-foreach ($r in $porAnio) { Write-Output ('{0}: {1} meses [{2}] ventas_n={3} serie_bruta={4:N0} serie_neta={5:N0} taller_pedidos={6} piezas={7} m2={8}' -f $r.anio, $r.meses_con_datos, $r.meses, $r.ventas_n, $r.serie_bruta, $r.serie_neta, $r.taller_pedidos, $r.taller_piezas, $r.taller_m2) }
+foreach ($r in $porAnio) { Write-Output ('{0}: {1} meses [{2}] ventas_n={3} serie_bruta={4:N0} serie_neta={5:N0} taller_pedidos={6} piezas={7} m2={8} sii_docs={9} sii_total={10:N0} pct_doc={11:P1}' -f $r.anio, $r.meses_con_datos, $r.meses, $r.ventas_n, $r.serie_bruta, $r.serie_neta, $r.taller_pedidos, $r.taller_piezas, $r.taller_m2, $r.sii_docs, $r.sii_total, $r.pct_documentado) }
+Write-Output ''
+Write-Output 'SII por mes: mes | serie_bruta | sii_total | % documentado'
+foreach ($r in $resumen) { if ($null -ne $r.sii_total) { Write-Output ('{0} {1,14:N0} {2,14:N0} {3,8:P1}' -f $r.mes, $r.serie_bruta, $r.sii_total, $r.pct_documentado) } }
 Write-Output ''
 Write-Output ('Cruce ventas vs taller: {0} numeros; calza={1} revisar={2} sin taller={3}' -f $cruce1.Count, @($cruce1 | Where-Object { $_.estado -eq 'calza' }).Count, @($cruce1 | Where-Object { $_.estado -eq 'revisar' }).Count, @($cruce1 | Where-Object { $_.estado -eq 'sin taller' }).Count)
 Write-Output ('Cruce planilla vs Gestion 2026: {0} numeros; calza={1} revisar={2} no en Gestion={3} solo Gestion={4}' -f $cruce3.Count, @($cruce3 | Where-Object { $_.estado -eq 'calza' }).Count, @($cruce3 | Where-Object { $_.estado -eq 'revisar' }).Count, @($cruce3 | Where-Object { $_.estado -eq 'no esta en Gestion' }).Count, @($cruce3 | Where-Object { $_.estado -eq 'solo en Gestion' }).Count)
