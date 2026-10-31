@@ -28,13 +28,12 @@ $factMeta = @($wp | Where-Object { $_.cat -eq 'Publicidad Meta' } | Sort-Object 
 CruzarFacturas @($movs | Where-Object { $_.canal -eq 'Meta' }) $factMeta 2 20
 foreach ($m in $movs) { if ($m.canal -eq 'Google') { $m.sinFactura = $false; $m.cruce = 'Google: la factura es mensual y el reembolso junta dos meses; ver la tabla de facturas' } }
 
-$metaReal = @{}; foreach ($n in (Get-ChildItem $CZ -Filter "meta-$Anio-??.json")) { $j = Get-Content $n.FullName -Raw -Encoding UTF8 | ConvertFrom-Json; $metaReal[[int]$j.mes.Substring(5, 2)] = [double]$j.gasto }
 $mpSinNombre = @($MP | Where-Object { -not $_.nombre -and $_.monto -ge 20000 })
 $HastaMes = HastaMesDe (@($movs | ForEach-Object { $_.fecha }) + @($wp | ForEach-Object { $_.fecha }))
 
 $f = New-Object System.Collections.ArrayList
-Titulo $f "Publicidad $Anio" 'Meta y Google por mes, según la cuenta que pagó (con IVA) y las facturas de compra que llegaron a Wasabil. «Meta real» es el gasto de Ads Manager (sin IVA), cuando se leyó. En rojo, cobros de Meta sin factura.'
-$cols = 'Mes', 'Meta pagado', 'Meta facturado', 'Meta sin factura', 'N° sin factura', 'Meta real (Ads Manager, sin IVA)', 'Google pagado', 'Google facturado', 'Total pagado', 'Tarjeta MP sin nombre'
+Titulo $f "Publicidad $Anio" 'Meta y Google por mes, según la cuenta que pagó (con IVA) y las facturas de compra que llegaron a Wasabil. En rojo, cobros de Meta sin factura.'
+$cols = 'Mes', 'Meta pagado', 'Meta facturado', 'Meta sin factura', 'N° sin factura', 'Google pagado', 'Google facturado', 'Total pagado', 'Tarjeta MP sin nombre'
 [void]$f.Add(@($cols | ForEach-Object { C $_ 1 }))
 $ini = $f.Count + 1
 for ($mes = 1; $mes -le $HastaMes; $mes++) {
@@ -44,14 +43,14 @@ for ($mes = 1; $mes -le $HastaMes; $mes++) {
   $gf = 0; foreach ($x in @($factGoogle | Where-Object { $_.fecha.Month -eq $mes })) { $gf += $x.monto }
   $sn = 0; foreach ($x in @($mpSinNombre | Where-Object { $_.fecha.Month -eq $mes })) { $sn += $x.monto }
   $r = $f.Count + 1
-  [void]$f.Add(@((C $MESES[$mes - 1]), (C $mp 2), (C $mf 2), (C $ms 16), (C $nms 7), (C $(if ($metaReal.ContainsKey($mes)) { $metaReal[$mes] } else { '' }) 2), (C $gp 2), (C $gf 2), (F "B$r+G$r" 13), (C $sn $(if ($sn) { 16 } else { 2 }))))
+  [void]$f.Add(@((C $MESES[$mes - 1]), (C $mp 2), (C $mf 2), (C $ms 16), (C $nms 7), (C $gp 2), (C $gf 2), (F "B$r+F$r" 13), (C $sn $(if ($sn) { 16 } else { 2 }))))
 }
 $fin_ = $f.Count
-$tot = @((C 'Total' 9)); for ($i = 1; $i -le 9; $i++) { $tot += (F "SUM($(ColL $i)$($ini):$(ColL $i)$fin_)" $(if ($i -eq 4) { 9 } else { 3 })) }
+$tot = @((C 'Total' 9)); for ($i = 1; $i -le 8; $i++) { $tot += (F "SUM($(ColL $i)$($ini):$(ColL $i)$fin_)" $(if ($i -eq 4) { 9 } else { 3 })) }
 [void]$f.Add($tot); [void]$f.Add(@())
 Nota $f 'Meta factura cada cobro, así que «Meta facturado» es la mejor cifra del gasto pagado. «Meta pagado» sale más bajo cuando a la tarjeta de Mercado Pago le faltan el estado de cuenta del mes o los nombres de comercio de las capturas (columna «Tarjeta MP sin nombre»).'
 Nota $f 'Google se paga con tarjeta personal y se reembolsa por BCI cada dos meses (desde el 19-10-2026 cobra a la Visa 8340). Lo facturado por Google llega por mes a Wasabil.'
-Hoja 'Resumen' $f @(12, 13, 13, 13, 10, 18, 13, 13, 13, 14) 4
+Hoja 'Resumen' $f @(12, 13, 13, 13, 10, 13, 13, 13, 14) 4
 
 $cab = 'Fecha', 'Canal', 'Cuenta', 'Comercio / quién', 'Glosa', 'Monto', 'Factura', 'Observación'
 for ($mes = 1; $mes -le $HastaMes; $mes++) {
@@ -79,7 +78,6 @@ for ($mes = 1; $mes -le $HastaMes; $mes++) {
   }
   $sn = @($mpSinNombre | Where-Object { $_.fecha.Month -eq $mes })
   if ($sn.Count) { $s = 0; foreach ($x in $sn) { $s += $x.monto }; [void]$f.Add(@()); Nota $f ("Tarjeta de Mercado Pago: $($sn.Count) pagos de `$20.000 o más sin nombre de comercio, " + '$' + $s.ToString('N0', $CL) + ' en total. Parte puede ser Meta: faltan las capturas de la actividad para saberlo.') }
-  if ($metaReal.ContainsKey($mes)) { Nota $f ('Ads Manager dice que Meta gastó $' + $metaReal[$mes].ToString('N0', $CL) + ' sin IVA este mes (' + '$' + ([math]::Round($metaReal[$mes] * 1.19)).ToString('N0', $CL) + ' con IVA).') }
   Hoja (NombreHoja $mes) $f @(11, 8, 24, 20, 30, 12, 20, 60) 4
 }
 Publicar $out
