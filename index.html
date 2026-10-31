@@ -33948,50 +33948,157 @@ function abrirImportarExcel(){showToast('El importador del Excel diario viene en
 
 // ── INIT ──────────────────────────────────────────────────────────────────
 
-function generarImagenTablaCanvas(largo,ancho,espesor){
-  var canvas=document.createElement('canvas');
-  var CW=620,CH=300;canvas.width=CW;canvas.height=CH;
-  var ctx=canvas.getContext('2d');
-  var l=Number(largo)||150,a=Number(ancho)||20,e=Number(espesor)||4;
-  ctx.fillStyle='#DEDAD2';ctx.fillRect(0,0,CW,CH);
-  var maxBW=CW*0.72,scale=Math.min(maxBW/l,3.5);
-  var bW=l*scale,bH=Math.max(e*scale*2.5,14),dX=a*scale*0.4,dY=a*scale*0.2;
-  var x0=(CW-bW-dX)/2,y0=CH*0.78;
-  // Sombra
-  ctx.save();ctx.shadowColor='rgba(0,0,0,0.2)';ctx.shadowBlur=18;ctx.shadowOffsetX=6;ctx.shadowOffsetY=6;
-  ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+dX,y0-bH-dY);ctx.lineTo(x0+dX,y0-dY);ctx.lineTo(x0+bW+dX,y0-dY);ctx.lineTo(x0+bW,y0);ctx.lineTo(x0,y0);ctx.closePath();ctx.fillStyle='#C4976A';ctx.fill();ctx.restore();
-  // Cara superior
-  ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+dX,y0-bH-dY);ctx.closePath();
-  var gTop=ctx.createLinearGradient(x0,y0-bH,x0+bW,y0-bH-dY);gTop.addColorStop(0,'#E8C07A');gTop.addColorStop(0.5,'#D4A96A');gTop.addColorStop(1,'#C4976A');ctx.fillStyle=gTop;ctx.fill();
-  // Veta superior
-  ctx.save();ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+dX,y0-bH-dY);ctx.closePath();ctx.clip();
-  ctx.strokeStyle='rgba(0,0,0,0.06)';ctx.lineWidth=1.2;
-  for(var i=0;i<10;i++){var t=i/10;ctx.beginPath();ctx.moveTo(x0+dX*t,y0-bH-dY*t);ctx.lineTo(x0+bW+dX*t,y0-bH-dY*t);ctx.stroke();}
+// ── Plano de la pieza para la comanda (31-10-2026) ────────────────────────
+// Antes era un dibujo 3D con degradados y cotas de 11 px que, impreso a
+// 430×215, salían de ~5 pt. Ahora es un plano de taller: línea negra sobre
+// blanco, planta con cotas y diagonal (para escuadrar) y, a la derecha, el
+// corte de la cubierta o el alzado de la mesa con su base. Se dibuja a
+// 1240×600 (misma proporción 2:1) y el Doc/.docx lo siguen mostrando a
+// 430×215, así que 46 px de acá son ~12 pt en el papel.
+var PLANO_CFG={
+  altura:75,     // alto de mesa terminada, cm. SUPUESTO (placeholder del Cotizador): confirmar con el taller
+  pata:8,        // sección de la pata en modelos de 4 patas, cm. SUPUESTO: confirmar con el taller
+  volPatas:8,    // pata casi en la esquina (ERGO.patasVol del Cotizador)
+  cabFactor:0.17,cabMin:22,cabMax:38,   // voladizo de cabecera con base central (ERGO del Cotizador)
+  latFactor:0.20,latMin:12,latMax:22    // voladizo lateral
+};
+// Modelos del catálogo (misma lista MESA_MODELOS del Cotizador), reducidos a
+// lo que cambia el dibujo: forma y tipo de base. Un modelo que no esté acá se
+// dibuja rectangular con base central de referencia.
+var PLANO_MESAS=[
+  {re:/R[IÍ]O\s+BUENO|LLANQUIHUE/i,forma:'rect',base:'patas'},
+  {re:/BACKER|PUELO|TOLT[EÉ]N|IMPERIAL/i,forma:'redonda',base:'central'},
+  {re:/PUYEHUE|CALAFQU[EÉ]N|MAULL[IÍ]N/i,forma:'rect',base:'fierro'},
+  {re:/VALDIVIA|FUY|COCHRANE|TODOS\s+LOS\s+SANTOS|TRANCURA|MAIHUE|RI[NÑ]IHUE|PETROHU[EÉ]/i,forma:'rect',base:'central'}
+];
+function _planoTipo(l){
+  var nom=String(l&&l.producto||''),cat=categoriaProducto(nom);
+  var redondaTxt=/REDONDA|CIRCULAR|Ø/i.test(nom);
+  // Velador, arrimo, mesa de centro…: no son mesas de comedor, la altura de
+  // 75 y la regla de voladizos no les calzan (mismo ERGO_NO_APLICA del
+  // Cotizador). Van como una cubierta: planta y corte.
+  var noComedor=/VELADOR|ARRIMO|CENTRO|NOCHE|CONSOLA|LATERAL|APOYO|RINC[OÓ]N|CAF[EÉ]|\bTV\b|MUDADOR/i.test(nom);
+  if(cat==='Mesa'&&!noComedor){
+    for(var i=0;i<PLANO_MESAS.length;i++)if(PLANO_MESAS[i].re.test(nom)){
+      var m=PLANO_MESAS[i];return{mesa:true,forma:m.forma==='redonda'||redondaTxt?'redonda':'rect',base:m.base};
+    }
+    return{mesa:true,forma:redondaTxt?'redonda':'rect',base:'central'};
+  }
+  // Cubierta de mesa a medida con base de fierro: el alzado muestra el voladizo.
+  if(cat==='Cubierta mesa'&&l&&l.fierro)return{mesa:true,forma:redondaTxt?'redonda':'rect',base:'fierro'};
+  return{mesa:false,forma:redondaTxt?'redonda':'rect',base:''};
+}
+function _cmTxt(n){n=Number(n)||0;return n%1===0?String(n):n.toFixed(1).replace('.',',');}
+// Cota horizontal: línea con remates oblicuos y el número centrado.
+function _planoCotaH(ctx,x1,x2,y,txt,size,arriba){
+  ctx.save();ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();
+  [x1,x2].forEach(function(x){ctx.beginPath();ctx.moveTo(x-7,y+7);ctx.lineTo(x+7,y-7);ctx.stroke();});
+  ctx.font='bold '+size+'px Arial';ctx.fillStyle='#111';ctx.textAlign='center';ctx.textBaseline=arriba?'bottom':'top';
+  ctx.fillText(txt,(x1+x2)/2,arriba?y-8:y+10);ctx.restore();
+}
+function _planoCotaV(ctx,x,y1,y2,txt,size,derecha){
+  ctx.save();ctx.strokeStyle='#111';ctx.lineWidth=2;ctx.setLineDash([]);
+  ctx.beginPath();ctx.moveTo(x,y1);ctx.lineTo(x,y2);ctx.stroke();
+  // En un tramo corto (el espesor) los remates oblicuos se pisan con el
+  // número: van como rayitas horizontales y el número más separado.
+  var corto=Math.abs(y2-y1)<24;
+  [y1,y2].forEach(function(y){ctx.beginPath();if(corto){ctx.moveTo(x-10,y);ctx.lineTo(x+10,y);}else{ctx.moveTo(x-7,y+7);ctx.lineTo(x+7,y-7);}ctx.stroke();});
+  ctx.font='bold '+size+'px Arial';ctx.fillStyle='#111';ctx.textAlign=derecha?'left':'right';ctx.textBaseline='middle';
+  var sep=corto?18:12;
+  ctx.fillText(txt,derecha?x+sep:x-sep,(y1+y2)/2);ctx.restore();
+}
+function _planoTitulo(ctx,x,y,txt,sub){
+  ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';
+  ctx.fillStyle='#555';ctx.font='bold 26px Arial';ctx.fillText(txt,x,y);
+  if(sub){ctx.fillStyle='#777';ctx.font='24px Arial';ctx.fillText(sub,x,y+30);}
   ctx.restore();
-  // Cara frontal
-  ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW,y0);ctx.lineTo(x0,y0);ctx.closePath();
-  var gFront=ctx.createLinearGradient(x0,y0-bH,x0,y0);gFront.addColorStop(0,'#C4976A');gFront.addColorStop(1,'#A8804A');ctx.fillStyle=gFront;ctx.fill();
-  // Veta frontal
-  ctx.save();ctx.beginPath();ctx.rect(x0,y0-bH,bW,bH);ctx.clip();ctx.strokeStyle='rgba(0,0,0,0.07)';ctx.lineWidth=0.8;
-  var gr=Math.max(Math.floor(bH/4),2);for(var j=0;j<gr;j++){var gy=y0-bH+(bH/gr)*j;ctx.beginPath();ctx.moveTo(x0,gy);ctx.lineTo(x0+bW,gy);ctx.stroke();}ctx.restore();
-  // Cara lateral derecha
-  ctx.beginPath();ctx.moveTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+bW+dX,y0-dY);ctx.lineTo(x0+bW,y0);ctx.closePath();
-  var gSide=ctx.createLinearGradient(x0+bW,y0-bH,x0+bW+dX,y0-dY);gSide.addColorStop(0,'#9A7055');gSide.addColorStop(1,'#7A5540');ctx.fillStyle=gSide;ctx.fill();
-  // Contornos
-  ctx.strokeStyle='rgba(0,0,0,0.25)';ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+dX,y0-bH-dY);ctx.closePath();ctx.stroke();
-  ctx.beginPath();ctx.moveTo(x0,y0-bH);ctx.lineTo(x0+bW,y0-bH);ctx.lineTo(x0+bW,y0);ctx.lineTo(x0,y0);ctx.closePath();ctx.stroke();
-  ctx.beginPath();ctx.moveTo(x0+bW,y0-bH);ctx.lineTo(x0+bW+dX,y0-bH-dY);ctx.lineTo(x0+bW+dX,y0-dY);ctx.lineTo(x0+bW,y0);ctx.stroke();
-  // Cotas
-  ctx.font='bold 11px Arial';
-  // Largo: bajo cara frontal
-  ctx.fillStyle='#444';ctx.textAlign='center';
-  ctx.fillText(largo+' cms',x0+bW/2,y0+18);
-  // Ancho: sobre cara superior, rotado al ángulo del plano
-  var angTop=Math.atan2(-dY,dX);
-  ctx.save();ctx.translate(x0+bW*0.5+dX*0.5,y0-bH-dY*0.5);ctx.rotate(angTop);ctx.textAlign='center';ctx.fillStyle='#333';ctx.fillText(ancho+' cms',0,-7);ctx.restore();
-  // Espesor: a la derecha de la cara lateral
-  ctx.save();ctx.translate(x0+bW+dX+10,y0-dY-bH*0.5);ctx.textAlign='left';ctx.font='bold 10px Arial';ctx.fillStyle='#555';ctx.fillText(espesor+' cms',0,4);ctx.restore();
+}
+function _planoNota(ctx,x,y,txt,derecha){
+  ctx.save();ctx.font='24px Arial';ctx.fillStyle='#555';ctx.textAlign=derecha?'right':'left';ctx.textBaseline='top';ctx.fillText(txt,x,y);ctx.restore();
+}
+function _planoRect(ctx,x,y,w,h,punteado){
+  ctx.save();ctx.strokeStyle=punteado?'#333':'#111';ctx.lineWidth=punteado?2:3;
+  if(punteado)ctx.setLineDash([10,8]);else{ctx.setLineDash([]);ctx.fillStyle='#fff';ctx.fillRect(x,y,w,h);}
+  ctx.strokeRect(x,y,w,h);ctx.restore();
+}
+function _planoCirculo(ctx,cx,cy,r,punteado){
+  ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+  if(punteado){ctx.setLineDash([10,8]);ctx.strokeStyle='#333';ctx.lineWidth=2;}
+  else{ctx.fillStyle='#fff';ctx.fill();ctx.setLineDash([]);ctx.strokeStyle='#111';ctx.lineWidth=3;}
+  ctx.stroke();ctx.restore();
+}
+// Se mantiene el nombre: lo llaman la etiqueta .docx, «Cargar al Doc» y la
+// receta con Edge headless. `l` es la línea de producción (producto, fierro).
+function generarImagenTablaCanvas(largo,ancho,espesor,l){
+  var canvas=document.createElement('canvas');
+  var CW=1240,CH=600;canvas.width=CW;canvas.height=CH;
+  var ctx=canvas.getContext('2d');
+  var L=Number(largo)||150,A=Number(ancho)||20,E=Number(espesor)||4;
+  var t=_planoTipo(l||{}),C=PLANO_CFG,redonda=t.forma==='redonda';
+  if(redonda)A=L;   // en redondas el largo es el diámetro
+  ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,CW,CH);
+  // Voladizos y base de referencia (misma regla que la nota de ergonomía del Cotizador).
+  var volC=Math.min(C.cabMax,Math.max(C.cabMin,L*C.cabFactor)),volL=Math.min(C.latMax,Math.max(C.latMin,A*C.latFactor));
+  var bL=Math.round(L-2*volC),bA=Math.round(A-2*volL);
+  // ── Planta (izquierda) ──
+  var ax=90,ay=140,aw=560,ah=380;
+  var s=Math.min(aw/L,ah/A),W=L*s,H=A*s,x0=ax+(aw-W)/2,y0=ay+(ah-H)/2;
+  _planoTitulo(ctx,40,60,'PLANTA',redonda?'Ø '+_cmTxt(L)+' cm':_cmTxt(L)+' × '+_cmTxt(A)+' cm');
+  if(redonda){
+    _planoCirculo(ctx,x0+W/2,y0+H/2,W/2,false);
+    ctx.save();ctx.strokeStyle='#999';ctx.lineWidth=1;ctx.setLineDash([6,6]);
+    ctx.beginPath();ctx.moveTo(x0,y0+H/2);ctx.lineTo(x0+W,y0+H/2);ctx.moveTo(x0+W/2,y0);ctx.lineTo(x0+W/2,y0+H);ctx.stroke();ctx.restore();
+    _planoCotaH(ctx,x0,x0+W,y0-40,'Ø '+_cmTxt(L),46,true);
+  }else{
+    _planoRect(ctx,x0,y0,W,H,false);
+    ctx.save();ctx.setLineDash([12,10]);ctx.strokeStyle='#555';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(x0,y0+H);ctx.lineTo(x0+W,y0);ctx.stroke();ctx.restore();
+    _planoCotaH(ctx,x0,x0+W,y0-40,_cmTxt(L),46,true);
+    _planoCotaV(ctx,x0+W+45,y0,y0+H,_cmTxt(A),46,true);
+    _planoNota(ctx,x0,y0+H+16,'diagonal '+_cmTxt(Math.round(Math.sqrt(L*L+A*A)*10)/10)+' cm',false);
+  }
+  if(t.mesa){
+    if(t.base==='patas'){
+      var p=C.pata*s,v=C.volPatas*s;
+      [[x0+v,y0+v],[x0+W-v-p,y0+v],[x0+v,y0+H-v-p],[x0+W-v-p,y0+H-v-p]].forEach(function(q){_planoRect(ctx,q[0],q[1],p,p,true);});
+      _planoNota(ctx,x0,y0+H+50,'patas '+_cmTxt(C.pata)+' × '+_cmTxt(C.pata)+' a '+_cmTxt(C.volPatas)+' cm del borde',false);
+    }else if(bL>0&&bA>0){
+      if(redonda)_planoCirculo(ctx,x0+W/2,y0+H/2,bL*s/2,true);
+      else _planoRect(ctx,x0+volC*s,y0+volL*s,bL*s,bA*s,true);
+      _planoNota(ctx,x0,y0+H+50,'base ref. '+(redonda?'Ø '+_cmTxt(bL):_cmTxt(bL)+' × '+_cmTxt(bA))+' cm · voladizo '+_cmTxt(Math.round(volC))+(redonda?'':' / '+_cmTxt(Math.round(volL))),false);
+    }
+  }
+  // ── Derecha: alzado de la mesa o corte de la cubierta ──
+  var rx=830,rw=270;   // deja lugar a la derecha para la cota de altura
+  if(t.mesa){
+    var alto=C.altura;
+    _planoTitulo(ctx,820,60,'ALZADO',t.base==='patas'?'4 patas':t.base==='fierro'?'base de fierro (ref.)':'base central (ref.)');
+    var s2=Math.min(rw/L,330/alto),W2=L*s2,H2=alto*s2,sl=Math.max(E*s2,8);
+    var x1=rx+(rw-W2)/2,yTop=150+(330-H2)/2,yF=yTop+H2;
+    if(t.base==='patas'){
+      var p2=C.pata*s2,v2=C.volPatas*s2;
+      _planoRect(ctx,x1+v2,yTop+sl,p2,H2-sl,false);_planoRect(ctx,x1+W2-v2-p2,yTop+sl,p2,H2-sl,false);
+      _planoCotaH(ctx,x1+v2,x1+W2-v2,yF+40,_cmTxt(L-2*C.volPatas),34,false);
+    }else{
+      var bw=(bL>0?bL:L*0.6)*s2;
+      _planoRect(ctx,x1+(W2-bw)/2,yTop+sl,bw,H2-sl,true);
+      if(bL>0)_planoCotaH(ctx,x1+(W2-bw)/2,x1+(W2+bw)/2,yF+40,_cmTxt(bL),34,false);
+    }
+    _planoRect(ctx,x1,yTop,W2,sl,false);
+    ctx.save();ctx.strokeStyle='#111';ctx.lineWidth=3;ctx.setLineDash([]);ctx.beginPath();ctx.moveTo(x1-30,yF);ctx.lineTo(x1+W2+30,yF);ctx.stroke();ctx.restore();
+    _planoCotaV(ctx,x1+W2+45,yTop,yF,_cmTxt(alto),46,true);
+    _planoCotaV(ctx,x1-40,yTop,yTop+sl,_cmTxt(E),34,false);
+  }else{
+    _planoTitulo(ctx,820,60,'CORTE','ancho × espesor');
+    var s3=rw/A,h3=E*s3,exag=h3<60;if(exag)h3=60;
+    var y3=300-h3/2;
+    _planoRect(ctx,rx,y3,rw,h3,false);
+    _planoCotaH(ctx,rx,rx+rw,y3+h3+40,_cmTxt(A),46,false);
+    _planoCotaV(ctx,rx+rw+45,y3,y3+h3,_cmTxt(E),46,true);
+    if(exag)_planoNota(ctx,820,470,'espesor no a escala',false);
+  }
+  _planoNota(ctx,1200,566,'cotas en cm',true);
   return canvas.toDataURL('image/png');
 }
 function buildEtiquetaChildren(oi,li,pageBreak){
@@ -34016,7 +34123,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   function _tbl(rows,spacingAfter){var half=Math.floor(cw/2);return new D.Table({width:{size:cw,type:'dxa'},layout:D.TableLayoutType.FIXED,columnWidths:[half,half],borders:{top:NB,bottom:NB,left:NB,right:NB,insideH:NB,insideV:NB},rows:rows});}
   var divider=new D.Paragraph({border:{bottom:{style:'single',size:6,color:'000000',space:1}},children:[new D.TextRun({text:' ',size:4})],spacing:{after:180}});
   var imgBuf=null;
-  try{var du=generarImagenTablaCanvas(largo,ancho,espesor),b64=du.split(',')[1],bin=atob(b64),by=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)by[k]=bin.charCodeAt(k);imgBuf=by.buffer;}catch(e){console.warn('canvas:',e);}
+  try{var du=generarImagenTablaCanvas(largo,ancho,espesor,l),b64=du.split(',')[1],bin=atob(b64),by=new Uint8Array(bin.length);for(var k=0;k<bin.length;k++)by[k]=bin.charCodeAt(k);imgBuf=by.buffer;}catch(e){console.warn('canvas:',e);}
   var headerRow=new D.TableRow({children:[_cell('PEDIDO: '+pedido,18,false,'000000'),_cell(semana,18,false,'555555','right')]});
   var nombreRow=new D.TableRow({children:[_cell('NOMBRE: '+nombre,18,false,'000000'),_cell(canal,16,false,'888888','right')]});
   var headerTbl=_tbl([headerRow,nombreRow],60);
@@ -34103,7 +34210,7 @@ function _cmdPieza(o,l,conImagen){
     producto:_cmdTxt(l.producto),cant:cant+(cant===1?' unidad':' unidades'),dims:largo||ancho?largo+' X '+ancho+' CMS':'',
     madera:_cmdTxt(l.madera),espesor:String(espesor).replace('.',',')+' CMS',borde:_cmdTxt(l.canto),
     acabado:_cmdTxt(l.acabado),tenido:_cmdTxt(l.tenido||'NO'),obs:_cmdTxt(l.observaciones)};
-  if(conImagen){try{p.png=generarImagenTablaCanvas(largo,ancho,espesor).split(',')[1];}catch(e){console.warn('canvas:',e);}}
+  if(conImagen){try{p.png=generarImagenTablaCanvas(largo,ancho,espesor,l).split(',')[1];}catch(e){console.warn('canvas:',e);}}
   return p;
 }
 function _cmdClave(p){return _cmdNorm(p.pedido)+'|'+_cmdNorm(p.producto)+'|'+_cmdNorm(p.dims);}
