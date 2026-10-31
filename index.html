@@ -26517,6 +26517,14 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
         <label style="font-size:11px;color:var(--text-3)">Ciudad</label>
         <input type="text" id="pp-ciudad" style="width:130px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
       </div>
+      <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:200px">
+        <label style="font-size:11px;color:var(--text-3)">Correo del cliente</label>
+        <input type="email" id="pp-email" placeholder="nombre@correo.cl" style="padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+      </div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <label style="font-size:11px;color:var(--text-3)">Celular</label>
+        <input type="tel" id="pp-cel" placeholder="9 1234 5678" style="width:150px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+      </div>
       <div id="pp-bloque-factura" style="display:none;flex-wrap:wrap;gap:10px;align-items:flex-end;width:100%;margin-top:6px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px">
           <label style="font-size:11px;color:var(--text-3)">Razón social</label>
@@ -29142,6 +29150,10 @@ function renderPrevProd(o){
   document.getElementById('pp-giro').value=fac.giro||'';
   b2bAvisoRut(document.getElementById('pp-rut').value,'pp-rut');
   ['pp-fact-dir','pp-fact-comuna','pp-fact-ciudad'].forEach(function(id){document.getElementById(id).value='';});
+  // Correo y celular: los que leyó el pantallazo, pero corregibles (o para
+  // rellenar cuando no venían).
+  document.getElementById('pp-email').value=cli.email||'';
+  document.getElementById('pp-cel').value=cli.phone||'';
   toggleFacturaPrev();
   document.getElementById('pp-canal').value='TRANSFERENCIA';
   document.getElementById('pp-pasarela').value='';
@@ -29213,6 +29225,11 @@ async function confirmOrder(){
   }
   // 3. FINANZAS
   const fin=o._finanzas||{},cli=o._cliente||{};
+  // Lo escrito en los campos manda sobre lo leído del pantallazo; de aquí sale
+  // tanto Finanzas como el Pixel.
+  const _ppEm=document.getElementById('pp-email'),_ppCel=document.getElementById('pp-cel');
+  if(_ppEm)cli.email=_ppEm.value.trim();
+  if(_ppCel)cli.phone=_ppCel.value.trim();
   const vp=Number(document.getElementById('pf-vp').value)||Number(fin.valor_producto)||0;
   const ve=Number(document.getElementById('pf-ve').value)||Number(fin.valor_envio)||0;
   const vc=Number(document.getElementById('pf-vc').value)||Number(fin.valor_comision)||0;
@@ -31239,7 +31256,8 @@ function _finFicha(r){
     '<div class="fe-r"><span>Nos conoció por</span><select onchange="finCampoEd('+q+',\'como\',this.value)">'+_opcionesCanal(r.como)+'</select></div>'+
     '<div class="fe-r"><span>Fecha de venta</span><input type="date" value="'+_isoDeFecha(r.fecha_creacion||r.fecha)+'" onchange="finFechaVentaEd('+q+',this.value)"></div>'+
     '<div class="fe-r"><span>Semana</span><input value="'+esc(r.semana)+'" placeholder="SEMANA 29 JUNIO" onchange="finCampoEd('+q+',\'semana\',this.value)"></div>'+
-    '<div class="fe-r"><span>Celular</span><input value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',this.value)"></div>';
+    '<div class="fe-r"><span>Celular</span><input type="tel" value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',fmtPhone(this.value))"></div>'+
+    '<div class="fe-r"><span>Correo</span><input type="email" value="'+esc(r.email)+'" placeholder="nombre@correo.cl" onchange="finCampoEd('+q+',\'email\',fmtEmail(this.value))"></div>';
   var prodO=prodOrders.find(function(o){return String(o.pedido||'')===n;});
   var tipoLbl=(TIPOS_REGISTRO.find(function(t){return t.k===tipoDe(r);})||{}).label||'Venta';
   var enLote=envioSeleccionados.has(n);
