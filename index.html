@@ -1693,6 +1693,105 @@ tr.fin-no-venta:hover td { opacity:1; }
 @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(1.5);}}
 table.fin tbody tr.fin-listo td{background:#EDF7E6 !important;}
 table.fin tbody tr.fin-listo:hover td{background:#E0F2D8 !important;}
+
+/* ── Madera (pestaña del taller, 01-11-2026) ─────────────────────────────
+   Pensada para el celular de Cristián: botones de 48 px, letra de 15-16 px,
+   la unidad siempre al lado del número. Íconos de línea, sin emojis. */
+#page-madera{--mz-line:#D9CFC3;--mz-edge:#9C8878;--mz-ok:#2D7D32;--mz-warn:#B5652E}
+#page-madera .mz-wrap{max-width:560px;margin:0 auto;font-size:15px;color:var(--text);font-variant-numeric:tabular-nums}
+#page-madera .mz-head{padding:4px 0 10px}
+#page-madera .mz-head h1{margin:0;font-size:22px;font-weight:800}
+#page-madera .mz-head p{margin:4px 0 0;font-size:14px;color:var(--text-2)}
+#page-madera svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.mz-tabs{display:flex;border-bottom:1px solid var(--mz-line);background:var(--surface)}
+.mz-tabs button{flex:1;min-height:48px;border:0;border-bottom:3px solid transparent;background:none;font:inherit;font-size:15px;font-weight:700;color:var(--text-2);cursor:pointer}
+.mz-tabs button.on{color:var(--text);border-bottom-color:var(--text)}
+.mz-sec{padding:14px 2px 6px;font-size:14px;font-weight:800;color:var(--text-2);text-transform:uppercase;letter-spacing:.03em;display:flex;justify-content:space-between;gap:8px}
+.mz-sec b{color:var(--text);text-transform:none;letter-spacing:0}
+.mz-sec.mz-plegada{cursor:pointer}
+.mz-list{background:var(--surface);border:1px solid var(--mz-line);border-radius:4px}
+.mz-row{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;min-height:64px;border:0;border-bottom:1px solid var(--mz-line);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.mz-row:last-child{border-bottom:0}
+.mz-row.mz-quieta{cursor:default}
+.mz-n{font-size:18px;font-weight:800;min-width:52px}
+.mz-who{flex:1;min-width:0}
+.mz-who b{display:block;font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mz-who span{display:block;font-size:14px;color:var(--text-2);margin-top:2px}
+.mz-st{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.mz-falta,.mz-cola{color:var(--text-2)}
+.mz-listo{color:var(--mz-ok)}
+.mz-pul{font-size:16px;font-weight:800;white-space:nowrap}
+#page-madera svg.mz-chev{width:20px;height:20px;color:var(--mz-edge);stroke-width:2}
+.mz-open{background:var(--surface);border:1px solid var(--mz-line);border-top:3px solid var(--text);border-radius:4px;padding:12px 14px 16px;margin-top:10px}
+.mz-volver{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 4px;margin:-6px 0 4px -4px;border:0;background:none;font:inherit;font-size:15px;font-weight:700;color:var(--text-2);cursor:pointer}
+.mz-ped{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.mz-ped .mz-n{font-size:22px}
+.mz-ped .mz-cli{font-size:16px;font-weight:700;margin-top:2px}
+.mz-meta{font-size:14px;color:var(--text-2);margin-top:2px}
+.mz-total{text-align:right;flex:0 0 auto}
+.mz-big{font-size:34px;font-weight:800;line-height:1}
+.mz-u{font-size:16px;font-weight:700;color:var(--text-2)}
+.mz-ref{font-size:14px;color:var(--text-2);margin-top:4px}
+.mz-esp{margin-top:16px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--mz-line);padding-bottom:6px}
+.mz-esp b{font-size:17px}.mz-esp span{font-size:14px;color:var(--text-2)}
+.mz-tl{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--mz-line);min-height:48px;font-size:16px}
+.mz-tl .mz-q{font-weight:800}
+.mz-tl small{display:block;font-size:13px;color:var(--text-2)}
+.mz-tl-der{display:flex;align-items:center;gap:10px;white-space:nowrap}
+.mz-del{width:44px;height:44px;border:1px solid var(--mz-edge);border-radius:4px;background:var(--surface);display:flex;align-items:center;justify-content:center;color:var(--text-2);cursor:pointer}
+.mz-lbl{font-size:14px;font-weight:700;color:var(--text-2);margin:14px 0 6px}
+.mz-chips{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.mz-chips.mz-c2{grid-template-columns:1fr 1fr}
+.mz-chips.mz-c3{grid-template-columns:repeat(3,1fr)}
+.mz-chip{min-height:48px;border:1.5px solid var(--mz-edge);border-radius:4px;background:var(--surface);font:inherit;font-size:16px;font-weight:700;color:var(--text);display:flex;align-items:center;justify-content:center;padding:0 6px;cursor:pointer}
+.mz-chip.on{background:var(--text);border-color:var(--text);color:#fff}
+.mz-otra{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-top:8px}
+.mz-otra span{font-size:18px;font-weight:700;color:var(--text-2)}
+.mz-input{width:100%;min-height:48px;border:1.5px solid var(--mz-edge);border-radius:4px;background:var(--surface);font:inherit;font-size:18px;font-weight:700;padding:0 10px;color:var(--text);box-sizing:border-box}
+.mz-step{display:grid;grid-template-columns:56px 1fr 56px;gap:8px;align-items:center}
+.mz-step button{height:52px;border:1.5px solid var(--mz-edge);border-radius:4px;background:var(--surface);font:inherit;font-size:26px;font-weight:700;cursor:pointer;color:var(--text)}
+.mz-step .mz-input{text-align:center;font-size:22px;font-weight:800}
+.mz-calc{margin-top:12px;background:var(--surface2);border-left:4px solid var(--text);padding:10px 12px;font-size:15px;display:flex;justify-content:space-between;gap:10px}
+.mz-calc b{font-size:17px;white-space:nowrap}
+.mz-calc.mz-vacia{color:var(--text-2)}
+.mz-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.mz-btn{min-height:52px;border-radius:4px;font:inherit;font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--mz-edge);background:var(--surface);color:var(--text);cursor:pointer;padding:0 10px;text-align:center}
+.mz-btn.mz-main{background:var(--brand);border-color:var(--brand);color:#fff}
+.mz-btn.mz-full{grid-column:1/-1;width:100%}
+.mz-btn:disabled{opacity:.5;cursor:default}
+.mz-note{font-size:14px;color:var(--text-2);margin-top:10px;line-height:1.4}
+.mz-guardado{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--text-2);margin-top:10px}
+.mz-foto{margin-top:12px;min-height:240px;border:2px dashed var(--mz-edge);border-radius:6px;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--text-2);font-size:16px;font-weight:700;text-align:center;padding:16px;cursor:pointer}
+#page-madera .mz-foto svg{width:56px;height:56px;color:var(--brand);stroke-width:1.6}
+.mz-foto span{font-size:14px;font-weight:400}
+.mz-foto.mz-con{min-height:0;border-style:solid;cursor:default}
+.mz-foto img{max-width:100%;max-height:320px;border-radius:4px}
+.mz-alerta{margin-top:12px;background:var(--surface);border-left:4px solid var(--mz-warn);padding:12px;font-size:15px;line-height:1.4}
+.mz-alerta b{display:block}
+.mz-vacio{padding:16px 14px;font-size:15px;color:var(--text-2)}
+.mz-rev{background:var(--surface);border:1px solid var(--mz-line);border-radius:4px;padding:12px 14px 14px;margin-bottom:10px}
+.mz-top{display:flex;gap:12px}
+.mz-thumb{width:96px;height:120px;flex:0 0 auto;border:1.5px solid var(--mz-edge);border-radius:4px;background:var(--surface2) center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px;font-size:13px;font-weight:700;color:var(--text-2);text-decoration:none}
+.mz-read{margin-top:8px;font-size:15px;line-height:1.4}
+.mz-miss{color:var(--mz-warn);font-weight:700}
+.mz-okc{color:var(--mz-ok);font-weight:700}
+.mz-doc{background:var(--surface);border:1px solid var(--mz-line);border-radius:4px;padding:4px 14px 8px;margin-bottom:10px}
+.mz-doc table{width:100%;border-collapse:collapse;font-size:15px}
+.mz-doc td{padding:9px 0;border-bottom:1px solid var(--mz-line);vertical-align:top}
+.mz-doc tr:last-child td{border-bottom:0}
+.mz-doc td.r{text-align:right;font-weight:800;white-space:nowrap;padding-left:8px}
+.mz-doc small{display:block;font-size:14px;font-weight:400;color:var(--text-2);margin-top:2px}
+.mz-sel{width:100%;min-height:48px;border:1.5px solid var(--mz-edge);border-radius:4px;background:var(--surface);font:inherit;font-size:15px;padding:0 8px;margin-top:8px}
+.mz-area{width:100%;min-height:96px;border:1.5px solid var(--mz-edge);border-radius:4px;font:inherit;font-size:15px;padding:8px;box-sizing:border-box}
+.mz-toast{position:fixed;left:12px;right:12px;bottom:16px;z-index:400;max-width:480px;margin:0 auto;background:var(--text);color:#fff;border-radius:6px;padding:12px 12px 12px 16px;display:none;align-items:center;gap:12px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.mz-toast.on{display:flex}
+.mz-toast .mz-t{flex:1;font-size:15px;line-height:1.35}
+.mz-toast .mz-t b{display:block;font-size:16px}
+.mz-toast .mz-t span{display:flex;align-items:center;gap:6px;color:#CDE6CE;font-weight:700;margin-top:2px}
+.mz-toast svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.mz-toast .mz-deshacer{min-height:48px;padding:0 16px;border:1.5px solid #fff;border-radius:4px;background:none;color:#fff;font:inherit;font-size:16px;font-weight:800;cursor:pointer}
+@media (max-width:768px){.mz-toast{bottom:calc(80px + env(safe-area-inset-bottom))}}
+@media (prefers-reduced-motion:no-preference){.mz-row.mz-recien{animation:mzflash 1.2s ease-out}@keyframes mzflash{from{background:#E4F0E4}to{background:transparent}}}
 </style>
 <script>
 /*! xlsx.js (C) 2013-present SheetJS -- http://sheetjs.com */
@@ -26245,6 +26344,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon">📊</span> Pixel Meta</button>
     <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon">🔧</span> Costos</button>
     <button class="nav-tab" onclick="showPage('gastos',this)"><span class="tab-icon">📄</span> Gastos</button>
+    <button class="nav-tab" onclick="showPage('madera',this)"><span class="tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M7 7v10M11 10h6M11 14h4"/></svg></span> Madera</button>
     <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
     <button class="nav-tab" onclick="showPage('emp',this)"><span class="tab-icon">🏢</span> Empresas</button>
     <button class="nav-tab" onclick="showPage('pv',this)"><span class="tab-icon">🛠</span> Post venta</button>
@@ -26834,6 +26934,18 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 
 <!-- P6 CLIENTES -->
 <!-- POST VENTA: un caso por problema después de la venta (16-10-2026) -->
+<div class="page" id="page-madera">
+<div class="main"><div class="mz-wrap">
+  <div class="mz-head"><h1>Madera</h1><p>Anota la madera de cada pedido y lo que llega al taller.</p></div>
+  <div class="mz-tabs" id="mad-tabs">
+    <button data-t="pedidos" class="on" onclick="setMadTab('pedidos')">Pedidos</button>
+    <button data-t="llegadas" onclick="setMadTab('llegadas')">Llegó madera</button>
+    <button data-t="revisar" onclick="setMadTab('revisar')" style="display:none">Revisar</button>
+  </div>
+  <div id="mad-cuerpo"></div>
+</div></div>
+</div>
+
 <div class="page" id="page-pv">
 <div class="main">
   <div class="seg-top">
@@ -27601,6 +27713,7 @@ function showPage(p,btn){
   if(p==='prod'){loadProd();}
   if(p==='cli'){renderClientes();}
   if(p==='pv'){loadPostventa();}
+  if(p==='madera'){loadMadera();}
   if(p==='emp'){loadEmpresas();}
   if(p==='dash'){
     if(DB_URL){
@@ -27615,7 +27728,7 @@ function showPage(p,btn){
 // hay una segunda lista de secciones: los permisos por rol (que esconden los
 // botones) y restaurarPagina() siguen funcionando igual. Si el rol ve más de
 // 5 secciones, las primeras 4 van en la barra y el resto en la hoja "Más".
-var NAV_ORDEN=['dash','prod','seg','fin','cli','emp','pv','gastos','cost','pixel'];
+var NAV_ORDEN=['dash','prod','seg','fin','cli','emp','pv','gastos','madera','cost','pixel'];
 function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
 function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
 function _paginaActiva(){var a=document.querySelector('.page.active');return a?a.id.replace('page-',''):'';}
@@ -27985,7 +28098,7 @@ async function cargarPermisos(){
 }
 // Oculta lo que el usuario no puede usar. Es solo cosmético: la protección real
 // está en el servidor (RLS), así que aunque alguien fuerce la pantalla no ve datos.
-var SECCIONES_ADMIN=['fin','cost','pixel','gastos'];
+var SECCIONES_ADMIN=['fin','cost','pixel','gastos','madera'];
 // El taller entra a Gastos, pero solo a la bodega: recibe la mercadería y
 // hace la toma física. No ve facturas, ni el libro mayor, ni precios de venta.
 function aplicarPermisos(){
@@ -32475,6 +32588,11 @@ function fmtFecha(d){return _deISO(d)||'—';}
 // explicitarlo, porque descontar bodega necesita el factor, no el precio.
 // Según la planilla: Oregón y Ciprés 4 pulgadas/m², el resto 3.
 const MADERA_PULG_M2_DEFAULT={'OREGÓN':4,'PINO OREGÓN':4,'CIPRÉS':4,'CASTAÑO':3,'MAÑÍO':3,'COIHUE':3,'RAULÍ':3,'LENGA':3,'LAUREL':3};
+// La pulgada maderera es 1″ × 10″ × un largo que depende de la especie
+// (ciprés y oregón 3,2 m, el resto 12 pies = 3,6576 m). Ese largo vive en la
+// ficha de bodega (inventario.pulg_base_m, migración 0025), no acá. Los pies
+// solo aparecen al leer el cuaderno: todo se guarda en metros.
+const MADERA_PIE_M=0.3048;
 function pulgadasPorM2(especie){
   var cfg=(typeof costoEstandar!=='undefined'&&costoEstandar&&costoEstandar.pulg_m2)||{};
   var buscada=_normMad(especie),claves=Object.keys(cfg);
@@ -32540,6 +32658,17 @@ function _aUnidadStock(cant,unidadOrigen,sku,contenido){
     var f2=pulgadasPorM2(esp);
     if(!f2)return {cantidad:_f3(n),unidad:destino,factor:1,ok:false,motivo:'Falta pulgadas por m² de la especie'};
     return {cantidad:_f3(n/f2),unidad:'m2',factor:1/f2,ok:true,motivo:''};
+  }
+  // Tablón → pulgadas: así compra y corta el taller ("2 tablones 2 × 8 en
+  // 3,2 m"). contenido = {espesor, ancho, largo_m, base_m}; base_m es el largo
+  // de la pulgada de la especie. Misma cuenta que madera_pulgadas() en la base.
+  //   2 tablones 2 × 8 de ciprés en 3,2 m = 2 × 2 × 8 × 3,2 / (10 × 3,2) = 3,2 pulg
+  if(destino==='pulg'&&unidadOrigen==='tablon'){
+    var t=contenido||{},bm=Number(t.base_m)||0;
+    if(!(bm>0))return {cantidad:0,unidad:'pulg',factor:0,ok:false,motivo:'Falta el largo de la pulgada de la especie'};
+    var ft=(Number(t.espesor)||0)*(Number(t.ancho)||0)*(Number(t.largo_m)||0)/(10*bm);
+    if(!(ft>0))return {cantidad:0,unidad:'pulg',factor:0,ok:false,motivo:'Falta la medida del tablón'};
+    return {cantidad:_f3(n*ft),unidad:'pulg',factor:ft,ok:true,motivo:''};
   }
   // Envase → unidad de stock: "tineta", "caja", "rollo" no son unidades de
   // medida, son formatos. Lo que las traduce es el contenido, que sale del
@@ -34912,6 +35041,766 @@ document.getElementById('modal-pv-bg').addEventListener('click',function(e){if(e
 // candados: la pestaña tiene que EXISTIR y estar VISIBLE para el rol actual
 // (aplicarPermisos esconde los botones) — si un vendedor tuviera 'fin' guardado
 // de una sesión de otro usuario en el mismo navegador, se queda en su inicio.
+// ══════════════════════════════════════════════════════════════════════════
+// MADERA · pestaña del taller (01-11-2026, migración 0025)
+// Cristián anota los tablones que usó en cada pedido y sube la foto del
+// cuaderno cuando llega madera. Escribir pasa SOLO por las funciones de la
+// base madera_anotar / madera_anular: descuentan bodega y cargan el costo al
+// pedido en una transacción, y repetir el mismo tablón (doble toque, reintento
+// sin señal) no descuenta dos veces porque cada tablón lleva su client_id.
+// Las pulgadas guardadas las calcula la base; acá se calculan con
+// _aUnidadStock() solo para mostrarlas mientras se anota.
+// ══════════════════════════════════════════════════════════════════════════
+var MAD_DESDE='2026-10-01';                         // primer mes que se anota
+var MAD_MEDIDAS=[{e:2,a:8},{e:2,a:10},{e:1,a:10}];  // espesor × ancho, en pulgadas
+// Los largos del tablón salen de la ficha de cada especie (largo_tablon_m), no de acá.
+var MAD_COLA_KEY='zaru_madera_cola';
+var MZ_IC={
+  dot:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>',
+  ok:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.8 2.8L16 10"/></svg>',
+  chev:'<svg class="mz-chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+  x:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  cam:'<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  back:'<svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>'
+};
+var madTab='pedidos',madAbierto=null,madDisponible=null,madSel=null;
+var madAnot=[],madSkus=[],madProvs=[],madLlegadas=[],madDocs=[],madDocLineas=[],madMes=[];
+var madPend={};            // numStr -> tablones agregados en el panel, todavía sin mandar
+var madSemVer={};          // semanas completas que se desplegaron a mano
+var madFoto=null;          // la foto del cuaderno que se está por guardar
+var madMesAdmin='';        // 'aaaa-mm' de la pestaña Revisar
+var madEditando=null,madConfirmando=null,madFirmadas={},madToastTimer=null,madVaciando=false;
+
+function _madUuid(){
+  if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();
+  var b=new Uint8Array(16);crypto.getRandomValues(b);b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;
+  var h=Array.prototype.map.call(b,function(x){return (x+256).toString(16).slice(1);}).join('');
+  return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20);
+}
+function _madIso(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _madNum(v){var n=Number(String(v==null?'':v).replace(',','.'));return isNaN(n)?0:n;}
+function _madN(v){return (Number(v)||0).toLocaleString('es-CL',{maximumFractionDigits:3});}
+function _madPulgTxt(v){return fmtCant(_f3(v),'pulg');}
+function _madNombre(esp){var s=String(esp||'').toLowerCase();return s.charAt(0).toUpperCase()+s.slice(1);}
+function _madMsgError(e){
+  var m=String(e&&e.message||e);
+  var i=m.indexOf('{');
+  if(i>=0){try{var j=JSON.parse(m.slice(i));if(j.message)return j.message;}catch(x){}}
+  return m;
+}
+// Sin señal o Supabase caído: se reintenta. Un rechazo de la base no.
+function _madEsRed(e){
+  return (e instanceof TypeError)||/Failed to fetch|NetworkError|Load failed|Supabase 5\d\d/i.test(String(e&&e.message));
+}
+
+// ── Pedidos y despacho (Producción es la fuente de verdad) ────────────────
+function _madPedido(num){return prodOrders.find(function(o){return String(o.pedido||'')===String(num);})||null;}
+function _madDespacho(o){
+  if(o.dia_envio&&/^\d{4}-\d{2}-\d{2}/.test(String(o.dia_envio)))return new Date(String(o.dia_envio).slice(0,10)+'T12:00:00');
+  return o.envio?fechaEnvioDeSemana(o.envio):null;
+}
+function _madSemanaTxt(o){
+  var m=String(normalizeSemana(o.envio||'')||'').match(/SEMANA\s+(\d{1,2})\s+([A-ZÑ]+)/);
+  return m?('Semana del '+Number(m[1])+' '+m[2].slice(0,3).toLowerCase()):'Sin semana';
+}
+function _madTieneMadera(o){
+  return (o.lineas||[]).some(function(l){var n=_normMad(l.madera);return n&&n!=='SIN MADERA';});
+}
+// Desde octubre hasta lo que se fabrica estas dos semanas, del más atrasado al más nuevo.
+function _madPedidos(){
+  var desde=new Date(MAD_DESDE+'T00:00:00'),hasta=new Date();hasta.setDate(hasta.getDate()+14);
+  return prodOrders.map(function(o){return {o:o,num:String(o.pedido||''),f:_madDespacho(o)};})
+    .filter(function(x){return x.num&&x.f&&x.f>=desde&&x.f<=hasta&&_madTieneMadera(x.o);})
+    .sort(function(a,b){return (a.f-b.f)||((Number(a.num)||0)-(Number(b.num)||0));});
+}
+function _madCliente(o){return (((o&&o.comprador)||'')+' '+((o&&o.apellido)||'')).trim()||(o&&o.cliente)||'—';}
+function _madEspeciesTxt(num){
+  var out=[];
+  lineasProdDe(num).forEach(function(l){
+    var n=_normMad(l.madera);if(!n||n==='SIN MADERA')return;
+    var c=maderaCanonica(l.madera).toLowerCase();if(out.indexOf(c)<0)out.push(c);
+  });
+  return out.join(' + ')||'sin madera';
+}
+
+// ── Especies (SKU de bodega) ──────────────────────────────────────────────
+function _madSku(id){return madSkus.find(function(s){return s.id===Number(id);})||null;}
+// Oregón y pino oregón van al mismo SKU, como en el centro de costo.
+function _madSkuDeEspecie(esp){
+  var n=_normMad(esp);if(!n)return null;
+  if(n.indexOf('OREGON')>=0)n='OREGON';
+  if(n.indexOf('COIGUE')>=0)n='COIHUE';
+  return madSkus.find(function(s){return _normMad(s.especie)===n;})||null;
+}
+function _madSkusElegibles(){return madSkus.filter(function(s){return s.sku!=='madera_pino_oregon'&&s.sku!=='madera_laurel';});}
+
+// ── Tablones ──────────────────────────────────────────────────────────────
+function _madPulg(t){
+  var s=_madSku(t.inventario_id);
+  // La base es la de la ficha de la especie; la que vale al final es la que
+  // guarda la base al anotar (madera_anotaciones.base_m).
+  return _aUnidadStock(t.piezas,'tablon',s?s.sku:'madera_x',
+    {espesor:t.espesor,ancho:t.ancho,largo_m:t.largo_m,base_m:s?s.pulg_base_m:0}).cantidad;
+}
+function _madTxtTablon(t){
+  var n=Number(t.piezas);
+  // Espacios duros: «3,2 m» o «2 × 8» partidos en dos renglones se leen mal.
+  return _madN(n)+' '+(n===1?'tablón':'tablones')+' '+_madN(t.espesor||t.espesor_pulg)+' × '+
+         _madN(t.ancho||t.ancho_pulg)+' en '+_madM(t.largo_m);
+}
+// Largo en metros para mostrar: 3,6576 m (12 pies) se lee «3,66 m».
+function _madM(v){return (Number(v)||0).toLocaleString('es-CL',{maximumFractionDigits:2})+' m';}
+// Los botones de largo de una especie: el largo en que viene el tablón, 3 m
+// (el otro largo habitual) y la mitad. Todos se pueden cambiar con «Otro».
+function _madLargos(skuId){
+  var s=_madSku(skuId),L=s?Number(s.largo_tablon_m)||0:0,out=[];
+  if(L>0)out.push(L);
+  if(!out.some(function(x){return Math.abs(x-3)<0.001;}))out.push(3);
+  if(L>0)out.push(Number((L/2).toFixed(4)));
+  return out.slice(0,3);
+}
+function _madAnotDe(num){return madAnot.filter(function(a){return a.pedido_num===String(num)&&!a.anulada_at;});}
+function _madColaLineas(num){
+  var out=[];_madCola().forEach(function(e){if(e.pedido===String(num))out=out.concat(e.lineas);});return out;
+}
+function _madEstado(num){
+  if(_madAnotDe(num).length)return 'listo';
+  if(_madColaLineas(num).length)return 'cola';
+  return 'falta';
+}
+function _madPulgDe(num){
+  var s=_madAnotDe(num).reduce(function(a,x){return a+(Number(x.pulgadas)||0);},0);
+  _madColaLineas(num).forEach(function(t){s+=_madPulg(t);});
+  return _f3(s);
+}
+// Lo que dirían los m² del pedido (pulgadas por m² de cada especie). Es la
+// referencia que ve el taller al lado de lo que anota, no lo que se guarda.
+function _madReferencia(num){
+  var tot=0;
+  lineasProdDe(num).forEach(function(l){
+    var sku=_madSkuDeEspecie(l.madera);if(!sku)return;
+    tot+=_aUnidadStock(calcM2(l.largo,l.ancho,l.cantidad)||0,'m2',sku.sku).cantidad;
+  });
+  return _f3(tot);
+}
+function _madSelNueva(num){
+  var esp=_especiesDePedido(num),sku=esp.length?_madSkuDeEspecie(esp[0]):null;
+  return {num:String(num),sku:sku?sku.id:null,medida:null,largo:null,n:1,e:'',a:'',l:'',tocado:false,otraMadera:false};
+}
+function _madTablonSel(){
+  var s=madSel;if(!s||!s.sku)return null;
+  var e=0,a=0,l=0;
+  if(s.medida==='otra'){e=_madNum(s.e);a=_madNum(s.a);}
+  else if(s.medida!==null){e=MAD_MEDIDAS[s.medida].e;a=MAD_MEDIDAS[s.medida].a;}
+  if(s.largo==='otro')l=_madNum(s.l);
+  else if(s.largo!==null)l=_madLargos(s.sku)[s.largo]||0;
+  var n=_madNum(s.n);
+  if(!(e>0&&a>0&&l>0&&n>0))return null;
+  return {inventario_id:s.sku,piezas:_f3(n),espesor:_f3(e),ancho:_f3(a),largo_m:Number(l.toFixed(4))};
+}
+
+// ── Cola local: lo anotado no se pierde si se corta la señal ─────────────
+function _madCola(){try{var c=JSON.parse(localStorage.getItem(MAD_COLA_KEY)||'[]');return Array.isArray(c)?c:[];}catch(e){return [];}}
+function _madColaGuardar(c){try{localStorage.setItem(MAD_COLA_KEY,JSON.stringify(c));}catch(e){}}
+function _madColaQuitar(id){_madColaGuardar(_madCola().filter(function(e){return e.id!==id;}));}
+function _madMezclar(filas){
+  (filas||[]).forEach(function(f){
+    var i=madAnot.findIndex(function(a){return a.id===f.id;});
+    if(i>=0)madAnot[i]=f;else madAnot.push(f);
+  });
+}
+async function _madVaciarCola(idMostrar){
+  if(madVaciando)return;
+  madVaciando=true;
+  var cola=_madCola(),sinSenal=false;
+  try{
+    for(var i=0;i<cola.length;i++){
+      var e=cola[i];
+      try{
+        var filas=await sbJson(SB_URL+'/rest/v1/rpc/madera_anotar',{method:'POST',
+          body:JSON.stringify({p_pedido:e.pedido,p_despacho:e.despacho,p_ceco:e.ceco,p_lineas:e.lineas})});
+        _madColaQuitar(e.id);
+        _madMezclar(filas);
+        if(e.id===idMostrar)_madToastListo(e,filas||[]);
+      }catch(err){
+        if(_madEsRed(err)){sinSenal=true;break;}
+        // La base lo rechazó: reintentar no lo arregla. Vuelve al panel para corregir.
+        _madColaQuitar(e.id);
+        madPend[e.pedido]=(madPend[e.pedido]||[]).concat(e.lineas);
+        showToast('✗ Pedido '+e.pedido+': '+_madMsgError(err),true);
+      }
+    }
+  }finally{madVaciando=false;}
+  if(sinSenal&&idMostrar){
+    _madToast('<div class="mz-t"><b>Anotado en este celular</b><span style="color:#fff">'+MZ_IC.dot+
+              'Sin señal: se guarda solo cuando vuelva</span></div>');
+  }
+  renderMadera();
+}
+window.addEventListener('online',function(){if(_madCola().length)_madVaciarCola();});
+
+// ── Carga ─────────────────────────────────────────────────────────────────
+async function _madGetTodo(tabla,q){
+  var out=[],paso=1000;   // la API corta en 1000 filas sin avisar
+  for(var d=0;;d+=paso){
+    var r=await sbGet(tabla,q+'&limit='+paso+'&offset='+d);
+    out=out.concat(r);
+    if(r.length<paso)break;
+  }
+  return out;
+}
+async function loadMadera(){
+  if(!DB_URL)return;
+  renderMadera();
+  try{
+    if(!prodOrders.length)await loadProd();
+    if(!unidadesRef.length){try{unidadesRef=await sbGet('unidades','select=*');}catch(e){}}
+    if(!cecos.length){try{cecos=await sbGet('centros_costo','select=*&order=orden');}catch(e){}}
+    var r=await Promise.all([
+      _madGetTodo('madera_anotaciones','select=*&anulada_at=is.null&order=id'),
+      sbGet('inventario','select=id,sku,especie,unidad_id,pulg_base_m,largo_tablon_m&sku=like.madera_*&order=sku'),
+      sbGet('proveedores','select=id,nombre,alias,rut&madera=is.true&order=alias'),
+      sbGet('madera_llegadas','select=*&order=fecha_llegada.desc,id.desc&limit=500')
+    ]);
+    madAnot=r[0];madSkus=r[1];madProvs=r[2];madLlegadas=r[3];madDisponible=true;
+    if(usuarioRol==='admin')await _madCargarAdmin();
+  }catch(e){
+    console.error('loadMadera',e);
+    // Sin la migración 0025 las tablas no existen: se dice, no se inventa.
+    if(/42P01|42703|PGRST20[0-9]|does not exist|Could not find/i.test(String(e.message)))madDisponible=false;
+    else{if(madDisponible===null)madDisponible=false;showToast('✗ Madera: '+_madMsgError(e),true);}
+  }
+  renderMadera();
+  if(madDisponible&&_madCola().length)_madVaciarCola();
+}
+async function _madCargarAdmin(){
+  var r=await Promise.all([
+    sbGet('documentos_recibidos','select=id,folio,fecha,proveedor_rut,proveedor_nombre,sii_document_type_id&order=fecha.desc&limit=1000'),
+    sbGet('v_madera_mes','select=*')
+  ]);
+  var ruts=madProvs.map(function(p){return _normRut(p.rut);}).filter(Boolean);
+  madDocs=r[0].filter(function(d){return ruts.indexOf(_normRut(d.proveedor_rut))>=0;});
+  madMes=r[1];
+  madDocLineas=madDocs.length?await sbGet('documentos_recibidos_lineas',
+    'select=id,documento_id,linea_n,item_nombre,glosa,cantidad&documento_id=in.('+madDocs.map(function(d){return d.id;}).join(',')+')&order=linea_n'):[];
+}
+async function _madCargarLlegadas(){
+  madLlegadas=await sbGet('madera_llegadas','select=*&order=fecha_llegada.desc,id.desc&limit=500');
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function setMadTab(t){madTab=t;madAbierto=null;madEditando=null;madConfirmando=null;renderMadera();}
+function renderMadera(){
+  var cu=document.getElementById('mad-cuerpo');if(!cu)return;
+  document.querySelectorAll('#mad-tabs button').forEach(function(b){
+    b.classList.toggle('on',b.getAttribute('data-t')===madTab);
+    if(b.getAttribute('data-t')==='revisar')b.style.display=(usuarioRol==='admin')?'':'none';
+  });
+  if(madDisponible===null){cu.innerHTML='<div class="mz-vacio">Cargando…</div>';return;}
+  if(madDisponible===false){
+    cu.innerHTML='<div class="mz-alerta"><b>Esta sección todavía no está activa</b>'+
+      (usuarioRol==='admin'?'Falta aplicar la migración 0025 en el SQL Editor de Gestión.':'Avísale a la oficina.')+'</div>';
+    return;
+  }
+  if(madTab==='llegadas')cu.innerHTML=_madHtmlLlegadas();
+  else if(madTab==='revisar'&&usuarioRol==='admin'){cu.innerHTML=_madHtmlRevisar();_madCargarMiniaturas();}
+  else cu.innerHTML=madAbierto?_madHtmlPedido(madAbierto):_madHtmlLista();
+}
+
+function _madHtmlLista(){
+  var peds=_madPedidos();
+  if(!peds.length)return '<div class="mz-vacio">No hay pedidos con madera desde octubre.</div>';
+  var grupos=[],idx={},primero=null;
+  peds.forEach(function(x){
+    var k=_madSemanaTxt(x.o);
+    if(!(k in idx)){idx[k]=grupos.length;grupos.push({k:k,items:[]});}
+    grupos[idx[k]].items.push(x);
+    if(!primero&&_madEstado(x.num)==='falta')primero=x.num;
+  });
+  var h='';
+  if(primero)h+='<div class="mz-btns"><button class="mz-btn mz-main mz-full" onclick="abrirMad(\''+esc(primero)+'\')">Anotar el '+esc(primero)+' · el más atrasado</button></div>';
+  else h+='<div class="mz-alerta" style="border-left-color:var(--mz-ok)"><b>Todo anotado</b>No queda ningún pedido sin su madera.</div>';
+  grupos.forEach(function(g){
+    var listos=g.items.filter(function(x){return _madEstado(x.num)!=='falta';}).length;
+    var completa=(listos===g.items.length);
+    if(completa&&!madSemVer[g.k]){
+      h+='<div class="mz-sec mz-plegada" onclick="madVerSemana(\''+esc(g.k)+'\')"><span>'+esc(g.k)+'</span><b>'+listos+' de '+g.items.length+' anotados · ver</b></div>';
+      return;
+    }
+    h+='<div class="mz-sec"><span>'+esc(g.k)+'</span><b>'+listos+' de '+g.items.length+' anotados</b></div><div class="mz-list">';
+    g.items.forEach(function(x){h+=_madHtmlFila(x);});
+    h+='</div>';
+  });
+  return h;
+}
+function madVerSemana(k){madSemVer[k]=true;renderMadera();}
+function _madHtmlFila(x){
+  var num=x.num,st=_madEstado(num),sub,der;
+  if(st==='falta'){
+    sub=_madEspeciesTxt(num)+' · '+fmtCant(_f3(m2DePedido(num)),'m2');
+    der='<div class="mz-st mz-falta">'+MZ_IC.dot+'Falta</div>'+MZ_IC.chev;
+  }else{
+    sub=_madEspeciesAnotTxt(num)+' · tocar para reabrir';
+    der='<div class="mz-pul">'+esc(_madPulgTxt(_madPulgDe(num)))+'</div>'+
+        (st==='cola'?'<div class="mz-st mz-cola">'+MZ_IC.dot+'Sin guardar</div>':'<div class="mz-st mz-listo">'+MZ_IC.ok+'Listo</div>');
+  }
+  return '<button class="mz-row" onclick="abrirMad(\''+esc(num)+'\')"><div class="mz-n">'+esc(num)+'</div>'+
+         '<div class="mz-who"><b>'+esc(_madCliente(x.o))+'</b><span>'+esc(sub)+'</span></div>'+der+'</button>';
+}
+function _madEspeciesAnotTxt(num){
+  var out=[];
+  _madAnotDe(num).concat(_madColaLineas(num)).forEach(function(a){
+    var s=_madSku(a.inventario_id),n=s?s.especie.toLowerCase():'?';
+    if(out.indexOf(n)<0)out.push(n);
+  });
+  return out.join(' + ');
+}
+
+function _madHtmlPedido(num){
+  var o=_madPedido(num)||{};
+  if(!madSel||madSel.num!==String(num))madSel=_madSelNueva(num);
+  var f=_madDespacho(o),guard=_madAnotDe(num),cola=_madColaLineas(num),pend=madPend[num]||[];
+  var h='<div class="mz-open"><button class="mz-volver" onclick="cerrarMad()">'+MZ_IC.back+'Pedidos</button>';
+  h+='<div class="mz-ped"><div><div class="mz-n">'+esc(num)+'</div><div class="mz-cli">'+esc(_madCliente(o))+'</div>'+
+     '<div class="mz-meta">'+esc(_madSemanaTxt(o).toLowerCase())+' · '+esc(fmtCant(_f3(m2DePedido(num)),'m2'))+'</div></div>'+
+     '<div class="mz-total"><span class="mz-big" id="mz-total">'+esc(_soloCant(_madTotalPanel(num),'pulg'))+'</span> <span class="mz-u">pulg</span>'+
+     '<div class="mz-ref">referencia '+esc(_madPulgTxt(_madReferencia(num)))+'<br>según los m² del pedido</div></div></div>';
+
+  // Lo ya anotado, por especie
+  var porSku={},orden=[];
+  function meter(t,tipo){var k=String(t.inventario_id);if(!porSku[k]){porSku[k]=[];orden.push(k);}porSku[k].push({t:t,tipo:tipo});}
+  guard.forEach(function(t){meter(t,'g');});cola.forEach(function(t){meter(t,'c');});pend.forEach(function(t){meter(t,'p');});
+  if(madSel.sku&&!porSku[String(madSel.sku)])orden.push(String(madSel.sku));
+  orden.forEach(function(k){
+    var s=_madSku(k);
+    h+='<div class="mz-esp"><b>'+esc(_madNombre(s?s.especie:'?'))+'</b><span>'+
+       (String(madSel.sku)===k?'anotando esta madera':'')+'</span></div>';
+    (porSku[k]||[]).forEach(function(it){
+      var t=it.t,p=it.tipo==='g'?Number(t.pulgadas):_madPulg(t),btn='';
+      if(it.tipo==='g')btn='<button class="mz-del" aria-label="Deshacer este tablón" onclick="madDeshacerLinea('+Number(t.id)+')">'+MZ_IC.x+'</button>';
+      if(it.tipo==='p')btn='<button class="mz-del" aria-label="Quitar este tablón" onclick="madQuitarPend(\''+esc(num)+'\',\''+esc(t.client_id)+'\')">'+MZ_IC.x+'</button>';
+      var nota=it.tipo==='g'?'':(it.tipo==='c'?'<small>sin señal: se guarda cuando vuelva</small>':'<small>agregado, falta tocar Listo</small>');
+      h+='<div class="mz-tl"><span>'+esc(_madTxtTablon(t))+nota+'</span><span class="mz-tl-der"><b>'+esc(_madPulgTxt(p))+'</b>'+btn+'</span></div>';
+    });
+  });
+
+  // Elegir madera: solo si hay que elegir
+  var espPed=_especiesDePedido(num).map(_madSkuDeEspecie).filter(Boolean);
+  var opciones=madSel.otraMadera?_madSkusElegibles():espPed;
+  if(opciones.length>1||madSel.otraMadera||!madSel.sku){
+    h+='<div class="mz-lbl">Madera</div><div class="mz-chips mz-c3">';
+    (opciones.length?opciones:_madSkusElegibles()).forEach(function(s){
+      h+='<button class="mz-chip'+(madSel.sku===s.id?' on':'')+'" onclick="madEsp('+Number(s.id)+')">'+esc(_madNombre(s.especie))+'</button>';
+    });
+    h+='</div>';
+  }
+
+  h+='<div class="mz-lbl">Medida del tablón</div><div class="mz-chips">';
+  MAD_MEDIDAS.forEach(function(m,i){
+    h+='<button class="mz-chip'+(madSel.medida===i?' on':'')+'" onclick="madSet(\'medida\','+i+')">'+m.e+' × '+m.a+'</button>';
+  });
+  h+='<button class="mz-chip'+(madSel.medida==='otra'?' on':'')+'" onclick="madSet(\'medida\',\'otra\')">Otra</button></div>';
+  if(madSel.medida==='otra'){
+    h+='<div class="mz-otra"><input class="mz-input" type="number" inputmode="decimal" step="0.001" min="0" placeholder="espesor ″" value="'+esc(madSel.e)+'" oninput="madCampo(\'e\',this.value)">'+
+       '<span>×</span><input class="mz-input" type="number" inputmode="decimal" step="0.001" min="0" placeholder="ancho ″" value="'+esc(madSel.a)+'" oninput="madCampo(\'a\',this.value)"></div>';
+  }
+  h+='<div class="mz-lbl">Largo que usaste</div><div class="mz-chips">';
+  _madLargos(madSel.sku).forEach(function(v,i){
+    h+='<button class="mz-chip'+(madSel.largo===i?' on':'')+'" onclick="madSet(\'largo\','+i+')">'+esc(_madM(v))+'</button>';
+  });
+  h+='<button class="mz-chip'+(madSel.largo==='otro'?' on':'')+'" onclick="madSet(\'largo\',\'otro\')">Otro</button></div>';
+  if(madSel.largo==='otro'){
+    h+='<div class="mz-otra" style="grid-template-columns:1fr auto"><input class="mz-input" type="number" inputmode="decimal" step="0.001" min="0" placeholder="largo en metros" value="'+esc(madSel.l)+'" oninput="madCampo(\'l\',this.value)"><span>m</span></div>';
+  }
+  h+='<div class="mz-lbl">Cuántos</div><div class="mz-step"><button onclick="madPaso(-1)" aria-label="Uno menos">−</button>'+
+     '<input class="mz-input" type="number" inputmode="decimal" step="0.001" min="0" value="'+esc(madSel.n)+'" oninput="madCampo(\'n\',this.value)" aria-label="Cuántos tablones">'+
+     '<button onclick="madPaso(1)" aria-label="Uno más">+</button></div>';
+  h+='<div id="mz-calc">'+_madHtmlCalc()+'</div>';
+  h+='<div class="mz-btns"><button class="mz-btn" onclick="madAgregar()">'+MZ_IC.plus+'Agregar</button>'+
+     '<button class="mz-btn" onclick="madOtraMadera()">'+MZ_IC.plus+'Otra madera</button>'+
+     '<button class="mz-btn mz-main mz-full" id="mz-listo" onclick="madListo()">'+esc(_madTxtListo(num))+'</button></div>';
+  if(!navigator.onLine||cola.length)h+='<div class="mz-guardado">'+MZ_IC.dot+'Sin señal: se guarda solo cuando vuelva</div>';
+  h+='<div class="mz-note">Si cortaste un tablón para dos pedidos, anota acá solo el largo que usaste en este.</div></div>';
+  return h;
+}
+function _madHtmlCalc(){
+  var t=_madTablonSel();
+  if(!t)return '<div class="mz-calc mz-vacia"><span>Elige la medida y el largo</span></div>';
+  return '<div class="mz-calc"><span>'+esc(_madTxtTablon(t))+'</span><b>'+esc(_madPulgTxt(_madPulg(t)))+'</b></div>';
+}
+// Lo que va a quedar anotado si toca Listo ahora: lo guardado, lo agregado y,
+// si tocó los botones, el tablón que tiene elegido.
+function _madTotalPanel(num){
+  var s=_madPulgDe(num);
+  (madPend[num]||[]).forEach(function(t){s+=_madPulg(t);});
+  var t=_madTablonSel();if(madSel&&madSel.tocado&&t)s+=_madPulg(t);
+  return _f3(s);
+}
+function _madTxtListo(num){
+  var tot=_madTotalPanel(num),esp=[];
+  _madAnotDe(num).concat(_madColaLineas(num),madPend[num]||[]).forEach(function(t){esp.push(t.inventario_id);});
+  if(madSel&&madSel.tocado&&_madTablonSel())esp.push(madSel.sku);
+  var nombres=[];esp.forEach(function(id){var s=_madSku(id),n=s?s.especie.toLowerCase():'';if(n&&nombres.indexOf(n)<0)nombres.push(n);});
+  if(!tot)return 'Listo';
+  return 'Listo · '+_madPulgTxt(tot)+(nombres.length?' de '+nombres.join(' + '):'');
+}
+function _madRefrescar(){
+  var c=document.getElementById('mz-calc');if(c)c.innerHTML=_madHtmlCalc();
+  var b=document.getElementById('mz-listo');if(b&&madAbierto)b.textContent=_madTxtListo(madAbierto);
+  var t=document.getElementById('mz-total');if(t&&madAbierto)t.textContent=_soloCant(_madTotalPanel(madAbierto),'pulg');
+}
+
+// ── Acciones del panel ────────────────────────────────────────────────────
+function abrirMad(num){madAbierto=String(num);madSel=_madSelNueva(num);renderMadera();window.scrollTo(0,0);}
+function cerrarMad(){
+  if((madPend[madAbierto]||[]).length&&!confirm('Hay tablones agregados que todavía no guardas. ¿Salir igual? Se pierden.'))return;
+  if(madAbierto)delete madPend[madAbierto];
+  madAbierto=null;madSel=null;renderMadera();
+}
+function madSet(campo,valor){madSel[campo]=valor;madSel.tocado=true;renderMadera();}
+function madCampo(campo,valor){madSel[campo]=valor;madSel.tocado=true;_madRefrescar();}
+function madPaso(d){madSel.n=_f3(Math.max(1,_madNum(madSel.n)+d));madSel.tocado=true;renderMadera();}
+// Otra especie trae otros largos: el botón de largo elegido deja de valer.
+function madEsp(id){madSel.sku=Number(id);if(madSel.largo!=='otro')madSel.largo=null;renderMadera();}
+function madOtraMadera(){madSel.otraMadera=true;renderMadera();}
+function madAgregar(){
+  var t=_madTablonSel();
+  if(!t){showToast('Elige la medida y el largo del tablón',true);return;}
+  var num=madAbierto;
+  madPend[num]=(madPend[num]||[]).concat([Object.assign({client_id:_madUuid()},t)]);
+  madSel.medida=null;madSel.largo=null;madSel.n=1;madSel.e='';madSel.a='';madSel.l='';madSel.tocado=false;
+  renderMadera();
+}
+function madQuitarPend(num,cid){madPend[num]=(madPend[num]||[]).filter(function(t){return t.client_id!==cid;});renderMadera();}
+async function madListo(){
+  var num=madAbierto;if(!num)return;
+  var pend=(madPend[num]||[]).slice(),t=_madTablonSel();
+  if(madSel.tocado){
+    if(!t){showToast('Falta elegir '+(madSel.medida===null?'la medida':'el largo')+' del tablón',true);return;}
+    pend.push(Object.assign({client_id:_madUuid()},t));
+  }
+  if(!pend.length){
+    if(_madEstado(num)!=='falta'){madAbierto=null;madSel=null;renderMadera();return;}
+    showToast('Elige la medida y el largo del tablón',true);return;
+  }
+  var o=_madPedido(num),f=o?_madDespacho(o):null,ce=cecoSugerido(num);
+  var envio={id:_madUuid(),pedido:num,despacho:f?_madIso(f):null,ceco:(ce&&ce.id)||null,
+    lineas:pend.map(function(x){return {client_id:x.client_id,inventario_id:x.inventario_id,piezas:x.piezas,
+      espesor:x.espesor,ancho:x.ancho,largo_m:x.largo_m};})};
+  // Primero a la cola de este celular, después a la base: si se corta la
+  // señal en el medio, lo anotado queda y se manda solo cuando vuelva.
+  var c=_madCola();c.push(envio);_madColaGuardar(c);
+  delete madPend[num];madAbierto=null;madSel=null;
+  renderMadera();
+  await _madVaciarCola(envio.id);
+}
+async function madDeshacer(ids){
+  var t=document.getElementById('mz-toast');if(t)t.classList.remove('on');
+  try{
+    var filas=await sbJson(SB_URL+'/rest/v1/rpc/madera_anular',{method:'POST',body:JSON.stringify({p_ids:ids})});
+    _madMezclar(filas);
+    showToast('Deshecho: la madera volvió a la bodega');
+  }catch(e){
+    showToast(_madEsRed(e)?'Sin señal: no se pudo deshacer. Prueba de nuevo.':'✗ '+_madMsgError(e),true);
+  }
+  renderMadera();
+}
+function madDeshacerLinea(id){
+  var a=madAnot.find(function(x){return x.id===id;});if(!a)return;
+  if(!confirm('¿Deshacer '+_madTxtTablon(a)+' ('+_madPulgTxt(a.pulgadas)+')? Vuelve a la bodega.'))return;
+  madDeshacer([id]);
+}
+function _madToast(html){
+  var t=document.getElementById('mz-toast');
+  if(!t){t=document.createElement('div');t.id='mz-toast';t.className='mz-toast';t.setAttribute('role','status');document.body.appendChild(t);}
+  t.innerHTML=html;t.classList.add('on');
+  clearTimeout(madToastTimer);madToastTimer=setTimeout(function(){t.classList.remove('on');},9000);
+}
+function _madToastListo(e,filas){
+  var vivas=filas.filter(function(f){return !f.anulada_at;});
+  var pulg=vivas.reduce(function(s,f){return s+(Number(f.pulgadas)||0);},0),esp=[];
+  vivas.forEach(function(f){var s=_madSku(f.inventario_id),n=s?s.especie.toLowerCase():'';if(n&&esp.indexOf(n)<0)esp.push(n);});
+  var ids=vivas.map(function(f){return Number(f.id);}).join(',');
+  _madToast('<div class="mz-t"><b>'+esc(e.pedido)+' listo · '+esc(_madPulgTxt(pulg))+(esp.length?' de '+esc(esp.join(' + ')):'')+'</b>'+
+            '<span>'+MZ_IC.ok+'Guardado</span></div>'+
+            (ids?'<button class="mz-deshacer" onclick="madDeshacer(['+ids+'])">Deshacer</button>':''));
+}
+
+// ── Llegó madera ──────────────────────────────────────────────────────────
+function _madProv(id){return madProvs.find(function(p){return p.id===id;})||null;}
+function _madHtmlLlegadas(){
+  var f=madFoto||{},h='',hoy=_madIso(new Date());
+  var input='<input type="file" accept="image/*" capture="environment" hidden onchange="madFotoElegida(this)">';
+  if(f.url)h+='<div class="mz-foto mz-con"><img src="'+esc(f.url)+'" alt="Foto del cuaderno"><label class="mz-btn" style="margin-top:8px">Cambiar foto'+input+'</label></div>';
+  else h+='<label class="mz-foto">'+MZ_IC.cam+'Sacar foto del cuaderno<span>la página de esta compra, con las medidas</span>'+input+'</label>';
+  h+='<div class="mz-lbl">¿De quién es?</div><div class="mz-chips mz-c2">';
+  madProvs.forEach(function(p){
+    h+='<button class="mz-chip'+(f.proveedor_id===p.id?' on':'')+'" onclick="madProvSel('+Number(p.id)+')">'+esc(p.alias||p.nombre)+'</button>';
+  });
+  h+='<button class="mz-chip'+(f.proveedor_id===0?' on':'')+'" onclick="madProvSel(0)">Otro</button></div>';
+  h+='<div class="mz-lbl">¿Cuándo llegó?</div><div class="mz-chips mz-c2">'+
+     '<button class="mz-chip'+(!f.otroDia?' on':'')+'" onclick="madFotoDia(false)">Hoy</button>'+
+     '<button class="mz-chip'+(f.otroDia?' on':'')+'" onclick="madFotoDia(true)">Otro día</button></div>';
+  if(f.otroDia)h+='<input class="mz-input" style="margin-top:8px" type="date" min="2026-01-01" max="'+hoy+'" value="'+esc(f.fecha||'')+'" onchange="madFotoFecha(this.value)">';
+  h+='<div class="mz-btns"><button class="mz-btn mz-main mz-full" id="mz-guardar-foto" onclick="madGuardarFoto()">Guardar foto</button></div>';
+  h+='<div class="mz-note">No hace falta escribir las medidas: con la foto basta. En la oficina se cruza con la factura.</div>';
+  var mes=hoy.slice(0,7),delMes=madLlegadas.filter(function(l){return String(l.fecha_llegada).slice(0,7)===mes;});
+  h+='<div class="mz-sec" style="margin-top:8px"><span>Fotos de '+MESES_ES[new Date().getMonth()].toLowerCase()+'</span><b>'+delMes.length+' guardadas</b></div><div class="mz-list">';
+  if(!delMes.length)h+='<div class="mz-vacio">Todavía no hay fotos. La primera que guardes aparece acá.</div>';
+  delMes.forEach(function(l){
+    var p=_madProv(l.proveedor_id),est=l.estado==='confirmada'?'<div class="mz-st mz-listo">'+MZ_IC.ok+'Revisada</div>':
+      (l.estado==='descartada'?'<div class="mz-st mz-falta">Descartada</div>':'<div class="mz-st mz-falta">'+MZ_IC.dot+'Por revisar</div>');
+    h+='<div class="mz-row mz-quieta"><div class="mz-who"><b>'+esc(p?(p.alias||p.nombre):'Otro')+'</b><span>llegó el '+esc(fmtFecha(l.fecha_llegada))+'</span></div>'+est+'</div>';
+  });
+  return h+'</div>';
+}
+function _madComprimir(file){
+  // La foto del celular pesa 3-5 MB; a 1600 px se lee igual y sube con poca señal.
+  return new Promise(function(ok,mal){
+    var img=new Image(),u=URL.createObjectURL(file);
+    img.onload=function(){
+      var w=img.naturalWidth,hh=img.naturalHeight,k=Math.min(1,1600/Math.max(w,hh));
+      var c=document.createElement('canvas');c.width=Math.round(w*k);c.height=Math.round(hh*k);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);
+      c.toBlob(function(b){if(b)ok(b);else mal(new Error('No se pudo leer la foto'));},'image/jpeg',0.82);
+    };
+    img.onerror=function(){URL.revokeObjectURL(u);mal(new Error('No se pudo abrir la foto'));};
+    img.src=u;
+  });
+}
+async function madFotoElegida(input){
+  var file=input&&input.files&&input.files[0];if(!file)return;
+  try{
+    var blob=await _madComprimir(file);
+    if(madFoto&&madFoto.url)URL.revokeObjectURL(madFoto.url);
+    madFoto=Object.assign({},madFoto||{},{blob:blob,url:URL.createObjectURL(blob),client_id:_madUuid()});
+  }catch(e){showToast('✗ '+e.message,true);}
+  renderMadera();
+}
+function madProvSel(id){madFoto=Object.assign({},madFoto||{},{proveedor_id:Number(id)});renderMadera();}
+function madFotoDia(otro){madFoto=Object.assign({},madFoto||{},{otroDia:!!otro});renderMadera();}
+function madFotoFecha(v){madFoto=Object.assign({},madFoto||{},{fecha:v});}
+async function madGuardarFoto(){
+  var f=madFoto;
+  if(!f||!f.blob){showToast('Primero saca la foto del cuaderno',true);return;}
+  if(f.proveedor_id===undefined){showToast('Elige de quién es la madera',true);return;}
+  var fecha=f.otroDia?f.fecha:_madIso(new Date());
+  if(!fecha){showToast('Elige el día que llegó',true);return;}
+  var btn=document.getElementById('mz-guardar-foto');if(btn){btn.disabled=true;btn.textContent='Guardando…';}
+  // El nombre del archivo es el client_id: tocar Guardar de nuevo tras un
+  // corte sube el mismo archivo y la misma fila, no una copia.
+  var path=fecha.slice(0,7)+'/'+f.client_id+'.jpg';
+  try{
+    var r=await sbFetch(SB_URL+'/storage/v1/object/madera-fotos/'+path,{method:'POST',
+      headers:{'Content-Type':'image/jpeg','x-upsert':'false'},body:f.blob});
+    if(!r.ok){var txt=await r.text();if(!(r.status===409||/already exists|Duplicate/i.test(txt)))throw new Error('Foto '+r.status+': '+txt.slice(0,160));}
+    try{await sbInsert('madera_llegadas',{client_id:f.client_id,proveedor_id:f.proveedor_id||null,fecha_llegada:fecha,foto_path:path});}
+    catch(e){if(!/409|23505|duplicate/i.test(String(e.message)))throw e;}
+    URL.revokeObjectURL(f.url);madFoto=null;
+    await _madCargarLlegadas();
+    showToast('✓ Foto guardada');
+  }catch(e){
+    console.error('madGuardarFoto',e);
+    showToast(_madEsRed(e)?'Sin señal: la foto sigue acá, vuelve a tocar Guardar cuando haya':'✗ '+_madMsgError(e),true);
+  }
+  renderMadera();
+}
+
+// ── Revisar (admin): fotos, facturas de madera y comprado vs pedidos ──────
+// Lo que dice la foto se escribe como se habla: «castaño 6 tablones 2x8 en
+// 3,2 m». Una línea por tablón; la especie, si no se nombra, es la anterior.
+function madParseTablon(txt,skuPrevio){
+  var s=_normMad(txt).toLowerCase().replace(/(\d),(\d)/g,'$1.$2');
+  if(!s)return null;
+  var sku=null;
+  _madSkusElegibles().forEach(function(k){if(!sku&&s.indexOf(_normMad(k.especie).toLowerCase())>=0)sku=k;});
+  if(!sku&&/coigue/.test(s))sku=_madSkuDeEspecie('COIHUE');
+  if(!sku&&/oregon/.test(s))sku=_madSkuDeEspecie('OREGON');
+  if(!sku&&skuPrevio)sku=_madSku(skuPrevio);
+  var med=s.match(/(\d+(?:\.\d+)?)\s*(?:"|''|pulg\w*)?\s*[x×*]\s*(\d+(?:\.\d+)?)/);
+  if(!med||!sku)return {ok:false,texto:txt,sku:sku?sku.id:null};
+  var resto=s.slice(med.index+med[0].length);
+  var lar=resto.match(/(\d+(?:\.\d+)?)\s*(metros|metro|mtrs|mts|mt|m|pies|pie|')(?![a-z])/);
+  var pz=s.slice(0,med.index).match(/(\d+(?:\.\d+)?)\s*(tablones|tablon|tablas|tabla|piezas|pieza|pzas|pza|unidades|u)?\s*(de\s*)?$/);
+  if(!lar)return {ok:false,texto:txt,sku:sku.id};
+  // El cuaderno a veces dice pies; se guarda siempre en metros (12 pies = 3,6576 m).
+  var enPies=/^(pies|pie|')$/.test(lar[2]);
+  var t={inventario_id:sku.id,piezas:_f3(pz?Number(pz[1]):1),espesor:_f3(Number(med[1])),ancho:_f3(Number(med[2])),
+         largo_m:Number((Number(lar[1])*(enPies?MADERA_PIE_M:1)).toFixed(4)),texto:String(txt).trim()};
+  t.ok=t.piezas>0&&t.espesor>0&&t.ancho>0&&t.largo_m>0;
+  return t;
+}
+function _madParseTodo(txt){
+  var prev=null;
+  return String(txt||'').split(/\n+/).map(function(l){return l.trim();}).filter(Boolean).map(function(l){
+    var t=madParseTablon(l,prev);if(t&&t.sku)prev=t.sku;if(t&&t.inventario_id)prev=t.inventario_id;return t;
+  });
+}
+function _madLeidoHtml(lineas){
+  if(!lineas||!lineas.length)return '<span class="mz-miss">Sin leer todavía</span>';
+  var tot=0,h='Leí en la foto:';
+  lineas.forEach(function(t){
+    if(!t.ok&&t.ok!==undefined){h+='<br><span class="mz-miss">No entendí: '+esc(t.texto)+'</span>';return;}
+    var s=_madSku(t.inventario_id),p=_madPulg(t);tot+=p;
+    h+='<br><b>'+esc(_madNombre(s?s.especie:'?'))+'</b> · '+esc(_madTxtTablon(t))+' = '+esc(_madPulgTxt(p));
+  });
+  return h+'<div style="font-size:20px;margin-top:4px"><b>'+esc(_madPulgTxt(tot))+'</b></div>';
+}
+function _madMeses(){
+  var out=[],d=new Date(MAD_DESDE+'T12:00:00'),hoy=new Date();
+  while(d<=hoy){out.push(_madIso(d).slice(0,7));d.setMonth(d.getMonth()+1);}
+  return out;
+}
+function setMadMes(m){madMesAdmin=m;renderMadera();}
+function _madHtmlRevisar(){
+  var meses=_madMeses();if(!madMesAdmin||meses.indexOf(madMesAdmin)<0)madMesAdmin=meses[meses.length-1];
+  var h='<div class="mz-chips" style="margin-top:12px;grid-template-columns:repeat('+Math.min(4,meses.length)+',1fr)">';
+  meses.forEach(function(m){
+    h+='<button class="mz-chip'+(m===madMesAdmin?' on':'')+'" onclick="setMadMes(\''+m+'\')">'+_madNombre(MESES_ES[Number(m.slice(5))-1])+'</button>';
+  });
+  h+='</div>';
+  var hoy=new Date(),faltan=_madPedidos().filter(function(x){return x.f<=hoy&&_madEstado(x.num)==='falta';});
+  if(faltan.length)h+='<div class="mz-alerta"><b>'+faltan.length+' pedidos ya despachados sin anotar</b>Cristián los ve en su pantalla, del más atrasado al más nuevo.</div>';
+
+  var porRevisar=madLlegadas.filter(function(l){return l.estado==='por_revisar';});
+  h+='<div class="mz-sec"><span>Fotos por revisar</span><b>'+porRevisar.length+'</b></div>';
+  if(!porRevisar.length)h+='<div class="mz-list"><div class="mz-vacio">No hay fotos nuevas.</div></div>';
+  porRevisar.forEach(function(l){h+=_madHtmlRev(l);});
+
+  // Facturas de madera recibidas del mes, con su respaldo
+  var docs=madDocs.filter(function(d){return String(d.fecha).slice(0,7)===madMesAdmin;});
+  h+='<div class="mz-sec"><span>Facturas de madera</span><b>'+docs.length+'</b></div>';
+  if(!docs.length)h+='<div class="mz-list"><div class="mz-vacio">No hay facturas de proveedores de madera importadas de este mes. Llegan desde Wasabil a Recibidos.</div></div>';
+  docs.forEach(function(d){
+    var p=madProvs.find(function(x){return _normRut(x.rut)===_normRut(d.proveedor_rut);});
+    var lin=madDocLineas.filter(function(x){return x.documento_id===d.id;});
+    var tot=lin.reduce(function(s,x){return s+(Number(x.cantidad)||0);},0);
+    var fotos=madLlegadas.filter(function(x){return x.estado==='confirmada'&&x.documento_recibido_id===d.id;});
+    h+='<div class="mz-sec"><span>'+esc((p&&(p.alias||p.nombre))||d.proveedor_nombre)+' · '+(d.sii_document_type_id===61?'NC ':'factura ')+esc(d.folio)+'</span><b>'+esc(_madPulgTxt(tot))+'</b></div>';
+    h+='<div class="mz-doc"><table>';
+    lin.forEach(function(x){
+      h+='<tr><td>'+esc(x.item_nombre||x.glosa||'(sin detalle)')+'</td><td class="r">'+esc(_madPulgTxt(x.cantidad))+'</td></tr>';
+    });
+    h+='<tr><td colspan="2">'+(fotos.length?'<span class="mz-okc">Respaldada con '+fotos.length+' foto'+(fotos.length>1?'s':'')+' de llegada</span>':
+       '<span class="mz-miss">Sin foto de llegada</span>')+'<small>'+esc(fmtFecha(d.fecha))+'</small></td></tr>';
+    h+='</table></div>';
+  });
+
+  // Comprado vs anotado (v_madera_mes) y la referencia por m²
+  var filas=madMes.filter(function(r){return String(r.mes).slice(0,7)===madMesAdmin;});
+  var ref={};
+  _madPedidos().filter(function(x){return _madIso(x.f).slice(0,7)===madMesAdmin;}).forEach(function(x){
+    lineasProdDe(x.num).forEach(function(l){
+      var sku=_madSkuDeEspecie(l.madera);if(!sku)return;
+      ref[sku.id]=_f3((ref[sku.id]||0)+_aUnidadStock(calcM2(l.largo,l.ancho,l.cantidad)||0,'m2',sku.sku).cantidad);
+    });
+  });
+  Object.keys(ref).forEach(function(id){
+    if(!filas.some(function(r){return String(r.inventario_id)===id;})){
+      var s=_madSku(id);filas.push({inventario_id:Number(id),especie:s?s.especie:'?',comprado_pulg:0,anotado_pulg:0,diferencia_pulg:0,pedidos:0,soloRef:true});
+    }
+  });
+  h+='<div class="mz-sec"><span>Comprado vs pedidos</span><b>'+_madNombre(MESES_ES[Number(madMesAdmin.slice(5))-1])+'</b></div><div class="mz-doc"><table>';
+  if(!filas.length)h+='<tr><td>Sin compras ni anotaciones este mes.</td></tr>';
+  filas.sort(function(a,b){return String(a.especie).localeCompare(String(b.especie));}).forEach(function(r){
+    h+='<tr><td><b>'+esc(_madNombre(r.especie))+'</b><small>comprado '+esc(_madPulgTxt(r.comprado_pulg))+' · anotado '+esc(_madPulgTxt(r.anotado_pulg))+
+       (r.pedidos?' en '+r.pedidos+' pedido'+(r.pedidos>1?'s':''):'')+'</small><small>referencia por m²: '+esc(_madPulgTxt(ref[r.inventario_id]||0))+'</small></td>'+
+       '<td class="r">'+(r.soloRef?'—':esc(_madPulgTxt(r.diferencia_pulg)))+'<small>diferencia</small></td></tr>';
+  });
+  h+='</table><div class="mz-note">Comprado = líneas de facturas recibidas, en pulgadas. Las de un proveedor que no detalla medidas (sin texto de especie) no entran: salen de la foto del cuaderno.</div></div>';
+
+  // Largos por especie: la pulgada (1″ × 10″ × este largo) y el tablón habitual.
+  h+='<div class="mz-sec"><span>Largos por especie</span><b>en metros</b></div><div class="mz-doc"><table>';
+  _madSkusElegibles().forEach(function(s){
+    var id=Number(s.id);
+    h+='<tr><td><b>'+esc(_madNombre(s.especie))+'</b>'+
+       '<div class="mz-otra" style="grid-template-columns:1fr 1fr auto;margin-top:6px">'+
+       '<label style="font-size:13px;color:var(--text-2)">pulgada (m)<input class="mz-input" id="mz-base-'+id+'" type="number" inputmode="decimal" step="0.001" min="0" value="'+esc(s.pulg_base_m==null?'':Number(s.pulg_base_m))+'"></label>'+
+       '<label style="font-size:13px;color:var(--text-2)">tablón (m)<input class="mz-input" id="mz-tab-'+id+'" type="number" inputmode="decimal" step="0.001" min="0" value="'+esc(s.largo_tablon_m==null?'':Number(s.largo_tablon_m))+'"></label>'+
+       '<button class="mz-btn" style="align-self:end" onclick="madGuardarLargos('+id+')">Guardar</button></div></td></tr>';
+  });
+  h+='</table><div class="mz-note">Cambiar la pulgada vale para lo que se anote desde ahora; lo ya anotado guarda la medida con que se calculó. 12 pies = 3,6576 m.</div></div>';
+  return h;
+}
+async function madGuardarLargos(id){
+  var b=_madNum((document.getElementById('mz-base-'+id)||{}).value),t=_madNum((document.getElementById('mz-tab-'+id)||{}).value);
+  if(!(b>0&&t>0)){showToast('Los dos largos tienen que ser mayores que 0',true);return;}
+  try{
+    await sbUpdate('inventario',id,{pulg_base_m:Number(b.toFixed(4)),largo_tablon_m:Number(t.toFixed(4))});
+    madSkus=await sbGet('inventario','select=id,sku,especie,unidad_id,pulg_base_m,largo_tablon_m&sku=like.madera_*&order=sku');
+    showToast('✓ Largos guardados');
+  }catch(e){showToast('✗ '+_madMsgError(e),true);}
+  renderMadera();
+}
+function _madHtmlRev(l){
+  var p=_madProv(l.proveedor_id),quien=String(l.created_by||'').split('@')[0];
+  var h='<div class="mz-rev"><div class="mz-top"><a class="mz-thumb" data-foto="'+esc(l.foto_path)+'" target="_blank" rel="noopener">foto</a>'+
+        '<div class="mz-who"><b>'+esc(p?(p.alias||p.nombre):'Otro proveedor')+'</b><span>llegó el '+esc(fmtFecha(l.fecha_llegada))+(quien?' · subida por '+esc(quien):'')+'</span>'+
+        '<div class="mz-read" id="mz-leido-'+Number(l.id)+'">'+_madLeidoHtml(l.leido)+'</div></div></div>';
+  if(madEditando===l.id){
+    var txt=(l.leido||[]).map(function(t){var s=_madSku(t.inventario_id);return t.texto||((s?s.especie.toLowerCase()+' ':'')+_madTxtTablon(t));}).join('\n');
+    h+='<div class="mz-lbl">Una línea por tablón, como en el cuaderno</div>'+
+       '<textarea class="mz-area" id="mz-area-'+Number(l.id)+'" placeholder="castaño 6 tablones 2x8 en 3,2 m" oninput="madPrevia('+Number(l.id)+',this.value)">'+esc(txt)+'</textarea>'+
+       '<div class="mz-btns"><button class="mz-btn" onclick="madEditar(null)">Cancelar</button><button class="mz-btn mz-main" onclick="madGuardarLeido('+Number(l.id)+')">Guardar lectura</button></div>';
+  }else if(madConfirmando===l.id){
+    var docs=madDocs.filter(function(d){return p&&_normRut(d.proveedor_rut)===_normRut(p.rut);});
+    h+='<select class="mz-sel" id="mz-doc-'+Number(l.id)+'"><option value="">¿Qué factura respalda?</option>';
+    docs.forEach(function(d){h+='<option value="'+Number(d.id)+'">Factura '+esc(d.folio)+' · '+esc(fmtFecha(d.fecha))+'</option>';});
+    h+='<option value="sin">Compra sin factura</option></select>'+
+       '<div class="mz-btns"><button class="mz-btn" onclick="madConfirmar(null)">Cancelar</button><button class="mz-btn mz-main" onclick="madConfirmarOk('+Number(l.id)+')">Confirmar</button></div>';
+  }else{
+    h+='<div class="mz-btns"><button class="mz-btn" onclick="madEditar('+Number(l.id)+')">Corregir</button>'+
+       '<button class="mz-btn mz-main" onclick="madConfirmar('+Number(l.id)+')">Confirmar</button>'+
+       '<button class="mz-btn mz-full" style="min-height:44px;font-size:15px" onclick="madDescartar('+Number(l.id)+')">Descartar foto</button></div>';
+  }
+  return h+'<div class="mz-note">Confirmar la deja como respaldo de la factura. La bodega la mueve la factura, no la foto.</div></div>';
+}
+async function _madCargarMiniaturas(){
+  var els=document.querySelectorAll('.mz-thumb[data-foto]');
+  for(var i=0;i<els.length;i++){
+    var el=els[i],path=el.getAttribute('data-foto');
+    try{
+      if(!madFirmadas[path]){
+        var r=await sbJson(SB_URL+'/storage/v1/object/sign/madera-fotos/'+path,{method:'POST',body:JSON.stringify({expiresIn:3600})});
+        if(r&&r.signedURL)madFirmadas[path]=SB_URL+'/storage/v1'+r.signedURL;
+      }
+      if(madFirmadas[path]){el.href=madFirmadas[path];el.style.backgroundImage='url("'+madFirmadas[path]+'")';el.textContent='';}
+    }catch(e){el.textContent='sin foto';}
+  }
+}
+function madEditar(id){madEditando=id;madConfirmando=null;renderMadera();}
+function madConfirmar(id){
+  var l=madLlegadas.find(function(x){return x.id===id;});
+  if(id&&!(l&&l.leido&&l.leido.length)){showToast('Primero escribe lo que dice la foto (Corregir)',true);return;}
+  madConfirmando=id;madEditando=null;renderMadera();
+}
+function madPrevia(id,txt){var el=document.getElementById('mz-leido-'+id);if(el)el.innerHTML=_madLeidoHtml(_madParseTodo(txt));}
+async function madGuardarLeido(id){
+  var area=document.getElementById('mz-area-'+id),lineas=_madParseTodo(area?area.value:'');
+  if(!lineas.length){showToast('Escribe al menos un tablón',true);return;}
+  var malas=lineas.filter(function(t){return !t||!t.ok;});
+  if(malas.length){showToast('No entendí: '+malas.map(function(t){return t.texto;}).join(' / '),true);return;}
+  var leido=lineas.map(function(t){return {inventario_id:t.inventario_id,piezas:t.piezas,espesor:t.espesor,ancho:t.ancho,largo_m:t.largo_m,texto:t.texto};});
+  try{await sbUpdate('madera_llegadas',id,{leido:leido});madEditando=null;await _madCargarLlegadas();showToast('✓ Lectura guardada');}
+  catch(e){showToast('✗ '+_madMsgError(e),true);}
+  renderMadera();
+}
+async function madConfirmarOk(id){
+  var sel=document.getElementById('mz-doc-'+id),v=sel?sel.value:'';
+  if(!v){showToast('Elige la factura que respalda, o «Compra sin factura»',true);return;}
+  var cambios=v==='sin'?{estado:'confirmada',sin_documento:true,documento_recibido_id:null}:{estado:'confirmada',sin_documento:false,documento_recibido_id:Number(v)};
+  try{await sbUpdate('madera_llegadas',id,cambios);madConfirmando=null;await _madCargarLlegadas();showToast('✓ Foto confirmada');}
+  catch(e){showToast('✗ '+_madMsgError(e),true);}
+  renderMadera();
+}
+async function madDescartar(id){
+  if(!confirm('¿Descartar esta foto? Queda guardada, pero fuera de la revisión.'))return;
+  try{await sbUpdate('madera_llegadas',id,{estado:'descartada'});await _madCargarLlegadas();}
+  catch(e){showToast('✗ '+_madMsgError(e),true);}
+  renderMadera();
+}
+
 function restaurarPagina(){
   var p='';
   try{p=localStorage.getItem('zaru_pagina')||'';}catch(e){}
