@@ -453,7 +453,8 @@ $margenBruto = $ventaNeta - $tCosto; $contrib = $margenBruto - $tVenta; $operac 
 $ads = $metaReal + $google
 $feriaCosto = Suma @($todo | Where-Object { $_.categoria -eq 'Ferias' }) 'neto'
 # IVA del mes: lo mismo en la hoja IVA y en "Por pagar"
-$debito = Suma $emit 'iva'; $credito = if ($sii) { $sii.compras.facturas.iva } else { Suma $gastos 'iva' }
+# Las notas de crédito recibidas (compras.notas_credito, IVA negativo) rebajan el crédito; sin ese campo suman 0.
+$debito = Suma $emit 'iva'; $credito = if ($sii) { [double]$sii.compras.facturas.iva + [double]$sii.compras.notas_credito.iva } else { Suma $gastos 'iva' }
 $ivaFeria = (Suma $ventasFeria 'bruto') - $vNetaFeria
 $ivaMes = $debito + $ivaFeria - $credito
 
