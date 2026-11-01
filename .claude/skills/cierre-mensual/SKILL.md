@@ -69,11 +69,15 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
   Sin él, las ventas de feria se separan por la comisión. Ojo: hay `settlement_v2` de otros negocios en
   Descargas; usar solo el que el usuario diga que es de Casa Zaru.
 - **Tarjeta Visa Empresa 8340 de Banco de Chile** (desde el 19-10 paga Google Ads, Meta y el F29): Banco de Chile →
-  Tarjetas → movimientos, export `MovimientosNoFacturados.xls` (y `MovimientosFacturados.xls` cuando haya estado de
-  cuenta) en Descargas. El cargador los lee solo (una reversa anula su cargo). Ojo: el facturado tiene otro formato
-  (col. 1 Categoría, 2 Fecha, 3 Descripción, 7 Monto) y hoy no se lee: las compras entran igual por el no facturado,
-  pero los cargos propios de la tarjeta (intereses, comisiones, impuesto DL 3475) quedan fuera del cierre. Reglas: FACEBK = Publicidad Meta (suma al
-  gasto real de Meta si falta `meta-AAAA-MM.json`), GOOGLE ADS = pago de factura ya contada, SII RECAUDAC = impuestos.
+  Tarjetas → movimientos. Para cerrar el mes hacen falta los dos export en Descargas: `MovimientosFacturados.xls` (el
+  estado de cuenta, que cierra cerca del 28) y `MovimientosNoFacturados.xls` bajado después del fin de mes (lo cargado
+  entre el cierre del estado y el 31). Desde el 01-11 el cargador lee los dos formatos: una compra que sale en ambos se
+  cuenta una vez por fecha y monto, y una reversa anula su cargo. Solo el facturado trae los cargos propios de la
+  tarjeta (intereses, comisiones, impuesto DL 3475), que van a Comisiones bancarias por `reglas-cierre.csv`; la
+  comisión de administración mensual calza con la factura exenta de Banco de Chile y no se cuenta dos veces. Un
+  export en dólares no se lee. Reglas: FACEBK = Publicidad Meta (suma al gasto real de Meta si falta
+  `meta-AAAA-MM.json`), GOOGLE ADS = pago de factura ya contada, SII RECAUDAC (SII 11001 en el facturado) = impuestos.
+  Cada cobro de Meta a la Visa trae aparte una comisión de compra internacional del 2,54 % (octubre 2026).
   El pago de la tarjeta, cuando llegue, es traspaso. Ojo: lo pagado a Facebook trae IVA; el reporte de Meta no.
 - **Banco de Chile tiene dos cuentas**: la FAN Emprende 75243-30 (caja chica del taller, la que usa el libro) y la
   cuenta corriente 42159-00 (Profit First / SII, al 19-10 solo traspasos de entrada). Si la cartola no alcanza y la
