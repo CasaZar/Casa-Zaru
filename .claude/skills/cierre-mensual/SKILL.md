@@ -125,7 +125,12 @@ $env:LIBRO_DEBUG = '<scratchpad>\movs.csv'; .\libro-mensual.ps1 -Mes AAAA-MM -Sa
   sin número ("Pago final factura agosto", Renatte) también es pago de factura ya contada.
 - Hojas, en este orden: Resumen, Semanas (cuadre semanal), Historial, Madera (por proveedor), Starken (cobrado vs
   todos los fletes), Gastos fijos (con la venta necesaria para cubrirlos), Caja, Ventas, Por cobrar y pagar, Sueldos
-  (confidencial), Bencina, Marketing y CAC, Ferias, Cotizador, Facturas recibidas y emitidas, IVA, Deudas.
+  (confidencial), Bencina, Marketing y CAC, Pasarelas, Ferias, Cotizador, Facturas recibidas y emitidas, IVA, Deudas.
+- Hoja Pasarelas (desde el 01-11-2026): % que se lleva Venti, Flow y Mercado Pago por pedido (Gestión: `pasarela`,
+  `costo_mp`, `costo_shopify`, con IVA) y la factura de comisión del mes al lado. Venti y Flow facturan a fin de mes lo
+  del mes, así que se cuadran con Gestión; Mercado Pago no (factura el día 1 y junta Point y Mercado Libre). Las tarifas
+  vigentes salen de `Casa Zaru Planillas\tarifas-pasarelas.csv`: actualizarlo si cambian, no el script. Venti cobra
+  2,75 % + IVA en crédito, pero 4,74 % si el cliente usa las 3 cuotas sin interés (activadas en su panel).
 - Si Gestión cambió después del respaldo de las 03:00, pasar `-Respaldo <copia al día>.json`.
 - El resultado tiene que cuadrar con sus partes y la caja con los saldos de las cartolas.
   Si el número es extremo, buscar el pago grande mal clasificado antes de decirlo.

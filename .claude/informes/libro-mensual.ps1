@@ -70,6 +70,8 @@ $ventasTodas = @(@($j.tablas.gestion_finanzas) | ForEach-Object {
     vendedor = $(if ("$($d.vendedor)") { "$($d.vendedor)" } else { '(sin asignar)' })
     producto = "$($d.producto)"; web = ("$($d.canal_pago)" -match 'SHOPIFY')
     d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; ab = @((N $d.abono1), (N $d.abono2), (N $d.abono3)); a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3); tipoDoc = $d.doc1_tipo
+    # Hoja Pasarelas: costo_mp es lo que la pasarela descontó del depósito (con IVA), costo_shopify el 2 % de Shopify
+    pasarela = "$($d.pasarela)"; ordenWeb = "$($d.orden_web)"; cPas = (N $d.costo_mp); cShop = (N $d.costo_shopify)
   }
 } | Where-Object { $_.tipo -eq 'VENTA' })
 $vMes = @($ventasTodas | Where-Object { EnMes $_.fecha } | Sort-Object fecha)
@@ -1009,6 +1011,41 @@ if ($sinAsignar.Count) {
 if (-not $ferias.Count) { Nota $f 'No hubo ferias este mes (ferias.csv).' }
 Hoja 'Ferias' $f @(44, 14, 12)
 
+# ── Pasarelas de pago ──
+# Cuánto se lleva cada pasarela (Venti, Flow, Mercado Pago) de lo que se cobró con ella. Con IVA, porque es lo que se
+# descuenta del depósito. Los pedidos web pagan además el 2 % de Shopify por usar una pasarela externa.
+# Gestión anota la comisión por pedido a partir del depósito, y a veces se corre (oct-2026: el pedido 1570 tiene
+# $10.000 de más, que eran el balance mínimo que Venti retiene una sola vez): por eso se compara con la factura.
+$f = New-Object System.Collections.ArrayList
+$pas = @($vMes | Where-Object { $_.pasarela -and $_.total -gt 0 } | ForEach-Object {
+  $web = [bool]($_.ordenWeb -or $_.cShop -gt 0)
+  [pscustomobject]@{ num = $_.num; cliente = $_.cliente; fecha = $_.fecha; pasarela = ($_.pasarela -replace '_', ' '); canal = $(if ($web) { 'Web' } else { 'Link de pago' }); total = $_.total; cPas = $_.cPas; cShop = $_.cShop } })
+function Pct($a, $b) { C $(if ($b) { $a / $b } else { 0 }) 4 }
+Titulo $f "Pasarelas de pago — $mesNom" 'Montos CON IVA: lo que cada pasarela descuenta del depósito. Pedidos de Gestión vendidos en el mes que tienen pasarela; las transferencias directas no pagan comisión.'
+Sub $f 'Por pasarela'
+Tabla $f @('Pasarela', 'Pedidos', 'Cobrado', 'Comisión pasarela', '% pasarela', 'Shopify', '% Shopify', '% total') @($pas | Group-Object pasarela, canal | Sort-Object Name | ForEach-Object {
+  $t = Suma $_.Group 'total'; $c = Suma $_.Group 'cPas'; $s = Suma $_.Group 'cShop'
+  ,@($_.Name, $_.Count, $t, $c, (Pct $c $t), $s, (Pct $s $t), (Pct ($c + $s) $t)) }) @(1, 2, 3, 5)
+Sub $f 'Cada pedido'
+Tabla $f @('Pedido', 'Fecha', 'Pasarela', 'Canal', 'Cobrado', 'Comisión', '%', 'Shopify') @($pas | Sort-Object fecha | ForEach-Object { ,@("#$($_.num) $($_.cliente)", $_.fecha, $_.pasarela, $_.canal, $_.total, $_.cPas, (Pct $_.cPas $_.total), $_.cShop) }) @(4, 5, 7)
+# Solo comisiones: Mercado Pago Lending (intereses del crédito) y la compra del Point van a otras categorías.
+$facPas = @($gastos | Where-Object { "$($_.proveedor)" -match 'VENTI|FLOW|MERCADO ?PAGO|GETNET|SHOPIFY' -and ($_.categoria -match 'Comisiones' -or "$($_.proveedor)" -match 'SHOPIFY') } | Sort-Object proveedor, fecha)
+Sub $f 'Facturas de comisión del mes'
+Tabla $f @('Fecha', 'Proveedor', 'Documento', 'Detalle', 'Neto', 'Total') @($facPas | ForEach-Object { ,@($_.fecha, $_.proveedor, $_.doc, $_.detalle, $_.neto, $_.total) }) @(4, 5)
+# Venti y Flow facturan a fin de mes lo cobrado en ese mes, así que su factura se puede cuadrar con Gestión.
+foreach ($p in @(@('VENTI', 'Venti'), @('FLOW', 'Flow'))) {
+  $g = Suma @($pas | Where-Object { $_.pasarela -eq $p[0] }) 'cPas'; $fa = Suma @($facPas | Where-Object { "$($_.proveedor)" -match $p[0] }) 'total'
+  if ($g -or $fa) { Nota $f "$($p[1]): Gestión anotó $(Plata $g) de comisión y la factura dice $(Plata $fa)$(if ([math]::Abs($g - $fa) -gt 1000) { " (diferencia $(Plata ($g - $fa)): revisar la comisión de cada pedido en el panel de $($p[1]), o pedidos con $($p[1]) sin la pasarela marcada en Gestión)" } else { '' })." }
+}
+Nota $f 'Mercado Pago factura el día 1 lo del mes anterior y junta Checkout, links, Point y Mercado Libre: no se cuadra pedido por pedido. Shopify cobra su 2 % en la factura de compra mensual.'
+$tarifas = @(LeerCsv (Join-Path $PLAN 'tarifas-pasarelas.csv'))
+if ($tarifas.Count) {
+  [void]$f.Add(@())
+  Sub $f 'Tarifas vigentes (tarifas-pasarelas.csv)'
+  Tabla $f @('Pasarela', 'Medio', 'Tarifa', 'Nota', 'Revisado') @($tarifas | ForEach-Object { ,@($_.Pasarela, $_.Medio, $_.Tarifa, $_.Nota, $_.Revisado) })
+}
+Hoja 'Pasarelas' $f @(36, 11, 18, 40, 14, 14, 11, 12)
+
 # ── 10. Cotizador ──
 $f = New-Object System.Collections.ArrayList
 Titulo $f "Cotizador — $mesNom" $(if ($kpi) { "Datos del Pulso del Cotizador del $($kpi.generado)." } else { 'Falta kpis-cotizador.json.' })
@@ -1093,7 +1130,7 @@ if ($env:LIBRO_DEBUG) { $todo | Select-Object fuente, fecha, proveedor, categori
 
 # ═════════════════════════════ GUARDAR ═════════════════════════════
 # Orden de las hojas: primero lo que más mueve plata.
-$ORDEN = @('Resumen', 'Semanas', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
+$ORDEN = @('Resumen', 'Semanas', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Pasarelas', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
 $ordenadas = @($hojas | Sort-Object { $i = [array]::IndexOf($ORDEN, $_.nombre); if ($i -lt 0) { 99 } else { $i } })
 $hojas.Clear(); foreach ($h in $ordenadas) { [void]$hojas.Add($h) }
 
