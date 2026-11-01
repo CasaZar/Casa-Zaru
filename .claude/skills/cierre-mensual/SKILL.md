@@ -53,10 +53,13 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
 - **Gasto real de Meta** del mes (reporte mensual de anuncios) → `meta-AAAA-MM.json`
   `{mes, gasto, fuente}`. Las facturas de Meta en Wasabil cubren solo una parte: no usarlas como gasto.
   **La tarjeta prepago de Mercado Pago paga Facebook, Claude, Manychat, bencina, cursos y compras en Mercado
-  Libre** (19-10). Ni el estado de cuenta ni las liquidaciones traen el nombre del comercio: pedir al usuario
-  capturas de la actividad en la web de Mercado Pago y transcribirlas a `~/.casazaru/mp-nombres.csv`
-  (Fecha;Monto;Nombre;Fuente). Con eso el script clasifica cada pago con las reglas y toma Facebook como gasto
-  real de Meta si falta el json. Sin nombre, el pago queda en una bolsa y sale un aviso.
+  Libre** (19-10). Las liquidaciones no traen el nombre del comercio; el CSV del estado de cuenta sí, desde
+  oct-2026 (columna `STORE_NAME`, vacía en compras de Mercado Libre). Los nombres van a `~/.casazaru/mp-nombres.csv`
+  (Fecha;Monto;Nombre;Fuente), escribiendo «Facebook» para los «Facebk *…»; si faltan, pedir capturas de la
+  actividad en la web de Mercado Pago. Con eso el script clasifica cada pago con las reglas y toma Facebook como
+  gasto real de Meta si falta el json. Sin nombre, el pago queda en una bolsa y sale un aviso.
+  Si el botón «Abrir» del estado no deja archivo (Chrome bloquea descargas seguidas), abrir con navigate la URL
+  `/balance/reports/account_status/statements/<uuid>/download?format=csv` que muestra read_network_requests.
 - **Liquidaciones de Mercado Pago**: el script las lee directo de Descargas (`settlement_v2-1038334230-*`, xlsx o
   csv; ese número es la cuenta de Casa Zaru, hay settlements de otros negocios). Ya no hace falta `mp-AAAA-MM-canal.csv`.
 - **Ajustes manuales** (`ajustes.csv`: Fecha;Concepto;Monto;Categoria;Nota) para decisiones del usuario que no
@@ -67,7 +70,9 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
   Descargas; usar solo el que el usuario diga que es de Casa Zaru.
 - **Tarjeta Visa Empresa 8340 de Banco de Chile** (desde el 19-10 paga Google Ads, Meta y el F29): Banco de Chile →
   Tarjetas → movimientos, export `MovimientosNoFacturados.xls` (y `MovimientosFacturados.xls` cuando haya estado de
-  cuenta) en Descargas. El cargador los lee solo (una reversa anula su cargo). Reglas: FACEBK = Publicidad Meta (suma al
+  cuenta) en Descargas. El cargador los lee solo (una reversa anula su cargo). Ojo: el facturado tiene otro formato
+  (col. 1 Categoría, 2 Fecha, 3 Descripción, 7 Monto) y hoy no se lee: las compras entran igual por el no facturado,
+  pero los cargos propios de la tarjeta (intereses, comisiones, impuesto DL 3475) quedan fuera del cierre. Reglas: FACEBK = Publicidad Meta (suma al
   gasto real de Meta si falta `meta-AAAA-MM.json`), GOOGLE ADS = pago de factura ya contada, SII RECAUDAC = impuestos.
   El pago de la tarjeta, cuando llegue, es traspaso. Ojo: lo pagado a Facebook trae IVA; el reporte de Meta no.
 - **Banco de Chile tiene dos cuentas**: la FAN Emprende 75243-30 (caja chica del taller, la que usa el libro) y la
