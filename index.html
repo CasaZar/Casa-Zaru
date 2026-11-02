@@ -34856,7 +34856,7 @@ function waEmp(id){
   var e=_empDe(id);if(!e||!e.celular)return;
   var tel=String(e.celular).replace(/\D/g,'');if(tel.length===9)tel='56'+tel;
   var t=Number(e.tramo_pct)||0;
-  var msg='Hola '+((e.contacto||'').split(' ')[0]||'')+', te escribe '+((usuarioEmail||'').split('@')[0]==='hola'?'Tomás':'César')+' de Casa Zaru.\n\n'+
+  var msg='Hola '+((e.contacto||'').split(' ')[0]||'')+', te escribe César de Casa Zaru.\n\n'+   /* siempre César, lo mande quien lo mande (02-11-2026) */
     'Tu cuenta Casa Zaru a nombre de '+e.razon_social+' lleva '+fmtCLP(e.acumulado)+' comprados en los últimos 12 meses'+(t?' y tiene el '+(t+5)+' % de descuento por transferencia activo':'')+'.\n\n'+
     'Acá la puedes revisar cuando quieras: '+EMP_LINK_BASE+e.token;
   window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
@@ -34894,7 +34894,7 @@ function _empMsgPrograma(e){
   var nom=String(e.contacto||'').trim().split(/\s+/)[0]||'',t=Number(e.tramo_pct)||0,emp=_empCorto(e.razon_social);
   if(nom)nom=nom.charAt(0).toUpperCase()+nom.slice(1).toLowerCase();
   var p=[nom?'Hola '+nom+', ¿cómo estás?':'Hola, ¿cómo están?',
-    'Te escribo de Casa Zaru. Abrimos la Cuenta Casa Zaru para empresas: suma lo que tu empresa nos compró en los últimos 12 meses y, según el monto, te da un descuento fijo en las compras siguientes. Además, los muestrarios para tus proyectos van sin costo.'];
+    'Te escribe César de Casa Zaru. Abrimos la Cuenta Casa Zaru para empresas: suma lo que tu empresa nos compró en los últimos 12 meses y, según el monto, te da un descuento fijo en las compras siguientes. Además, los muestrarios para tus proyectos van sin costo.'];
   if(t===5)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el tramo más alto: 10 % de descuento pagando con transferencia (5 % con otros medios).');
   else if(t===2)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el primer tramo: 7 % de descuento pagando con transferencia (2 % con otros medios). Le faltan '+fmtCLP(e.falta_5)+' para pasar al 10 %.');
   else p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras. Con '+fmtCLP(e.falta_2)+' más pasa al primer tramo: 7 % de descuento pagando con transferencia en las compras siguientes, y 10 % desde los $3.000.000.');
