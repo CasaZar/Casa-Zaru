@@ -6,7 +6,9 @@
     {% render 'cz-peldanos-compra', product: product, parte: 'selector' %}  antes del selector de variantes
     {% render 'cz-peldanos-compra', product: product, parte: 'despues' %}   después del recuadro de envío
 
-  30-10-2026: rediseño aprobado en boceto (Playfair en títulos, líneas finas en vez de
+  02-11-2026: vuelve a la letra de las otras fichas (Poppins, títulos en 600) y el recuadro
+  de cuotas de Venti se enciende de nuevo, a pedido del usuario.
+  30-10-2026: rediseño aprobado en boceto (títulos grandes, líneas finas en vez de
   tarjetas, todo a la izquierda, un solo verde de marca). El H1 va acá y el bloque «título»
   del tema queda apagado en la plantilla: así el nombre del producto (carrito, Google Shopping)
   no cambia. NUNCA «madera nativa»: no todas lo son; se dice «madera noble».
@@ -36,16 +38,13 @@
 -%}
 
 {%- if parte == 'eyebrow' -%}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400&display=swap" rel="stylesheet">
 <style>
   .czp{--tinta:#1F1D24;--sec:#57524B;--linea:#E4DDD2;--borde:#948A7C;--papel:#FBF9F6;--verde:#485B3D;--terra:#B5652E;--terra-tx:#9A5224;color:var(--tinta);font-size:15px;line-height:1.6}
-  .czp-serif,.czp h1,.czp-m .n,.czp-med h3{font-family:'Playfair Display',Georgia,serif;font-weight:400}
+  /* 02-11: misma letra que las otras fichas (Poppins del tema, títulos en 600), sin Playfair */
+  .czp h1,.czp-m .n,.czp-med h3{font-family:inherit;font-weight:600}
   .czp .num{font-variant-numeric:tabular-nums}
   .czp-eb{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--sec);margin:4px 0 0}
-  .czp h1{font-size:40px;line-height:1.08;letter-spacing:-.015em;margin:10px 0 14px;color:var(--tinta)}
-  @media (min-width:990px){.czp h1{font-size:52px}}
+  .czp h1{font-size:24px;line-height:1.3;letter-spacing:0;margin:8px 0 12px;color:var(--tinta)}
   .czp-precio{font-size:15px;color:var(--sec);margin:0}
   .czp-precio b{color:var(--tinta);font-weight:600}
   .czp-spec{margin:24px 0 0;border-top:1px solid var(--linea)}
@@ -65,12 +64,14 @@
   /* fila de madera: un <button> por madera (las cuatro alineadas igual, sin tarjetas) */
   .czp-m{display:grid;grid-template-columns:56px 1fr auto;gap:14px;align-items:center;width:100%;padding:12px 0;border:0;border-bottom:1px solid var(--linea);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;position:relative}
   .czp-m img{width:56px;height:56px;object-fit:cover;border-radius:2px;display:block}
-  .czp-m .n{display:block;font-size:20px;line-height:1.2}
+  .czp-m .n{display:block;font-size:16px;line-height:1.3}
   .czp-m .d{display:block;font-size:13px;color:var(--sec);line-height:1.4}
   .czp-m .p{font-size:14px;text-align:right;white-space:nowrap}
   .czp-m .p small{display:block;font-size:11px;color:var(--sec)}
   .czp-m .rec{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--terra-tx);display:block;margin-top:2px}
-  .czp-m.on{box-shadow:inset 3px 0 0 var(--verde);padding-left:14px;background:var(--papel)}
+  /* la elegida: fondo que sobresale 12 px a cada lado, así nada se corre ni queda pegado al borde */
+  .czp-m{isolation:isolate}
+  .czp-m.on:before{content:'';position:absolute;top:0;bottom:0;left:-12px;right:-12px;z-index:-1;background:var(--papel);box-shadow:inset 3px 0 0 var(--verde)}
   .czp-m:focus-visible,.czp-chips button:focus-visible,.czp-step button:focus-visible{outline:2px solid var(--verde);outline-offset:2px}
   .czp-chips{display:flex;flex-wrap:wrap;gap:8px}
   .czp-chips button{min-width:62px;height:44px;padding:0 10px;border:1px solid var(--borde);border-radius:4px;background:#fff;font:inherit;font-size:15px;color:var(--tinta);cursor:pointer;font-variant-numeric:tabular-nums}
@@ -86,7 +87,7 @@
   .czp-links{display:flex;flex-wrap:wrap;gap:4px 22px;margin-top:6px;font-size:14px}
   .czp-links a{color:var(--tinta);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--borde);min-height:44px;display:inline-flex;align-items:center}
   .czp-med{margin-top:40px}
-  .czp-med h3{font-size:24px;line-height:1.2;margin:0 0 8px;letter-spacing:0;color:var(--tinta)}
+  .czp-med h3{font-size:18px;line-height:1.3;margin:0 0 8px;letter-spacing:0;color:var(--tinta)}
   .czp-med p{margin:0;color:var(--sec)}
   .czp-btn2{display:flex;align-items:center;justify-content:center;min-height:48px;border:1px solid var(--tinta);border-radius:4px;font-weight:500;font-size:15px;margin-top:14px;color:var(--tinta);text-decoration:none;background:#fff}
   .czp-btn2:hover{background:var(--tinta);color:#fff}
