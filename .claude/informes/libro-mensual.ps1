@@ -1126,12 +1126,34 @@ Tabla $f @('Mes', 'Estado', 'Venta neta', 'Pedidos', 'Ticket promedio', 'Margen 
 Nota $f 'Para un banco o un inversionista: esta hoja y el Resumen. La hoja Sueldos es confidencial, sacarla antes de compartir el archivo.'
 Hoja 'Historial' $f @(10, 10, 14, 9, 14, 14, 10, 14, 14, 14, 14, 12, 13, 13)
 
+# ── Detalle de gastos: cada línea del estado de resultados abierta en sus pagos, con el mismo subtotal ──
+$f = New-Object System.Collections.ArrayList
+Titulo $f "Detalle de gastos — $mesNom" 'Cada línea del estado de resultados (hoja Resumen) con los pagos y facturas que la forman. Montos sin IVA. Al final, lo que salió de las cuentas pero no suma al resultado, para ver que nada se cuenta dos veces.'
+$TRAMOS = @(@('Materiales (costo directo)', $lCosto, 'costo'), @('Gastos de venta', $lVenta, 'venta'), @('Gastos fijos', $lFijo, 'fijo'), @('Gastos financieros', $lFin, 'fin'))
+foreach ($t in $TRAMOS) {
+  if (-not @($t[1]).Count) { continue }
+  Sub $f "$($t[0]): $(Plata (Suma $t[1] 'monto'))"
+  foreach ($l in $t[1]) {
+    [void]$f.Add(@((C $l.cat 11), (C '' 11), (C '' 11), (C '' 11), (C $l.monto 13)))
+    if ($l.cat -in 'Sueldos y remuneraciones', 'Imposiciones (Previred)') { Nota $f 'El detalle por persona está en la hoja Sueldos (confidencial).'; [void]$f.Add(@()); continue }
+    if ($l.cat -eq 'Publicidad Meta' -and $meta) { Nota $f "Gasto real del reporte de Meta ($($meta.fuente)). Las facturas y cobros de Facebook del mes van al final, en lo que no suma."; [void]$f.Add(@()); continue }
+    Tabla $f @('Fecha', 'Proveedor', 'Detalle', 'Fuente', 'Monto') @($todo | Where-Object { $_.seccion -eq $t[2] -and $_.categoria -eq $l.cat } | Sort-Object fecha | ForEach-Object { ,@($_.fecha, $_.proveedor, $_.detalle, $_.fuente, $_.neto) })
+  }
+}
+$noSuma = @($todo | Where-Object { -not $_.seccion } | Sort-Object categoria, fecha)
+if ($noSuma.Count) {
+  Sub $f "Salió o llegó, pero no suma al resultado: $(Plata (Suma $noSuma 'neto'))"
+  Nota $f 'Pagos de facturas ya contadas (en su mes), facturas de Meta reemplazadas por el gasto real, cuotas de capital, impuestos y traspasos.'
+  Tabla $f @('Fecha', 'Proveedor', 'Detalle', 'Por qué no suma', 'Monto') @($noSuma | ForEach-Object { ,@($_.fecha, $_.proveedor, $_.detalle, $(if ($_.categoria -eq 'Publicidad Meta') { 'Meta: se usa el reporte' } else { $_.categoria }), $_.neto) }) @(4)
+}
+Hoja 'Detalle de gastos' $f @(11, 40, 60, 28, 14)
+
 # Para auditar: $env:LIBRO_DEBUG = 'C:\ruta\movimientos.csv' deja cada gasto con su categoría y sección
 if ($env:LIBRO_DEBUG) { $todo | Select-Object fuente, fecha, proveedor, categoria, sub, seccion, neto, detalle | Export-Csv $env:LIBRO_DEBUG -Delimiter ';' -NoTypeInformation -Encoding UTF8 }
 
 # ═════════════════════════════ GUARDAR ═════════════════════════════
 # Orden de las hojas: primero lo que más mueve plata.
-$ORDEN = @('Resumen', 'Semanas', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Pasarelas', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
+$ORDEN = @('Resumen', 'Semanas', 'Detalle de gastos', 'Historial', 'Madera', 'Starken', 'Gastos fijos', 'Caja', 'Ventas', 'Por cobrar y pagar', 'Sueldos', 'Bencina', 'Marketing y CAC', 'Pasarelas', 'Ferias', 'Cotizador', 'Facturas recibidas', 'Facturas emitidas', 'IVA', 'Deudas e inversiones')
 $ordenadas = @($hojas | Sort-Object { $i = [array]::IndexOf($ORDEN, $_.nombre); if ($i -lt 0) { 99 } else { $i } })
 $hojas.Clear(); foreach ($h in $ordenadas) { [void]$hojas.Add($h) }
 
