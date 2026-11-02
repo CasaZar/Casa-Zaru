@@ -740,6 +740,7 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .emp-msg pre { white-space:pre-wrap;font:inherit;font-size:12.5px;line-height:1.5;background:var(--ec);border-radius:8px;padding:10px;margin:0;max-height:180px;overflow:auto; }
 .btn-wa-emp { display:block;text-align:center;background:#25D366;color:#fff;font-weight:600;font-size:14px;border-radius:10px;padding:11px;margin:10px 0 6px;text-decoration:none; }
 .emp-avm a { color:var(--ev); }
+.btn-ya-emp { display:block;width:100%;margin:8px 0 6px;padding:10px; }
 .b2b-aviso { margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid #485B3D;background:var(--surface);font-size:13px;line-height:1.45; } .b2b-aviso b { color:#485B3D; }
 .b2b-aviso.nueva { border-style:dashed;border-color:var(--border-hi); }
 @media (max-width:768px){ .pv-grid { grid-template-columns:1fr; } }
@@ -34910,12 +34911,14 @@ function _empBloqueAviso(e){
   var a=_empAvisoDe(e.id);
   if(a)return '<div class="emp-msg"><div class="k">Aviso del programa</div><div class="emp-avm">Avisada '+_empCuando(a.created_at)+(a.created_by?' · '+esc(_empQuien(a.created_by)):'')+(a.canal==='otro'?' (por otro lado)':' por WhatsApp')+'. ¿Fue un error? <a href="#" onclick="deshacerAvisoEmp('+a.id+');return false">Deshacer</a> (queda en el historial)</div></div>';
   var tel=_empTelWa(e);
-  if(!tel)return '<div class="emp-msg"><div class="k">Aviso del programa</div><div class="emp-avm">'+(e.celular?'El celular «'+esc(e.celular)+'» no es un móvil chileno válido: corrígelo en ✎ Editar.':'Sin celular: agrégalo en ✎ Editar para avisarle.')+' <a href="#" onclick="avisoOtroEmp('+e.id+');return false">Ya se lo dije por otro lado</a></div></div>';
+  if(!tel)return '<div class="emp-msg"><div class="k">Aviso del programa</div><div class="emp-avm">'+(e.celular?'El celular «'+esc(e.celular)+'» no es un móvil chileno válido: corrígelo en ✎ Editar.':'Sin celular: agrégalo en ✎ Editar para avisarle por WhatsApp.')+'</div>'+
+    '<button class="btn-emp ghost btn-ya-emp" onclick="avisoOtroEmp('+e.id+')">✓ Ya le avisé</button></div>';
   var msg=_empMsgPrograma(e),d=Number(e.dias_ciclo);
   return '<div class="emp-msg"><div class="k">Mensaje del aviso (se puede editar en WhatsApp antes de enviar)</div><pre>'+esc(msg)+'</pre>'+
     (_empVencePronto(e)?'<div class="emp-note" style="margin:8px 0 0">El '+_empFecha(e.salida_fecha)+' sale de la cuenta una compra de '+fmtCLP(e.salida_monto)+(d<=7?': conviene avisarle hoy.':'.')+'</div>':'')+
     '<a class="btn-wa-emp" target="_blank" rel="noopener" href="https://wa.me/'+tel+'?text='+encodeURIComponent(msg)+'" onclick="registrarAvisoEmp('+e.id+',\'whatsapp\')">Avisar por WhatsApp</a>'+
-    '<div class="emp-avm">Al tocarlo queda anotada como avisada, con la fecha y quién. <a href="#" onclick="avisoOtroEmp('+e.id+');return false">Ya se lo dije por otro lado</a></div></div>';
+    '<button class="btn-emp ghost btn-ya-emp" onclick="avisoOtroEmp('+e.id+')">✓ Ya le avisé</button>'+
+    '<div class="emp-avm">El botón verde la deja anotada como avisada al abrir WhatsApp. «Ya le avisé» es para cuando se le dijo por otro lado (llamada, correo, en persona).</div></div>';
 }
 async function registrarAvisoEmp(id,canal){
   var e=_empDe(id);if(!e||!DB_URL)return;
@@ -34931,7 +34934,7 @@ async function registrarAvisoEmp(id,canal){
 }
 function avisoOtroEmp(id){
   var e=_empDe(id);if(!e)return;
-  if(!confirm('¿Marcar a '+e.razon_social+' como avisada (sin abrir WhatsApp)?'))return;
+  if(!confirm('¿Ya le avisaste a '+e.razon_social+'? Queda anotada como avisada, sin abrir WhatsApp.'))return;
   registrarAvisoEmp(id,'otro');
 }
 async function deshacerAvisoEmp(avisoId){
