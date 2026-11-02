@@ -29722,10 +29722,12 @@ function renderProdBandeja(base){
     (prodEstFiltro!=='todos'?'<button type="button" class="fb-ver" onclick="setProdBandeja(\'todos\')">Ver todos</button>':'')+
     '<button type="button" class="fb-vista"'+(prodEstFiltro!=='todos'?'':' style="margin-left:auto"')+' onclick="setProdVista('+(_prodVistaEd()?'false':'true')+')" title="Cambiar entre la lista simple y la tabla con todas las columnas">'+(_prodVistaEd()?'Vista detallada':'Vista simple')+'</button></div>';
 }
-function _prodPiezaTxt(l){
+// La marca «✓ Doc / sin Doc» va al lado del producto para ver qué falta
+// mandar a comandas sin abrir pedido por pedido (02-11-2026).
+function _prodPiezaTxt(l,o){
   var cant=Number(l.cantidad)||1,m2=calcM2(l.largo,l.ancho,l.cantidad);
   var med=(l.largo||l.ancho)?(l.largo||'?')+' × '+(l.ancho||'?')+' · '+String(l.espesor||4).replace('.',','):'—';
-  var prod=esc(l.producto||'(sin producto)')+(l.fierro?' <span class="pe-fierro">+ fierro</span>':'');
+  var prod=esc(l.producto||'(sin producto)')+(l.fierro?' <span class="pe-fierro">+ fierro</span>':'')+(o?_cmdBadge(o,l):'');
   return'<div class="pe-p"><span>'+prod+'</span><span class="pe-fuerte">'+cant+'</span><span>'+esc(_titMay(l.madera)||'—')+'</span>'+
     '<span class="pe-fuerte">'+med+'</span><span>'+esc(_titMay(l.canto)||'—')+'</span><span>'+esc(_titMay(l.acabado)||'—')+'</span>'+
     '<span class="pe-m2">'+(m2>0?_m2Txt(m2):'')+'</span>'+
@@ -29789,7 +29791,7 @@ function renderProdEditorial(list){
       html+='<div class="fe-fila'+(g==='atraso'?' debe':'')+(abierta?' abierta':'')+'" onclick="prodToggleFicha(\''+esc(n)+'\')"><div class="pe-f">'+
         '<div style="min-width:0"><div class="pe-num">#'+esc(n||'—')+'</div><div class="fe-cli">'+esc(o.comprador||'')+' '+esc(o.apellido||'')+'</div>'+tk+est+'</div>'+
         '<div style="min-width:0"><div class="pe-p pe-h"><span>Producto</span><span>Cant.</span><span>Madera</span><span>Medidas (cm)</span><span>Canto</span><span>Acabado</span><span class="pe-m2">m²</span></div>'+
-        lineas.map(_prodPiezaTxt).join('')+'</div></div>'+(abierta?_prodFicha(o):'')+'</div>';
+        lineas.map(function(l){return _prodPiezaTxt(l,o);}).join('')+'</div></div>'+(abierta?_prodFicha(o):'')+'</div>';
     });
     html+='</div>';
   });
