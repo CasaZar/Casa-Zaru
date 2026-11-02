@@ -51,7 +51,8 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
   fecha;hora;mov;tipo;id;monto;otros) y `mp-AAAA-MM.json` (saldo_inicial, saldo_final).
   **Validar**: saldo inicial + movimientos − comisiones = saldo final, y las comisiones = las del PDF.
 - **Gasto real de Meta** del mes (reporte mensual de anuncios) → `meta-AAAA-MM.json`
-  `{mes, gasto, fuente}`. Las facturas de Meta en Wasabil cubren solo una parte: no usarlas como gasto.
+  `{mes, gasto, fuente}` (+ `confirmado` cuando el usuario ya eligió el reporte por sobre lo pagado con las
+  tarjetas: apaga ese aviso). Las facturas de Meta en Wasabil cubren solo una parte: no usarlas como gasto.
   **La tarjeta prepago de Mercado Pago paga Facebook, Claude, Manychat, bencina, cursos y compras en Mercado
   Libre** (19-10). Las liquidaciones no traen el nombre del comercio; el CSV del estado de cuenta sí, desde
   oct-2026 (columna `STORE_NAME`, vacía en compras de Mercado Libre). Los nombres van a `~/.casazaru/mp-nombres.csv`
