@@ -31360,6 +31360,29 @@ function finAbonoEd(numStr,k,val){
 }
 function finMontoEd(numStr,campo,val){finSet(numStr,campo,_pesosDe(val),null);finRecalcTotal(numStr);finSave(numStr);renderFin();}
 function finCampoEd(numStr,campo,val){finSet(numStr,campo,val,null);finSave(numStr);renderFin();}
+// Celular y correo de Finanzas (02-11-2026): se validan antes de guardar y la
+// corrección se copia a la fila del Pixel. Antes Finanzas guardaba lo que se
+// escribiera y el Pixel se quedaba con el dato viejo, que es el que va a Meta.
+function finContactoEd(numStr,campo,el){
+  var v=campo==='celular'?fmtPhone(el.value):fmtEmail(el.value);
+  if(campo==='celular'&&!telValido(v)){el.style.borderColor='var(--red)';showToast('❌ «'+el.value+'» no es un celular chileno de 9 dígitos: no se guardó',true);return;}
+  if(campo==='email'&&el.value.trim()&&!v){el.style.borderColor='var(--red)';showToast('❌ «'+el.value+'» no es un correo válido: no se guardó',true);return;}
+  el.style.borderColor='';
+  finCampoEd(numStr,campo,v);
+  _pixelSync(numStr,campo==='celular'?{phone:v}:{email:v});
+}
+// Copia cambios a la fila del Pixel SOLO si existe: un PATCH a una fila que no
+// está la crea, y una venta web no debe entrar al Pixel.
+async function _pixelSync(numStr,cambios){
+  if(!DB_URL)return;
+  try{
+    var actual=await api('pixel/'+numStr,'GET');
+    if(!actual)return;
+    await api('pixel/'+numStr,'PATCH',cambios);
+    var loc=pixelRecords.find(function(r){return r.order_id==='WTSP'+numStr;});
+    if(loc)Object.assign(loc,cambios);
+  }catch(e){_falloGuardado('Pixel del pedido '+numStr)(e);}
+}
 function finFechaVentaEd(numStr,iso){var f=_fechaDeIso(iso);if(!f)return;finSet(numStr,'fecha_creacion',f,null);finSet(numStr,'fecha',f,null);finSave(numStr);renderFin();}
 function _finFicha(r){
   var n=String(r.num||''),q="'"+n+"'";
@@ -31380,8 +31403,8 @@ function _finFicha(r){
     '<div class="fe-r"><span>Nos conoció por</span><select onchange="finCampoEd('+q+',\'como\',this.value)">'+_opcionesCanal(r.como)+'</select></div>'+
     '<div class="fe-r"><span>Fecha de venta</span><input type="date" value="'+_isoDeFecha(r.fecha_creacion||r.fecha)+'" onchange="finFechaVentaEd('+q+',this.value)"></div>'+
     '<div class="fe-r"><span>Semana</span><input value="'+esc(r.semana)+'" placeholder="SEMANA 29 JUNIO" onchange="finCampoEd('+q+',\'semana\',this.value)"></div>'+
-    '<div class="fe-r"><span>Celular</span><input type="tel" value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finCampoEd('+q+',\'celular\',fmtPhone(this.value))"></div>'+
-    '<div class="fe-r"><span>Correo</span><input type="email" value="'+esc(r.email)+'" placeholder="nombre@correo.cl" onchange="finCampoEd('+q+',\'email\',fmtEmail(this.value))"></div>';
+    '<div class="fe-r"><span>Celular</span><input type="tel" value="'+esc(r.celular)+'" placeholder="9XXXXXXXX" onchange="finContactoEd('+q+',\'celular\',this)"></div>'+
+    '<div class="fe-r"><span>Correo</span><input type="email" value="'+esc(r.email)+'" placeholder="nombre@correo.cl" onchange="finContactoEd('+q+',\'email\',this)"></div>';
   var prodO=prodOrders.find(function(o){return String(o.pedido||'')===n;});
   var tipoLbl=(TIPOS_REGISTRO.find(function(t){return t.k===tipoDe(r);})||{}).label||'Venta';
   var enLote=envioSeleccionados.has(n);
@@ -31661,6 +31684,8 @@ function savePixelRecord(){
   const rawDate=document.getElementById('px-date').value;const orderId=document.getElementById('px-orderid').value.trim();const numStr=orderId.replace(/^WTSP/,'');
   const record={email:fmtEmail(document.getElementById('px-email').value),phone:fmtPhone(document.getElementById('px-phone').value),fn:fmtName(document.getElementById('px-fn').value),ln:fmtName(document.getElementById('px-ln').value),ct:fmtRegion(document.getElementById('px-ct').value),st:fmtRegion(document.getElementById('px-st').value),country:'CL',order_id:orderId,value:Number(document.getElementById('px-value').value)||0,event_time:fmtEventTime(rawDate),medio:document.getElementById('px-medio').value,status:document.getElementById('px-status').value,fecha:todayStr};
   if(!record.email&&!record.fn){alert('Ingresa al menos email o nombre.');return;}
+  if(!telValido(record.phone)){alert('El teléfono «'+document.getElementById('px-phone').value+'» no es un celular chileno de 9 dígitos. Corrígelo o déjalo vacío.');return;}
+  if(document.getElementById('px-email').value.trim()&&!record.email){alert('El correo no es válido. Corrígelo o déjalo vacío.');return;}
   if(editingPixelIdx!==null)pixelRecords[editingPixelIdx]=record;else pixelRecords.push(record);
   if(DB_URL&&numStr)api('pixel/'+numStr,'PUT',record).catch(_falloGuardado('Pixel del pedido '+numStr));renderPixel();closePixelModal();showToast('✓ Registro guardado');
 }
