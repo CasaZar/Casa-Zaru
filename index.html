@@ -26623,7 +26623,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       </div>
       <div style="display:flex;flex-direction:column;gap:3px">
         <label style="font-size:11px;color:var(--text-3)">Celular</label>
-        <input type="tel" id="pp-cel" placeholder="9 1234 5678" style="width:150px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        <input type="tel" id="pp-cel" placeholder="9 1234 5678" onchange="this.value=fmtPhone(this.value);this.style.borderColor=telValido(this.value)?'':'var(--red)'" style="width:150px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
       </div>
       <div id="pp-bloque-factura" style="display:none;flex-wrap:wrap;gap:10px;align-items:flex-end;width:100%;margin-top:6px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px">
@@ -29266,7 +29266,9 @@ function renderPrevProd(o){
   // Correo y celular: los que leyó el pantallazo, pero corregibles (o para
   // rellenar cuando no venían).
   document.getElementById('pp-email').value=cli.email||'';
-  document.getElementById('pp-cel').value=cli.phone||'';
+  // Se muestra ya normalizado: lo que se ve es exactamente lo que se guarda.
+  document.getElementById('pp-cel').value=fmtPhone(cli.phone);
+  document.getElementById('pp-cel').style.borderColor=telValido(fmtPhone(cli.phone))?'':'var(--red)';
   toggleFacturaPrev();
   document.getElementById('pp-canal').value='TRANSFERENCIA';
   document.getElementById('pp-pasarela').value='';
@@ -29298,6 +29300,10 @@ async function confirmOrder(){
   // Sin semana el pedido no aparece en ninguna semana de producción y se
   // pierde de vista, así que no se deja pasar.
   if(!exigirSemana(o,'envio','dia_envio','pp-semana'))return;
+  // El celular se revisa ANTES de escribir nada: un número mal formado llegaba
+  // igual a Finanzas y al Pixel y nadie lo notaba hasta subirlo a Meta.
+  var _cel=document.getElementById('pp-cel');
+  if(_cel){_cel.value=fmtPhone(_cel.value);if(!telValido(_cel.value)){_cel.style.borderColor='var(--red)';_cel.focus();showToast('❌ El celular «'+_cel.value+'» no es un número chileno de 9 dígitos: corrígelo o déjalo vacío',true);return;}}
   const yaExiste=prodOrders.some(p=>String(p.pedido||'')===numStr)||finRecords.some(r=>String(r.num||'')===numStr);
   if(yaExiste){if(!confirm('⚠️ Ya existe un pedido con el N° '+numStr+' en el sistema.\n\n¿Seguro que quieres sobreescribirlo? Si es un pedido nuevo, cambia el número arriba antes de continuar.'))return;}
   var _h=new Date(),_hoyISO=_h.getFullYear()+'-'+String(_h.getMonth()+1).padStart(2,'0')+'-'+String(_h.getDate()).padStart(2,'0');
@@ -29399,7 +29405,10 @@ async function confirmOrder(){
   }
   else if(cli&&(cli.email||cli.phone||cli.fn)){
     const orderId='WTSP'+numStr;
-    const pixelData={email:fmtEmail(cli.email),phone:fmtPhone(cli.phone),fn:fmtName(cli.fn||o.comprador||''),ln:fmtName(cli.ln||o.apellido||''),ct:fmtRegion(cli.ct||''),st:fmtRegion(cli.st||''),country:'CL',order_id:orderId,value:cli.value||total||0,event_time:fmtEventTime(cli.event_time),status:'nosubida',fecha:o.fecha_creacion};
+    // Nombre, comuna y ciudad: los mismos que quedan en Producción y Finanzas
+    // (lo corregido en la vista previa), no lo que leyó la IA del pantallazo.
+    // Antes el Pixel tomaba cli.ct/cli.st y lo escrito en Comuna y Ciudad no llegaba.
+    const pixelData={email:fmtEmail(cli.email),phone:fmtPhone(cli.phone),fn:fmtName(o.comprador||cli.fn||''),ln:fmtName(o.apellido||cli.ln||''),ct:fmtRegion(datosDoc.comuna||cli.ct||''),st:fmtRegion(datosDoc.ciudad||cli.st||''),country:'CL',order_id:orderId,value:cli.value||total||0,event_time:fmtEventTime(cli.event_time),status:'nosubida',fecha:o.fecha_creacion};
     const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
     if(existPixelIdx>=0){pixelData.status=pixelRecords[existPixelIdx].status||'nosubida';pixelRecords[existPixelIdx]=pixelData;}else pixelRecords.push(pixelData);
     if(DB_URL)await api('pixel/'+numStr,'PUT',pixelData);
@@ -31573,7 +31582,18 @@ async function loadPixel(){
     renderPixel();
   }catch(e){console.error('Error cargando pixel',e);}
 }
-function fmtPhone(p){if(!p)return'';return String(p).replace(/\D/g,'').replace(/^56/,'');}
+// Celular chileno a 9 dígitos sin el 56 (02-11-2026). Antes solo se le sacaba
+// un «56» del inicio: si el pantallazo traía el prefijo dos veces
+// («+569 56955878718») quedaba «956955878718» en Finanzas y en el Pixel.
+// Si termina en 569 + 8 dígitos, el número es ese, venga lo que venga antes.
+function fmtPhone(p){
+  if(!p)return'';
+  var d=String(p).replace(/\D/g,''),m=d.match(/569(\d{8})$/);
+  if(m&&d.length>11)return'9'+m[1];
+  return d.replace(/^(00)?56(?=\d{9}$)/,'');
+}
+// Vacío o un número chileno de 9 dígitos (celular 9…, fijo 2…–7…).
+function telValido(p){return!p||/^[2-9]\d{8}$/.test(p);}
 function fmtLower(s){if(!s)return'';return String(s).trim().toLowerCase();}
 function fmtRegion(s){if(!s)return'';var v=String(s).trim().toLowerCase().replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i').replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/\./g,'').replace(/\s+/g,' ');if(/\b(rm|r\.m|r m|metropolitana|metropolitano|metro)\b/.test(v))return'santiago';return v;}
 // Se queda con el correo que venga en el texto, sin recortarle nada. Antes se le
