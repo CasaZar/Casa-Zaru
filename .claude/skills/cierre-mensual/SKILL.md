@@ -124,7 +124,8 @@ $env:LIBRO_DEBUG = '<scratchpad>\movs.csv'; .\libro-mensual.ps1 -Mes AAAA-MM -Sa
 - Una factura justifica un solo pago: si dos cargos calzan "≈" con el mismo folio (dos cargas de bencina y una sola
   factura), el segundo vuelve a ser pago sin factura y se clasifica por regla. Un pago cuya glosa dice "factura <mes>"
   sin número ("Pago final factura agosto", Renatte) también es pago de factura ya contada.
-- Hojas, en este orden: Resumen, Semanas (cuadre semanal), Historial, Madera (por proveedor), Starken (cobrado vs
+- Hojas, en este orden: Resumen, Semanas (cuadre semanal), Detalle de gastos (cada línea del estado de resultados
+  abierta en sus pagos, más lo que salió y no suma; desde el 02-11), Historial, Madera (por proveedor), Starken (cobrado vs
   todos los fletes), Gastos fijos (con la venta necesaria para cubrirlos), Caja, Ventas, Por cobrar y pagar, Sueldos
   (confidencial), Bencina, Marketing y CAC, Pasarelas, Ferias, Cotizador, Facturas recibidas y emitidas, IVA, Deudas.
 - Hoja Pasarelas (desde el 01-11-2026): % que se lleva Venti, Flow y Mercado Pago por pedido (Gestión: `pasarela`,
