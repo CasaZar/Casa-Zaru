@@ -421,7 +421,8 @@ $google = Suma @($gastos | Where-Object { $_.categoria -eq 'Publicidad Google' }
 $metaEstimado = $false
 if (-not $meta -and $mpMeta -gt 0) { $meta = [pscustomobject]@{ gasto = $mpMeta; fuente = 'pagos a Facebook con las tarjetas (Mercado Pago y Visa 8340)' } }
 elseif (-not $meta -and $mpSinNombre -gt 0) { $meta = [pscustomobject]@{ gasto = $mpSinNombre; fuente = 'estimado: pagos sin nombre de la tarjeta de Mercado Pago' }; $metaEstimado = $true }
-if ($meta -and $mpMeta -gt 0 -and -not $metaEstimado -and $meta.fuente -notmatch 'tarjeta' -and [math]::Abs($mpMeta / 1.19 - [double]$meta.gasto) -gt 0.1 * [double]$meta.gasto) { Aviso "Meta: el reporte dice $(Plata ([double]$meta.gasto)) sin IVA y las tarjetas (Mercado Pago y Visa 8340) pagaron a Facebook $(Plata $mpMeta) con IVA ($(Plata ($mpMeta / 1.19)) sin IVA). Revisar cuál es el gasto del mes." }
+# "confirmado" en meta-AAAA-MM.json = el usuario ya eligió el reporte: no volver a preguntar.
+if ($meta -and $mpMeta -gt 0 -and -not $metaEstimado -and -not $meta.confirmado -and $meta.fuente -notmatch 'tarjeta' -and [math]::Abs($mpMeta / 1.19 - [double]$meta.gasto) -gt 0.1 * [double]$meta.gasto) { Aviso "Meta: el reporte dice $(Plata ([double]$meta.gasto)) sin IVA y las tarjetas (Mercado Pago y Visa 8340) pagaron a Facebook $(Plata $mpMeta) con IVA ($(Plata ($mpMeta / 1.19)) sin IVA). Revisar cuál es el gasto del mes." }
 $sii = LeerJson (Join-Path $CZ "sii-$tag.json")
 $kpi = LeerJson (Join-Path $CZ 'kpis-cotizador.json')
 
