@@ -729,6 +729,17 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .btn-emp { padding:9px 13px;border-radius:var(--radius);border:none;background:var(--et);color:#fff;font-weight:600;font-size:13px;cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap; }
 .btn-emp.verde { background:var(--ev); } .btn-emp.ghost { background:var(--surface);color:var(--ev);border:1px solid var(--border-md); }
 .btn-emp:disabled { opacity:.5;cursor:default; }
+/* Aviso del programa (02-11-2026, migración 0026) */
+.emp-av { background:var(--surface);border:1px solid var(--border-md);border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:13px; }
+.emp-av b { color:var(--ev); } .emp-av .bar { height:8px;background:var(--ec2);border-radius:99px;margin:8px 0 4px;overflow:hidden; } .emp-av .bar i { display:block;height:100%;background:var(--ev); }
+.emp-av .mini,.emp-avm { font-size:11.5px;color:var(--text-3); }
+.emp-chip.av { border-color:var(--et);color:var(--et); } .emp-chip.av.on { background:var(--et);color:#fff; }
+.emp-tag { display:inline-block;font-size:10.5px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle;white-space:nowrap; }
+.emp-tag.pend { background:#F6E6D8;color:var(--et); } .emp-tag.ok { background:#E5ECDF;color:var(--ev); }
+.emp-msg { grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px; }
+.emp-msg pre { white-space:pre-wrap;font:inherit;font-size:12.5px;line-height:1.5;background:var(--ec);border-radius:8px;padding:10px;margin:0;max-height:180px;overflow:auto; }
+.btn-wa-emp { display:block;text-align:center;background:#25D366;color:#fff;font-weight:600;font-size:14px;border-radius:10px;padding:11px;margin:10px 0 6px;text-decoration:none; }
+.emp-avm a { color:var(--ev); }
 .b2b-aviso { margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid #485B3D;background:var(--surface);font-size:13px;line-height:1.45; } .b2b-aviso b { color:#485B3D; }
 .b2b-aviso.nueva { border-style:dashed;border-color:var(--border-hi); }
 @media (max-width:768px){ .pv-grid { grid-template-columns:1fr; } }
@@ -27007,6 +27018,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <div class="page" id="page-emp">
 <div class="main">
   <div class="emp-hd"><div><h1>Cuentas empresa</h1><div class="emp-res" id="emp-stats"></div></div><button class="btn-emp verde" onclick="abrirEmpresa()">+ Empresa</button></div>
+  <div id="emp-aviso"></div>
   <div class="emp-tools">
     <div class="emp-chips" id="emp-chips"></div>
     <div class="search-wrap"><span class="search-icon">⌕</span>
@@ -34629,6 +34641,7 @@ async function initAllModules(){
 // Link corto por la redirección de Shopify /cuentaempresa → cotizador.casazaru.cl/cuenta.html (24-10; pasa el ?t=).
 var EMP_LINK_BASE='https://www.casazaru.cl/cuentaempresa?t=';
 var empCuentas=[],empCompras=[],empCargado=false,empEditando=null,empFichaId=null,empCompraEmpId=null;
+var empAvisos=[],empAvisosOk=false;   /* aviso del programa (0026); sin la tabla, la sección no aparece */
 function _empNormRut(r){var s=String(r||'').toUpperCase().replace(/[^0-9K]/g,'');if(s.length<7)return '';return s.slice(0,-1)+'-'+s.slice(-1);}
 function _empFmtRut(r){var n=_empNormRut(r);if(!n)return r||'';var c=n.split('-');return c[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+c[1];}
 function _empFecha(d){if(!d)return '—';return new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'2-digit'});}
@@ -34644,6 +34657,10 @@ async function loadEmpresas(){
     empCompras=await sbGet('b2b_compras','select=*&order=fecha.desc,id.desc');
     empCargado=true;
   }catch(e){console.error('b2b',e);empCuentas=[];empCompras=[];empCargado=false;}
+  try{
+    empAvisos=await sbGet('b2b_avisos','select=id,empresa_id,canal,created_at,created_by&tipo=eq.programa&anulado_at=is.null');
+    empAvisosOk=true;
+  }catch(e){console.warn('b2b_avisos (¿falta la migración 0026?)',e);empAvisos=[];empAvisosOk=false;}
   renderEmpresas();
   if(empFichaId&&document.getElementById('modal-emp-ficha-bg').classList.contains('open'))renderFichaEmp();
 }
@@ -34660,9 +34677,19 @@ function renderEmpresas(){
   var cuenta=function(f){return activas.filter(function(e){return _empEnFiltro(e,f);}).length;};
   var acum=activas.reduce(function(s,e){return s+(Number(e.acumulado)||0);},0);
   if(st)st.innerHTML='<b>'+activas.length+'</b> cuentas · <b>'+fmtCLP(acum)+'</b> comprado en los últimos 12 meses';
+  var av=document.getElementById('emp-aviso');
+  if(av){
+    var conCel=activas.filter(function(e){return e.celular;}).length,avisadas=cuenta('avisadas');
+    av.innerHTML=empAvisosOk?'<div class="emp-av"><div><b>Aviso del programa</b> · '+avisadas+' de '+conCel+' avisadas</div>'+
+      '<div class="bar"><i style="width:'+(conCel?Math.min(100,avisadas/conCel*100).toFixed(1):0)+'%"></i></div>'+
+      '<div class="mini">Empresas con celular. «Por avisar» las ordena: primero 10 %, después 7 %, después las más cerca de subir.</div></div>':'';
+  }
+  var chips=[['todas','Todas',''],['5','5 %','#485B3D'],['2','2 %','#D4AC74'],['0','Sin tramo','#C9B8A3'],['cerca','Cerca de subir','#B5652E']];
+  if(empAvisosOk)chips=[['avisar','Por avisar','','av'],['avisadas','Avisadas','']].concat(chips);
+  else if(empFiltro==='avisar'||empFiltro==='avisadas')empFiltro='todas';
   var ch=document.getElementById('emp-chips');
-  if(ch)ch.innerHTML=[['todas','Todas',''],['5','5 %','#485B3D'],['2','2 %','#D4AC74'],['0','Sin tramo','#C9B8A3'],['cerca','Cerca de subir','#B5652E']].map(function(c){
-    return '<button class="emp-chip'+(empFiltro===c[0]?' on':'')+'" onclick="empFiltro=\''+c[0]+'\';renderEmpresas()">'+(c[2]?'<i style="background:'+c[2]+'"></i>':'')+c[1]+'<b>'+cuenta(c[0])+'</b></button>';
+  if(ch)ch.innerHTML=chips.map(function(c){
+    return '<button class="emp-chip'+(c[3]?' '+c[3]:'')+(empFiltro===c[0]?' on':'')+'" onclick="empFiltro=\''+c[0]+'\';renderEmpresas()">'+(c[2]?'<i style="background:'+c[2]+'"></i>':'')+c[1]+'<b>'+cuenta(c[0])+'</b></button>';
   }).join('');
   var lista=empCuentas.filter(function(e){
     if(!verInact&&!e.activa)return false;
@@ -34670,7 +34697,8 @@ function renderEmpresas(){
     if(q&&!_calza(q,[e.razon_social,e.rut,_empFmtRut(e.rut),e.contacto,e.celular,e.email].join(' ')))return false;
     return true;
   });
-  if(orden==='cerca')lista.sort(function(a,b){return _empFaltaSig(a)-_empFaltaSig(b);});
+  if(empFiltro==='avisar')lista.sort(_empOrdenAviso);
+  else if(orden==='cerca')lista.sort(function(a,b){return _empFaltaSig(a)-_empFaltaSig(b);});
   else if(orden==='vence')lista.sort(function(a,b){return (Number(a.dias_ciclo)||0)-(Number(b.dias_ciclo)||0);});
   if(!lista.length){
     el.innerHTML='<div class="empty-state"><span class="empty-icon">🏢</span>'+(empCuentas.length?'Ninguna cuenta calza con la búsqueda o el filtro.':'Todavía no hay cuentas. Usa «+ Empresa» para abrir la primera.')+'</div>';return;
@@ -34680,7 +34708,7 @@ function renderEmpresas(){
     var s=_empEstado(e);
     var who=[e.contacto?esc(e.contacto):'',e.celular?esc(e.celular):'<span class="sin">sin celular</span>'].filter(Boolean).join(' · ');
     return '<div class="emp-row'+(e.activa?'':' inactiva')+(empAbierta===e.id?' abierta':'')+'" onclick="toggleEmp('+e.id+')">'+
-      '<div class="emp-who-c" style="min-width:0"><div class="emp-nm">'+esc(e.razon_social)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+'</div><div class="emp-who">'+who+'</div></div>'+
+      '<div class="emp-who-c" style="min-width:0"><div class="emp-nm">'+esc(e.razon_social)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+_empTagAviso(e)+'</div><div class="emp-who">'+who+'</div></div>'+
       '<div class="emp-barc">'+_empBarra2(e)+'<div class="emp-escm"><span class="emp-st '+s.c+'" style="margin:0">'+s.x+'</span><span style="color:var(--text-3)">'+(Number(e.n_facturas)||0)+' fact.</span></div></div>'+
       '<div class="emp-amt"><div class="m">'+fmtCLP(e.acumulado)+'</div><div class="emp-st '+s.c+'">'+s.x+'</div></div>'+
       (empAbierta===e.id?_empDetalle(e):'')+
@@ -34690,7 +34718,7 @@ function renderEmpresas(){
 var empFiltro='todas',empAbierta=null;
 // Lo que falta para el tramo siguiente; las de 5 % van al final del orden «más cerca de subir».
 function _empFaltaSig(e){var t=Number(e.tramo_pct)||0;if(t===5)return Infinity;return Number(t===2?e.falta_5:e.falta_2)||0;}
-function _empEnFiltro(e,f){var t=Number(e.tramo_pct)||0;if(f==='5')return t===5;if(f==='2')return t===2;if(f==='0')return t===0;if(f==='cerca')return _empFaltaSig(e)<=500000;return true;}
+function _empEnFiltro(e,f){var t=Number(e.tramo_pct)||0;if(f==='avisar')return !!e.celular&&!_empAvisoDe(e.id);if(f==='avisadas')return !!_empAvisoDe(e.id);if(f==='5')return t===5;if(f==='2')return t===2;if(f==='0')return t===0;if(f==='cerca')return _empFaltaSig(e)<=500000;return true;}
 function _empEstado(e){var t=Number(e.tramo_pct)||0;if(t===5)return {c:'s5',x:'5 % vigente'};var f=_empFaltaSig(e);return {c:f<=500000?'casi':'',x:'faltan '+fmtCLP(f)+' para '+(t===2?'5':'2')+' %'};}
 function _empBarra2(e){
   var a=Number(e.acumulado)||0,t=Number(e.tramo_pct)||0,p=Math.min(100,a/3000000*100);
@@ -34711,6 +34739,7 @@ function _empDetalle(e){
     '<div><div class="k">Contacto</div><div class="vv">'+cont+'</div></div>'+
     '<div><div class="k">Próxima baja</div><div class="vv">'+_empSalidaTxt(e)+'</div></div>'+
     '<div><div class="k">Últimos 12 meses · '+compras.length+'</div><div class="vv">'+(compras.length?compras.slice(0,4).map(function(k){return _empFecha(k.fecha)+' · '+(k.tipo==='NC'?'NC':'Factura')+(k.folio?' '+esc(k.folio):'')+' · <b>'+fmtCLP(k.monto)+'</b>';}).join('<br>')+(compras.length>4?'<br><span style="color:var(--text-3)">y '+(compras.length-4)+' más en la ficha</span>':''):'Sin compras en los últimos 12 meses.')+'</div></div>'+
+    _empBloqueAviso(e)+
     '<div class="emp-acciones">'+
       '<button class="btn-emp verde" onclick="copiarLinkEmp('+e.id+')">Copiar link de su cuenta</button>'+
       (e.celular?'<button class="btn-emp ghost" onclick="waEmp('+e.id+')">📱 WhatsApp</button>':'')+
@@ -34831,6 +34860,85 @@ function waEmp(id){
     'Tu cuenta Casa Zaru a nombre de '+e.razon_social+' lleva '+fmtCLP(e.acumulado)+' comprados en los últimos 12 meses'+(t?' y tiene el '+(t+5)+' % de descuento por transferencia activo':'')+'.\n\n'+
     'Acá la puedes revisar cuando quieras: '+EMP_LINK_BASE+e.token;
   window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank');
+}
+// ── Aviso del programa (02-11-2026, migración 0026) ──
+// Una empresa se avisa una vez: lo asegura el índice único de b2b_avisos.
+// El botón abre WhatsApp con el texto listo y deja el registro (quién, cuándo).
+function _empAvisoDe(id){return empAvisos.find(function(a){return a.empresa_id===id;})||null;}
+function _empQuien(mail){var u=String(mail||'').split('@')[0];if(u==='hola')return 'Tomás';if(/^cesar/i.test(u))return 'César';return u?u.charAt(0).toUpperCase()+u.slice(1):'';}
+function _empCuando(ts){
+  var d=new Date(ts),h=d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+  return (d.toDateString()===new Date().toDateString()?'hoy':d.toLocaleDateString('es-CL',{day:'numeric',month:'short'}))+' '+h;
+}
+function _empTagAviso(e){
+  if(!empAvisosOk)return '';
+  var a=_empAvisoDe(e.id);
+  if(a)return '<span class="emp-tag ok">✓ Avisada '+_empCuando(a.created_at)+(a.created_by?' · '+esc(_empQuien(a.created_by)):'')+'</span>';
+  return e.celular&&e.activa?'<span class="emp-tag pend">Por avisar</span>':'';
+}
+// 10 % primero, después 7 %, después las que menos les falta para subir.
+function _empOrdenAviso(a,b){
+  var ta=Number(a.tramo_pct)||0,tb=Number(b.tramo_pct)||0;
+  if(ta!==tb)return tb-ta;
+  if(ta===5)return (Number(b.acumulado)||0)-(Number(a.acumulado)||0);
+  return _empFaltaSig(a)-_empFaltaSig(b);
+}
+// «CONSTRUCTORA CUBIK SPA» → «Constructora Cubik»
+function _empCorto(rs){
+  var s=String(rs||'').trim(),re=/[\s,.]+(SPA|S\.?\s?P\.?\s?A|LTDA|LIMITADA|LTD|S\.?\s?A|EIRL|E\.?\s?I\.?\s?R\.?\s?L)\.?$/i;
+  while(re.test(s))s=s.replace(re,'').trim();
+  if(s===s.toUpperCase())s=s.toLowerCase().replace(/(^|\s)(\S)/g,function(m,a,b){return a+b.toUpperCase();}).replace(/ (Y|De|Del|La|Las|Los|E) /g,function(m){return m.toLowerCase();});
+  return s||rs;
+}
+function _empMsgPrograma(e){
+  var nom=String(e.contacto||'').trim().split(/\s+/)[0]||'',t=Number(e.tramo_pct)||0,emp=_empCorto(e.razon_social);
+  if(nom)nom=nom.charAt(0).toUpperCase()+nom.slice(1).toLowerCase();
+  var p=[nom?'Hola '+nom+', ¿cómo estás?':'Hola, ¿cómo están?',
+    'Te escribo de Casa Zaru. Abrimos la Cuenta Casa Zaru para empresas: suma lo que tu empresa nos compró en los últimos 12 meses y, según el monto, te da un descuento fijo en las compras siguientes. Además, los muestrarios para tus proyectos van sin costo.'];
+  if(t===5)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el tramo más alto: 10 % de descuento pagando con transferencia (5 % con otros medios).');
+  else if(t===2)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el primer tramo: 7 % de descuento pagando con transferencia (2 % con otros medios). Le faltan '+fmtCLP(e.falta_5)+' para pasar al 10 %.');
+  else p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras. Con '+fmtCLP(e.falta_2)+' más pasa al primer tramo: 7 % de descuento pagando con transferencia en las compras siguientes, y 10 % desde los $3.000.000.');
+  if(_empVencePronto(e))p.push('Como las compras cuentan por 12 meses, el '+new Date(String(e.salida_fecha).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'long'})+' sale de la cuenta una compra de '+fmtCLP(e.salida_monto)+'; si tienen algo en carpeta, conviene hacerlo antes.');
+  p.push('Acá puedes ver tu cuenta, con el detalle de compras: '+EMP_LINK_BASE.replace('https://','')+e.token);
+  p.push('Si tienes algún proyecto, cuéntame y te cotizo con el descuento aplicado.');
+  return p.join('\n\n');
+}
+function _empVencePronto(e){var d=Number(e.dias_ciclo);return !!e.salida_fecha&&Number(e.acumulado)>0&&d>=0&&d<=60;}
+function _empTelWa(e){var tel=String(e.celular||'').replace(/\D/g,'');if(tel.length===9)tel='56'+tel;return /^569\d{8}$/.test(tel)?tel:'';}
+function _empBloqueAviso(e){
+  if(!empAvisosOk||!e.activa)return '';
+  var a=_empAvisoDe(e.id);
+  if(a)return '<div class="emp-msg"><div class="k">Aviso del programa</div><div class="emp-avm">Avisada '+_empCuando(a.created_at)+(a.created_by?' · '+esc(_empQuien(a.created_by)):'')+(a.canal==='otro'?' (por otro lado)':' por WhatsApp')+'. ¿Fue un error? <a href="#" onclick="deshacerAvisoEmp('+a.id+');return false">Deshacer</a> (queda en el historial)</div></div>';
+  var tel=_empTelWa(e);
+  if(!tel)return '<div class="emp-msg"><div class="k">Aviso del programa</div><div class="emp-avm">'+(e.celular?'El celular «'+esc(e.celular)+'» no es un móvil chileno válido: corrígelo en ✎ Editar.':'Sin celular: agrégalo en ✎ Editar para avisarle.')+' <a href="#" onclick="avisoOtroEmp('+e.id+');return false">Ya se lo dije por otro lado</a></div></div>';
+  var msg=_empMsgPrograma(e),d=Number(e.dias_ciclo);
+  return '<div class="emp-msg"><div class="k">Mensaje del aviso (se puede editar en WhatsApp antes de enviar)</div><pre>'+esc(msg)+'</pre>'+
+    (_empVencePronto(e)?'<div class="emp-note" style="margin:8px 0 0">El '+_empFecha(e.salida_fecha)+' sale de la cuenta una compra de '+fmtCLP(e.salida_monto)+(d<=7?': conviene avisarle hoy.':'.')+'</div>':'')+
+    '<a class="btn-wa-emp" target="_blank" rel="noopener" href="https://wa.me/'+tel+'?text='+encodeURIComponent(msg)+'" onclick="registrarAvisoEmp('+e.id+',\'whatsapp\')">Avisar por WhatsApp</a>'+
+    '<div class="emp-avm">Al tocarlo queda anotada como avisada, con la fecha y quién. <a href="#" onclick="avisoOtroEmp('+e.id+');return false">Ya se lo dije por otro lado</a></div></div>';
+}
+async function registrarAvisoEmp(id,canal){
+  var e=_empDe(id);if(!e||!DB_URL)return;
+  if(_empAvisoDe(id)){showToast('Ya estaba avisada');return;}
+  var d={client_id:_madUuid(),empresa_id:id,tipo:'programa',canal:canal,
+    celular:e.celular||null,mensaje:canal==='whatsapp'?_empMsgPrograma(e):null};
+  try{await sbInsert('b2b_avisos',d);showToast('✓ '+_empCorto(e.razon_social)+' quedó avisada');}
+  catch(err){
+    if(String(err.message).indexOf('23505')>=0)showToast('Ya estaba avisada (otra persona la marcó)');
+    else showToast('WhatsApp se abrió, pero no se pudo anotar el aviso: '+err.message,true);
+  }
+  await loadEmpresas();
+}
+function avisoOtroEmp(id){
+  var e=_empDe(id);if(!e)return;
+  if(!confirm('¿Marcar a '+e.razon_social+' como avisada (sin abrir WhatsApp)?'))return;
+  registrarAvisoEmp(id,'otro');
+}
+async function deshacerAvisoEmp(avisoId){
+  if(!confirm('¿Deshacer el aviso? Vuelve a «Por avisar»; el registro queda en el historial.'))return;
+  try{await sbUpdate('b2b_avisos',avisoId,{anulado_at:new Date().toISOString(),anulado_por:usuarioEmail||'?'});showToast('Aviso deshecho');}
+  catch(err){showToast('No se pudo deshacer: '+err.message,true);}
+  await loadEmpresas();
 }
 function abrirCompraEmp(id){
   empCompraEmpId=id;var e=_empDe(id);
