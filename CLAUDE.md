@@ -159,6 +159,9 @@ Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de h
 - Prueba de restauración mensual comparando conteos y sumas. Un respaldo que nunca se restauró no existe.
   Cada prueba se anota en `Informes Gestion/restauraciones.csv` (Drive): `fecha,proyecto,resultado,notas`.
 - Si el último respaldo tiene más de 36 horas, avisar al abrir la sesión.
+- Lo que vive solo en este PC (planillas, `~\.casazaru` sin llaves, memoria de Claude, archivos sin commit)
+  se copia todos los días 14:00 a `G:\Mi unidad\Casa Zaru\Respaldo PC\` (tarea «CasaZaru - Respaldo PC»,
+  `.claude/informes/respaldo-pc.ps1`). Nunca borra en Drive. La fecha de la última corrida está en `ultimo-respaldo.txt`.
 
 **Seguridad**
 - Ningún secreto en el repo, el HTML, la memoria ni los mensajes. RLS (+ FORCE) en toda tabla. La llave
