@@ -389,6 +389,22 @@ foreach ($s in $salidasMP) {
 }
 foreach ($c in @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' })) { Salida $c.fecha 'Mercado Pago' 'Mercado Pago (crédito)' (-$c.monto) 'Créditos y deudas (cuotas)' 'Cuota del crédito de Mercado Pago: capital, no es gasto' $true }
 $sinFactura = @($sinFactura) + @($mpGastos | Where-Object { -not $_.conFactura })
+# Cargo con tarjeta de una compra que también llegó con factura: el cargo es el total de la factura (con IVA), del mismo
+# rubro, y la factura es del mismo día o de hasta 4 días antes (la tarjeta asienta después y el fin de semana corre).
+# El cruce del cargador pide fecha y monto calzados y no los veía: el 02-11 Química Passol, Sodimac, Portal Huincha y
+# tres cargas de Copec (facturas de NAHUEN) se contaban dos veces en octubre. Una factura justifica un solo pago, y las
+# transferencias a personas quedan fuera (en septiembre quincenas calzaban con fletes).
+$foliosUsados = @{}; foreach ($b in @($banco | Where-Object { $_.conFactura -and $_.folio })) { $foliosUsados["$($b.folio)"] = $true }
+foreach ($p in @($sinFactura | Where-Object { $_.fecha -and "$($_.glosa)" -notmatch '^Transferencia' } | Sort-Object fecha)) {
+  $fx = @($gastos | Where-Object { -not $foliosUsados["$($_.folio)"] -and $_.categoria -eq $p.categoria -and [math]::Abs($_.total - $p.neto) -le 2 -and $_.fecha -le $p.fecha -and $_.fecha -ge $p.fecha.AddDays(-4) } | Sort-Object fecha -Descending)[0]
+  if (-not $fx) { continue }
+  $foliosUsados["$($fx.folio)"] = $true
+  $p | Add-Member -NotePropertyName conFactura -NotePropertyValue $true -Force
+  $p | Add-Member -NotePropertyName folio -NotePropertyValue "$($fx.folio)" -Force
+  $c = $cuadre | Where-Object { $_.fecha -eq $p.fecha -and [math]::Abs($_.monto - $p.neto) -le 1 -and $_.aQuien -eq "$($p.proveedor)" } | Select-Object -First 1
+  if ($c) { $c.justificacion = "Factura $($fx.folio) de $($fx.proveedor) (calza el total con IVA)"; $c.ok = $true }
+}
+$sinFactura = @($sinFactura | Where-Object { -not $_.conFactura })
 $banco = @($banco) + @($mpGastos)
 $mpCompras = Suma @($mpGastos | Where-Object { $_.conFactura }) 'neto'
 $mpCuotas = -(Suma @($mp | Where-Object { $_.tipo -eq 'Pago de cuota' }) 'monto')
