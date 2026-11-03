@@ -80,7 +80,19 @@ Write-Host "Bajando datos..."
 $cot = Get-Tabla 'cotizaciones'
 $lin = Get-Tabla 'cotizacion_lineas'
 $toq = Get-Tabla 'toques'
-Write-Host "  cotizaciones: $($cot.Count)  lineas: $($lin.Count)  toques: $($toq.Count)"
+# La comuna de entrega (desde el 17-10-2026) no vive en cotizaciones sino en el
+# link compartido: quote_links.data.com. Se cruza por el token del ?s= del link.
+# Solo se baja la comuna, no el data entero (trae precios y pesa mucho).
+$lnk = Get-Tabla 'quote_links' 'id,token,com:data->com'
+$comPorToken = @{}
+foreach ($l in $lnk) { if ($l.com -and $l.token) { $comPorToken[[string]$l.token] = $l.com } }
+foreach ($c in $cot) {
+  $com = $null
+  if ($c.link -match '[?&]s=([A-Za-z0-9]+)') { $com = $comPorToken[$Matches[1]] }
+  $c | Add-Member -NotePropertyName comuna -NotePropertyValue $(if ($com) { $com.c } else { $null }) -Force
+  $c | Add-Member -NotePropertyName comuna_ciudad -NotePropertyValue $(if ($com) { $com.ciudad } else { $null }) -Force
+}
+Write-Host "  cotizaciones: $($cot.Count)  lineas: $($lin.Count)  toques: $($toq.Count)  con comuna: $(@($cot | Where-Object { $_.comuna }).Count)"
 
 # los leads creados a mano (lead_manual, 28-10-2026) no cotizaron: fuera de los conteos.
 # Siguen en crudo\cotizaciones.json.
@@ -199,6 +211,14 @@ $resumen = [pscustomobject]@{
   modelos_top        = @($modelos)
   vidrio             = @($estaSem | Where-Object { $_.vidrio_tipo } | Group-Object vidrio_tipo | ForEach-Object { [pscustomobject]@{ tipo = $_.Name; veces = $_.Count } })
   canal              = @($estaSem | Group-Object canal | ForEach-Object { [pscustomobject]@{ canal = $(if ($_.Name) { $_.Name } else { '(directo)' }); veces = $_.Count } })
+  # comuna de entrega de la semana (opcional en el formulario desde el 17-10-2026)
+  comunas            = @{
+    con_comuna = @($estaSem | Where-Object { $_.comuna }).Count
+    sin_comuna = @($estaSem | Where-Object { -not $_.comuna }).Count
+    top        = @($estaSem | Where-Object { $_.comuna } | Group-Object comuna | Sort-Object Count -Descending | Select-Object -First 10 |
+                   ForEach-Object { [pscustomobject]@{ comuna = $_.Name; ciudad = $_.Group[0].comuna_ciudad; veces = $_.Count } })
+  }
+  perdidas_por_envio = @($vivas | Where-Object { $_.motivo_perdida -match '^Env.o / distancia$' }).Count   # sin tilde a proposito: PS 5.1 lee este archivo sin BOM
   estados            = @($vivas | Group-Object estado | ForEach-Object { [pscustomobject]@{ estado = $(if ($_.Name) { $_.Name } else { '(sin estado)' }); n = $_.Count } })
   primer_toque_horas = @{ mediana = (Mediana $horasPrimer); p90 = (Percentil $horasPrimer 0.9); muestra = $horasPrimer.Count }
   sin_tocar          = @{
