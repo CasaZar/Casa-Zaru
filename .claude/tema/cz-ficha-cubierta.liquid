@@ -1,0 +1,295 @@
+{%- comment -%}
+  Ficha de cubierta (boceto C, aprobado el 03-11-2026). Solo para las plantillas de cubiertas:
+  se renderiza desde sections/main-product.liquid con  if template.suffix contains 'cubierta'.
+  Mesas y puertas no la cargan.
+
+  No reemplaza nada del tema: los selectores de madera y tamaño quedan ocultos pero siguen mandando
+  (cada botón cambia su valor y dispara «change», como cz-maderas), así que variante, precio, carrito,
+  Venti y cz-envio siguen su camino de siempre. Lo que agrega:
+    1. el precio de cada madera bajo su tarjeta (para el tamaño elegido);
+    2. el tamaño como botones con precio, dentro de la caja «Medida estándar»;
+    3. la caja de compra: resumen, precio, 3 cuotas, el botón del tema, envío y sellos;
+    4. la caja «A tu medida» con el dibujo de cómo medir, bajo «Calcula tu envío»;
+    5. la barra fija del celular (aparece cuando el botón de compra queda arriba).
+  Esconde la caja «¿Quieres otras medidas o tienes dudas?» (la reemplaza «A tu medida»).
+  Si falta algo de lo que necesita, deja la ficha como estaba. Fuente: .claude/tema/cz-ficha-cubierta.liquid
+{%- endcomment -%}
+{%- liquid
+  assign suf = template.suffix
+  assign med_titulo = 'Cualquier largo'
+  assign med_texto = 'Para cualquier largo y fondo.'
+  assign med_pie = 'Mide el largo y el fondo del espacio donde va la cubierta.'
+  assign op_texto = ''
+  assign dibujo = 'rect'
+  assign eje2 = 'Fondo'
+  assign espesor = '4 cm'
+  case suf
+    when 'cubierta-cocina'
+      assign med_texto = 'Para islas, barras o cualquier largo y fondo.'
+      assign med_pie = 'Mide el largo de muro a muro y el fondo desde la pared hasta el borde del mueble.'
+      assign op_texto = 'Fondo de 60 cm, el de la mayoría de las cocinas.'
+    when 'cubiertas-escritorio'
+      assign op_texto = 'Fondo de 60 cm.'
+      assign med_pie = 'Mide el largo y el fondo del espacio donde va el escritorio.'
+    when 'pagina-cubierta-lavamanos'
+      assign op_texto = 'Fondo de 46 cm.'
+      assign med_pie = 'Mide el largo de muro a muro y el fondo desde la pared hasta el borde del mueble.'
+    when 'cubierta-de-mesa'
+      assign med_texto = 'Para cualquier largo y ancho.'
+      assign med_pie = 'Mide el largo y el ancho que quieres para la mesa.'
+      assign eje2 = 'Ancho'
+      assign espesor = ''
+    when 'cubiertas-redondas'
+      assign med_titulo = 'Cualquier diámetro'
+      assign med_texto = 'Para cualquier diámetro.'
+      assign med_pie = 'Mide el diámetro de borde a borde, pasando por el centro.'
+      assign dibujo = 'redondo'
+  endcase
+-%}
+<script type="application/json" id="czc-datos">
+{"opciones":{{ product.options | json }},"variantes":[{%- for v in product.variants -%}{"o":{{ v.options | json }},"p":{{ v.price | divided_by: 100 }},"d":{{ v.available | json }}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}
+</script>
+<template id="czc-medida">
+  <div class="czc-medida">
+    <h3>A tu medida <span>{{ med_titulo }}</span></h3>
+    <p>{{ med_texto }} Pones las medidas y ves el precio al instante.</p>
+    <a class="czc-btn czc-borde" href="https://cotizador.casazaru.cl/?prod=cubierta">Cotizar a mi medida</a>
+    <div class="czc-dib">
+      {%- if dibujo == 'redondo' -%}
+        <svg viewBox="0 0 330 116" aria-label="Cómo medir la cubierta redonda"><ellipse cx="165" cy="52" rx="110" ry="34" fill="#fff" stroke="#485B3D" stroke-width="1.6"/>
+        <path d="M55 52 V62 A110 34 0 0 0 275 62 V52" fill="none" stroke="#485B3D" stroke-width="1.6"/>
+        <path class="czc-cota" d="M55 52 H275 M55 47 v10 M275 47 v10"/><text x="165" y="45" text-anchor="middle">Diámetro</text>
+        <path class="czc-cota" d="M290 52 V62 M286 52 h8 M286 62 h8"/><text x="300" y="61">{{ espesor }}</text></svg>
+      {%- else -%}
+        <svg viewBox="0 0 330 116" aria-label="Cómo medir la cubierta"><path d="M40 30 L232 30 L282 60 L90 60 Z" fill="#fff" stroke="#485B3D" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M90 60 V72 H282 V60" fill="none" stroke="#485B3D" stroke-width="1.6" stroke-linejoin="round"/>
+        <path class="czc-cota" d="M90 90 H282 M90 85 v10 M282 85 v10"/><text x="186" y="108" text-anchor="middle">Largo</text>
+        <path class="czc-cota" d="M298 60 L248 30 M294 66 l8 -12 M244 36 l8 -12"/><text x="282" y="38">{{ eje2 }}</text>
+        {%- if espesor != blank -%}<path class="czc-cota" d="M74 60 V72 M70 60 h8 M70 72 h8"/><text x="62" y="70" text-anchor="end">{{ espesor }}</text>{%- endif -%}</svg>
+      {%- endif -%}
+      <p>{{ med_pie }}</p>
+    </div>
+  </div>
+</template>
+<style>
+  .czc-op{border:1.5px solid #485B3D;background:#F7F8F5;border-radius:8px;padding:14px;margin:4px 0 6px}
+  .czc-op h3,.czc-medida h3{margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:15px;font-weight:600;color:#1F1D24;letter-spacing:0;text-transform:none}
+  .czc-op h3 span,.czc-medida h3 span{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#9A5224}
+  .czc-op p,.czc-medida p{margin:3px 0 0;font-size:13px;line-height:1.45;color:#57524B}
+  .czc-tams{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+  .czc-tam{border:1.5px solid #DDD3C4;border-radius:6px;padding:9px 6px;text-align:center;font:inherit;font-size:14px;font-weight:500;line-height:1.3;color:#1F1D24;background:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .czc-tam small{display:block;font-size:12px;color:#57524B;font-weight:400}
+  .czc-tam.czc-on{border-color:#485B3D;box-shadow:inset 0 0 0 1px #485B3D}
+  .czc-tam[disabled]{opacity:.45;cursor:default}
+  .czc-tam:focus-visible{outline:2px solid #485B3D;outline-offset:2px}
+  .czm-gal .czc-pm{display:block;margin-top:1px;font-size:11.5px;line-height:1.2;color:#57524B;font-weight:400}
+  .czc-caja{margin-top:12px;padding:14px;border-radius:8px;background:#F1ECE4}
+  .czc-res{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .czc-res span{font-size:13px;color:#57524B}
+  .czc-res b{font-size:24px;font-weight:600;color:#1F1D24;white-space:nowrap}
+  .czc-cuotas{margin:2px 0 12px;font-size:12.5px;color:#57524B;text-align:right}
+  .czc-cuotas em{font-style:normal;color:#1F1D24;font-weight:600}
+  .czc-env{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid #DDD3C4;font-size:13px;color:#57524B}
+  .czc-env a{color:#1F1D24;text-decoration:underline}
+  .czc-i{width:20px;height:20px;flex:none;fill:none;stroke:#485B3D;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .czc-sellos{display:grid;grid-template-columns:repeat(3,1fr);margin-top:16px;text-align:center}
+  .czc-sellos div{font-size:11.5px;line-height:1.35;color:#57524B;padding:0 4px}
+  .czc-sellos div+div{border-left:1px solid #DDD3C4}
+  .czc-sellos .czc-i{width:24px;height:24px;display:block;margin:0 auto 4px}
+  .czc-sellos b{display:block;color:#1F1D24;font-size:13px}
+  .czc-medida{margin:14px 0;border:1.5px solid #DDD3C4;border-radius:8px;padding:14px}
+  .czc-btn{display:flex;align-items:center;justify-content:center;min-height:46px;margin-top:12px;border-radius:4px;font-size:15px;font-weight:500;text-decoration:none}
+  .czc-borde{background:#fff;color:#485B3D;border:1.5px solid #485B3D}
+  .czc-dib{margin-top:12px;background:#F1ECE4;border-radius:6px;padding:12px 10px 8px}
+  .czc-dib svg{display:block;width:100%;height:auto}
+  .czc-dib text{font-family:inherit;font-size:11px;fill:#1F1D24}
+  .czc-dib .czc-cota{stroke:#9A5224;stroke-width:1.2;fill:none}
+  .czc-dib p{margin:4px 2px 0;font-size:12px;line-height:1.4}
+  .czc-fija{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:1fr 1.3fr;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #DDD3C4;box-shadow:0 -6px 18px rgba(31,29,36,.08);transform:translateY(110%);transition:transform .2s}
+  .czc-fija.czc-ver{transform:none}
+  .czc-fija a,.czc-fija button{display:flex;align-items:center;justify-content:center;min-height:46px;border-radius:4px;font:inherit;font-size:15px;font-weight:500;text-decoration:none;cursor:pointer}
+  .czc-fija a{background:#fff;color:#485B3D;border:1.5px solid #485B3D}
+  .czc-fija button{background:#485B3D;color:#fff;border:0}
+  @media (min-width:750px){.czc-fija{display:none}}
+  .czc-oculto{display:none !important}
+</style>
+<script>
+(function () {
+  var ICONOS = {
+    camion: '<path d="M2 7h12v9H2z"/><path d="M14 10h4l3 3.5V16h-7"/><circle cx="6" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+    escudo: '<path d="M12 2.5l8 3v6c0 5-3.6 8.7-8 10-4.4-1.3-8-5-8-10v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+    reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
+    globo: '<path d="M4 20l1.3-3.8A8 8 0 1 1 8 19z"/>'
+  };
+  function icono(n) { return '<svg class="czc-i" viewBox="0 0 24 24" aria-hidden="true">' + ICONOS[n] + '</svg>'; }
+  function norm(t) { return (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+  function pesos(n) { return '$' + Math.round(n).toLocaleString('es-CL'); }
+  function nombreOpcion(sel) { var m = /^options\[(.*)\]$/.exec(sel.name); return m ? m[1] : sel.name; }
+  // «160 x 60 cms» → «160 × 60 cm»; «140 x 70 cm / 4 - 6 Personas» → «140 × 70 cm» + «4 a 6 personas»
+  function etiqueta(v) {
+    var partes = v.split(' / ');
+    var a = partes[0].replace(/\s*[xX]\s*/g, ' × ').replace(/\bcms\b/, 'cm');
+    var d = /^(\d+)\s*cm\s+di[aá]metro$/i.exec(a);
+    if (d) a = 'Ø ' + d[1] + ' cm';
+    var b = partes[1] ? partes[1].replace(/\s*-\s*/, ' a ').replace(/Personas/, 'personas') : '';
+    return { a: a, b: b };
+  }
+
+  function armar() {
+    var datosEl = document.getElementById('czc-datos');
+    var raiz = datosEl && datosEl.closest('[id^="shopify-section"]');
+    var info = raiz && raiz.querySelector('.product__info-container');
+    var form = raiz && raiz.querySelector('product-form');
+    if (!info || !form || info.getAttribute('data-czc')) return;
+    var datos;
+    try { datos = JSON.parse(datosEl.textContent); } catch (e) { return; }
+
+    var sels = [].slice.call(raiz.querySelectorAll('variant-selects select, variant-radios select'));
+    var selMad = null, selTam = null;
+    sels.forEach(function (s) {
+      var n = norm(s.name);
+      if (n.indexOf('madera') >= 0) selMad = s;
+      else if (n.indexOf('tama') >= 0 || n.indexOf('medida') >= 0) selTam = s;
+    });
+    if (!selMad || !selTam) return;
+    var iMad = datos.opciones.indexOf(nombreOpcion(selMad));
+    var iTam = datos.opciones.indexOf(nombreOpcion(selTam));
+    if (iMad < 0 || iTam < 0) return;
+    info.setAttribute('data-czc', '1');
+
+    // Variante = la que calza con TODOS los selectores (si un día hay una tercera opción, también cuenta).
+    function variante(cambios) {
+      var quiero = sels.map(function (s) { return s.value; });
+      var idx = sels.map(function (s) { return datos.opciones.indexOf(nombreOpcion(s)); });
+      for (var k in cambios) quiero[k] = cambios[k];
+      return datos.variantes.filter(function (v) {
+        return idx.every(function (io, j) { return io < 0 || v.o[io] === quiero[j]; });
+      })[0] || null;
+    }
+    var jMad = sels.indexOf(selMad), jTam = sels.indexOf(selTam);
+    function precioCon(j, valor) { var c = {}; c[j] = valor; return variante(c); }
+
+    // 1) Precio bajo cada tarjeta de madera (las arma cz-maderas)
+    var tarjetas = [].slice.call(raiz.querySelectorAll('.czm-gal .czm-card'));
+    tarjetas = tarjetas.map(function (t) {
+      var p = t.querySelector('p');
+      if (!p) return null;
+      var n = norm(p.textContent), valor = null;
+      [].forEach.call(selMad.options, function (o) {
+        var nv = norm(o.value);
+        if (!valor && n && (nv === n || nv.indexOf(n) >= 0 || n.indexOf(nv) >= 0)) valor = o.value;
+      });
+      var s = document.createElement('small');
+      s.className = 'czc-pm';
+      p.appendChild(s);
+      return { s: s, valor: valor };
+    }).filter(Boolean);
+
+    // 2) Tamaños como botones
+    var bloqueTam = selTam.closest('.product-form__input');
+    var op = document.createElement('div');
+    op.className = 'czc-op';
+    op.innerHTML = '<h3>Medida estándar <span>Se compra aquí</span></h3>' +
+      ({{ op_texto | json }} ? '<p></p>' : '') + '<div class="czc-tams" role="radiogroup"></div>';
+    if (op.querySelector('p')) op.querySelector('p').textContent = {{ op_texto | json }};
+    var tams = op.querySelector('.czc-tams');
+    var botones = [].map.call(selTam.options, function (o) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'czc-tam';
+      b.setAttribute('role', 'radio');
+      var e = etiqueta(o.value);
+      var t1 = document.createElement('span'); t1.textContent = e.a; b.appendChild(t1);
+      if (e.b) { var t2 = document.createElement('small'); t2.textContent = e.b; b.appendChild(t2); }
+      var pr = document.createElement('small'); b.appendChild(pr);
+      b.addEventListener('click', function () { elegir(selTam, o.value); });
+      tams.appendChild(b);
+      return { b: b, valor: o.value, pr: pr };
+    });
+    var cajaSel = bloqueTam.querySelector('.select') || selTam;
+    cajaSel.classList.add('czc-oculto');
+    cajaSel.parentNode.insertBefore(op, cajaSel);
+
+    // 3) Caja de compra alrededor del bloque del botón del tema (no se mueve el formulario)
+    var bloqueBuy = form;
+    while (bloqueBuy.parentElement && bloqueBuy.parentElement !== info) bloqueBuy = bloqueBuy.parentElement;
+    bloqueBuy.classList.add('czc-caja');
+    var res = document.createElement('div');
+    res.innerHTML = '<div class="czc-res"><span></span><b></b></div><p class="czc-cuotas">o 3 cuotas sin interés de <em></em></p>';
+    bloqueBuy.insertBefore(res, bloqueBuy.firstChild);
+    var pie = document.createElement('div');
+    pie.innerHTML = '<div class="czc-env">' + icono('camion') + '<span>Envío según tu comuna. <a href="#czc-envio">Calcúlalo aquí</a></span></div>' +
+      '<div class="czc-sellos"><div>' + icono('escudo') + '<b>5 años</b>de garantía</div><div>' + icono('reloj') +
+      '<b>7 a 15</b>días hábiles</div><div>' + icono('globo') + '<b>Asesoría</b>por WhatsApp</div></div>';
+    bloqueBuy.appendChild(pie);
+    var calc = info.querySelector('.czenv');
+    pie.querySelector('a').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      var destino = info.querySelector('.czenv') || calc;
+      if (destino) destino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    if (!calc) pie.querySelector('.czc-env').classList.add('czc-oculto');
+
+    // 4) «A tu medida» bajo «Calcula tu envío» (o bajo la caja de compra si no hay)
+    var tpl = document.getElementById('czc-medida');
+    var medida = tpl.content.firstElementChild.cloneNode(true);
+    var ancla = calc || bloqueBuy;
+    ancla.parentNode.insertBefore(medida, ancla.nextSibling);
+
+    // La caja de ayuda con emojis queda reemplazada por «A tu medida»
+    [].forEach.call(info.children, function (c) {
+      if (c.textContent.indexOf('¿Quieres otras medidas o tienes dudas?') >= 0 && !c.querySelector('product-form')) c.classList.add('czc-oculto');
+    });
+
+    // 5) Barra fija (solo celular)
+    var fija = document.createElement('div');
+    fija.className = 'czc-fija';
+    fija.innerHTML = '<a href="#czc-medida">Otra medida</a><button type="button"></button>';
+    document.body.appendChild(fija);
+    fija.querySelector('a').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      medida.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    var enviar = form.querySelector('[type="submit"]');
+    fija.querySelector('button').addEventListener('click', function () { if (enviar && !enviar.disabled) enviar.click(); });
+    if ('IntersectionObserver' in window && enviar) {
+      new IntersectionObserver(function (es) {
+        var r = es[0].boundingClientRect;
+        fija.classList.toggle('czc-ver', !es[0].isIntersecting && r.top < 0);
+      }).observe(enviar);
+    }
+
+    function pintar() {
+      var v = variante({});
+      tarjetas.forEach(function (t) {
+        var vv = t.valor && precioCon(jMad, t.valor);
+        t.s.textContent = vv ? pesos(vv.p) : '';
+      });
+      botones.forEach(function (x) {
+        var on = x.valor === selTam.value;
+        var vv = precioCon(jTam, x.valor);
+        x.b.classList.toggle('czc-on', on);
+        x.b.setAttribute('aria-checked', on ? 'true' : 'false');
+        x.b.disabled = !vv;
+        x.pr.textContent = vv ? pesos(vv.p) : 'No disponible';
+      });
+      res.querySelector('span').textContent = etiqueta(selTam.value).a + ' · ' + selMad.value;
+      res.querySelector('b').textContent = v ? pesos(v.p) : '';
+      res.querySelector('em').textContent = v ? pesos(Math.ceil(v.p / 3)) : '';
+      res.querySelector('.czc-cuotas').classList.toggle('czc-oculto', !v);
+      fija.querySelector('button').textContent = v ? 'Agregar · ' + pesos(v.p) : 'Agregar al carrito';
+    }
+    function elegir(sel, valor) {
+      if (sel.value === valor) return;
+      sel.value = valor;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      pintar();
+    }
+    sels.forEach(function (s) { s.addEventListener('change', pintar); });
+    pintar();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', armar);
+  else armar();
+})();
+</script>
