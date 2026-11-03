@@ -28249,7 +28249,12 @@ function fechaLarga(iso){
 }
 function msgAviso(id,o,dRel,fechaEnvStr){
   var n=o.nombre||'',num=String(o.num||''),prod=o.producto||'';
-  if(id==='aviso_sem')return'Hola '+n+'! Te cuento que tu pedido #'+num+' ('+prod+') queda listo para despacho la próxima semana. Apenas tenga el día exacto te aviso.';
+  // Aviso de la semana = aviso de que ya está en producción (03-11-2026): corto,
+  // con el primer nombre, firmado por César y en párrafos para que no suene a plantilla.
+  if(id==='aviso_sem'){
+    var pn=String(n).trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
+    return'Hola '+pn+'! Te escribe César de Casa Zaru.\n\nTe cuento que tu pedido ya está en producción. Queda listo la próxima semana y apenas tenga el día de despacho te aviso.\n\nCualquier cosa me escribes.';
+  }
   if(id==='aviso_lun')return'Hola '+n+'! Tu pedido #'+num+' sale el '+fechaEnvStr+'. Cualquier cosa me avisas.';
   if(id==='aviso_dia')return'Hola '+n+'! '+(dRel>=0?'Hoy':'Mañana')+' sale tu pedido #'+num+'. ¿La dirección sigue siendo la misma?';
   if(id==='comprobante')return'Hola '+n+'! Te envío el comprobante de tu pedido #'+num+'.';
