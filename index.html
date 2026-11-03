@@ -27840,6 +27840,7 @@ const CHECKS=[
   // Post-venta: va después del 100%, así que no entra en el porcentaje. Cuando
   // se marca, el pedido pasa a verde intenso con estrella.
   {id:'recibido',label:'Recibió pedido',critical:false,bonus:true},
+  {id:'resena',label:'Pidió reseña en Google',critical:false,bonus:true},
 ];
 const CRITICAL=CHECKS.filter(c=>c.critical).map(c=>c.id);
 // El botón viejo guardaba la confirmación de recepción en contactos.c4.
@@ -28227,7 +28228,13 @@ const AVISOS=[
   // Abre 3 días después del envío (antes 10): Starken entrega en 2 a 5 días y
   // el «!» de Recib no aparecía en pedidos que el cliente ya tenía (03-11-2026).
   {id:'recibido',tag:'Preguntar si lo recibió',abre:3,vence:14,color:'var(--green)'},
+  // Reseña en Google (03-11-2026): se pide recién cuando el cliente confirmó que
+  // le llegó bien, nunca antes.
+  {id:'resena',tag:'Pedir reseña en Google',abre:3,vence:30,color:'var(--green)'},
 ];
+// Link directo a «Escribir una opinión» de la ficha de Casa Zaru en Google Maps
+// (place id sacado de la ficha el 03-11-2026).
+const RESENA_GOOGLE='https://search.google.com/local/writereview?placeid=ChIJC2CWxl1jFJYRQLYlX2bC5Yg';
 // Más allá de esto el aviso ya no tiene sentido y deja de pedirse.
 const AVISO_CADUCA_DIAS=30;
 // Estos avisos nombran una fecha concreta: si el envío se corre, hay que
@@ -28264,6 +28271,11 @@ function msgAviso(id,o,dRel,fechaEnvStr){
   // «¿Lo recibió?»: el más corto de todos, como lo pidió el usuario (03-11). Sin
   // firma: va en el mismo chat donde César ya mandó los avisos anteriores.
   var pn=String(o.nombre||'').trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
+  // Reseña: favor concreto, por qué importa, que es rápido y el link directo.
+  if(id==='resena')return'Hola'+(pn?' '+pn:'')+', ¿cómo estás?\n\n'+
+    'Te quería pedir un favor: ¿nos podrías dejar una reseña en Google? Somos un taller chico y cada reseña nos ayuda mucho a que otras personas nos encuentren.\n\n'+
+    'Es un minuto, en este link:\n'+RESENA_GOOGLE+'\n\n'+
+    'Y si le sumas una foto de cómo quedó, mejor todavía. ¡Muchas gracias!';
   return'Hola'+(pn?' '+pn:'')+', ¿cómo estás?\n\n¿Te llegó bien tu pedido?';
 }
 // Devuelve los avisos que hoy le corresponden a César, ya ordenados.
@@ -28290,6 +28302,7 @@ function avisosPendientes(){
     AVISOS.forEach(function(a){
       if(o.checks&&o.checks[a.id])return;
       if(a.id==='recibido'&&yaRecibio(o))return;
+      if(a.id==='resena'&&!yaRecibio(o))return;
       if(dRel<a.abre)return;
       var atrasado=dRel>a.vence;
       if(dRel>a.vence+AVISO_CADUCA_DIAS){caducados[String(o.num||'')]=true;return;}
@@ -28492,7 +28505,8 @@ var SEG_COLS=[
   {id:'aviso_lun',c:'Día',t:'Confirmar el día de envío'},
   {id:'aviso_dia',c:'Mañana',t:'Avisar que sale mañana'},
   {id:'comprobante',c:'Compr',t:'Comprobante enviado'},
-  {id:'recibido',c:'Recib',t:'Recibió el pedido'}
+  {id:'recibido',c:'Recib',t:'Recibió el pedido'},
+  {id:'resena',c:'Reseña',t:'Pidió reseña en Google'}
 ];
 // Franjas de semana: dos semanas vecinas nunca quedan del mismo color.
 var SEG_FRANJAS=[
@@ -28532,11 +28546,12 @@ function renderSeg(){
   // Una semana queda a la vista si su envío fue hace menos de dos semanas o si
   // le queda algún aviso por hacer. Lo demás va a "Ver semanas anteriores":
   // eran 120 pedidos y casi todos ya no necesitaban nada. El "¿lo recibió?"
-  // no cuenta: es cortesía post-entrega y mantenía a la vista todo agosto.
+  // no cuenta: es cortesía post-entrega y mantenía a la vista todo agosto. La
+  // reseña tampoco.
   var limite=_sumarDias(hoy,-14);
   function vigente(sem,peds){
     if(sem==='Sin semana')return true;
-    if(peds.some(function(o){var pd=segPend[String(o.num||'')]||{};return Object.keys(pd).some(function(k){return k!=='recibido';});}))return true;
+    if(peds.some(function(o){var pd=segPend[String(o.num||'')]||{};return Object.keys(pd).some(function(k){return k!=='recibido'&&k!=='resena';});}))return true;
     var env=fechaEnvioDeSemana(sem);
     return !env||env>=limite;
   }
