@@ -1,0 +1,107 @@
+{%- comment -%}
+  Tarjetas de madera que ELIGEN la madera (03-11-2026, opción A del boceto).
+  La galería .zaru-gallery-container (bloque custom_liquid de cada plantilla) sube al lugar del
+  selector «¿Cuál madera prefieres?», que queda oculto pero sigue mandando: tocar una tarjeta cambia
+  su valor y dispara «change», así que precio, variante, carrito y cz-envio siguen el camino de siempre.
+  Si la ficha no tiene galería o no tiene opción de madera, no hace nada.
+  Se renderiza una vez al final de sections/main-product.liquid. Fuente: .claude/tema/cz-maderas.liquid
+{%- endcomment -%}
+<style>
+  .czm-gal{display:flex;flex-wrap:wrap;gap:12px;margin:2px 0 6px}
+  .czm-gal>.czm-card{flex:0 0 76px !important;max-width:76px !important;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
+  .czm-gal .czm-card img{width:76px !important;height:76px !important;object-fit:cover;border-radius:6px;border:3px solid transparent;box-sizing:border-box;transform:none !important;transition:border-color .15s}
+  .czm-gal .czm-card p{margin:6px 0 0 !important;font-size:13.5px !important;line-height:1.25}
+  .czm-gal .czm-card .czm-img{position:relative;display:block;width:76px;height:76px}
+  .czm-gal .czm-card.czm-on img{border-color:#2e2b29}
+  .czm-gal .czm-card.czm-on p{font-weight:600 !important}
+  .czm-gal .czm-card.czm-on .czm-img:after{content:"";position:absolute;right:-7px;top:-7px;width:20px;height:20px;border-radius:50%;background:#2e2b29 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/12px no-repeat}
+  .czm-gal .czm-card:focus-visible img{border-color:#7A4E2A}
+  .czm-elegida{text-transform:none;letter-spacing:0;font-weight:600}
+  .czm-oculto{display:none !important}
+</style>
+<script>
+(function () {
+  function norm(t) { return (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+
+  function selectMadera(raiz) {
+    var sels = raiz.querySelectorAll('variant-selects select, variant-radios select, select[name^="options["]');
+    for (var i = 0; i < sels.length; i++) {
+      if (norm(sels[i].name).indexOf('madera') >= 0) return sels[i];
+    }
+    return null;
+  }
+
+  function armar(gal) {
+    if (gal.getAttribute('data-czm')) return;
+    var raiz = gal.closest('[id^="shopify-section"]') || document;
+    var sel = selectMadera(raiz);
+    if (!sel) return;
+    var opciones = [].map.call(sel.options, function (o) { return o.value; });
+
+    var tarjetas = [];
+    [].forEach.call(gal.children, function (c) {
+      var img = c.querySelector('img'), p = c.querySelector('p');
+      if (!img || !p) return;
+      var n = norm(p.textContent), valor = null;
+      opciones.forEach(function (v) {
+        var nv = norm(v);
+        if (!valor && (nv === n || nv.indexOf(n) >= 0 || n.indexOf(nv) >= 0)) valor = v;
+      });
+      tarjetas.push({ el: c, img: img, valor: valor });
+    });
+    if (tarjetas.filter(function (t) { return t.valor; }).length < 2) return;
+
+    gal.setAttribute('data-czm', '1');
+    var bloque = sel.closest('.product-form__input');
+    var titulo = gal.parentElement && gal.parentElement.querySelector('p');
+    if (titulo && /conoce los tipos de madera/i.test(titulo.textContent)) titulo.classList.add('czm-oculto');
+
+    gal.classList.add('czm-gal');
+    gal.setAttribute('role', 'radiogroup');
+    tarjetas.forEach(function (t) {
+      if (!t.valor) { t.el.classList.add('czm-oculto'); return; }
+      var marco = document.createElement('span');
+      marco.className = 'czm-img';
+      t.img.parentNode.insertBefore(marco, t.img);
+      marco.appendChild(t.img);
+      t.el.classList.add('czm-card');
+      t.el.setAttribute('role', 'radio');
+      t.el.setAttribute('tabindex', '0');
+      t.el.addEventListener('click', function () { elegir(t.valor); });
+      t.el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); elegir(t.valor); }
+      });
+    });
+
+    var etiqueta = bloque.querySelector('label');
+    var elegida = document.createElement('span');
+    elegida.className = 'czm-elegida';
+    if (etiqueta) etiqueta.appendChild(elegida);
+
+    var caja = bloque.querySelector('.select') || sel;
+    caja.classList.add('czm-oculto');
+    caja.parentNode.insertBefore(gal, caja);
+
+    function pintar() {
+      tarjetas.forEach(function (t) {
+        var on = t.valor === sel.value;
+        t.el.classList.toggle('czm-on', on);
+        t.el.setAttribute('aria-checked', on ? 'true' : 'false');
+      });
+      elegida.textContent = ' · ' + sel.value;
+    }
+    function elegir(v) {
+      if (sel.value === v) return;
+      sel.value = v;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      pintar();
+    }
+    sel.addEventListener('change', pintar);
+    pintar();
+  }
+
+  function iniciar() { [].forEach.call(document.querySelectorAll('.zaru-gallery-container'), armar); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+  else iniciar();
+})();
+</script>
