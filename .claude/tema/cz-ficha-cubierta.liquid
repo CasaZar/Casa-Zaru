@@ -252,12 +252,16 @@
     });
     var enviar = form.querySelector('[type="submit"]');
     fija.querySelector('button').addEventListener('click', function () { if (enviar && !enviar.disabled) enviar.click(); });
-    if ('IntersectionObserver' in window && enviar) {
-      new IntersectionObserver(function (es) {
-        var r = es[0].boundingClientRect;
-        fija.classList.toggle('czc-ver', !es[0].isIntersecting && r.top < 0);
-      }).observe(enviar);
+    // Aparece cuando el botón de compra ya quedó arriba de la pantalla
+    var pendiente = false;
+    function revisarFija() {
+      pendiente = false;
+      fija.classList.toggle('czc-ver', !!enviar && enviar.getBoundingClientRect().bottom < 0);
     }
+    window.addEventListener('scroll', function () {
+      if (!pendiente) { pendiente = true; requestAnimationFrame(revisarFija); }
+    }, { passive: true });
+    revisarFija();
 
     function pintar() {
       var v = variante({});
