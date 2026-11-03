@@ -1,0 +1,131 @@
+{%- comment -%}
+  Bloque «CZ · Pasos cubierta» (blocks/cz-pasos-cubierta.liquid), en la portada de casazaru.cl,
+  dentro de la sección _blocks 17781878041e0b98c8 de templates/index.json, en el lugar del bloque
+  generado por IA ai_gen_block_cdfd7be_cakhTq («Pasos para tener tu cubierta»), que queda
+  APAGADO ahí mismo: volver atrás = encenderlo y sacar este de block_order.
+  Boceto B aprobado el 03-11-2026: un sendero de puntos de «Empieza aquí» a «Tu casa», con las
+  5 paradas a lado y lado en el celular y en una fila en PC. Íconos de línea café, sin emojis.
+  Textos: «7 a 15 días hábiles»; retiro en el taller sin decir que es gratis (no confirmado).
+  #AA5820 para texto chico y botón: el naranjo #ce6718 de la web no da contraste AA.
+{%- endcomment -%}
+{%- assign wa_web = '56956375558' -%}
+<style>
+  .czr{--tinta:#1e1c1c;--sec:#5a5050;--cafe:#6b3410;--naranja:#AA5820;color:var(--tinta);font-family:var(--font-body-family),Poppins,sans-serif;max-width:1200px;margin:0 auto;padding:56px 20px 60px}
+  .czr *{box-sizing:border-box}
+  /* En celular y tablet todo va en una columna de 400 px como máximo: los tramos del sendero
+     son SVG que se estiran, y más ancho que eso los puntos ya no caen en el centro de cada nodo */
+  .czr-cab{max-width:400px;margin:0 auto}
+  .czr-eb{font-size:12px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--naranja);margin:0}
+  .czr h2{font-family:inherit;font-size:30px;line-height:1.15;font-weight:600;margin:10px 0 0;letter-spacing:-.01em;color:var(--tinta)}
+  .czr-baj{font-size:15px;line-height:1.55;color:var(--sec);margin:10px 0 0}
+
+  .czr-ruta{list-style:none;margin:30px auto 0;padding:0;max-width:400px}
+  .czr-hito{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--sec)}
+  .czr-hito.fin{justify-content:flex-end}
+  .czr-hito svg{width:30px;height:30px;flex:0 0 auto}
+  .czr svg{stroke:var(--cafe);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+  .czr-tramo{display:block}
+  .czr-tramo svg{display:block;width:100%;height:46px;stroke-width:2.2;stroke-dasharray:0 8}
+
+  .czr-par{display:grid;grid-template-columns:72px 1fr;column-gap:16px;align-items:start}
+  .czr-par.der{grid-template-columns:1fr 72px}
+  .czr-par.der .czr-nodo{order:2}
+  .czr-nodo{position:relative;width:72px;height:72px;border-radius:50%;background:#fff;border:1.5px solid var(--cafe);display:flex;align-items:center;justify-content:center}
+  .czr-nodo svg{width:46px;height:46px}
+  .czr-n{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);min-width:24px;height:24px;padding:0 6px;border-radius:12px;background:var(--naranja);color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center}
+  .czr-meta{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--naranja);font-variant-numeric:tabular-nums}
+  .czr-meta span{color:var(--sec)}
+  .czr h3{font-family:inherit;font-size:19px;font-weight:600;margin:4px 0;line-height:1.25;color:var(--tinta)}
+  .czr-par p{margin:0;font-size:14.5px;line-height:1.55;color:var(--sec)}
+
+  .czr-acc{max-width:400px;margin:30px auto 0}
+  .czr-btn{display:flex;align-items:center;justify-content:center;min-height:52px;background:var(--naranja);color:#fff;border-radius:4px;font-weight:500;font-size:16px;text-decoration:none}
+  .czr-btn:hover{background:#8F4A1F;color:#fff}
+  .czr-ayu{margin:14px 0 0;font-size:13px;color:var(--sec)}
+  .czr-ayu a{color:var(--tinta);text-decoration:underline;text-underline-offset:3px}
+
+  /* PC: las 5 paradas en una fila sobre un solo sendero de puntos */
+  @media (min-width:990px){
+    .czr{padding:96px 40px}
+    .czr-cab{max-width:none;margin:0}
+    .czr h2{font-size:40px}
+    .czr-ruta{max-width:none;margin-top:48px;display:grid;grid-template-columns:92px repeat(5,1fr) 92px;column-gap:28px;position:relative}
+    /* el sendero corre entre el alfiler y la casa; los nodos blancos lo tapan */
+    .czr-ruta:before{content:'';position:absolute;left:80px;right:80px;top:35px;height:3px;background:radial-gradient(circle,var(--cafe) 1.1px,transparent 1.6px) left center/9px 3px repeat-x}
+    .czr-tramo{display:none}
+    .czr-hito{flex-direction:column;justify-content:flex-start;align-items:center;gap:6px;padding-top:21px;font-size:11px;text-align:center}
+    .czr-hito.fin{justify-content:flex-start}
+    .czr-hito.fin svg{order:-1}
+    .czr-par,.czr-par.der{display:block;position:relative}
+    .czr-nodo{margin-bottom:22px}
+    .czr-acc{max-width:420px;margin:44px 0 0}
+  }
+  @media (prefers-reduced-motion:reduce){.czr-btn{transition:none}}
+</style>
+
+<div class="czr">
+  <div class="czr-cab">
+    <p class="czr-eb">Del árbol a tu hogar</p>
+    <h2>Tu cubierta, paso&nbsp;a&nbsp;paso</h2>
+    <p class="czr-baj">Dos pasos son tuyos. El resto lo hacemos en nuestro taller de Villarrica.</p>
+  </div>
+
+  <ol class="czr-ruta">
+    <li class="czr-hito" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><path d="M16 29s-9-8.6-9-15a9 9 0 0 1 18 0c0 6.4-9 15-9 15z"/><circle cx="16" cy="14" r="3.2"/></svg>Empieza aquí
+    </li>
+    <li class="czr-tramo" aria-hidden="true"><svg viewBox="0 0 350 46" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M15 2 C15 30 36 22 36 46"/></svg></li>
+
+    <li class="czr-par">
+      <div class="czr-nodo"><span class="czr-n">1</span>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="5" width="20" height="38" rx="3"/><path d="M21 9h6"/><path d="M18.5 22h11"/><path d="M18.5 19.5v5M29.5 19.5v5"/><path d="M18.5 30h7"/><circle cx="24" cy="38.5" r="1"/></svg></div>
+      <div><div class="czr-meta"><span>Tú ·</span> Hoy</div><h3>Cotizas</h3><p>Pones las medidas en el cotizador y ves el precio al instante. También puedes escribirnos por WhatsApp.</p></div>
+    </li>
+    <li class="czr-tramo" aria-hidden="true"><svg viewBox="0 0 350 46" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M36 4 C36 40 314 6 314 44"/></svg></li>
+
+    <li class="czr-par der">
+      <div class="czr-nodo"><span class="czr-n">2</span>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 40V10l30 30z"/><path d="M14 34V24.5l9.5 9.5z"/><path d="M8 17h3M8 24h3M8 31h3M15 40v-3M22 40v-3M29 40v-3"/><path d="M33 7l6 6-14 14-7 1 1-7z"/><path d="M30 10l6 6"/></svg></div>
+      <div><div class="czr-meta"><span>Juntos ·</span> Antes de fabricar</div><h3>Afinamos detalles</h3><p>Revisamos contigo las medidas, los cortes para lavaplatos o encimera, las perforaciones y la terminación.</p></div>
+    </li>
+    <li class="czr-tramo" aria-hidden="true"><svg viewBox="0 0 350 46" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M314 4 C314 40 36 6 36 44"/></svg></li>
+
+    <li class="czr-par">
+      <div class="czr-nodo"><span class="czr-n">3</span>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="4" y="22" width="36" height="13" rx="1.5"/><path d="M8 27c6-2.5 11 1.5 17-.5s9-1.5 12 0"/><path d="M8 31c5 1 9-1 14 0s8 .5 10 0"/><circle cx="37" cy="13" r="7"/><path d="M33.8 13.2l2.2 2.2 4.2-4.4"/></svg></div>
+      <div><div class="czr-meta"><span>Casa Zaru ·</span> Al empezar</div><h3>Elegimos la madera</h3><p>Revisamos tabla por tabla. Solo las mejores pasan al taller.</p></div>
+    </li>
+    <li class="czr-tramo" aria-hidden="true"><svg viewBox="0 0 350 46" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M36 4 C36 40 314 6 314 44"/></svg></li>
+
+    <li class="czr-par der">
+      <div class="czr-nodo"><span class="czr-n">4</span>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M16 17h-7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h7z"/><path d="M9.5 21.5h3v7h-3z"/><path d="M16 19l27 5v6"/><path d="M16 31l2 2 2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2 2-2 2 2 1-1"/></svg></div>
+      <div><div class="czr-meta"><span>Casa Zaru ·</span> 7 a 15 días hábiles</div><h3>La fabricamos</h3><p>En nuestro taller de Villarrica, a la medida que pediste.</p></div>
+    </li>
+    <li class="czr-tramo" aria-hidden="true"><svg viewBox="0 0 350 46" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M314 4 C314 40 36 6 36 44"/></svg></li>
+
+    <li class="czr-par">
+      <div class="czr-nodo"><span class="czr-n">5</span>
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M4 14h24v20H4z"/><path d="M28 20h8l6 7v7H28"/><path d="M31 23h4.5l3.5 4H31z"/><circle cx="12" cy="36" r="3.5"/><circle cx="35" cy="36" r="3.5"/><path d="M10 14v8l3-2 3 2v-8"/></svg></div>
+      <div><div class="czr-meta"><span>Llega a ti ·</span> Según tu comuna</div><h3>Llega lista para instalar</h3><p>Embalada con cuidado. Enviamos a todo Chile, o la retiras en el taller.</p></div>
+    </li>
+    <li class="czr-tramo" aria-hidden="true"><svg viewBox="0 0 350 46" preserveAspectRatio="none"><path vector-effect="non-scaling-stroke" d="M36 4 C36 40 335 10 335 44"/></svg></li>
+
+    <li class="czr-hito fin" aria-hidden="true">
+      Tu casa<svg viewBox="0 0 32 32"><path d="M4 15L16 5l12 10"/><path d="M7 13v14h18V13"/><path d="M13 27v-8h6v8"/></svg>
+    </li>
+  </ol>
+
+  <div class="czr-acc">
+    <a class="czr-btn" href="https://cotizador.casazaru.cl/?prod=cubierta" target="_blank" rel="noopener">Cotizar mi cubierta</a>
+    <p class="czr-ayu">¿Prefieres conversarlo? <a href="https://wa.me/{{ wa_web }}?text={{ 'Hola, quiero cotizar una cubierta.' | url_encode }}" target="_blank" rel="noopener">Escríbenos por WhatsApp</a></p>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "CZ · Pasos cubierta",
+  "settings": [],
+  "presets": [{ "name": "CZ · Pasos cubierta" }]
+}
+{% endschema %}
