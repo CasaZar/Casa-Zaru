@@ -61,13 +61,11 @@ const PRD = {
   login: secreto('STARKEN_URL_LOGIN'),
   anular: secreto('STARKEN_URL_ANULAR'),
 };
-// Códigos de tipo de documento de Starken (tabla propia, no la del SII). La FAQ de «Crea tu
-// envío» en developers.starken.cl dice que el documento «asociado a la compra» se manda SIEMPRE
-// como factura (tipoDocumento1:26), sea lo que sea; su plugin de Shopify hace lo mismo con el
-// N° de pedido. Por eso la boleta también va con 26 (decidido 30-10-2026): en la etiqueta sale
-// como «FA <folio>». Si soporte de Starken entrega un código propio de boleta (pedido el 29-10),
-// se cambia solo aquí. 39 y 99 probados en QA: «no homologado» / «no válido».
-const DOC_TIPO: Record<string, string> = { FACTURA: '26', BOLETA: '26' };
+// Códigos de tipo de documento de Starken (tabla propia, no la del SII), confirmados por soporte
+// de Starken el 03-11-2026: 26 factura, 27 guía de despacho, 28 boleta. El 28 se probó en QA ese
+// día (OF de prueba 222795830, codigoError 0). Hasta entonces la boleta iba como 26 (30-10).
+// 39 y 99 probados en QA: «no homologado» / «no válido».
+const DOC_TIPO: Record<string, string> = { FACTURA: '26', BOLETA: '28' };
 // Secreto de producción, o su gemelo _QA en pruebas.
 function secretoModo(nombre: string) { return secreto(MODO === 'produccion' ? nombre : nombre + '_QA'); }
 
@@ -180,7 +178,7 @@ async function emitir(req: Request, b: any) {
   const valor = Math.round(Number(b.valorDeclarado) || 0);
   if (!(valor > 0)) throw new ErrorPublico('Falta el valor declarado', 400);
   // Documentos: la OF admite hasta 5 (tipoDocumento1..5). Starken valida el código del tipo
-  // (26 = factura, documentado; 39 «no homologado», 99 «no válido», probado en QA el 26-10).
+  // (26 = factura, 28 = boleta; 39 «no homologado», 99 «no válido», probado en QA el 26-10).
   // El dueño decidió adjuntar SIEMPRE la boleta o factura del pedido: cobertura por el valor real.
   const docs: { tipo: string; numero: string }[] = [];
   for (const d of Array.isArray(b.documentos) ? b.documentos.slice(0, 5) : []) {
