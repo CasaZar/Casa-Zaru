@@ -28247,18 +28247,19 @@ function fechaLarga(iso){
   var s=d.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
   return s.charAt(0).toUpperCase()+s.slice(1);
 }
+// Avisos al cliente (03-11-2026): cortos, con el primer nombre, firmados por
+// César y en párrafos, para que no suenen a plantilla. Sin N° de pedido.
+function _saludoCesar(nombre){
+  var pn=String(nombre||'').trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
+  return'Hola'+(pn?' '+pn:'')+'! Te escribe César de Casa Zaru.\n\n';
+}
 function msgAviso(id,o,dRel,fechaEnvStr){
-  var n=o.nombre||'',num=String(o.num||''),prod=o.producto||'';
-  // Aviso de la semana = aviso de que ya está en producción (03-11-2026): corto,
-  // con el primer nombre, firmado por César y en párrafos para que no suene a plantilla.
-  if(id==='aviso_sem'){
-    var pn=String(n).trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
-    return'Hola '+pn+'! Te escribe César de Casa Zaru.\n\nTe cuento que tu pedido ya está en producción. Queda listo la próxima semana y apenas tenga el día de despacho te aviso.\n\nCualquier cosa me escribes.';
-  }
-  if(id==='aviso_lun')return'Hola '+n+'! Tu pedido #'+num+' sale el '+fechaEnvStr+'. Cualquier cosa me avisas.';
-  if(id==='aviso_dia')return'Hola '+n+'! '+(dRel>=0?'Hoy':'Mañana')+' sale tu pedido #'+num+'. ¿La dirección sigue siendo la misma?';
-  if(id==='comprobante')return'Hola '+n+'! Te envío el comprobante de tu pedido #'+num+'.';
-  return'Hola! '+n+'. Quería confirmar si recibiste todo bien finalmente!';
+  var s=_saludoCesar(o.nombre);
+  if(id==='aviso_sem')return s+'Te cuento que tu pedido ya está en producción. Queda listo la próxima semana y apenas tenga el día de despacho te aviso.\n\nCualquier cosa me escribes.';
+  if(id==='aviso_lun')return s+'Tu pedido sale el '+String(fechaEnvStr).replace(',','')+'.\n\nCualquier cosa me avisas.';
+  if(id==='aviso_dia')return s+(dRel>=0?'Hoy':'Mañana')+' sale tu pedido. ¿La dirección de entrega sigue siendo la misma?\n\nQuedo atento.';
+  if(id==='comprobante')return s+'Tu pedido ya salió. Te dejo el comprobante del envío para que puedas seguirlo.\n\nCualquier cosa me escribes.';
+  return s+'Quería saber si te llegó todo bien y si quedaste conforme con tu pedido.\n\nCualquier cosa me dices.';
 }
 // Devuelve los avisos que hoy le corresponden a César, ya ordenados.
 function avisosPendientes(){
@@ -28276,7 +28277,7 @@ function avisosPendientes(){
       out.push({numStr:numStr,nombre:nom,avisoId:'cambio',urgente:true,atrasado:false,falta:-999,
         tag:'⚠ Avisar el cambio de fecha',color:'#993556',
         sub:'Era '+fechaLarga(o.cambio_fecha.anterior)+' → ahora '+fechaLarga(o.cambio_fecha.nueva),
-        msg:'Hola '+(o.nombre||'')+'! Te aviso que tu pedido #'+numStr+' se corrió para el '+fechaLarga(o.cambio_fecha.nueva)+'. Disculpa el cambio, cualquier cosa me dices.'});
+        msg:_saludoCesar(o.nombre)+'Te aviso que tu pedido se corrió para el '+fechaLarga(o.cambio_fecha.nueva)+'. Disculpa el cambio.\n\nCualquier cosa me dices.'});
     }
     var env=fechaEnvioPedido(o);if(!env)return;
     var dRel=Math.round((hoy-env)/86400000);
@@ -36385,7 +36386,7 @@ function renderContactosPendientes(){
     if(diaC&&!isNaN(diaC)){
       var d1=Math.round((hoy-diaC)/86400000);
       if(d1>=3&&d1<=6&&!(o.contactos&&o.contactos.c1)){
-        var msg1='Hola '+nombre+'! 👋 Te escribimos desde Casa Zaru para confirmarte que tu pedido #'+numStr+' ('+producto+') ya está en producción. En breve te avisamos la fecha exacta de entrega 🪵';
+        var msg1=_saludoCesar(nombre)+'Te cuento que tu pedido ya está en producción. Apenas tenga la fecha de despacho te aviso.\n\nCualquier cosa me escribes.';
         var _dEc1=fechaEnvioPedido(o);
         var _dfeC1=(_dEc1&&!isNaN(_dEc1))?Math.round((_dEc1-hoy)/86400000):999;
         pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c1',tag:'Confirmar producción',sub:'Día '+d1+' desde la compra',color:'var(--brand)',msg:msg1,dfe:_dfeC1,estaSemana:(_dEc1&&!isNaN(_dEc1))?_esEstaSemana(_dEc1):false});
@@ -36404,11 +36405,11 @@ function renderContactosPendientes(){
       // pedido que despachaba en 3 o 4 días caía en el hueco y no generaba
       // ningún aviso. Ahora las dos ventanas se tocan y no queda nadie afuera.
       if(dfe>=3&&dfe<=8&&!(o.contactos&&o.contactos.c2)){
-        var msg2='Hola '+nombre+'! 😊 Tu pedido de Casa Zaru (#'+numStr+' - '+producto+') estará listo para despacho el '+fechaEnvStr+'. Te confirmamos en cuanto salga 🚛';
+        var msg2=_saludoCesar(nombre)+'Tu pedido queda listo para despacho el '+fechaEnvStr.replace(',','')+'. Te confirmo cuando salga.\n\nCualquier cosa me avisas.';
         pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c2',tag:'Avisar semana de entrega',sub:'Envío en '+dfe+' días ('+fechaEnvStr+')',color:'var(--amber)',msg:msg2,dfe:dfe,estaSemana:estaSemana});
       }
       if(dfe>=0&&dfe<=2&&!(o.contactos&&o.contactos.c3)){
-        var msg3='Hola '+nombre+'! 🎉 Tu pedido de Casa Zaru (#'+numStr+') sale '+(dfe===0?'hoy':dfe===1?'mañana':'muy pronto')+' para despacho. ¡Muchas gracias por tu compra! 🪵✨';
+        var msg3=_saludoCesar(nombre)+'Tu pedido sale '+(dfe===0?'hoy':dfe===1?'mañana':'en los próximos días')+'. ¿La dirección de entrega sigue siendo la misma?\n\nMuchas gracias por tu compra.';
         pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c3',tag:'Avisar despacho',sub:dfe===0?'¡HOY!':dfe===1?'Mañana':'En '+dfe+' días',color:'var(--red)',msg:msg3,dfe:dfe,estaSemana:estaSemana});
       }
     }
