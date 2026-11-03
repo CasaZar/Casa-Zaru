@@ -28273,7 +28273,7 @@ function msgAviso(id,o,dRel,fechaEnvStr){
   var pn=String(o.nombre||'').trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
   // Reseña: favor concreto, por qué importa, que es rápido y el link directo.
   if(id==='resena')return'Hola'+(pn?' '+pn:'')+', ¿cómo estás?\n\n'+
-    'Te quería pedir un favor: ¿nos podrías dejar una reseña en Google? Somos un taller chico y cada reseña nos ayuda mucho a que otras personas nos encuentren.\n\n'+
+    'Te quería pedir un favor: ¿nos podrías dejar una reseña en Google? Cada reseña nos ayuda mucho a que otras personas nos encuentren.\n\n'+
     'Es un minuto, en este link:\n'+RESENA_GOOGLE+'\n\n'+
     'Y si le sumas una foto de cómo quedó, mejor todavía. ¡Muchas gracias!';
   return'Hola'+(pn?' '+pn:'')+', ¿cómo estás?\n\n¿Te llegó bien tu pedido?';
