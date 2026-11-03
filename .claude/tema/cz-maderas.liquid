@@ -3,7 +3,7 @@
   La galería .zaru-gallery-container (bloque custom_liquid de cada plantilla) sube al lugar del
   selector «¿Cuál madera prefieres?», que queda oculto pero sigue mandando: tocar una tarjeta cambia
   su valor y dispara «change», así que precio, variante, carrito y cz-envio siguen el camino de siempre.
-  Si la ficha no tiene galería o no tiene opción de madera, no hace nada.
+  Si la ficha no tiene galería, no tiene opción de madera o alguna madera no tiene tarjeta, no hace nada.
   Se renderiza una vez al final de sections/main-product.liquid. Fuente: .claude/tema/cz-maderas.liquid
 {%- endcomment -%}
 <style>
@@ -49,7 +49,10 @@
       });
       tarjetas.push({ el: c, img: img, valor: valor });
     });
-    if (tarjetas.filter(function (t) { return t.valor; }).length < 2) return;
+    // Toda madera que se vende tiene que tener su tarjeta: si falta una (las puertas no traen Lenga),
+    // la ficha queda como antes, con el desplegable, para no dejar una opción sin forma de elegirla.
+    var conTarjeta = tarjetas.map(function (t) { return t.valor; });
+    if (opciones.some(function (v) { return conTarjeta.indexOf(v) < 0; })) return;
 
     gal.setAttribute('data-czm', '1');
     var bloque = sel.closest('.product-form__input');
