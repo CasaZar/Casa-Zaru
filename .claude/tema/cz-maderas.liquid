@@ -7,11 +7,11 @@
   Se renderiza una vez al final de sections/main-product.liquid. Fuente: .claude/tema/cz-maderas.liquid
 {%- endcomment -%}
 <style>
-  .czm-gal{display:flex;flex-wrap:wrap;gap:12px;margin:2px 0 6px}
-  .czm-gal>.czm-card{flex:0 0 76px !important;max-width:76px !important;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
-  .czm-gal .czm-card img{width:76px !important;height:76px !important;object-fit:cover;border-radius:6px;border:3px solid transparent;box-sizing:border-box;transform:none !important;transition:border-color .15s}
+  .czm-gal{display:grid !important;grid-template-columns:repeat(4,1fr);gap:14px 10px !important;max-width:360px;margin:4px 0 8px}
+  .czm-gal>.czm-card{max-width:none !important;min-width:0;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;outline:none}
+  .czm-gal .czm-card img{width:100% !important;height:100% !important;object-fit:cover;border-radius:6px;border:3px solid transparent;box-sizing:border-box;transform:none !important;transition:border-color .15s}
   .czm-gal .czm-card p{margin:6px 0 0 !important;font-size:13.5px !important;line-height:1.25}
-  .czm-gal .czm-card .czm-img{position:relative;display:block;width:76px;height:76px}
+  .czm-gal .czm-card .czm-img{position:relative;display:block;width:100%;aspect-ratio:1}
   .czm-gal .czm-card.czm-on img{border-color:#2e2b29}
   .czm-gal .czm-card.czm-on p{font-weight:600 !important}
   .czm-gal .czm-card.czm-on .czm-img:after{content:"";position:absolute;right:-7px;top:-7px;width:20px;height:20px;border-radius:50%;background:#2e2b29 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5L20 7'/%3E%3C/svg%3E") center/12px no-repeat}
