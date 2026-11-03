@@ -28224,7 +28224,9 @@ const AVISOS=[
   {id:'aviso_lun',tag:'Confirmar el día de envío',abre:-4,vence:-2,color:'var(--amber)'},
   {id:'aviso_dia',tag:'Avisar que sale mañana',abre:-2,vence:-1,color:'var(--red)'},
   {id:'comprobante',tag:'Enviar el comprobante',abre:0,vence:1,color:'var(--red)'},
-  {id:'recibido',tag:'Preguntar si lo recibió',abre:10,vence:14,color:'var(--green)'},
+  // Abre 3 días después del envío (antes 10): Starken entrega en 2 a 5 días y
+  // el «!» de Recib no aparecía en pedidos que el cliente ya tenía (03-11-2026).
+  {id:'recibido',tag:'Preguntar si lo recibió',abre:3,vence:14,color:'var(--green)'},
 ];
 // Más allá de esto el aviso ya no tiene sentido y deja de pedirse.
 const AVISO_CADUCA_DIAS=30;
@@ -28259,7 +28261,10 @@ function msgAviso(id,o,dRel,fechaEnvStr){
   if(id==='aviso_lun')return s+'Tu pedido sale el '+String(fechaEnvStr).replace(',','')+'.\n\nCualquier cosa me avisas.';
   if(id==='aviso_dia')return s+(dRel>=0?'Hoy':'Mañana')+' sale tu pedido. ¿La dirección de entrega sigue siendo la misma?\n\nQuedo atento.';
   if(id==='comprobante')return s+'Tu pedido ya salió. Te dejo el comprobante del envío para que puedas seguirlo.\n\nCualquier cosa me escribes.';
-  return s+'Quería saber si te llegó todo bien y si quedaste conforme con tu pedido.\n\nCualquier cosa me dices.';
+  // «¿Lo recibió?»: el más corto de todos, como lo pidió el usuario (03-11). Sin
+  // firma: va en el mismo chat donde César ya mandó los avisos anteriores.
+  var pn=String(o.nombre||'').trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
+  return'Hola'+(pn?' '+pn:'')+', ¿cómo estás?\n\n¿Te llegó bien tu pedido?';
 }
 // Devuelve los avisos que hoy le corresponden a César, ya ordenados.
 function avisosPendientes(){
