@@ -1,7 +1,10 @@
 {%- comment -%}
-  Ficha de cubierta (boceto C, aprobado el 03-11-2026). Solo para las plantillas de cubiertas:
-  se renderiza desde sections/main-product.liquid con  if template.suffix contains 'cubierta'.
-  Mesas y puertas no la cargan.
+  Ficha de cubierta (boceto C, aprobado el 03-11-2026). Para las plantillas de cubiertas y, desde el
+  03-11-2026, la de las puertas con vidrio (pagina-puerta-entrelagos): se renderiza desde
+  sections/main-product.liquid con  if template.suffix contains 'cubierta' or template.suffix == 'pagina-puerta-entrelagos'.
+  Mesas y las demás puertas no la cargan.
+  En las puertas además: medidas agrupadas por alto, «Incluye la hoja…» y, si el producto tiene una
+  opción con «vidrio» en el nombre, el vidrio como tarjetas (simple / termopanel con «+$X»).
 
   No reemplaza nada del tema: los selectores de madera y tamaño quedan ocultos pero siguen mandando
   (cada botón cambia su valor y dispara «change», como cz-maderas), así que variante, precio, carrito,
@@ -23,7 +26,20 @@
   assign dibujo = 'rect'
   assign eje2 = 'Fondo'
   assign espesor = '4 cm'
+  assign tipo = 'cubierta'
+  assign cotiza = 'cubierta'
   case suf
+    when 'pagina-puerta-entrelagos'
+      assign tipo = 'puerta'
+      assign cotiza = 'puertas'
+      assign med_titulo = 'Cualquier ancho y alto'
+      assign med_texto = 'Para vanos que no calzan con las medidas estándar.'
+      assign med_pie = 'Mide el ancho y el alto de la hoja que necesitas. Si tienes dudas, te ayudamos por WhatsApp.'
+      assign op_texto = 'Ancho × alto de la hoja.'
+      assign dibujo = 'puerta'
+      if product.handle contains 'entrelagos'
+        assign dibujo = 'puerta-tiras'
+      endif
     when 'cubierta-cocina'
       assign med_texto = 'Para islas, barras o cualquier largo y fondo.'
       assign med_pie = 'Mide el largo de muro a muro y el fondo desde la pared hasta el borde del mueble.'
@@ -53,9 +69,21 @@
   <div class="czc-medida">
     <h3>A tu medida <span>{{ med_titulo }}</span></h3>
     <p>{{ med_texto }} Pones las medidas y ves el precio al instante.</p>
-    <a class="czc-btn czc-borde" href="https://cotizador.casazaru.cl/?prod=cubierta">Cotizar a mi medida</a>
+    <a class="czc-btn czc-borde" href="https://cotizador.casazaru.cl/?prod={{ cotiza }}">Cotizar a mi medida</a>
     <div class="czc-dib">
-      {%- if dibujo == 'redondo' -%}
+      {%- if tipo == 'puerta' -%}
+        <svg viewBox="0 0 330 206" aria-label="Cómo medir la puerta"><rect x="137" y="12" width="56" height="160" fill="#EAD9C0" stroke="#485B3D" stroke-width="1.6"/>
+        <g fill="#DCE6EC" stroke="#9FB3C8" stroke-width=".8">
+        {%- if dibujo == 'puerta-tiras' -%}
+          <rect x="149" y="23.9" width="32" height="12.8"/><rect x="149" y="48.6" width="32" height="12.8"/><rect x="149" y="73.3" width="32" height="12.8"/>
+          <rect x="149" y="98" width="32" height="12.8"/><rect x="149" y="122.7" width="32" height="12.8"/><rect x="149" y="147.4" width="32" height="12.8"/>
+        {%- else -%}
+          <rect x="149" y="24" width="32" height="62"/><rect x="149" y="98" width="32" height="62"/>
+        {%- endif -%}
+        </g><rect x="186" y="86" width="3" height="16" rx="1.5" fill="#485B3D"/>
+        <path class="czc-cota" d="M137 184 H193 M137 179 v10 M193 179 v10"/><text x="165" y="200" text-anchor="middle">Ancho</text>
+        <path class="czc-cota" d="M210 12 V172 M205 12 h10 M205 172 h10"/><text x="220" y="96">Alto</text></svg>
+      {%- elsif dibujo == 'redondo' -%}
         <svg viewBox="0 0 330 116" aria-label="Cómo medir la cubierta redonda"><ellipse cx="165" cy="52" rx="110" ry="34" fill="#fff" stroke="#485B3D" stroke-width="1.6"/>
         <path d="M55 52 V62 A110 34 0 0 0 275 62 V52" fill="none" stroke="#485B3D" stroke-width="1.6"/>
         <path class="czc-cota" d="M55 52 H275 M55 47 v10 M275 47 v10"/><text x="165" y="45" text-anchor="middle">Diámetro</text>
@@ -111,6 +139,26 @@
   .czc-fija a{background:#fff;color:#485B3D;border:1.5px solid #485B3D}
   .czc-fija button{background:#485B3D;color:#fff;border:0}
   @media (min-width:750px){.czc-fija{display:none}}
+  .czc-grupo{margin:14px 0 0 !important;font-size:12px !important;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#57524B !important}
+  .czc-grupo+.czc-tams{margin-top:6px}
+  .czc-incl{display:flex;gap:8px;align-items:flex-start;margin-top:12px;padding:10px;border-radius:6px;background:#fff;border:1px solid #DDD3C4;font-size:12.5px;line-height:1.45;color:#57524B}
+  .czc-incl .czc-i{width:18px;height:18px;margin-top:1px}
+  .czc-incl b{color:#1F1D24;font-weight:600}
+  .czc-chip{display:inline-flex;align-items:center;gap:6px;margin:8px 0 4px;padding:5px 10px;border-radius:999px;background:#F6EBDD;color:#7A4019;font-size:12.5px;font-weight:600}
+  .czc-chip .czc-i{width:16px;height:16px;stroke:#7A4019}
+  .czc-vids{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  .czc-vid{position:relative;border:1.5px solid #DDD3C4;border-radius:8px;padding:12px 8px 10px;background:#fff;text-align:center;font:inherit;color:#1F1D24;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .czc-vid .czc-i{width:34px;height:34px;display:block;margin:0 auto 6px}
+  .czc-vid b{display:block;font-size:14px;font-weight:600}
+  .czc-vid .czc-pv{display:block;margin-top:1px;font-size:13px;color:#57524B}
+  .czc-vid small{display:block;margin-top:5px;font-size:11.5px;line-height:1.35;color:#57524B}
+  .czc-vid.czc-tp{border-color:#B5652E;background:#FFFBF6}
+  .czc-vid.czc-tp .czc-pv{color:#7A4019;font-weight:600}
+  .czc-vid.czc-on{border-color:#485B3D;box-shadow:inset 0 0 0 1px #485B3D}
+  .czc-vid[disabled]{opacity:.45;cursor:default}
+  .czc-vid:focus-visible{outline:2px solid #485B3D;outline-offset:2px}
+  .czc-sello{position:absolute;top:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#B5652E;color:#fff;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+  .czc-porque{margin:10px 0 4px !important;border-left:3px solid #B5652E;padding:2px 0 2px 10px;font-size:13px;line-height:1.5;color:#57524B}
   .czc-oculto{display:none !important}
 </style>
 <script>
@@ -119,8 +167,12 @@
     camion: '<path d="M2 7h12v9H2z"/><path d="M14 10h4l3 3.5V16h-7"/><circle cx="6" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
     escudo: '<path d="M12 2.5l8 3v6c0 5-3.6 8.7-8 10-4.4-1.3-8-5-8-10v-6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
     reloj: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>',
-    globo: '<path d="M4 20l1.3-3.8A8 8 0 1 1 8 19z"/>'
+    globo: '<path d="M4 20l1.3-3.8A8 8 0 1 1 8 19z"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/>',
+    vidrio: '<rect x="7" y="3" width="10" height="18" rx="1"/>',
+    termo: '<rect x="4" y="3" width="7" height="18" rx="1"/><rect x="13" y="3" width="7" height="18" rx="1"/>'
   };
+  var ES_PUERTA = {{ tipo | json }} === 'puerta';
   function icono(n) { return '<svg class="czc-i" viewBox="0 0 24 24" aria-hidden="true">' + ICONOS[n] + '</svg>'; }
   function norm(t) { return (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   function pesos(n) { return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -145,11 +197,12 @@
     try { datos = JSON.parse(datosEl.textContent); } catch (e) { return; }
 
     var sels = [].slice.call(raiz.querySelectorAll('variant-selects select, variant-radios select'));
-    var selMad = null, selTam = null;
+    var selMad = null, selTam = null, selVid = null;
     sels.forEach(function (s) {
       var n = norm(s.name);
       if (n.indexOf('madera') >= 0) selMad = s;
       else if (n.indexOf('tama') >= 0 || n.indexOf('medida') >= 0) selTam = s;
+      else if (n.indexOf('vidrio') >= 0) selVid = s;
     });
     if (!selMad || !selTam) return;
     var iMad = datos.opciones.indexOf(nombreOpcion(selMad));
@@ -190,9 +243,27 @@
     var op = document.createElement('div');
     op.className = 'czc-op';
     op.innerHTML = '<h3>Medida estándar <span>Se compra aquí</span></h3>' +
-      ({{ op_texto | json }} ? '<p></p>' : '') + '<div class="czc-tams" role="radiogroup"></div>';
+      ({{ op_texto | json }} ? '<p></p>' : '');
     if (op.querySelector('p')) op.querySelector('p').textContent = {{ op_texto | json }};
-    var tams = op.querySelector('.czc-tams');
+    // En las puertas los tamaños van agrupados por alto («200 cm de alto»); en cubiertas, una sola grilla
+    var grillas = {};
+    function grilla(valor) {
+      var m = ES_PUERTA && /×\s*(\d+)/.exec(etiqueta(valor).a);
+      var k = m ? m[1] : '';
+      if (!grillas[k]) {
+        if (k) {
+          var g = document.createElement('p');
+          g.className = 'czc-grupo';
+          g.textContent = k + ' cm de alto';
+          op.appendChild(g);
+        }
+        grillas[k] = document.createElement('div');
+        grillas[k].className = 'czc-tams';
+        grillas[k].setAttribute('role', 'radiogroup');
+        op.appendChild(grillas[k]);
+      }
+      return grillas[k];
+    }
     var botones = [].map.call(selTam.options, function (o) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -203,12 +274,60 @@
       if (e.b) { var t2 = document.createElement('small'); t2.textContent = e.b; b.appendChild(t2); }
       var pr = document.createElement('small'); b.appendChild(pr);
       b.addEventListener('click', function () { elegir(selTam, o.value); });
-      tams.appendChild(b);
+      grilla(o.value).appendChild(b);
       return { b: b, valor: o.value, pr: pr };
     });
+    if (ES_PUERTA) {
+      var incl = document.createElement('div');
+      incl.className = 'czc-incl';
+      incl.innerHTML = icono('info') + '<span><b>Incluye la hoja de la puerta</b>, de 4 cm de espesor' +
+        (selVid ? ', con sus vidrios' : '') + '. Marco, bisagras y cerradura no vienen incluidos.</span>';
+      op.appendChild(incl);
+    }
     var cajaSel = bloqueTam.querySelector('.select') || selTam;
     cajaSel.classList.add('czc-oculto');
     cajaSel.parentNode.insertBefore(op, cajaSel);
+
+    // 2b) Vidrio como tarjetas (solo si el producto tiene esa opción). Se parte en lo que diga la
+    // variante; el termopanel nunca se marca solo.
+    var vidrios = [], valSimple = null, hayTermo = false;
+    if (selVid) {
+      var cajaVid = selVid.closest('.product-form__input');
+      cajaVid = (cajaVid && cajaVid.querySelector('.select')) || selVid;
+      var vids = document.createElement('div');
+      vids.className = 'czc-vids';
+      vids.setAttribute('role', 'radiogroup');
+      vidrios = [].map.call(selVid.options, function (o) {
+        var termo = norm(o.value).indexOf('termopanel') >= 0;
+        if (termo) hayTermo = true; else if (!valSimple) valSimple = o.value;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'czc-vid' + (termo ? ' czc-tp' : '');
+        b.setAttribute('role', 'radio');
+        b.innerHTML = (termo ? '<span class="czc-sello">Más abrigo</span>' : '') + icono(termo ? 'termo' : 'vidrio') +
+          '<b></b><span class="czc-pv"></span><small>' + (termo ? 'Doble vidrio de 4 mm con cámara de aire.' : 'Vidrio de 5 mm.') + '</small>';
+        b.querySelector('b').textContent = o.value;
+        b.addEventListener('click', function () { elegir(selVid, o.value); });
+        vids.appendChild(b);
+        return { b: b, valor: o.value, termo: termo, pv: b.querySelector('.czc-pv') };
+      });
+      cajaVid.classList.add('czc-oculto');
+      cajaVid.parentNode.insertBefore(vids, cajaVid);
+      if (hayTermo) {
+        var porque = document.createElement('p');
+        porque.className = 'czc-porque';
+        porque.textContent = 'Si la puerta da hacia afuera, te recomendamos el termopanel: son dos vidrios con aire sellado entre medio, así que la puerta abriga más, entra menos ruido y el vidrio se empaña menos en invierno.';
+        vids.parentNode.insertBefore(porque, cajaVid);
+        // Aviso bajo el precio de arriba
+        var precioTop = info.querySelector('[id^="price-"]');
+        if (precioTop) {
+          var chip = document.createElement('span');
+          chip.className = 'czc-chip';
+          chip.innerHTML = icono('termo') + 'Disponible con termopanel';
+          precioTop.parentNode.insertBefore(chip, precioTop.nextSibling);
+        }
+      }
+    }
 
     // 3) Caja de compra alrededor del bloque del botón del tema (no se mueve el formulario)
     var bloqueBuy = form;
@@ -277,7 +396,19 @@
         x.b.disabled = !vv;
         x.pr.textContent = vv ? pesos(vv.p) : 'No disponible';
       });
-      res.querySelector('span').textContent = etiqueta(selTam.value).a + ' · ' + selMad.value;
+      if (selVid) {
+        var jVid = sels.indexOf(selVid);
+        var base = valSimple && precioCon(jVid, valSimple);
+        vidrios.forEach(function (x) {
+          var on = x.valor === selVid.value;
+          var vv = precioCon(jVid, x.valor);
+          x.b.classList.toggle('czc-on', on);
+          x.b.setAttribute('aria-checked', on ? 'true' : 'false');
+          x.b.disabled = !vv;
+          x.pv.textContent = !vv ? 'No disponible' : !x.termo ? 'Incluido' : base ? '+' + pesos(vv.p - base.p) : pesos(vv.p);
+        });
+      }
+      res.querySelector('span').textContent = etiqueta(selTam.value).a + ' · ' + selMad.value + (selVid ? ' · ' + selVid.value : '');
       res.querySelector('b').textContent = v ? pesos(v.p) : '';
       res.querySelector('em').textContent = v ? pesos(Math.ceil(v.p / 3)) : '';
       res.querySelector('.czc-cuotas').classList.toggle('czc-oculto', !v);
