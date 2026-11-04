@@ -20,9 +20,12 @@ esto.
 
 **Lecturas de Supabase: MCP oficial en solo lectura** (desde el 03-11-2026). `.mcp.json` (local, en
 `.gitignore`) define `supabase-gestion` y `supabase-cotizador`, cada uno amarrado a su `project_ref`
-con `read_only=true`. La primera vez se autentican con `/mcp`. `.claude/settings.json` además niega las
+con `read_only=true`. Autenticados los dos el 04-11-2026. En la app de escritorio `/mcp` no ofrece
+«Authenticate»: se autoriza desde la consola (`claude.exe` en una pestaña de terminal → `/mcp`), y la
+sesión de la app lo toma al reconectar o en una sesión nueva. `.claude/settings.json` además niega las
 herramientas que escriben (`apply_migration`, `deploy_edge_function`, ramas). Ojo: el MCP lee como
-`postgres`, **sin RLS**, así que ve todos los datos personales. Las escrituras **siguen** yendo por
+`supabase_read_only_user`, que no es superusuario pero tiene `bypassrls`: lee **sin RLS**, así que ve
+todos los datos personales. Las escrituras **siguen** yendo por
 migración pegada en el SQL Editor, con el ok del usuario. No sacar `read_only=true`.
 
 Por eso todo lo que escribe en Supabase va por el **SQL Editor del panel** (o por HTTP contra PostgREST), y
