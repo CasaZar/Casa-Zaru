@@ -42,14 +42,15 @@ Después de cualquier cambio, volver a probar las 5 cubiertas y comprobar que me
   `base-de-fierro-armable`, `base-trapecio-armable-de-fierro-negro`, `base-x-armable-de-fierro-negro`.
 - **Propuesta (confirmar conmigo)**: un solo producto «Base de fierro para mesa», con
   - opción 1 **Forma**: Trapecio / X / Rectangular (tarjetas con la foto de cada una, sacadas de los 3 borradores);
-  - opción 2 **Largo de la cubierta**: «Hasta 240 cm» $289.900 / «Más de 240 cm» $319.900. Precio decidido el
-    08-10-2026, igual para las 3 formas.
+  - opción 2 **Largo de la cubierta**, tramos del 03-11-2026 (con IVA, iguales para las 3 formas): hasta 200 cm
+    $289.900 · 201-240 $319.900 · 241-280 $339.900 · 281-340 $369.900 · 341-400 $399.900. Reemplazan al
+    ≤240/>240 del 08-10. Ojo: el Cotizador todavía tiene los tramos viejos.
 - Fierro negro, armable, 71 cm de alto. Peso en Shopify: **21,7 kg** (regla de pesos para Starken).
   Revisar si el precio o el peso cambia con el largo.
-- «A tu medida»: no lleva caja propia. Para mesas de más de 240 cm, línea «¿Tu mesa es más larga? Escríbenos
+- «A tu medida»: no lleva caja propia. Para mesas de más de 400 cm, línea «¿Tu mesa es más larga? Escríbenos
   por WhatsApp» (el número 5558, el de la web).
 - **Para el upsell después**: el largo de la cubierta elegida en la ficha de cubierta de mesa tiene que alcanzar
-  para escoger solo la variante (≤240 / >240).
+  para escoger solo el tramo de la base.
 
 ## 2) Base de fierro para banca
 - No existe en Shopify. Precio del cotizador (03-11-2026, con IVA): **$189.900 por base de fierro de banca**.
