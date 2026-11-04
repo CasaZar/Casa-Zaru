@@ -80,7 +80,25 @@
       "mcp__supabase-cotizador__reset_branch",
       "mcp__supabase-cotizador__rebase_branch",
       "mcp__supabase-cotizador__pause_project",
-      "mcp__supabase-cotizador__restore_project"
+      "mcp__supabase-cotizador__restore_project",
+
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__add-to-collection",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__bulk-update-product-status",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__create-collection",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__create-digital-product",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__create-digital-product-from-link",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__create-discount",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__create-product",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__graphql_mutation",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__import-mock-shop-catalog",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__open-digital-products-install",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__publish-digital-product",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__set-inventory",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__update-collection",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__update-product",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__upload-digital-product-file",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__upload-digital-product-media",
+      "mcp__968b530b-56ca-47bd-bc25-c7c928004954__upload_file"
     ]
   }
 }
