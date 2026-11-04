@@ -18,7 +18,14 @@ la Microsoft Store. Hubo una versión de esta sección que decía lo contrario (
 estaba mal y se borró. Si alguien lo instala, correr `Get-Command node, supabase` antes de reescribir
 esto.
 
-Por eso todo lo de Supabase va por el **SQL Editor del panel** (o por HTTP contra PostgREST), y
+**Lecturas de Supabase: MCP oficial en solo lectura** (desde el 03-11-2026). `.mcp.json` (local, en
+`.gitignore`) define `supabase-gestion` y `supabase-cotizador`, cada uno amarrado a su `project_ref`
+con `read_only=true`. La primera vez se autentican con `/mcp`. `.claude/settings.json` además niega las
+herramientas que escriben (`apply_migration`, `deploy_edge_function`, ramas). Ojo: el MCP lee como
+`postgres`, **sin RLS**, así que ve todos los datos personales. Las escrituras **siguen** yendo por
+migración pegada en el SQL Editor, con el ok del usuario. No sacar `read_only=true`.
+
+Por eso todo lo que escribe en Supabase va por el **SQL Editor del panel** (o por HTTP contra PostgREST), y
 `index.html` se prueba en el navegador: `.claude/static-server.ps1` + el Browser pane. Sin eso, las
 verificaciones son estructurales (grep, balance de llaves, conteo de `<th>` vs `<td>`).
 

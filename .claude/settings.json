@@ -61,7 +61,26 @@
       "mcp__58c361a0-ca1a-4a99-85ef-4d0077ceff3e__ads_pixel_parameter_delete",
       "mcp__58c361a0-ca1a-4a99-85ef-4d0077ceff3e__ads_experiment_abtest_create_test",
       "mcp__58c361a0-ca1a-4a99-85ef-4d0077ceff3e__ads_experiment_abtest_update_test",
-      "mcp__58c361a0-ca1a-4a99-85ef-4d0077ceff3e__ads_experiment_lift_create_test"
+      "mcp__58c361a0-ca1a-4a99-85ef-4d0077ceff3e__ads_experiment_lift_create_test",
+
+      "mcp__supabase-gestion__apply_migration",
+      "mcp__supabase-gestion__deploy_edge_function",
+      "mcp__supabase-gestion__create_branch",
+      "mcp__supabase-gestion__delete_branch",
+      "mcp__supabase-gestion__merge_branch",
+      "mcp__supabase-gestion__reset_branch",
+      "mcp__supabase-gestion__rebase_branch",
+      "mcp__supabase-gestion__pause_project",
+      "mcp__supabase-gestion__restore_project",
+      "mcp__supabase-cotizador__apply_migration",
+      "mcp__supabase-cotizador__deploy_edge_function",
+      "mcp__supabase-cotizador__create_branch",
+      "mcp__supabase-cotizador__delete_branch",
+      "mcp__supabase-cotizador__merge_branch",
+      "mcp__supabase-cotizador__reset_branch",
+      "mcp__supabase-cotizador__rebase_branch",
+      "mcp__supabase-cotizador__pause_project",
+      "mcp__supabase-cotizador__restore_project"
     ]
   }
 }
