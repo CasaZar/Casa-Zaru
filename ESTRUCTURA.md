@@ -172,3 +172,38 @@ cambiarlo en el Manual.
 2. `finanzas-casa` no tiene git ni respaldo de ningún tipo.
 3. Rotar la key de Anthropic y la `service_role` de Supabase.
 4. ✅ `supabase-cotizador/rls-por-vendedor.sql` — **ya estaba aplicado** (verificado 15-09-2026 simulando cada cuenta: admin ve 1.527, César 1.463, Jepe 64, una cuenta desconocida 0). ⚠️ Queda un hueco aparte: `cotizacion_lineas` tiene la policy `auth_full_lineas` (ALL, `true`) — cualquier login lee y edita las líneas de todas las cotizaciones.
+
+---
+
+## 9. Módulo de gastos de la Gestión
+
+Movido desde `CLAUDE.md` el 03-11-2026. Leer antes de tocar facturas, bodega o el mayor.
+
+### Alcance
+Es el circuito **factura → bodega → costo del pedido**, para sacar el margen real por pedido.
+No es un reemplazo de `casa-zaru-gastos`: esa app es aparte, corre sobre su propio Firebase y no se
+toca. Hubo un intento de consolidar las dos (migraciones 0002 y 0003) que se revirtió a propósito.
+
+**Qué está construido:** las dos ramas de la factura (insumo / gasto directo), el insumo entra a
+bodega como activo, el gasto directo va al mayor, unidad obligatoria, cantidades decimales, madera
+en pulgadas, permisos por rol.
+
+**Qué falta:** el botón para que el taller **descuente bodega al costear un pedido**. Es la caja del
+medio del diagrama y sin ella el margen sigue siendo teórico: `_aUnidadStock()` existe y está probada,
+pero la conversión m²→pulgadas nunca se ejecuta porque solo se la llama desde el editor de facturas.
+Falta también el modal que ofrece actualizar el costo estándar cuando cambia un precio de compra.
+
+Las tablas están **vacías**: los catálogos (9 unidades, 25 categorías) sembrados, nada más.
+
+### Tablas
+Siete tablas **relacionales**, con `id bigint generated always as identity` y llaves
+foráneas reales (migración `supabase/migrations/0001_gastos_inventario.sql`):
+`unidades` · `gasto_categorias` · `proveedores` · `facturas` · `factura_lineas` · `inventario` · `mayor`
+
+No usan `api()`: se hablan por PostgREST con `sbGet` / `sbInsert` / `sbUpdate` / `sbDelete`.
+Un movimiento del mayor apunta a la línea de factura que lo originó, esa línea a un ítem de bodega y
+ese ítem a su unidad; dentro de un jsonb esos vínculos serían texto que nadie valida.
+
+Las lecturas van por vistas (`v_mayor`, `v_facturas`, `v_inventario`), que traen los campos calculados
+(`estado`, `gasto_real`, `costo_periodo`, `valorizado`). **Esas fórmulas viven solo en SQL** — no
+recalcularlas en JS. Después de escribir, recargar con `recargarGastos()` en vez de parchar el arreglo.

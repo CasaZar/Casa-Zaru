@@ -1,7 +1,7 @@
 # Casa Zaru — Reglas del Proyecto
 
 ## Archivo principal
-`index.html` — single-file HTML de ~1.27 MB. Hacer **ediciones puntuales (str_replace)**, nunca regenerar el archivo completo.
+`index.html` — single-file HTML de ~1,7 MB. Hacer **ediciones puntuales (str_replace)**, nunca regenerar el archivo completo.
 
 Ver `ESTRUCTURA.md` para el mapa completo (3 repos, 3 sitios, 3 proyectos Supabase).
 Ver `WASABIL-SII.md` para todo lo de boletas, facturas, SII y Wasabil (dónde vive cada pieza,
@@ -55,70 +55,14 @@ llame el proyecto en el panel. PostgreSQL 17.6. Ambos están en la organización
 (`ivbgokwoajlrqmruervf`), plan Free.
 
 
-### Migraciones
-Van en **`supabase/migrations/<NNNN>_<nombre>.sql`**, correlativas desde `0001`. Los ceros a la
-izquierda no son adorno: la versión se guarda como **texto**, así que sin relleno la `10` quedaría
-ordenada entre la `1` y la `2`.
+### Migraciones y SQL
+**Antes de escribir una migración o cualquier `.sql`, leer `supabase/migrations/README.md`** (registro en
+`schema_migrations`, etiqueta de cita propia, el hueco de la `0004`). Lo mínimo que no se olvida:
+- `supabase/migrations/<NNNN>_<nombre>.sql`, con 4 dígitos. El número libre es el siguiente al mayor del
+  repo (después de `git pull`) **y** de `schema_migrations`: hay varias sesiones a la vez.
+- `supabase/` = Gestión, `supabase-cotizador/` = Cotizador. Nunca los dos proyectos en un mismo archivo.
+- Todo `.sql` suelto empieza con el **candado de proyecto** (`do $candado$`). No borrarlo.
 
-El registro de lo aplicado lo lleva Supabase en `supabase_migrations.schema_migrations`, que es lo
-que muestra Database → Migrations en el panel. Como no hay CLI (ver arriba), las migraciones se
-aplican a mano en el SQL Editor, y **hay que insertar la fila ahí también**, si no el panel no la ve:
-
-```sql
-insert into supabase_migrations.schema_migrations (version, name, statements)
-values ('0005', 'nombre_corto', array[$mig$ <contenido del .sql> $mig$]);
-```
-
-⚠️ La etiqueta de la cita (`$mig$`) **no puede aparecer dentro del archivo**: si la migración la
-menciona en un comentario (todas lo hacen, porque llevan este mismo recordatorio al final), la cita se
-corta ahí y el editor tira `syntax error at or near "archivo"`. Usar una etiqueta propia por
-migración, por ejemplo `$m0023$`. Pasó con la 0023 el 26-10-2026.
-
-**No llevar una tabla de migraciones propia** — ya existe una y duplicarla es pedir que diverjan.
-
-Estado: el 3 sep 2026 estaban aplicadas y registradas `0001`–`0003` y `0005`–`0014`; al 16-10 el
-repo llega a la `0018`. Lo aplicado de verdad se mira en `schema_migrations`, no en esta línea.
-**No existe ninguna `0004`**, ni en el repo ni en la base — el hueco es a propósito y no hay nada
-pendiente ahí.
-
-⚠️ **Antes de numerar una migración nueva, hacer `git pull` y además mirar
-`supabase_migrations.schema_migrations`.** Hay más de una sesión trabajando sobre este repo a la vez:
-la `0014` casi sale numerada `0013` porque el clon local estaba atrasado y no tenía todavía la
-`0013_limpia_placeholder_item_nombre` que otra sesión ya había pusheado y aplicado. La base sabía la
-verdad y la carpeta no. El número libre es el siguiente al mayor de **ambos**.
-
-Los `.sql` sueltos (fuera de `migrations/`) son parches corridos a mano y **no registrados**.
-Dejarlos fuera de `migrations/` es deliberado: si se movieran ahí, `db push` los re-ejecutaría.
-
-**Cada proyecto tiene su carpeta, y no se mezclan** (separado el 15-09-2026):
-
-| Carpeta | Proyecto | Qué va |
-|---|---|---|
-| `supabase/` (y `supabase/migrations/`) | Gestión `padnttpgzuotxeipjrry` | migraciones y parches de Gestión |
-| `supabase-cotizador/` | Cotizador `cmxqorsyxoltrakxawro` | todo el SQL del cotizador público y del panel |
-
-**Todo `.sql` suelto empieza con un CANDADO DE PROYECTO**: un `do $candado$` que falla si se pega en
-el SQL Editor equivocado, y como Postgres corre el script entero en una sola transacción, no se
-aplica nada. No borrarlo, y copiarlo en todo archivo nuevo. El del Cotizador revisa que **no**
-exista `gestion_pedidos` (no alcanza con pedir `cotizaciones`: Gestión tiene una vacía y un
-`alter` pasaría ahí sin error). Un archivo nunca debe tener bloques para los dos proyectos: se parte
-en dos, uno por carpeta (así se hizo con `brief-matinal-acceso.sql`).
-
-## Alcance del módulo de gastos
-Es el circuito **factura → bodega → costo del pedido**, para sacar el margen real por pedido.
-No es un reemplazo de `casa-zaru-gastos`: esa app es aparte, corre sobre su propio Firebase y no se
-toca. Hubo un intento de consolidar las dos (migraciones 0002 y 0003) que se revirtió a propósito.
-
-**Qué está construido:** las dos ramas de la factura (insumo / gasto directo), el insumo entra a
-bodega como activo, el gasto directo va al mayor, unidad obligatoria, cantidades decimales, madera
-en pulgadas, permisos por rol.
-
-**Qué falta:** el botón para que el taller **descuente bodega al costear un pedido**. Es la caja del
-medio del diagrama y sin ella el margen sigue siendo teórico: `_aUnidadStock()` existe y está probada,
-pero la conversión m²→pulgadas nunca se ejecuta porque solo se la llama desde el editor de facturas.
-Falta también el modal que ofrece actualizar el costo estándar cuando cambia un precio de compra.
-
-Las tablas están **vacías**: los catálogos (9 unidades, 25 categorías) sembrados, nada más.
 ## Esquema de datos
 Dos mitades, a propósito distintas.
 
@@ -129,17 +73,10 @@ Se hablan con `api('coleccion/clave', metodo, data)`, que mantiene el contrato d
 (por eso las ~47 llamadas del archivo no cambiaron). El mapa `TABLA` traduce colección → tabla.
 **Producción es la fuente de verdad.** Config dentro de la colección: `costos/__estandar`.
 
-**2) Gastos** — siete tablas **relacionales**, con `id bigint generated always as identity` y llaves
-foráneas reales (migración `supabase/migrations/0001_gastos_inventario.sql`):
-`unidades` · `gasto_categorias` · `proveedores` · `facturas` · `factura_lineas` · `inventario` · `mayor`
-
-No usan `api()`: se hablan por PostgREST con `sbGet` / `sbInsert` / `sbUpdate` / `sbDelete`.
-Un movimiento del mayor apunta a la línea de factura que lo originó, esa línea a un ítem de bodega y
-ese ítem a su unidad; dentro de un jsonb esos vínculos serían texto que nadie valida.
-
-Las lecturas van por vistas (`v_mayor`, `v_facturas`, `v_inventario`), que traen los campos calculados
-(`estado`, `gasto_real`, `costo_periodo`, `valorizado`). **Esas fórmulas viven solo en SQL** — no
-recalcularlas en JS. Después de escribir, recargar con `recargarGastos()` en vez de parchar el arreglo.
+**2) Gastos** — siete tablas **relacionales** con FK reales, por PostgREST (`sbGet` / `sbInsert` /
+`sbUpdate` / `sbDelete`), no por `api()`. Las fórmulas (`v_mayor`, `v_facturas`, `v_inventario`) viven
+**solo en SQL**: no recalcularlas en JS; después de escribir, `recargarGastos()`. No es la app
+`casa-zaru-gastos` (esa no se toca). Alcance, lo que falta y detalle: **`ESTRUCTURA.md` §9**.
 
 ## Roles
 `admin` (todo) · `vendedor` (sin Finanzas/Costos/Pixel/Gastos) · `taller` (Producción + bodega).
@@ -190,16 +127,10 @@ Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de h
 La auditoría semanal que mide el cumplimiento es la skill `/auditoria` (abajo).
 
 ## Skills del proyecto
-Viven en `.claude/skills/`. Invocarlas cuando el pedido calce, en vez de reconstruir el análisis a mano:
-
-| Skill | Cuándo se activa |
-|---|---|
-| `auditoria` | "auditoría", "auditoría de confiabilidad", "cómo están los respaldos", "semáforo", o los lunes. Ocho puntos (respaldo, restauración, migraciones, RLS, secretos, integridad, errores del cliente, sitios) con `scripts/auditoria.ps1`; **solo reporta, no corrige**. Informe en `Informes Gestion/` (Drive). |
-| `cierre-semanal` | "cierre semanal", "cómo vamos este mes", "en qué tramo está César", "qué despacha esta semana". Venta acumulada del mes, tramo de comisión y despachos. |
-| `analisis-cotizador` | "análisis del cotizador", "qué se está cotizando", "cómo va el seguimiento". Productos, medidas y ticket cotizados, más tiempo al primer toque y cotizaciones sin tocar. |
-| `conciliacion` | "conciliación", "qué pagos faltan marcar", "qué boletas faltan emitir", o cuando pasan la cartola BCI / export de Mercado Pago. Cruza pagos vs Finanzas vs documentos; totales aparte de Point (ferias) y Mercado Libre. Scripts en `scripts/`; los nombres personales a excluir viven en `%USERPROFILE%\.claude\conciliacion-excluir.txt` (el repo es público). |
-| `cierre-mensual` | "cierre mensual", "cierre de <mes>", "estado de resultados", "cuánto ganamos", "tablero", "cuadre semanal". Libro Excel de 19 hojas (el cuadre semanal es la hoja Semanas) + `Tablero Casa Zaru.html` y `.pdf` con `.claude/informes/libro-mensual.ps1` (y `tablero.ps1`); corre solo los lunes 10:15 y el día 2. Gastos desde la planilla Wasabil + `reglas-cierre.csv`, umbrales en `metas.csv`, historial en `historial-mensual.csv` (privados, en `Casa Zaru Planillas`), nunca un mapa aparte. |
-| `gads` | Auditoría de Google Ads, Search Console, PMax, Merchant Center o Business Profile, a partir de exports CSV/Excel. **No** es para Meta ni para crear campañas. |
+Viven en `.claude/skills/`: `auditoria`, `cierre-semanal`, `analisis-cotizador`, `conciliacion`,
+`cierre-mensual`, `gads`. Cuándo se activa cada una lo dice su propia descripción (y el detalle, su
+`SKILL.md`). Invocarlas cuando el pedido calce, en vez de reconstruir el análisis a mano. `auditoria`
+**solo reporta, no corrige**.
 
 `.claude/settings.json` bloquea todas las operaciones de **escritura** del MCP de Meta Ads (crear o
 activar campañas, editar catálogo, tocar el pixel). Lectura y análisis sí. No sacar esos `deny`.
