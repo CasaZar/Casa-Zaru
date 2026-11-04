@@ -29320,7 +29320,13 @@ function renderPrevRows(lineas){
   const ACABADOS=['VIT MATE','VIT SEMI BRILLO','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO'];
   function calcM2(l,a,c){const m=(Number(l)/100)*(Number(a)/100)*Number(c);return isNaN(m)?0:m;}
   document.getElementById('prev-tbody').innerHTML=lineas.map((l,i)=>{
-    const mOpts=MADERAS.map(m=>`<option${m===l.madera?' selected':''}>${m}</option>`).join('');
+    // El pantallazo trae la madera escrita como venga ("PINO OREGON", "MAÑIO",
+    // "Raulí") y la comparación exacta no marcaba ninguna opción: el menú mostraba
+    // la primera, COIHUE, aunque se guardara otra (04-11-2026). Se pasa al nombre
+    // oficial, y si no está en la lista se muestra tal cual en vez de esconderla.
+    if(l.madera){const _mc=maderaCanonica(l.madera);if(MADERAS.indexOf(_mc)>=0)l.madera=_mc;}
+    const _mExtra=!l.madera?'<option selected></option>':(MADERAS.indexOf(l.madera)<0?'<option selected>'+esc(l.madera)+'</option>':'');
+    const mOpts=_mExtra+MADERAS.map(m=>'<option'+(m===l.madera?' selected':'')+'>'+m+'</option>').join('');
     const cOpts=CANTOS.map(c=>`<option${c===l.canto?' selected':''}>${c}</option>`).join('');
     const aOpts=ACABADOS.map(a=>`<option${a===l.acabado?' selected':''}>${a}</option>`).join('');
     const m2=calcM2(l.largo,l.ancho,l.cantidad);
