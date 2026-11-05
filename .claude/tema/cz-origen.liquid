@@ -1,72 +1,27 @@
 {%- comment -%}
-  Origen del anuncio hacia el cotizador (28-10-2026).
-  Los anuncios llevan a casazaru.cl y el link al cotizador perdía el gclid/UTM, así que
-  ninguna cotización quedaba atribuida a Google. Este script guarda la marca del anuncio
-  al entrar (90 días, igual que el cotizador) y se la agrega a todo link hacia
-  cotizador.casazaru.cl, sin pisar los parámetros que el link ya trae (?prod=…).
-  Si la visita no trae marca en la URL, usa la cookie de la etiqueta de Google (_gcl_aw / _gcl_gb).
-  No muestra nada. Se renderiza una vez en layout/theme.liquid, antes de </body>.
-  Las llaves son las mismas que lee origenCapturar() en el cotizador (ORIGEN_ANUNCIO).
+  cz-origen (05-11-2026): recuerda de qué anuncio llegó el visitante, para que el
+  cotizador (cotizador.casazaru.cl) lo guarde en la cotización. Antes se perdía: el
+  link «Cotizar» de la tienda no lleva los parámetros del anuncio y el 71 % de las
+  cotizaciones públicas llega desde acá.
+  Solo escribe cuando la URL trae un anuncio (utm_*, gclid, gbraid, wbraid, fbclid):
+  el último anuncio gana, 90 días, en una cookie del dominio .casazaru.cl que el
+  subdominio del cotizador puede leer. No se muestra nada en la página.
+  Se renderiza en layout/theme.liquid, antes de </head>.
 {%- endcomment -%}
 <script>
 (function () {
   try {
-    var LLAVES = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'gbraid', 'wbraid', 'fbclid'];
-    var LS = 'cz_origen', DIAS = 90, HOST = 'cotizador.casazaru.cl';
-
-    var q = new URLSearchParams(location.search), nuevo = {}, hay = false;
-    LLAVES.forEach(function (k) {
-      var v = q.get(k);
-      if (v) { nuevo[k] = String(v).slice(0, 300); hay = true; }
+    var p = new URLSearchParams(location.search), o = {}, hay = false;
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'gbraid', 'wbraid', 'fbclid'].forEach(function (k) {
+      var v = p.get(k);
+      if (v) { o[k] = String(v).slice(0, 150); hay = true; }
     });
-    if (hay) {
-      nuevo._t = Date.now();
-      try { localStorage.setItem(LS, JSON.stringify(nuevo)); } catch (e) {}
-    }
-
-    function cookieGcl(nombre) {
-      var m = document.cookie.match(new RegExp('(?:^|; )' + nombre + '=([^;]+)'));
-      if (!m) return '';
-      var p = decodeURIComponent(m[1]).split('.');
-      return p.length >= 3 ? p.slice(2).join('.') : '';
-    }
-
-    function origen() {
-      var g = null;
-      try { g = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
-      if (!g || !g._t || Date.now() - g._t > DIAS * 864e5) g = {};
-      if (!g.gclid && !g.gbraid && !g.wbraid) {
-        var aw = cookieGcl('_gcl_aw'), gb = cookieGcl('_gcl_gb');
-        if (aw) g.gclid = aw; else if (gb) g.gbraid = gb;
-      }
-      return g;
-    }
-
-    function marcar(a) {
-      if (!a || !a.href) return;
-      var u;
-      try { u = new URL(a.href, location.href); } catch (e) { return; }
-      if (u.hostname !== HOST) return;
-      var g = origen(), cambio = false;
-      LLAVES.forEach(function (k) {
-        if (g[k] && !u.searchParams.has(k)) { u.searchParams.set(k, g[k]); cambio = true; }
-      });
-      if (cambio) a.href = u.toString();
-    }
-
-    function marcarTodos() {
-      document.querySelectorAll('a[href*="' + HOST + '"]').forEach(marcar);
-    }
-
-    // Al hacer clic (también links que el tema dibuja después de cargar).
-    ['click', 'auxclick', 'contextmenu'].forEach(function (ev) {
-      document.addEventListener(ev, function (e) {
-        var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-        if (a) marcar(a);
-      }, true);
-    });
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', marcarTodos);
-    else marcarTodos();
+    if (!hay) return;
+    o.fecha = new Date().toISOString();
+    o.pag = location.pathname.slice(0, 80);
+    var dom = /(^|\.)casazaru\.cl$/.test(location.hostname) ? '; domain=.casazaru.cl' : '';
+    document.cookie = 'cz_origen=' + encodeURIComponent(JSON.stringify(o)) + dom +
+      '; path=/; max-age=' + (90 * 86400) + '; SameSite=Lax; Secure';
   } catch (e) {}
 })();
 </script>
