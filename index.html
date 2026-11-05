@@ -29951,6 +29951,16 @@ function _stkPartirDir(dir){
         s.match(/^(.*?)[\s,]+(\d+[A-Za-z]?)(?=\s*(?:,|$|dep|dpto|depto|casa|of|oficina|block|torre|piso|lote|parcela))[\s,]*(.*)$/i);
   return m?{calle:m[1].replace(/[,\s]+$/,''),numero:m[2],depto:m[3].replace(/^[,\s]+/,'')}:{calle:s,numero:'',depto:''};
 }
+// Starken guarda el depto en 10 caracteres y corta el resto sin avisar (OF 281309090:
+// «depto D-202» quedó «DEPTO D 20»). Se compacta igual que deptoStarken() en starken-emitir,
+// que además rechaza lo que siga sin caber.
+function _stkDeptoCorto(s){
+  var c=String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+  c=c.replace(/^(DEPARTAMENTO|DEPTO|DPTO|DEPT|DEPA|DEP|DTO)\.?\s*[:#°º-]?\s*/,'');
+  c=c.replace(/\b(DEPARTAMENTO|DEPTO|DPTO|DEPT|DEPA|DEP|DTO)\b\.?\s*[:#°º]?\s*/g,'D');
+  c=c.replace(/\bTORRE\s*/g,'T').replace(/\b(BLOCK|BLOQUE|BLK)\b\.?\s*/g,'B').replace(/\bOFICINA\s*/g,'OF').replace(/\bPISO\s*/g,'P').replace(/\bPARCELA\s*/g,'PC').replace(/\bLOTE\s*/g,'L');
+  return c.replace(/\s*(N[°º]|#)\s*/g,' ').replace(/[,;]/g,' ').replace(/\s*-\s*/g,'-').replace(/\s+/g,' ').trim();
+}
 // Kilos de las piezas: m² × 26,5 a 4 cm, proporcional al espesor (2 cm = la mitad,
 // regla del taller), + la base de fierro si la pieza la lleva. Se puede corregir.
 function _stkKilos(o){
@@ -30019,7 +30029,7 @@ function stkPintar(){
     '<div class="form-grid">'+campo('stk-rut','RUT (opcional)',f.rut)+'<div></div></div>'+
     '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Dirección de entrega</div>'+
     '<div class="form-grid">'+campo('stk-calle','Calle',dir.calle)+campo('stk-numero','Número',dir.numero)+'</div>'+
-    '<div class="form-grid">'+campo('stk-depto','Depto / casa (opcional)',dir.depto)+
+    '<div class="form-grid">'+campo('stk-depto','Depto / casa (máx. 10, ej. D-202)',_stkDeptoCorto(dir.depto),'maxlength="10"')+
       '<div class="form-group" style="position:relative"><label>Comuna</label><input id="stk-comuna" type="text" value="'+esc(f.comuna||'')+'" autocomplete="off" oninput="stkBuscarComuna(this.value)" onblur="setTimeout(stkComunaSalir,200)"><div id="stk-com-lista" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border-md);border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.12)"></div></div></div>'+
     '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Bulto</div>'+
     '<div class="form-grid">'+campo('stk-bultos','Bultos',1,'inputmode="numeric"')+campo('stk-kilos','Kilos (si lo pesaste, escribe el real)',String(_stkKilos(o)).replace('.',','),'inputmode="decimal"')+'</div>'+

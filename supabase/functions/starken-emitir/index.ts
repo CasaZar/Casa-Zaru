@@ -122,6 +122,24 @@ function rutPartes(rut: string) {
 }
 // Starken escribe las comunas sin tildes ni ñ (NUNOA, PENALOLEN).
 function comunaStarken(c: string) { return c.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/Ñ/g, 'N').trim(); }
+// Starken guarda el depto del destinatario en 10 caracteres y corta el resto SIN avisar:
+// la OF 281309090 (pedido 1607, 04-11-2026) mandó «depto D-202» y quedó «DEPTO D 20».
+// Se compacta («depto D-202» → «D-202», «Torre B depto 1504» → «TB D1504») y, si igual
+// no cabe, se rechaza antes de emitir para que lo acorte quien emite. Misma regla que
+// _stkDeptoCorto() en index.html.
+const DEPTO_MAX = 10;
+function deptoStarken(s: string) {
+  let c = comunaStarken(s).replace(/\s+/g, ' ');
+  c = c.replace(/^(DEPARTAMENTO|DEPTO|DPTO|DEPT|DEPA|DEP|DTO)\.?\s*[:#°º-]?\s*/, '');
+  c = c.replace(/\b(DEPARTAMENTO|DEPTO|DPTO|DEPT|DEPA|DEP|DTO)\b\.?\s*[:#°º]?\s*/g, 'D');
+  c = c.replace(/\bTORRE\s*/g, 'T').replace(/\b(BLOCK|BLOQUE|BLK)\b\.?\s*/g, 'B')
+    .replace(/\bOFICINA\s*/g, 'OF').replace(/\bPISO\s*/g, 'P').replace(/\bPARCELA\s*/g, 'PC').replace(/\bLOTE\s*/g, 'L');
+  c = c.replace(/\s*(N[°º]|#)\s*/g, ' ').replace(/[,;]/g, ' ').replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').trim();
+  if (c.length > DEPTO_MAX) {
+    throw new ErrorPublico('Starken guarda el depto en ' + DEPTO_MAX + ' caracteres y «' + c + '» no cabe: acórtalo (ej. «D-202» o «TB D1504»)', 400);
+  }
+  return c;
+}
 
 // El número de OF. La respuesta documentada (portal, leído 26-10-2026) es
 // { codigoError: 0, descripcionError: 'OK', nroOrdenFlete: 2.22607751E8, totalOF, ... }:
@@ -152,7 +170,7 @@ async function emitir(req: Request, b: any) {
     email: texto(d.email, 80),
     calle: exigir(texto(d.calle, 120), 'la calle'),
     numero: exigir(texto(d.numero, 20), 'el número de la dirección'),
-    depto: texto(d.depto, 40),
+    depto: deptoStarken(texto(d.depto, 40)),
     comuna: exigir(comunaStarken(texto(d.comuna, 60)), 'la comuna'),
   };
   const kilos = Number(b.kilos);
