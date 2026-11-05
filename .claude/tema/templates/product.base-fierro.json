@@ -1,0 +1,276 @@
+{
+    "sections":  {
+                     "breadcrumbs_ndzpL7":  {
+                                                "type":  "breadcrumbs",
+                                                "name":  "Breadcrumbs",
+                                                "settings":  {
+                                                                 "color_scheme":  "",
+                                                                 "title_home":  "Inicio",
+                                                                 "padding_top":  12,
+                                                                 "padding_bottom":  12,
+                                                                 "margin_top":  0,
+                                                                 "margin_bottom":  0
+                                                             }
+                                            },
+                     "blocks_rcFyD6":  {
+                                           "type":  "_blocks",
+                                           "name":  "Barra de anuncio",
+                                           "settings":  {
+
+                                                        }
+                                       },
+                     "main":  {
+                                  "type":  "main-product",
+                                  "blocks":  {
+                                                 "title_JizAxD":  {
+                                                                      "type":  "title",
+                                                                      "settings":  {
+                                                                                       "title_size":  24,
+                                                                                       "title_height":  120,
+                                                                                       "text_transform":  "none"
+                                                                                   }
+                                                                  },
+                                                 "price":  {
+                                                               "type":  "price",
+                                                               "settings":  {
+                                                                                "price_style":  "price",
+                                                                                "price_size":  20,
+                                                                                "badge_text_1":  13,
+                                                                                "price_first":  true,
+                                                                                "badge_bg_1":  "#17e6e6",
+                                                                                "badge_price_1":  "#ffffff",
+                                                                                "price_size_2":  1,
+                                                                                "badge_price":  "#8b8d8f",
+                                                                                "price_bold_2":  false,
+                                                                                "sale_price_color":  "#a5a9a9",
+                                                                                "regular_price_color":  "#000000",
+                                                                                "price_bold":  true,
+                                                                                "badge_hide":  false,
+                                                                                "taxes_hide":  true,
+                                                                                "shipping_hide":  true,
+                                                                                "padding_top":  4,
+                                                                                "padding_bottom":  4
+                                                                            }
+                                                           },
+                                                 "variant_picker":  {
+                                                                        "type":  "variant_picker",
+                                                                        "settings":  {
+                                                                                         "picker_type":  "dropdown",
+                                                                                         "label_style":  "uppercase",
+                                                                                         "font_size":  16,
+                                                                                         "font_style":  "normal",
+                                                                                         "swatchType":  "variantImage",
+                                                                                         "optionName":  "Color",
+                                                                                         "swatchStyle":  "round",
+                                                                                         "swatchSize":  28,
+                                                                                         "swatchHeight":  50,
+                                                                                         "size_trigger":  "Size",
+                                                                                         "chart_id":  "Size Chart",
+                                                                                         "size_page":  ""
+                                                                                     }
+                                                                    },
+                                                 "quantity_selector":  {
+                                                                           "type":  "quantity_selector",
+                                                                           "settings":  {
+                                                                                            "enable_quantity_discounts":  false,
+                                                                                            "headline":  "BUNDLE \u0026 SAVE",
+                                                                                            "txt_size_head_qb":  18,
+                                                                                            "sub_headline":  "This offer is for limited time only",
+                                                                                            "txt_size_subhead_qb":  12,
+                                                                                            "background_top_qb":  "#ffffff",
+                                                                                            "background_top_text_qb":  "#212121",
+                                                                                            "background_qb":  "#ffffff",
+                                                                                            "border_qb":  "#000000",
+                                                                                            "check_bg_qb":  "#e9ecef",
+                                                                                            "check_border_qb":  "#000000",
+                                                                                            "check_dot":  "#000000",
+                                                                                            "hover_bg_qb":  "#ffffff",
+                                                                                            "hover_border_qb":  "#000000",
+                                                                                            "badge_qb":  "#000000",
+                                                                                            "badge_qb_text":  "#ffffff",
+                                                                                            "compare_price":  "#000000",
+                                                                                            "qb_border_wd":  2,
+                                                                                            "qb_border":  4,
+                                                                                            "padding_top":  20,
+                                                                                            "padding_bottom":  20,
+                                                                                            "preselected":  "option_1",
+                                                                                            "display_badge":  "none",
+                                                                                            "badge_text":  "Most Popular",
+                                                                                            "option_1_quantity":  1,
+                                                                                            "option_1_label":  "",
+                                                                                            "option_1_benefit":  "",
+                                                                                            "option_1_caption":  "You save [amount]",
+                                                                                            "option_1_discount_type":  "none",
+                                                                                            "option_1_percentage_off":  0,
+                                                                                            "option_1_fixed_amount_off":  "0",
+                                                                                            "option_2_quantity":  2,
+                                                                                            "option_2_label":  "",
+                                                                                            "option_2_benefit":  "",
+                                                                                            "option_2_caption":  "Only [item_price] per Item",
+                                                                                            "option_2_discount_type":  "none",
+                                                                                            "option_2_percentage_off":  0,
+                                                                                            "option_2_fixed_amount_off":  "0",
+                                                                                            "option_3_quantity":  3,
+                                                                                            "option_3_label":  "",
+                                                                                            "option_3_benefit":  "",
+                                                                                            "option_3_caption":  "You save [amount]",
+                                                                                            "option_3_discount_type":  "none",
+                                                                                            "option_3_percentage_off":  0,
+                                                                                            "option_3_fixed_amount_off":  "0",
+                                                                                            "option_4_quantity":  4,
+                                                                                            "option_4_label":  "",
+                                                                                            "option_4_benefit":  "",
+                                                                                            "option_4_caption":  "You save [amount]",
+                                                                                            "option_4_discount_type":  "none",
+                                                                                            "option_4_percentage_off":  0,
+                                                                                            "option_4_fixed_amount_off":  "0"
+                                                                                        }
+                                                                       },
+                                                 "buy_buttons_hgKgCj":  {
+                                                                            "type":  "buy_buttons",
+                                                                            "settings":  {
+                                                                                             "show_dynamic_checkout":  false,
+                                                                                             "show_full_button":  true,
+                                                                                             "lm_main_button":  "#3eab2d",
+                                                                                             "lm_main_button_gr":  "",
+                                                                                             "lm_main_text":  "#ffffff",
+                                                                                             "lm_button_animation":  "none",
+                                                                                             "show_gift_card_recipient":  false,
+                                                                                             "skip_cart":  false,
+                                                                                             "cart_text":  ""
+                                                                                         }
+                                                                        },
+                                                 "venti_widget_ventipay_widget_E3VEgQ":  {
+                                                                                             "type":  "shopify://apps/venti-widget/blocks/ventipay-widget/593e972e-0379-4dab-ab73-fcfb3301399e",
+                                                                                             "settings":  {
+                                                                                                              "message_type":  "IF_DC_IC",
+                                                                                                              "remove_anchor_logo":  false
+                                                                                                          }
+                                                                                         },
+                                                 "payment_twiXY7":  {
+                                                                        "type":  "payment",
+                                                                        "settings":  {
+                                                                                         "original":  "custom",
+                                                                                         "payment_icon":  "visa,master,webpay,mercadopago,flow",
+                                                                                         "payment_content_alignment":  "center"
+                                                                                     }
+                                                                    },
+                                                 "custom_liquid_PRcDgR":  {
+                                                                              "type":  "custom_liquid",
+                                                                              "name":  "Recuadro contacto",
+                                                                              "settings":  {
+                                                                                               "custom_liquid":  "\u003cdiv style=\"background-color:#f1ece4; border-radius:12px; padding:15px; border:1px solid #855b3f; font-family: \u0027montserrat\u0027, max-width:400px;\"\u003e\n  \u003cdiv style=\"display:flex; align-items:center; margin-bottom:1px;\"\u003e\n    \u003cdiv style=\"width:60px; height:50px; background-color:#ffff; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:14px;\"\u003e\n      \u003cspan style=\"font-size:22px;\"\u003e💬\u003c/span\u003e\n    \u003c/div\u003e\n    \u003cdiv\u003e\n      \u003cp style=\"margin:0; font-size:16px; color:#855b3f;\"\u003e\u003cstrong\u003e¿Quieres otras medidas o tienes dudas?\u003c/strong\u003e\u003c/p\u003e\n      \u003cp style=\"margin:0; font-size:15px; color:#2e2b29;\"\u003eEstamos aquí para ayudarte a elegir, contáctanos.\u003c/p\u003e\n    \u003c/div\u003e\n  \u003c/div\u003e\n  \u003cdiv style=\"display:flex; border-top:1px solid #e8dbc7; padding-top:14px; gap:10px;\"\u003e\n    \u003ca href=\"tel:+56956375558\" style=\"flex:; text-align:center; padding:0px 10px; background:#fff; border:1px solid #d4ac73; color:#2e2b29; text-decoration:none; border-radius:10px; font-weight:500; display:flex; align-items:center; justify-content:center; gap:8px;\"\u003e\n      📞 +569 56375558\n    \u003c/a\u003e\n    \u003ca href=\"https://wa.me/56956375558\" target=\"_blank\" style=\"flex:1; text-align:center; padding:1px 10px; background:#d4ac73; color:#2e2b29; text-decoration:none; border-radius:10px; font-weight:500; display:flex; align-items:center; justify-content:center; gap:8px;\"\u003e\n      💬 Escríbenos\n    \u003c/a\u003e\n  \u003c/div\u003e\n\u003c/div\u003e"
+                                                                                           }
+                                                                          },
+                                                 "custom_liquid_pHbKqc":  {
+                                                                              "type":  "custom_liquid",
+                                                                              "settings":  {
+                                                                                               "custom_liquid":  "\u003cdiv class=\"product-description-expandable\"\u003e\n  {% if product.description %}\n    \u003cdiv class=\"description-content\" id=\"descriptionContent\"\u003e\n      {{ product.description }}\n    \u003c/div\u003e\n    \u003cbutton class=\"description-toggle\" id=\"toggleBtn\" onclick=\"toggleDescription()\"\u003eLeer más\u003c/button\u003e\n  {% endif %}\n\u003c/div\u003e\n\n\u003cstyle\u003e\n  .product-description-expandable {\n    margin: 20px 0;\n  }\n  \n  .description-content {\n    max-height: 180px;\n    overflow: hidden;\n    transition: max-height 0.3s ease-in-out;\n    line-height: 1.6;\n  }\n  \n  .description-content.expanded {\n    max-height: none;\n  }\n  \n  .description-toggle {\n    background: none;\n    border: none;\n    color: #3eab2d;\n    cursor: pointer;\n    font-weight: 600;\n    padding: 12px 0;\n    font-size: 16px;\n    text-decoration: underline;\n    transition: color 0.2s ease;\n  }\n  \n  .description-toggle:hover {\n    color: #2d8a21;\n  }\n\u003c/style\u003e\n\n\u003cscript\u003e\n  function toggleDescription() {\n    const content = document.getElementById(\u0027descriptionContent\u0027);\n    const btn = document.getElementById(\u0027toggleBtn\u0027);\n    \n    content.classList.toggle(\u0027expanded\u0027);\n    btn.textContent = content.classList.contains(\u0027expanded\u0027) ? \u0027Leer menos\u0027 : \u0027Leer más\u0027;\n  }\n\u003c/script\u003e"
+                                                                                           }
+                                                                          },
+                                                 "eb02bfdc-836f-40fa-bc36-a93ccbb6f998":  {
+                                                                                              "type":  "collapsible_tab",
+                                                                                              "settings":  {
+                                                                                                               "open_first_collapsible_row":  false,
+                                                                                                               "heading":  "Tiempo de fabricación",
+                                                                                                               "icon":  "stopwatch",
+                                                                                                               "content":  "\u003ch4\u003eTodas nuestras piezas se fabrican a pedido en nuestro taller de Villarrica. \u003cbr/\u003e\u003cbr/\u003eEl plazo estimado es de \u003cstrong\u003e7 a 15 días hábiles\u003c/strong\u003e desde la confirmación del pedido.\u003c/h4\u003e",
+                                                                                                               "page":  ""
+                                                                                                           }
+                                                                                          },
+                                                 "d3e392fa-572e-4895-a7d3-dd12277627ff":  {
+                                                                                              "type":  "collapsible_tab",
+                                                                                              "settings":  {
+                                                                                                               "open_first_collapsible_row":  false,
+                                                                                                               "heading":  "Envíos",
+                                                                                                               "icon":  "truck",
+                                                                                                               "content":  "\u003ch4\u003eHacemos envíos seguros a \u003cstrong\u003etodo Chile.\u003cbr/\u003e\u003c/strong\u003eLlega lista para instalar con embalaje protegido.\u003cstrong\u003e\u003cbr/\u003e\u003cbr/\u003e\u003c/strong\u003ePuedes cotizar el despacho en la página de pago.\u003cbr/\u003e\u003cbr/\u003e\u003c/h4\u003e",
+                                                                                                               "page":  ""
+                                                                                                           }
+                                                                                          },
+                                                 "collapsible_tab_fBD87j":  {
+                                                                                "type":  "collapsible_tab",
+                                                                                "settings":  {
+                                                                                                 "open_first_collapsible_row":  false,
+                                                                                                 "heading":  "Garantía",
+                                                                                                 "icon":  "star",
+                                                                                                 "content":  "\u003ch4\u003eGarantía de 5 años — cualquier defecto de fabricación, nos hacemos cargo. \u003c/h4\u003e",
+                                                                                                 "page":  ""
+                                                                                             }
+                                                                            },
+                                                 "custom_liquid_czbase":  {
+                                                                              "type":  "custom_liquid",
+                                                                              "settings":  {
+                                                                                               "custom_liquid":  "{%- render \u0027cz-ficha-cubierta\u0027 -%}"
+                                                                                           }
+                                                                          }
+                                             },
+                                  "block_order":  [
+                                                      "title_JizAxD",
+                                                      "price",
+                                                      "variant_picker",
+                                                      "quantity_selector",
+                                                      "buy_buttons_hgKgCj",
+                                                      "venti_widget_ventipay_widget_E3VEgQ",
+                                                      "payment_twiXY7",
+                                                      "custom_liquid_PRcDgR",
+                                                      "custom_liquid_pHbKqc",
+                                                      "eb02bfdc-836f-40fa-bc36-a93ccbb6f998",
+                                                      "d3e392fa-572e-4895-a7d3-dd12277627ff",
+                                                      "collapsible_tab_fBD87j",
+                                                      "custom_liquid_czbase"
+                                                  ],
+                                  "custom_css":  [
+
+                                                 ],
+                                  "settings":  {
+                                                   "enable_sticky_info":  true,
+                                                   "show_feature_media":  true,
+                                                   "color_scheme":  "scheme-ab4dbcbf-31b7-4b39-bc36-f4ea8a24a3cc",
+                                                   "show_container":  true,
+                                                   "container_radius":  10,
+                                                   "container_padding":  16,
+                                                   "container_color":  "#ffffff",
+                                                   "container_border_color":  "#ffffff",
+                                                   "container_text":  "",
+                                                   "container_text_bg":  "#212121",
+                                                   "container_text_txt":  "#ffffff",
+                                                   "show_container_mb":  true,
+                                                   "container_padding_mb":  10,
+                                                   "container_radius_mb":  8,
+                                                   "container_color_mb":  "#ffffff",
+                                                   "container_border_color_mb":  "#fff7f9",
+                                                   "media_size":  "medium",
+                                                   "constrain_to_viewport":  true,
+                                                   "media_fit":  "contain",
+                                                   "gallery_layout":  "thumbnail_slider",
+                                                   "thumbnail_size":  70,
+                                                   "thumbnail_radius":  4,
+                                                   "media_position":  "left",
+                                                   "image_zoom":  "none",
+                                                   "mobile_thumbnails":  "show",
+                                                   "show_full_image":  true,
+                                                   "first_image_size":  100,
+                                                   "second_image_size":  0,
+                                                   "hide_variants":  true,
+                                                   "enable_video_looping":  true,
+                                                   "padding_top":  8,
+                                                   "padding_bottom":  36,
+                                                   "padding_top_mb":  0,
+                                                   "padding_bottom_mb":  36
+                                               }
+                              },
+                     "17888948110d7d9a13":  {
+                                                "type":  "apps",
+                                                "settings":  {
+                                                                 "include_margins":  true
+                                                             }
+                                            }
+                 },
+    "order":  [
+                  "breadcrumbs_ndzpL7",
+                  "blocks_rcFyD6",
+                  "main",
+                  "17888948110d7d9a13"
+              ]
+}

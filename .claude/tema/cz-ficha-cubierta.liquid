@@ -16,6 +16,10 @@
     5. la barra fija del celular (aparece cuando el botón de compra queda arriba).
   Esconde la caja «¿Quieres otras medidas o tienes dudas?» (la reemplaza «A tu medida»).
   Si falta algo de lo que necesita, deja la ficha como estaba. Fuente: .claude/tema/cz-ficha-cubierta.liquid
+
+  Base de fierro para mesa (05-11-2026, plantilla product.base-fierro): la carga un bloque custom_liquid de
+  esa plantilla, no main-product. La primera opción es la forma (tarjetas con la foto de su variante) y la
+  segunda el largo de la cubierta. Sin «A tu medida»: sobre 400 cm, una línea a WhatsApp.
 {%- endcomment -%}
 {%- liquid
   assign suf = template.suffix
@@ -29,6 +33,9 @@
   assign tipo = 'cubierta'
   assign cotiza = 'cubierta'
   case suf
+    when 'base-fierro'
+      assign tipo = 'base'
+      assign op_texto = 'Según el largo de la cubierta que va encima.'
     when 'pagina-puerta-entrelagos'
       assign tipo = 'puerta'
       assign cotiza = 'puertas'
@@ -63,7 +70,7 @@
   endcase
 -%}
 <script type="application/json" id="czc-datos">
-{"opciones":{{ product.options | json }},"variantes":[{%- for v in product.variants -%}{"o":{{ v.options | json }},"p":{{ v.price | divided_by: 100 }},"d":{{ v.available | json }}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}
+{"opciones":{{ product.options | json }},"variantes":[{%- for v in product.variants -%}{"o":{{ v.options | json }},"p":{{ v.price | divided_by: 100 }},"d":{{ v.available | json }}{%- if tipo == 'base' and v.featured_image -%},"i":{{ v.featured_image | image_url: width: 300 | json }}{%- endif -%}}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}]}
 </script>
 <template id="czc-medida">
   <div class="czc-medida">
@@ -159,6 +166,18 @@
   .czc-vid:focus-visible{outline:2px solid #485B3D;outline-offset:2px}
   .czc-sello{position:absolute;top:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#B5652E;color:#fff;font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;padding:3px 8px;border-radius:999px}
   .czc-porque{margin:10px 0 4px !important;border-left:3px solid #B5652E;padding:2px 0 2px 10px;font-size:13px;line-height:1.5;color:#57524B}
+  .czc-formas{display:grid;grid-template-columns:repeat(3,1fr);gap:10px 8px;margin:4px 0 6px}
+  .czc-forma{padding:0;border:0;background:none;font:inherit;font-size:12.5px;line-height:1.3;color:#1F1D24;text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .czc-forma img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:5px;border:2px solid transparent;margin-bottom:5px;background:#F5F3F0}
+  .czc-forma.czc-on{font-weight:600}
+  .czc-forma.czc-on img{border-color:#485B3D;box-shadow:0 0 0 2px #fff inset}
+  .czc-forma small{display:block;font-size:11.5px;color:#57524B;font-weight:400}
+  .czc-forma[disabled]{opacity:.45;cursor:default}
+  .czc-forma:focus-visible{outline:2px solid #485B3D;outline-offset:2px}
+  .czc-elegido{text-transform:none;letter-spacing:0;font-weight:600}
+  .czc-op.czc-base .czc-tam:last-child:nth-child(odd){grid-column:1 / -1}
+  .czc-wa{display:flex;gap:8px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #DDD3C4;font-size:13px;color:#57524B}
+  .czc-wa a{color:#1F1D24;text-decoration:underline}
   .czc-oculto{display:none !important}
 </style>
 <script>
@@ -173,6 +192,7 @@
     termo: '<rect x="4" y="3" width="7" height="18" rx="1"/><rect x="13" y="3" width="7" height="18" rx="1"/>'
   };
   var ES_PUERTA = {{ tipo | json }} === 'puerta';
+  var ES_BASE = {{ tipo | json }} === 'base';
   function icono(n) { return '<svg class="czc-i" viewBox="0 0 24 24" aria-hidden="true">' + ICONOS[n] + '</svg>'; }
   function norm(t) { return (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   function pesos(n) { return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -200,8 +220,8 @@
     var selMad = null, selTam = null, selVid = null;
     sels.forEach(function (s) {
       var n = norm(s.name);
-      if (n.indexOf('madera') >= 0) selMad = s;
-      else if (n.indexOf('tama') >= 0 || n.indexOf('medida') >= 0) selTam = s;
+      if (n.indexOf('madera') >= 0 || (ES_BASE && n.indexOf('forma') >= 0)) selMad = s;
+      else if (n.indexOf('tama') >= 0 || n.indexOf('medida') >= 0 || (ES_BASE && n.indexOf('largo') >= 0)) selTam = s;
       else if (n.indexOf('vidrio') >= 0) selVid = s;
     });
     if (!selMad || !selTam) return;
@@ -237,6 +257,42 @@
       p.appendChild(s);
       return { s: s, valor: valor };
     }).filter(Boolean);
+
+    // 1b) Base de fierro: la forma como tarjetas con la foto de su variante (no hay galería de maderas).
+    // El rótulo del tema queda arriba y suma lo elegido («¿Qué forma prefieres? · Trapecio»).
+    var formas = [], elegido = null;
+    if (ES_BASE) {
+      var bloqueMad = selMad.closest('.product-form__input');
+      var cajaMad = (bloqueMad && bloqueMad.querySelector('.select')) || selMad;
+      var rotulo = bloqueMad && bloqueMad.querySelector('label');
+      if (rotulo) {
+        elegido = document.createElement('span');
+        elegido.className = 'czc-elegido';
+        rotulo.appendChild(elegido);
+      }
+      var grFormas = document.createElement('div');
+      grFormas.className = 'czc-formas';
+      grFormas.setAttribute('role', 'radiogroup');
+      formas = [].map.call(selMad.options, function (o) {
+        var conFoto = datos.variantes.filter(function (v) { return v.o[iMad] === o.value && v.i; })[0];
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'czc-forma';
+        b.setAttribute('role', 'radio');
+        if (conFoto) {
+          var img = document.createElement('img');
+          img.src = conFoto.i; img.alt = ''; img.loading = 'lazy'; img.width = 300; img.height = 300;
+          b.appendChild(img);
+        }
+        b.appendChild(document.createTextNode(o.value));
+        var pr = document.createElement('small'); b.appendChild(pr);
+        b.addEventListener('click', function () { elegir(selMad, o.value); });
+        grFormas.appendChild(b);
+        return { b: b, valor: o.value, pr: pr };
+      });
+      cajaMad.classList.add('czc-oculto');
+      cajaMad.parentNode.insertBefore(grFormas, cajaMad);
+    }
 
     // 2) Tamaños como botones
     var bloqueTam = selTam.closest('.product-form__input');
@@ -277,6 +333,14 @@
       grilla(o.value).appendChild(b);
       return { b: b, valor: o.value, pr: pr };
     });
+    var lineaWa = null;
+    if (ES_BASE) {
+      op.classList.add('czc-base');
+      lineaWa = document.createElement('div');
+      lineaWa.className = 'czc-wa';
+      lineaWa.innerHTML = icono('globo') + '<span>¿Tu mesa es más larga? <a href="https://wa.me/56956375558" target="_blank" rel="noopener">Escríbenos por WhatsApp</a></span>';
+      op.appendChild(lineaWa);
+    }
     if (ES_PUERTA) {
       var incl = document.createElement('div');
       incl.className = 'czc-incl';
@@ -349,11 +413,15 @@
     });
     if (!calc) pie.querySelector('.czc-env').classList.add('czc-oculto');
 
-    // 4) «A tu medida» bajo «Calcula tu envío» (o bajo la caja de compra si no hay)
-    var tpl = document.getElementById('czc-medida');
-    var medida = tpl.content.firstElementChild.cloneNode(true);
-    var ancla = calc || bloqueBuy;
-    ancla.parentNode.insertBefore(medida, ancla.nextSibling);
+    // 4) «A tu medida» bajo «Calcula tu envío» (o bajo la caja de compra si no hay).
+    // La base no la lleva: «Otra medida» baja a la línea de WhatsApp.
+    var medida = lineaWa;
+    if (!ES_BASE) {
+      var tpl = document.getElementById('czc-medida');
+      medida = tpl.content.firstElementChild.cloneNode(true);
+      var ancla = calc || bloqueBuy;
+      ancla.parentNode.insertBefore(medida, ancla.nextSibling);
+    }
 
     // La caja de ayuda con emojis queda reemplazada por «A tu medida»
     [].forEach.call(info.children, function (c) {
@@ -388,6 +456,15 @@
         var vv = t.valor && precioCon(jMad, t.valor);
         t.s.textContent = vv ? pesos(vv.p) : '';
       });
+      formas.forEach(function (x) {
+        var on = x.valor === selMad.value;
+        var vv = precioCon(jMad, x.valor);
+        x.b.classList.toggle('czc-on', on);
+        x.b.setAttribute('aria-checked', on ? 'true' : 'false');
+        x.b.disabled = !vv;
+        x.pr.textContent = vv ? pesos(vv.p) : 'No disponible';
+      });
+      if (elegido) elegido.textContent = ' · ' + selMad.value;
       botones.forEach(function (x) {
         var on = x.valor === selTam.value;
         var vv = precioCon(jTam, x.valor);
