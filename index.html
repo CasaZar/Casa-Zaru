@@ -28147,6 +28147,8 @@ function parseOrders(raw){
 async function poll(){
   if(pendingOps>0)return;
   try{var raw=await api('pedidos');orders=parseOrders(raw);renderSeg();setSyncState('online');
+    // Los N° de OF emitidos antes del 06-11 viven solo en Producción (ver _ofStarken).
+    if(DB_URL&&!prodOrders.length&&!poll._prod){poll._prod=true;loadProd().then(renderSeg);}
     if(document.getElementById('page-dash')&&document.getElementById('page-dash').classList.contains('active'))renderDash();
   }catch(e){setSyncState('offline');}
 }
@@ -28262,8 +28264,22 @@ function _saludoCesar(nombre){
   var pn=String(nombre||'').trim().split(/\s+/)[0]||'';pn=pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase();
   return'Hola'+(pn?' '+pn:'')+'! Te escribe César de Casa Zaru.\n\n';
 }
+// N° de OF de Starken del pedido = su N° de seguimiento. Starken no manda correo
+// cuando la orden se emite desde la Gestión (06-11-2026), así que el aviso
+// «envío listo» lo toma de acá. Seguimiento lo trae desde ese día; los emitidos
+// antes solo lo tienen en Producción.
+function _ofStarken(numOrPedido){
+  var n=String(numOrPedido&&typeof numOrPedido==='object'?(numOrPedido.num||''):numOrPedido||'');
+  var s=orders.find(function(x){return String(x.num||'')===n;});
+  if(s&&s.of_starken)return String(s.of_starken);
+  var p=prodOrders[_prodIdx(n)];
+  return p&&p.of_starken?String(p.of_starken):'';
+}
 function msgAviso(id,o,dRel,fechaEnvStr){
   var s=_saludoCesar(o.nombre);
+  // El link deja el número escrito en el buscador de Starken (el cliente toca la lupa).
+  var of=id==='comprobante'?_ofStarken(o):'';
+  if(of)return s+'Tu pedido ya salió con Starken. Tu número de seguimiento es '+of+'.\n\nLo puedes seguir acá:\nhttps://www.starken.cl/seguimiento?codigo='+of+'\n\nCualquier cosa me escribes.';
   if(id==='aviso_sem')return s+'Te cuento que tu pedido ya está en producción. Queda listo la próxima semana y apenas tenga el día de despacho te aviso.\n\nCualquier cosa me escribes.';
   if(id==='aviso_lun')return s+'Tu pedido sale el '+String(fechaEnvStr).replace(',','')+'.\n\nCualquier cosa me avisas.';
   if(id==='aviso_dia')return s+(dRel>=0?'Hoy':'Mañana')+' sale tu pedido. ¿La dirección de entrega sigue siendo la misma?\n\nQuedo atento.';
@@ -28303,14 +28319,17 @@ function avisosPendientes(){
       if(o.checks&&o.checks[a.id])return;
       if(a.id==='recibido'&&yaRecibio(o))return;
       if(a.id==='resena'&&!yaRecibio(o))return;
-      if(dRel<a.abre)return;
+      // Con la OF emitida el pedido ya está despachado: el aviso aparece aunque la
+      // fecha de envío anotada sea posterior.
+      var _of=a.id==='comprobante'?_ofStarken(o):'';
+      if(dRel<a.abre&&!_of)return;
       var atrasado=dRel>a.vence;
       if(dRel>a.vence+AVISO_CADUCA_DIAS){caducados[String(o.num||'')]=true;return;}
       var excusa=(o.excusas||{})[a.id];
       if(excusa&&atrasado)return; // ya quedó explicado por qué no se avisó
-      var falta=a.vence-dRel;
+      var falta=_of&&dRel<a.abre?0:a.vence-dRel;
       out.push({numStr:String(o.num||''),nombre:((o.nombre||'')+' '+(o.apellido||'')).trim(),avisoId:a.id,
-        tag:a.tag,color:atrasado?'var(--red)':a.color,atrasado:atrasado,falta:falta,
+        tag:_of?'Avisar envío listo · OF '+_of:a.tag,color:atrasado?'var(--red)':a.color,atrasado:atrasado,falta:falta,
         sub:atrasado?('Atrasado '+(dRel-a.vence)+(dRel-a.vence===1?' día':' días')):(falta<=0?'Para hoy':'Vence en '+falta+(falta===1?' día':' días')),
         msg:msgAviso(a.id,o,dRel,fechaEnvStr)});
     });
@@ -29448,6 +29467,10 @@ async function confirmOrder(){
     }
     else showToast('Venta web — no va al Pixel: el sitio ya la reportó a Meta');
   }
+  // Muestrario o post venta: no es una compra y no va al Pixel (el 26-10 se
+  // subieron tres muestrarios de $20.000 como compras). Si la fila ya existía,
+  // queda apartada con estado 'noventa': no se borra.
+  else if(tipoSel&&tipoSel!=='VENTA')_pixelTipo(numStr,tipoSel);
   else if(cli&&(cli.email||cli.phone||cli.fn)){
     const orderId='WTSP'+numStr;
     // Nombre, comuna y ciudad: los mismos que quedan en Producción y Finanzas
@@ -30139,8 +30162,7 @@ async function stkEmitir(){
     stk.envio=d.envio;
     // El N° de OF también queda en el pedido (PATCH: mezcla, no pisa el resto)
     if(stk.modo==='produccion'&&d.envio&&d.envio.of_numero&&DB_URL){
-      var o=prodOrders[_prodIdx(stk.num)];if(o)o.of_starken=d.envio.of_numero;
-      api('produccion/'+stk.num,'PATCH',{of_starken:d.envio.of_numero}).catch(function(){});
+      _stkGuardarOF(stk.num,d.envio.of_numero);
     }
     showToast('✓ OF '+d.envio.of_numero+' emitida');
     stkPintar();
@@ -30161,6 +30183,16 @@ async function stkEtiqueta(){
   }catch(e){showToast(e.message,true);}
   if(b){b.disabled=false;b.textContent='Imprimir etiqueta (PDF 10 × 10)';}
 }
+// La OF se guarda en Producción y también en Seguimiento: el aviso «envío listo»
+// la lee de ahí, y Seguimiento no siempre tiene Producción cargada. Solo se toca
+// el pedido de Seguimiento si existe (PATCH crea la fila si no está).
+function _stkGuardarOF(numStr,of){
+  var o=prodOrders[_prodIdx(numStr)];if(o)o.of_starken=of;
+  api('produccion/'+numStr,'PATCH',{of_starken:of}).catch(_falloGuardado('OF Starken en Producción del pedido '+numStr));
+  var s=orders.find(function(x){return String(x.num||'')===String(numStr);});
+  if(s){s.of_starken=of;api('pedidos/'+numStr,'PATCH',{of_starken:of}).catch(_falloGuardado('OF Starken en Seguimiento del pedido '+numStr));}
+  if(typeof renderSeg==='function')renderSeg();
+}
 function stkCopiarSeguimiento(){
   var e=stk.envio;if(!e)return;
   var txt='¡Hola! Tu pedido ya va en camino con Starken.\n\nTu número de seguimiento es '+e.of_numero+'.\n\nPuedes seguirlo en https://www.starken.cl/seguimiento';
@@ -30173,6 +30205,9 @@ async function stkAnular(manual){
   if(a&&!a.dataset.conf){a.dataset.conf='1';a.textContent='¿Seguro? Toca de nuevo para '+(manual?'marcarla anulada aquí':'anular');return;}
   try{
     var d=await stkLlamar({accion:'anular',id:stk.envio.id,manual:!!manual});
+    // Una OF anulada no sirve de seguimiento: se saca del pedido para que el aviso
+    // «envío listo» no le mande al cliente un número muerto.
+    if(stk.envio.of_numero&&_ofStarken(stk.num)===String(stk.envio.of_numero))_stkGuardarOF(stk.num,null);
     showToast(d.enStarken?'✓ Orden anulada en Starken':d.manual?'✓ Marcada anulada aquí':'Liberada aquí. Si la orden alcanzó a crearse, anúlala en Starken PRO.');
     stk.envio=null;stkPintar();stkCargarComunas();
   }catch(e){
@@ -31428,6 +31463,21 @@ function finContactoEd(numStr,campo,el){
 }
 // Copia cambios a la fila del Pixel SOLO si existe: un PATCH a una fila que no
 // está la crea, y una venta web no debe entrar al Pixel.
+// Cuando un pedido cambia de tipo: si deja de ser venta, su fila del Pixel pasa
+// a 'noventa' (no sale en el Excel de Meta); si vuelve a venta, a 'nosubida'.
+// Una fila ya subida no se puede sacar de Meta: se deja y se avisa.
+function _pixelTipo(numStr,tipo){
+  var loc=pixelRecords.find(function(r){return r.order_id==='WTSP'+numStr;});
+  if(!loc)return;
+  var nuevo=null;
+  if(tipo!=='VENTA'&&loc.status==='nosubida')nuevo='noventa';
+  else if(tipo==='VENTA'&&loc.status==='noventa')nuevo='nosubida';
+  else if(tipo!=='VENTA'&&loc.status==='subida')showToast('Ojo: el '+numStr+' ya se subió a Meta como compra; no se puede retirar desde acá',true);
+  if(!nuevo)return;
+  loc.status=nuevo;
+  if(DB_URL)api('pixel/'+numStr,'PATCH',{status:nuevo}).catch(_falloGuardado('Pixel del pedido '+numStr));
+  if(typeof renderPixel==='function'&&document.getElementById('pixel-tbody'))renderPixel();
+}
 async function _pixelSync(numStr,cambios){
   if(!DB_URL)return;
   try{
@@ -31553,6 +31603,7 @@ function ciclarTipoFin(numStr){
   r.tipo=next;
   var o=prodOrders.find(function(p){return String(p.pedido||'')===String(numStr);});
   if(o)o.tipo=next;
+  _pixelTipo(String(numStr),next);
   if(DB_URL){
     api('finanzas/'+numStr,'PUT',r).catch(function(){showToast('✗ No se pudo guardar',true);});
     if(o)saveProdOrder(o).catch(function(){});
@@ -31723,7 +31774,7 @@ function renderPixel(){
   renderPixelStats();renderMonthBar('pixel-month-bar',pixelRecords,pixelMonthFilter,'setPixelMonth',function(r){return extractMonthFromDate(r.fecha);},'pixel');
   var list=getFilteredPixel(),tbody=document.getElementById('pixel-tbody'),empty=document.getElementById('pixel-empty');
   if(!list.length){tbody.innerHTML='';empty.style.display='block';return;}empty.style.display='none';
-  tbody.innerHTML=list.map(r=>{const idx=pixelRecords.indexOf(r);const rowCls=r.status==='subida'?'px-subida':r.status==='noklav'?'px-noklav':'px-nosubida';return`<tr><td class="${rowCls}" style="font-size:11px">${r.email||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.phone||'—'}</td><td class="${rowCls}">${r.fn||'—'}</td><td class="${rowCls}">${r.ln||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.ct||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.st||'—'}</td><td class="${rowCls}">CL</td><td class="${rowCls}" style="font-family:'DM Serif Display',serif;color:var(--wood)">${r.order_id||'—'}</td><td class="${rowCls}" style="font-size:11px">${eventTimeChile(r.event_time)||'—'}</td><td class="${rowCls}">${r.value||'—'}</td><td class="${rowCls}">CLP</td><td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option></select></td><td class="${rowCls}" style="display:flex;gap:4px;align-items:center"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deletePixelRecord_inline(${idx})">🗑</button></td></tr>`;}).join('');
+  tbody.innerHTML=list.map(r=>{const idx=pixelRecords.indexOf(r);const rowCls=r.status==='subida'?'px-subida':r.status==='noklav'?'px-noklav':'px-nosubida';return`<tr><td class="${rowCls}" style="font-size:11px">${r.email||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.phone||'—'}</td><td class="${rowCls}">${r.fn||'—'}</td><td class="${rowCls}">${r.ln||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.ct||'—'}</td><td class="${rowCls}" style="font-size:11px">${r.st||'—'}</td><td class="${rowCls}">CL</td><td class="${rowCls}" style="font-family:'DM Serif Display',serif;color:var(--wood)">${r.order_id||'—'}</td><td class="${rowCls}" style="font-size:11px">${eventTimeChile(r.event_time)||'—'}</td><td class="${rowCls}">${r.value||'—'}</td><td class="${rowCls}">CLP</td><td class="${rowCls}"><select class="status-sel" onchange="changePixelStatus(${idx},this.value)"><option value="nosubida"${r.status==='nosubida'?' selected':''}>No subida</option><option value="subida"${r.status==='subida'?' selected':''}>Subida</option><option value="noklav"${r.status==='noklav'?' selected':''}>No Klaviyo</option><option value="noventa"${r.status==='noventa'?' selected':''}>No es venta</option></select></td><td class="${rowCls}" style="display:flex;gap:4px;align-items:center"><button class="btn-edit" onclick="openPixelModal(${idx})">Editar</button><button class="btn-del" style="padding:4px 8px;font-size:11px;margin:0" onclick="deletePixelRecord_inline(${idx})">🗑</button></td></tr>`;}).join('');
 }
 function deletePixelRecord_inline(idx){if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[idx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(idx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Pixel del pedido '+numStr));renderPixel();showToast('✓ Eliminado');}
 function openPixelModal(idx){
@@ -31746,7 +31797,7 @@ function savePixelRecord(){
 }
 function deletePixelRecord(){if(editingPixelIdx===null)return;if(!confirm('¿Eliminar?'))return;var numStr=String(pixelRecords[editingPixelIdx].order_id||'').replace(/^WTSP/,'');pixelRecords.splice(editingPixelIdx,1);if(DB_URL&&numStr)api('pixel/'+numStr,'DELETE').catch(_falloGuardado('Borrado de Pixel del pedido '+numStr));renderPixel();closePixelModal();showToast('✓ Eliminado');}
 document.getElementById('modal-pixel-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-pixel-bg'))closePixelModal();});
-function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){return r.status==='nosubida';});if(!list.length){showToast('No hay registros sin subir');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','event_name':'Purchase','order_id':r.order_id||'','event_time':eventTimeChile(r.event_time),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
+function exportPixelCSV(){var list=getFilteredPixel().filter(function(r){if(r.status!=='nosubida')return false;var fr=finRecords.find(function(x){return 'WTSP'+String(x.num||'')===r.order_id;});return !fr||esVenta(fr);});if(!list.length){showToast('No hay registros sin subir');return;}var dataRows=list.map(function(r){return{'email':(r.email||'').toLowerCase(),'phone':fmtPhone(r.phone),'fn':r.fn||'','ln':r.ln||'','ct':fmtLower(r.ct),'st':fmtLower(r.st),'country':'CL','event_name':'Purchase','order_id':r.order_id||'','event_time':eventTimeChile(r.event_time),'value':r.value||0,'currency':'CLP','estado':r.status||''};});var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);ws['!cols']=[{wch:26},{wch:14},{wch:14},{wch:14},{wch:14},{wch:16},{wch:8},{wch:10},{wch:12},{wch:22},{wch:12},{wch:6},{wch:10}];var range=XLSX.utils.decode_range(ws['!ref']);for(var C=range.s.c;C<=range.e.c;C++){var hc=XLSX.utils.encode_cell({r:0,c:C});if(ws[hc])ws[hc].s={font:{bold:true,color:{rgb:'FFFFFF'},sz:10},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center'}};}var label=pixelMonthFilter==='todos'?'todos':pixelMonthFilter;XLSX.utils.book_append_sheet(wb,ws,'Pixel '+label);downloadXLSX(wb,'zaru_pixel_'+label+'_'+todayStr.replace(/\//g,'-')+'.xlsx');}
 
 // ── COSTOS ──────────────────────────────────────────────────────────────────
 let costRecords=[];
