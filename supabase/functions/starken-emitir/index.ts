@@ -12,7 +12,8 @@
 //   { accion: 'emitir', pedido, destinatario, bultos, kilos, medidas, valorDeclarado,
 //     contenido, precioCotizado, documentos: [{ tipo: 'BOLETA'|'FACTURA', numero }] }
 //                                                → { envio } con of_numero
-//   { accion: 'etiqueta', of }                    → { pdfBase64 }
+//   { accion: 'etiqueta', of, formato? }          → { pdfBase64, paginas, pdfs, tipoSalida, forma }
+//     (todas las etiquetas de la OF en un solo PDF; formato '10x10' pide el tamaño 10×10)
 //   { accion: 'anular', id, manual? }             → anula la OF en Starken y la marca anulada;
 //     con manual:true solo la marca (el admin ya la anuló en Starken PRO)
 //
@@ -36,6 +37,9 @@
 //                                       los mismos secretos con sufijo _QA (también públicos en el
 //                                       portal, pero tras un login: no van al repo).
 // SUPABASE_URL y SUPABASE_ANON_KEY los inyecta Supabase.
+
+// Para juntar en un solo PDF las etiquetas de una OF de varios bultos.
+import { PDFDocument } from 'npm:pdf-lib@1.17.1';
 
 class ErrorPublico extends Error {
   status: number;
@@ -308,35 +312,71 @@ async function emitir(req: Request, b: any) {
   return { envio: upd.ok ? upd.d[0] : { id, of_numero: of, estado: 'emitida' }, modo: MODO };
 }
 
-// Busca un PDF en Base64 dentro de la respuesta, venga suelto, como texto JSON o en un
-// campo (un PDF en Base64 siempre empieza con «JVBER», que es «%PDF»).
-function buscarPdf(d: any): string {
-  if (typeof d === 'string') { const s = d.trim().replace(/^"|"$/g, ''); return /^JVBER/.test(s) ? s : ''; }
-  if (d && typeof d === 'object') { for (const v of Object.values(d)) { const s = buscarPdf(v); if (s) return s; } }
-  return '';
+// Junta TODOS los PDF en Base64 de la respuesta, vengan sueltos, como texto JSON o en
+// campos/arreglos (un PDF en Base64 siempre empieza con «JVBER», que es «%PDF»). Antes se
+// quedaba con el primero y una OF de 6 bultos salía con 1 sola etiqueta (OF 281442116, 06-11-2026).
+function buscarPdfs(d: any, acc: string[] = []): string[] {
+  if (typeof d === 'string') { const s = d.trim().replace(/^"|"$/g, ''); if (/^JVBER/.test(s)) acc.push(s); }
+  else if (d && typeof d === 'object') { for (const v of Object.values(d)) buscarPdfs(v, acc); }
+  return acc;
 }
 
-// API REST Etiqueta (portal, leído 26-10-2026): POST sin cuerpo, autenticación básica,
-// parámetros ordenFlete y tipoSalida (1 = PDF en Base64, 2 = Zebra, 3 = URL del PDF).
+// Forma de la respuesta de Starken, SIN su contenido (para diagnosticar desde la Gestión):
+// tipos, llaves y largos de arreglos y textos.
+function forma(d: any, prof = 0): any {
+  if (prof > 4) return '…';
+  if (typeof d === 'string') return /^JVBER/.test(d.trim().replace(/^"/, '')) ? 'pdf(' + d.length + ')' : 'texto(' + d.length + ')';
+  if (Array.isArray(d)) return d.length ? ['arreglo(' + d.length + ')', forma(d[0], prof + 1)] : 'arreglo(0)';
+  if (d && typeof d === 'object') { const o: any = {}; for (const [k, v] of Object.entries(d).slice(0, 20)) o[k] = forma(v, prof + 1); return o; }
+  return typeof d;
+}
+
+function aBase64(u8: Uint8Array): string {
+  let bin = ''; for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode(...u8.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+// Un PDF que llega solo se entrega tal cual (sin pasar por pdf-lib); solo se cuentan sus páginas.
+async function contarPaginas(b64: string): Promise<number> {
+  try { return (await PDFDocument.load(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)))).getPageCount(); } catch (_e) { return 0; }
+}
+
+// Une varios PDF (uno por bulto) en uno solo, en el orden en que llegan.
+async function unirPdfs(lista: string[]): Promise<{ pdfBase64: string; paginas: number }> {
+  const out = await PDFDocument.create();
+  for (const b64 of lista) {
+    const doc = await PDFDocument.load(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+    for (const p of await out.copyPages(doc, doc.getPageIndices())) out.addPage(p);
+  }
+  return { pdfBase64: aBase64(await out.save()), paginas: out.getPageCount() };
+}
+
+// API REST Etiqueta (diccionario «Diccionario_Entrada_Impresion_OF», leído 06-11-2026): POST
+// sin cuerpo, autenticación básica, parámetros ordenFlete y tipoSalida: 1 = Base64 hoja carta,
+// 2 = ZPL 10×10, 3 = PDF hoja carta, 5 = PDF 10×10, 6 = Base64 10×10. Por defecto 1 (es el que
+// se imprime hoy); b.formato '10x10' pide el 6.
 async function etiqueta(b: any) {
   const of = texto(b.of, 20).replace(/\D/g, '');
   if (!of) throw new ErrorPublico('Falta el número de OF', 400);
+  const tipoSalida = b.formato === '10x10' ? 6 : 1;
   const user = secretoModo('STARKEN_ETIQUETA_USUARIO'), pass = secretoModo('STARKEN_ETIQUETA_CLAVE');
   if (!user || !pass) throw new ErrorPublico('Faltan las credenciales de la API de etiqueta', 500);
-  const url = (MODO === 'produccion' ? PRD.etiqueta : QA.etiqueta) + '?ordenFlete=' + encodeURIComponent(of) + '&tipoSalida=1';
+  const url = (MODO === 'produccion' ? PRD.etiqueta : QA.etiqueta) + '?ordenFlete=' + encodeURIComponent(of) + '&tipoSalida=' + tipoSalida;
   const r = await fetch(url, { method: 'POST', headers: { Authorization: 'Basic ' + btoa(user + ':' + pass) }, signal: AbortSignal.timeout(30000) })
     .catch(() => { throw new ErrorPublico('Starken no respondió', 504); });
   if (!r.ok) throw new ErrorPublico('Starken no entregó la etiqueta (HTTP ' + r.status + ')', 502);
   if (/pdf|octet/.test(r.headers.get('content-type') || '')) {   // por si algún día manda el archivo
-    const buf = new Uint8Array(await r.arrayBuffer());
-    let bin = ''; for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]);
-    return { pdfBase64: btoa(bin) };
+    const b64 = aBase64(new Uint8Array(await r.arrayBuffer()));
+    return { pdfBase64: b64, pdfs: 1, paginas: await contarPaginas(b64), tipoSalida, forma: 'archivo' };
   }
   const t = await r.text();
   let d: any = t; try { d = JSON.parse(t); } catch (_e) { /* Base64 suelto */ }
-  const b64 = buscarPdf(d);
-  if (!b64) { console.error('etiqueta sin PDF:', t.slice(0, 300)); throw new ErrorPublico('Starken respondió sin el PDF de la etiqueta', 502); }
-  return { pdfBase64: b64 };
+  const lista = buscarPdfs(d);
+  console.log('etiqueta OF', of, 'tipoSalida', tipoSalida, 'pdfs', lista.length, JSON.stringify(forma(d)).slice(0, 500));
+  if (!lista.length) { console.error('etiqueta sin PDF:', t.slice(0, 300)); throw new ErrorPublico('Starken respondió sin el PDF de la etiqueta', 502); }
+  if (lista.length === 1) return { pdfBase64: lista[0], pdfs: 1, paginas: await contarPaginas(lista[0]), tipoSalida, forma: forma(d) };
+  const unido = await unirPdfs(lista);
+  return { ...unido, pdfs: lista.length, tipoSalida, forma: forma(d) };
 }
 
 // Anulación (portal, leído 26-10-2026): dos pasos. 1) login con un usuario de Starken PRO

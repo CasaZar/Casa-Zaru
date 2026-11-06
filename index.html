@@ -30181,6 +30181,9 @@ async function stkEtiqueta(){
     var url=URL.createObjectURL(new Blob([buf],{type:'application/pdf'}));
     var a=document.createElement('a');a.href=url;a.download='Etiqueta Starken OF '+stk.envio.of_numero+' - pedido '+stk.num+'.pdf';
     document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);
+    // Una etiqueta por bulto: si Starken entrega menos páginas que bultos, avisar (OF 281442116 salió con 1 de 6).
+    var nb=Number(stk.envio.bultos)||0;
+    if(d.paginas&&nb>1&&d.paginas<nb)showToast('Ojo: Starken entregó '+d.paginas+' etiqueta(s) para '+nb+' bultos. Sácalas desde Starken PRO (Historial → Generar etiquetas).',true);
   }catch(e){showToast(e.message,true);}
   if(b){b.disabled=false;b.textContent='Imprimir etiqueta (PDF 10 × 10)';}
 }
