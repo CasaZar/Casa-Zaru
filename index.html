@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Casa Zaru — Sistema de Gestión</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600&family=Nanum+Myeongjo:wght@800&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -62,72 +62,82 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── SIDEBAR ── */
+/* ── MARCO (rediseño 06-11-2026, boceto A) ──
+   Mismos tokens que el cotizador de vendedores: papel, tinta, línea, verde de
+   marca y terracota. Barra lateral blanca con la franja verde del logo. */
+:root {
+  --z-papel:#F7F4EE; --z-tinta:#1F1D24; --z-sec:#57524B; --z-linea:#E4DDD2;
+  --z-borde:#948A7C; --z-verde:#485B3D; --z-terra:#A85D2A; --z-rojo:#9B2C2C;
+}
 .app-header {
-  width: 220px;
-  min-width: 220px;
+  width: 232px;
+  min-width: 232px;
   height: 100vh;
   position: sticky;
   top: 0;
-  background: var(--brand);
-  border-right: 1px solid var(--border-md);
+  background: #fff;
+  border-right: 1px solid var(--z-linea);
   display: flex;
   flex-direction: column;
   z-index: 100;
   flex-shrink: 0;
+  font-family: 'Poppins', sans-serif;
 }
 .app-topbar {
-  padding: 20px 16px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.brand-logo {
+  background: var(--z-verde);
+  padding: 16px 18px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 4px;
+  justify-content: space-between;
 }
-.brand-icon {
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, var(--brand), #8B5E3C);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  flex-shrink: 0;
+.brand-logo { display: flex; align-items: center; min-width: 0; }
+.logo-zaru { display: block; width: 73px; height: 18px; }
+/* Íconos de línea (nada de emojis): misma medida en la barra y en «Más». */
+.tab-icon svg, .m-buscar svg, .gsearch-ic svg, .m-mas-ic svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round; display: block;
 }
-.brand-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #F5EDE3;
-  letter-spacing: -0.3px;
+#sidebar-footer { padding: 12px 10px 0; }
+.gsearch-ic { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--z-sec); pointer-events: none; }
+#global-search {
+  width: 100%; height: 40px; padding: 0 10px 0 38px;
+  border: 1px solid var(--z-linea); border-radius: 4px; background: #fff;
+  font: 13.5px 'Poppins', sans-serif; color: var(--z-tinta); outline: none;
 }
-.brand-sub {
-  font-size: 10px;
-  color: rgba(245,237,227,0.55);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-left: 42px;
-  margin-top: -2px;
+#global-search::placeholder { color: var(--z-sec); }
+#global-search:focus { border-color: var(--z-borde); }
+#global-results {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 200;
+  background: #fff; border: 1px solid var(--z-linea); border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(31,29,36,0.12); max-height: 360px; overflow-y: auto; width: 360px;
 }
-.sync-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 12px;
+.sb-pie {
+  margin-top: auto; padding: 12px 18px 14px; border-top: 1px solid var(--z-linea);
+  font-size: 12.5px; color: var(--z-sec); display: flex; flex-direction: column; gap: 6px;
 }
+.sync-row { display: flex; align-items: center; gap: 6px; }
 .sync-dot {
-  width: 6px; height: 6px;
+  width: 7px; height: 7px;
   border-radius: 50%;
-  background: var(--text-3);
+  background: var(--z-borde);
   flex-shrink: 0;
 }
-.sync-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.sync-dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+.sync-dot.online  { background: var(--z-verde); }
+.sync-dot.syncing { background: var(--z-terra); animation: pulse 1s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-.sync-label { font-size: 11px; color: rgba(245,237,227,0.6); }
+.sync-label { font-size: 12.5px; color: var(--z-sec); }
+.sb-rol { color: var(--z-tinta); }
+.sb-export {
+  align-self: flex-start; border: 0; background: none; padding: 0; cursor: pointer;
+  font: 12.5px 'Poppins', sans-serif; color: var(--z-sec);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--z-borde);
+}
+.sb-export:hover { color: var(--z-tinta); }
+.sb-version { font-size: 11px; color: var(--z-borde); }
 
 .nav-tabs {
   flex: 1;
-  padding: 8px 8px;
+  padding: 12px 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -136,27 +146,26 @@ body {
 .nav-tab {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: var(--radius);
+  gap: 12px;
+  height: 40px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-radius: 4px;
   border: none;
   background: none;
-  color: rgba(245,237,227,0.65);
-  font-family: 'Inter', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
+  color: var(--z-sec);
+  font-family: 'Poppins', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
   cursor: pointer;
-  transition: all 0.15s;
   text-align: left;
   width: 100%;
 }
-.nav-tab:hover { background: rgba(245,237,227,0.12); color: #F5EDE3; }
-.nav-tab.active {
-  background: rgba(245,237,227,0.18);
-  color: #F5EDE3;
-  border: 1px solid rgba(245,237,227,0.25);
-}
-.nav-tab .tab-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-tab:hover { background: var(--z-papel); color: var(--z-tinta); }
+.nav-tab.active { background: var(--z-papel); color: var(--z-tinta); font-weight: 600; }
+.nav-tab.active .tab-icon { color: var(--z-verde); }
+.nav-tab .tab-icon { width: 20px; flex-shrink: 0; display: flex; }
+.nav-sep { height: 1px; background: var(--z-linea); margin: 8px 12px; flex-shrink: 0; }
 /* Piezas que existen solo en el celular (barra inferior, hoja "Más", buscador). */
 .m-titulo, .m-buscar, .m-buscar-cerrar, .nav-mas, .m-velo, .m-mas { display: none; }
 
@@ -1239,6 +1248,85 @@ tr.fin-no-venta:hover td { opacity:1; }
 .reciente-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .empty-dash { text-align: center; padding: 24px; color: var(--text-3); font-size: 13px; }
 
+/* ── INICIO (rediseño 06-11-2026, boceto A «Para hoy») ──
+   Bloques planos separados por una línea, títulos chicos en mayúscula
+   espaciada, cifras grandes en Nanum Myeongjo, radios de 4 px, sin sombras. */
+#page-dash { background: var(--z-papel); min-height: 100vh; font-family: 'Poppins', sans-serif; color: var(--z-tinta); font-size: 15px; line-height: 1.45; }
+#page-dash .main { max-width: 1180px; padding: 0 32px 40px; }
+#page-dash button { font-family: inherit; cursor: pointer; }
+.ini-tres, .ini-lista, .ini-meta-n, .ini-pie, .ini-dos, .ini-meses { font-variant-numeric: tabular-nums; }
+.ini-cab { padding: 28px 0 18px; border-bottom: 1px solid var(--z-linea); }
+.ini-k { font-size: 12.5px; color: var(--z-sec); }
+.ini-h1 { font-family: 'Nanum Myeongjo', serif; font-weight: 800; font-size: 30px; line-height: 1.2; margin: 2px 0 0; color: var(--z-tinta); letter-spacing: 0; }
+.ini-h { font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--z-sec); margin: 0 0 12px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.ini-h span { letter-spacing: 0; text-transform: none; font-weight: 400; }
+.ini-blk { padding: 18px 0; border-bottom: 1px solid var(--z-linea); }
+/* tres números */
+.ini-tres { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 20px 0; border-bottom: 1px solid var(--z-linea); }
+.ini-n { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid var(--z-linea); border-radius: 4px; padding: 14px 16px; color: inherit; min-width: 0; }
+.ini-n:hover { border-color: var(--z-borde); }
+.ini-n .l { font-size: 12.5px; color: var(--z-sec); line-height: 1.3; }
+.ini-n .v { font-family: 'Nanum Myeongjo', serif; font-weight: 800; font-size: 24px; line-height: 1.25; margin-top: 4px; white-space: nowrap; }
+.ini-n .s { font-size: 12.5px; color: var(--z-sec); margin-top: 2px; }
+/* para hoy */
+.ini-seg { display: inline-grid; grid-auto-flow: column; border: 1px solid var(--z-borde); border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
+.ini-seg button { height: 40px; padding: 0 16px; border: 0; background: #fff; font-size: 14px; color: var(--z-tinta); white-space: nowrap; }
+.ini-seg button + button { border-left: 1px solid var(--z-borde); }
+.ini-seg button.on { background: var(--z-tinta); color: #fff; }
+.ini-seg button b { font-weight: 600; margin-left: 4px; }
+.ini-lista { background: #fff; border: 1px solid var(--z-linea); border-radius: 4px; }
+.ini-fila { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-top: 1px solid var(--z-linea); }
+.ini-fila:first-child { border-top: 0; }
+.ini-ico { width: 36px; height: 36px; border-radius: 4px; background: var(--z-papel); display: flex; align-items: center; justify-content: center; color: var(--z-sec); flex-shrink: 0; }
+.ini-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.ini-fila.rojo .ini-ico { background: #F6E9E7; color: var(--z-rojo); }
+.ini-fila .t { min-width: 0; flex: 1; }
+.ini-fila .n { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ini-fila .n small { font-weight: 400; color: var(--z-sec); font-size: 13px; margin-right: 4px; }
+.ini-fila .d { font-size: 13px; color: var(--z-sec); }
+.ini-fila.rojo .d { color: var(--z-rojo); }
+.ini-fila .m { font-size: 14px; font-weight: 600; white-space: nowrap; margin-right: 2px; }
+.ini-acc { display: inline-flex; align-items: center; height: 40px; padding: 0 14px; border: 1px solid var(--z-borde); border-radius: 4px; background: #fff; font-size: 14px; color: var(--z-tinta); white-space: nowrap; flex-shrink: 0; text-decoration: none; }
+.ini-acc.pri { background: var(--z-terra); border-color: var(--z-terra); color: #fff; }
+.ini-vacio { padding: 18px 14px; font-size: 14px; color: var(--z-sec); }
+.ini-mas { display: block; margin: 0 auto; border: 0; background: none; font-size: 13px; color: var(--z-sec); padding: 12px 8px 0; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--z-borde); }
+/* el mes */
+.ini-meta-n { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ini-meta-n b { font-family: 'Nanum Myeongjo', serif; font-weight: 800; font-size: 28px; }
+.ini-meta-de { border: 0; background: none; padding: 0; color: var(--z-sec); font-size: 14px; }
+.ini-meta-de:hover { color: var(--z-tinta); text-decoration: underline; text-underline-offset: 3px; }
+.ini-barra { position: relative; height: 10px; background: #EAE3D8; border-radius: 5px; margin: 12px 0 8px; }
+.ini-barra i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--z-verde); }
+.ini-barra em { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--z-tinta); }
+.ini-pie { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--z-sec); gap: 10px; }
+.ini-dos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.ini-dos > div { border-top: 1px solid var(--z-linea); padding-top: 8px; }
+.ini-dos .l { font-size: 12px; color: var(--z-sec); }
+.ini-dos .v { font-weight: 600; font-size: 15px; }
+/* ventas por mes */
+.ini-meses { display: grid; grid-template-columns: repeat(6,1fr); gap: 8px; align-items: end; height: 130px; margin-top: 6px; }
+.ini-mes { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.ini-mes i { display: block; width: 100%; max-width: 36px; background: #CFC6B8; border-radius: 2px 2px 0 0; }
+.ini-mes.on i { background: var(--z-verde); }
+.ini-mes small { font-size: 11px; color: var(--z-sec); }
+.ini-mes b { font-size: 11px; font-weight: 500; }
+@media (min-width: 990px) {
+  .ini-cols { display: grid; grid-template-columns: 7fr 5fr; gap: 32px; align-items: start; }
+  .ini-cols > .ini-der .ini-blk:last-child { border-bottom: 0; }
+  .ini-cab { padding: 28px 0 18px; }
+}
+@media (max-width: 768px) {
+  #page-dash .main { padding: 0 16px calc(96px + env(safe-area-inset-bottom)); }
+  .ini-cab { padding: 20px 0 14px; }
+  .ini-h1 { font-size: 26px; }
+  .ini-tres { gap: 8px; padding: 16px 0; }
+  .ini-n { padding: 10px; }
+  .ini-n .l, .ini-n .s { font-size: 11.5px; }
+  .ini-n .v { font-size: 18px; }
+  .ini-seg { display: grid; grid-auto-flow: row; grid-template-columns: var(--cols); }
+  .ini-seg button { padding: 0 4px; font-size: 13px; }
+}
+
 
 /* ══════════════════════════════════════════
    RESPONSIVE MÓVIL
@@ -1257,34 +1345,15 @@ tr.fin-no-venta:hover td { opacity:1; }
     flex-direction: column;
     z-index: 200;
     border-right: none;
-    border-bottom: 1px solid rgba(245,237,227,0.12);
-    box-shadow: 0 2px 8px rgba(139,94,60,0.18);
+    background: var(--z-verde);
   }
-  .app-topbar {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    border-bottom: none;
-  }
-  .brand-sub { display: none; }
-
-  /* ── Encabezado delgado (29-09-2026) ──
-     Antes ocupaba 229 px de 812: logo, fila de pastillas, buscador, botón de
-     Excel y versión apilados. Ahora es una sola línea con la sección actual;
-     buscar se abre con la lupa y lo demás vive en "Más". */
-  .app-topbar { padding: calc(8px + env(safe-area-inset-top)) 14px 8px; min-height: 52px; }
-  .brand-logo { gap: 10px; min-width: 0; }
-  .brand-name { display: none; }
-  .m-titulo { display: block; font-size: 17px; font-weight: 700; color: #F5EDE3;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.2px; }
-  .sync-row { margin-top: 0; margin-left: 10px; gap: 10px; }
-  .sync-label { display: none; }
+  /* ── Barra de arriba (06-11-2026, boceto A): logo real y la lupa. ──
+     Buscar se abre con la lupa; Excel, la sesión y salir viven en «Más». */
+  .app-topbar { padding: calc(6px + env(safe-area-inset-top)) 8px 6px 16px; min-height: 52px; }
   .m-buscar { display: flex; align-items: center; justify-content: center;
-    width: 40px; height: 40px; border-radius: 12px; border: none; cursor: pointer;
-    background: rgba(245,237,227,0.14); color: #F5EDE3; font-size: 20px; line-height: 1; }
-  #sidebar-footer { display: none; }
+    width: 44px; height: 44px; border-radius: 4px; border: none; cursor: pointer;
+    background: none; color: #fff; }
+  #sidebar-footer, .sb-pie { display: none; }
 
   /* ── Barra de secciones abajo, al alcance del pulgar ──
      Arriba y con scroll lateral no servía: cada pastilla heredaba el
@@ -1295,55 +1364,55 @@ tr.fin-no-venta:hover td { opacity:1; }
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 150;
     display: flex !important; flex-direction: row !important;
     justify-content: space-around; align-items: stretch; gap: 2px;
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
-    background: var(--surface,#FDFAF7);
-    border-top: 1px solid var(--border-md,#E0D5C8);
-    box-shadow: 0 -4px 16px rgba(60,40,20,0.08);
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: #fff;
+    border-top: 1px solid var(--z-linea);
     overflow: visible;
   }
+  .nav-sep, .nav-largo { display: none; }
   .nav-tab {
-    flex: 1 1 0; width: auto; min-width: 0; min-height: 54px;
+    flex: 1 1 0; width: auto; min-width: 0; height: auto; min-height: 50px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 3px; padding: 6px 2px; border: none; border-radius: 14px;
-    background: none; color: var(--text-3,#9A8B7C);
-    font-size: 10.5px; font-weight: 600; text-align: center;
+    gap: 2px; padding: 4px 2px; border: none; border-radius: 4px;
+    background: none; color: var(--z-sec);
+    font-size: 11px; font-weight: 400; text-align: center;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    transition: background .15s ease, color .15s ease;
   }
-  .nav-tab:hover { background: none; color: var(--text-3,#9A8B7C); }
+  .nav-tab:hover { background: none; color: var(--z-sec); }
   .nav-tab.active, .nav-tab.active:hover {
-    background: rgba(139,94,60,0.12) !important;
-    color: var(--wood,#7B5B3A) !important;
-    border: none; box-shadow: none; font-weight: 700;
+    background: none !important;
+    color: var(--z-tinta) !important;
+    border: none; box-shadow: none; font-weight: 600;
   }
-  .nav-tab .tab-icon { display: block; width: auto; font-size: 21px; line-height: 1; }
+  .nav-tab .tab-icon { display: flex; width: auto; }
   .nav-tab.nav-extra { display: none !important; }
   .nav-mas { display: flex; }
 
   /* ── Hoja "Más" ── */
   /* Por encima del encabezado (z 200), que es quien contiene a la barra. */
-  .m-velo { position: fixed; inset: 0; z-index: 210; background: rgba(30,20,10,0.38); }
+  .m-velo { position: fixed; inset: 0; z-index: 210; background: rgba(31,29,36,0.38); }
   body.m-mas-open .m-velo, body.m-buscando .m-velo { display: block; }
   .m-mas {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 220;
-    background: var(--surface,#FDFAF7); border-radius: 20px 20px 0 0;
+    background: #fff; border-radius: 8px 8px 0 0;
     padding: 8px 12px calc(14px + env(safe-area-inset-bottom));
-    box-shadow: 0 -8px 30px rgba(0,0,0,0.18);
-    max-height: 80vh; overflow-y: auto;
+    max-height: 80vh; overflow-y: auto; font-family: 'Poppins', sans-serif;
   }
   body.m-mas-open .m-mas { display: block; }
-  .m-mas-asa { width: 40px; height: 5px; border-radius: 3px; background: var(--border-md,#E0D5C8); margin: 2px auto 10px; }
+  .m-mas-asa { width: 40px; height: 4px; border-radius: 2px; background: var(--z-linea); margin: 2px auto 10px; }
   .m-mas-fila {
     display: flex; align-items: center; gap: 14px; width: 100%;
-    min-height: 54px; padding: 0 12px; border: none; border-radius: 12px;
-    background: none; color: var(--text,#2B2118); font-size: 15px; font-weight: 600;
-    font-family: 'Inter', sans-serif; text-align: left; cursor: pointer;
+    min-height: 50px; padding: 0 12px; border: none; border-radius: 4px;
+    background: none; color: var(--z-tinta); font-size: 15px; font-weight: 400;
+    font-family: 'Poppins', sans-serif; text-align: left; cursor: pointer;
   }
-  .m-mas-fila.activa { background: rgba(139,94,60,0.12); color: var(--wood,#7B5B3A); }
-  .m-mas-fila.salir { color: var(--red,#B4342A); }
-  .m-mas-ic { width: 28px; text-align: center; font-size: 20px; }
-  .m-mas-sep { height: 1px; background: var(--border,#E8DFD5); margin: 6px 4px; }
-  .m-mas-pie { font-size: 11px; color: var(--text-3,#9A8B7C); text-align: center; padding: 10px 0 2px; }
+  .m-mas-fila.activa { background: var(--z-papel); font-weight: 600; }
+  .m-mas-fila.activa .m-mas-ic { color: var(--z-verde); }
+  .m-mas-fila.salir { color: var(--z-rojo); }
+  .m-mas-ic { width: 24px; display: flex; justify-content: center; color: var(--z-sec); }
+  .m-mas-fila.salir .m-mas-ic { color: var(--z-rojo); }
+  .m-mas-sep { height: 1px; background: var(--z-linea); margin: 6px 4px; }
+  .m-mas-pie { font-size: 12px; color: var(--z-sec); text-align: center; padding: 10px 0 2px; }
 
   /* ── Buscador: panel arriba, resultados HACIA ABAJO ──
      En el menú lateral los resultados se abren hacia arriba (bottom:100%),
@@ -1353,13 +1422,12 @@ tr.fin-no-venta:hover td { opacity:1; }
     display: flex; align-items: center; gap: 8px;
     position: fixed; top: 0; left: 0; right: 0; z-index: 180;
     padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
-    background: #7B5B3A; border: none;
+    background: var(--z-verde); border: none;
   }
   body.m-buscando #sidebar-footer .gsearch-wrap { flex: 1; margin: 0 !important; }
-  body.m-buscando #global-search { padding: 11px 12px 11px 30px !important; font-size: 16px !important; border-radius: 12px !important; }
-  body.m-buscando #global-results { top: calc(100% + 8px) !important; bottom: auto !important; max-height: 65vh !important; border-radius: 14px !important; }
-  body.m-buscando .m-buscar-cerrar { display: block; background: none; border: none; color: #F5EDE3; font-size: 15px; font-weight: 600; padding: 8px 4px; cursor: pointer; }
-  body.m-buscando .sb-export, body.m-buscando .sb-version { display: none; }
+  body.m-buscando #global-search { height: 44px; font-size: 16px; }
+  body.m-buscando #global-results { top: calc(100% + 8px) !important; bottom: auto !important; width: auto; max-height: 65vh !important; }
+  body.m-buscando .m-buscar-cerrar { display: block; background: none; border: none; color: #fff; font: 500 15px 'Poppins', sans-serif; padding: 8px 4px; cursor: pointer; }
   body.m-buscando .gsearch-item { padding: 12px 14px !important; }
 
   /* El aviso flotante no puede quedar tapado por la barra. */
@@ -26334,44 +26402,44 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   </div>
 </div>
 
+<!-- Marco (rediseño 06-11-2026, boceto A «Para hoy»): en el PC, barra lateral
+     blanca con la franja verde del logo; en el celular, barra verde arriba y la
+     barra de secciones abajo. Logo real (el SVG blanco), íconos de línea. -->
 <div class="app-header">
   <div class="app-topbar">
-    <div class="brand-logo">
-      <div class="brand-icon">🪵</div>
-      <div class="brand-name">Casa Zaru</div>
-      <div class="m-titulo" id="m-titulo"></div>
-    </div>
-    <div class="brand-sub">Sistema de gestión</div>
-    <div class="sync-row">
-      <span class="sync-dot" id="sync-dot"></span>
-      <span class="sync-label" id="sync-label">Conectando...</span>
-      <button class="m-buscar" type="button" onclick="abrirBusquedaMovil()" aria-label="Buscar en todo">⌕</button>
-    </div>
+    <div class="brand-logo" aria-label="Casa Zaru"><svg class="logo-zaru" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="20 419 1095 272" preserveAspectRatio="xMidYMin meet" role="img" aria-label="Casa Zaru"><defs><g/><clipPath id="5f50f164cb"><path d="M 0.558594 0.921875 L 498 0.921875 L 498 255.800781 L 0.558594 255.800781 Z M 0.558594 0.921875 " clip-rule="nonzero"/></clipPath><clipPath id="04187ce238"><rect x="0" width="498" y="0" height="256"/></clipPath><clipPath id="db891d530a"><path d="M 519 21 L 1078.160156 21 L 1078.160156 255 L 519 255 Z M 519 21 " clip-rule="nonzero"/></clipPath><clipPath id="371f6dc6be"><rect x="0" width="560" y="0" height="234"/></clipPath><clipPath id="b85a56330c"><rect x="0" width="1079" y="0" height="256"/></clipPath></defs><g transform="matrix(1, 0, 0, 1, 28, 427)"><g clip-path="url(#b85a56330c)"><g clip-path="url(#5f50f164cb)"><g transform="matrix(1, 0, 0, 1, 0, -0.000000000000113687)"><g clip-path="url(#04187ce238)"><g fill="#ffffff" fill-opacity="1"><g transform="translate(0.72045, 206.758774)"><g><path d="M 75.4375 -137.1875 C 83.789062 -137.1875 90.660156 -135.945312 96.046875 -133.46875 C 101.429688 -131 106.210938 -128.117188 110.390625 -124.828125 C 112.921875 -122.929688 114.851562 -122.707031 116.1875 -124.15625 C 117.519531 -125.613281 118.4375 -129.066406 118.9375 -134.515625 L 123.3125 -134.515625 C 123.0625 -129.578125 122.867188 -123.59375 122.734375 -116.5625 C 122.609375 -109.53125 122.546875 -100.191406 122.546875 -88.546875 L 118.1875 -88.546875 C 117.550781 -94.367188 116.722656 -99.335938 115.703125 -103.453125 C 114.691406 -107.566406 113.300781 -111.207031 111.53125 -114.375 C 109.757812 -117.539062 107.226562 -120.394531 103.9375 -122.9375 C 100.769531 -126.101562 97.09375 -128.441406 92.90625 -129.953125 C 88.726562 -131.472656 84.359375 -132.234375 79.796875 -132.234375 C 72.960938 -132.234375 67.132812 -130.425781 62.3125 -126.8125 C 57.5 -123.207031 53.601562 -118.300781 50.625 -112.09375 C 47.65625 -105.894531 45.472656 -98.898438 44.078125 -91.109375 C 42.679688 -83.316406 41.984375 -75.238281 41.984375 -66.875 C 41.984375 -58.394531 42.710938 -50.257812 44.171875 -42.46875 C 45.628906 -34.675781 47.910156 -27.738281 51.015625 -21.65625 C 54.117188 -15.582031 58.140625 -10.769531 63.078125 -7.21875 C 68.015625 -3.675781 73.84375 -1.90625 80.5625 -1.90625 C 84.738281 -1.90625 88.945312 -2.695312 93.1875 -4.28125 C 97.4375 -5.863281 101.082031 -8.171875 104.125 -11.203125 C 109.0625 -15.003906 112.414062 -19.722656 114.1875 -25.359375 C 115.957031 -30.992188 117.289062 -38.5 118.1875 -47.875 L 122.546875 -47.875 C 122.546875 -35.84375 122.609375 -26.117188 122.734375 -18.703125 C 122.867188 -11.296875 123.0625 -5.0625 123.3125 0 L 118.9375 0 C 118.4375 -5.445312 117.582031 -8.863281 116.375 -10.25 C 115.164062 -11.644531 113.171875 -11.457031 110.390625 -9.6875 C 105.703125 -6.394531 100.726562 -3.515625 95.46875 -1.046875 C 90.21875 1.417969 83.472656 2.65625 75.234375 2.65625 C 61.804688 2.65625 50.054688 -0.0664062 39.984375 -5.515625 C 29.921875 -10.960938 22.101562 -18.8125 16.53125 -29.0625 C 10.957031 -39.320312 8.171875 -51.675781 8.171875 -66.125 C 8.171875 -80.3125 11.050781 -92.722656 16.8125 -103.359375 C 22.570312 -113.992188 30.488281 -122.289062 40.5625 -128.25 C 50.632812 -134.207031 62.257812 -137.1875 75.4375 -137.1875 Z M 75.4375 -137.1875 "/></g></g></g><g fill="#ffffff" fill-opacity="1"><g transform="translate(131.031842, 206.758774)"><g><path d="M 69.921875 -134.90625 L 116.09375 -15.953125 C 117.863281 -11.398438 119.859375 -8.265625 122.078125 -6.546875 C 124.296875 -4.835938 126.289062 -3.921875 128.0625 -3.796875 L 128.0625 0 C 124.257812 -0.25 119.789062 -0.40625 114.65625 -0.46875 C 109.53125 -0.53125 104.375 -0.5625 99.1875 -0.5625 C 93.351562 -0.5625 87.835938 -0.53125 82.640625 -0.46875 C 77.453125 -0.40625 73.335938 -0.25 70.296875 0 L 70.296875 -3.796875 C 76.753906 -4.054688 80.835938 -5.164062 82.546875 -7.125 C 84.265625 -9.082031 83.851562 -13.296875 81.3125 -19.765625 L 49.015625 -108.109375 L 52.4375 -113.046875 L 23.5625 -37.8125 C 20.769531 -30.84375 19.085938 -25.140625 18.515625 -20.703125 C 17.953125 -16.273438 18.269531 -12.859375 19.46875 -10.453125 C 20.675781 -8.046875 22.640625 -6.363281 25.359375 -5.40625 C 28.085938 -4.457031 31.351562 -3.921875 35.15625 -3.796875 L 35.15625 0 C 30.96875 -0.25 26.972656 -0.40625 23.171875 -0.46875 C 19.378906 -0.53125 15.519531 -0.5625 11.59375 -0.5625 C 8.800781 -0.5625 6.171875 -0.53125 3.703125 -0.46875 C 1.234375 -0.40625 -0.945312 -0.25 -2.84375 0 L -2.84375 -3.796875 C -0.1875 -4.304688 2.53125 -6.015625 5.3125 -8.921875 C 8.101562 -11.835938 10.828125 -16.78125 13.484375 -23.75 L 56.8125 -134.90625 C 58.832031 -134.769531 61.015625 -134.703125 63.359375 -134.703125 C 65.703125 -134.703125 67.890625 -134.769531 69.921875 -134.90625 Z M 83.21875 -54.71875 L 83.21875 -50.921875 L 26.59375 -50.921875 L 28.5 -54.71875 Z M 83.21875 -54.71875 "/></g></g></g><g fill="#ffffff" fill-opacity="1"><g transform="translate(254.124774, 206.758774)"><g><path d="M 53.953125 -136.984375 C 61.429688 -136.984375 67.195312 -136.191406 71.25 -134.609375 C 75.300781 -133.023438 78.785156 -131.347656 81.703125 -129.578125 C 83.222656 -128.691406 84.457031 -128.023438 85.40625 -127.578125 C 86.351562 -127.140625 87.269531 -126.921875 88.15625 -126.921875 C 89.425781 -126.921875 90.34375 -127.613281 90.90625 -129 C 91.476562 -130.394531 91.957031 -132.488281 92.34375 -135.28125 L 96.703125 -135.28125 C 96.578125 -132.875 96.421875 -129.988281 96.234375 -126.625 C 96.046875 -123.269531 95.921875 -118.867188 95.859375 -113.421875 C 95.796875 -107.984375 95.765625 -100.828125 95.765625 -91.953125 L 91.390625 -91.953125 C 90.878906 -98.546875 89.359375 -104.941406 86.828125 -111.140625 C 84.296875 -117.347656 80.71875 -122.445312 76.09375 -126.4375 C 71.46875 -130.4375 65.800781 -132.4375 59.09375 -132.4375 C 53.007812 -132.4375 48.003906 -130.722656 44.078125 -127.296875 C 40.148438 -123.878906 38.1875 -119.128906 38.1875 -113.046875 C 38.1875 -107.984375 39.453125 -103.644531 41.984375 -100.03125 C 44.523438 -96.425781 48.234375 -92.910156 53.109375 -89.484375 C 57.984375 -86.066406 63.90625 -81.953125 70.875 -77.140625 C 76.945312 -73.210938 82.390625 -69.285156 87.203125 -65.359375 C 92.023438 -61.429688 95.890625 -57 98.796875 -52.0625 C 101.710938 -47.125 103.171875 -41.234375 103.171875 -34.390625 C 103.171875 -26.023438 100.984375 -19.117188 96.609375 -13.671875 C 92.242188 -8.234375 86.515625 -4.148438 79.421875 -1.421875 C 72.328125 1.292969 64.535156 2.65625 56.046875 2.65625 C 48.191406 2.65625 41.921875 1.894531 37.234375 0.375 C 32.546875 -1.144531 28.617188 -2.726562 25.453125 -4.375 C 22.671875 -6.144531 20.519531 -7.03125 19 -7.03125 C 17.726562 -7.03125 16.804688 -6.332031 16.234375 -4.9375 C 15.671875 -3.539062 15.195312 -1.449219 14.8125 1.328125 L 10.453125 1.328125 C 10.703125 -1.710938 10.859375 -5.257812 10.921875 -9.3125 C 10.984375 -13.363281 11.046875 -18.648438 11.109375 -25.171875 C 11.171875 -31.691406 11.203125 -39.957031 11.203125 -49.96875 L 15.578125 -49.96875 C 16.085938 -41.613281 17.515625 -33.789062 19.859375 -26.5 C 22.203125 -19.21875 25.8125 -13.359375 30.6875 -8.921875 C 35.5625 -4.492188 42.050781 -2.28125 50.15625 -2.28125 C 54.59375 -2.28125 58.550781 -3.070312 62.03125 -4.65625 C 65.519531 -6.238281 68.335938 -8.613281 70.484375 -11.78125 C 72.640625 -14.945312 73.71875 -18.875 73.71875 -23.5625 C 73.71875 -28.882812 72.484375 -33.503906 70.015625 -37.421875 C 67.546875 -41.347656 64.1875 -45.019531 59.9375 -48.4375 C 55.695312 -51.863281 50.789062 -55.351562 45.21875 -58.90625 C 39.269531 -62.832031 33.695312 -66.753906 28.5 -70.671875 C 23.300781 -74.597656 19.148438 -79.09375 16.046875 -84.15625 C 12.953125 -89.226562 11.40625 -95.25 11.40625 -102.21875 C 11.40625 -110.195312 13.398438 -116.75 17.390625 -121.875 C 21.378906 -127.007812 26.632812 -130.8125 33.15625 -133.28125 C 39.675781 -135.75 46.609375 -136.984375 53.953125 -136.984375 Z M 53.953125 -136.984375 "/></g></g></g><g fill="#ffffff" fill-opacity="1"><g transform="translate(361.451053, 206.758774)"><g><path d="M 69.921875 -134.90625 L 116.09375 -15.953125 C 117.863281 -11.398438 119.859375 -8.265625 122.078125 -6.546875 C 124.296875 -4.835938 126.289062 -3.921875 128.0625 -3.796875 L 128.0625 0 C 124.257812 -0.25 119.789062 -0.40625 114.65625 -0.46875 C 109.53125 -0.53125 104.375 -0.5625 99.1875 -0.5625 C 93.351562 -0.5625 87.835938 -0.53125 82.640625 -0.46875 C 77.453125 -0.40625 73.335938 -0.25 70.296875 0 L 70.296875 -3.796875 C 76.753906 -4.054688 80.835938 -5.164062 82.546875 -7.125 C 84.265625 -9.082031 83.851562 -13.296875 81.3125 -19.765625 L 49.015625 -108.109375 L 52.4375 -113.046875 L 23.5625 -37.8125 C 20.769531 -30.84375 19.085938 -25.140625 18.515625 -20.703125 C 17.953125 -16.273438 18.269531 -12.859375 19.46875 -10.453125 C 20.675781 -8.046875 22.640625 -6.363281 25.359375 -5.40625 C 28.085938 -4.457031 31.351562 -3.921875 35.15625 -3.796875 L 35.15625 0 C 30.96875 -0.25 26.972656 -0.40625 23.171875 -0.46875 C 19.378906 -0.53125 15.519531 -0.5625 11.59375 -0.5625 C 8.800781 -0.5625 6.171875 -0.53125 3.703125 -0.46875 C 1.234375 -0.40625 -0.945312 -0.25 -2.84375 0 L -2.84375 -3.796875 C -0.1875 -4.304688 2.53125 -6.015625 5.3125 -8.921875 C 8.101562 -11.835938 10.828125 -16.78125 13.484375 -23.75 L 56.8125 -134.90625 C 58.832031 -134.769531 61.015625 -134.703125 63.359375 -134.703125 C 65.703125 -134.703125 67.890625 -134.769531 69.921875 -134.90625 Z M 83.21875 -54.71875 L 83.21875 -50.921875 L 26.59375 -50.921875 L 28.5 -54.71875 Z M 83.21875 -54.71875 "/></g></g></g></g></g></g><g clip-path="url(#db891d530a)"><g transform="matrix(1, 0, 0, 1, 519, 21)"><g clip-path="url(#371f6dc6be)"><g fill="#ffffff" fill-opacity="1"><g transform="translate(0.352037, 183.459213)"><g><path d="M 118.546875 -12.25 L 118.546875 0 L 8.625 0 L 8.625 -9.765625 L 97.484375 -121.796875 L 9.953125 -121.796875 L 9.953125 -134.0625 L 116.25 -134.0625 L 116.25 -124.296875 L 27.578125 -12.25 Z M 118.546875 -12.25 "/></g></g></g><g fill="#ffffff" fill-opacity="1"><g transform="translate(126.160087, 183.459213)"><g><path d="M 105.90625 -35.8125 L 31.21875 -35.8125 L 15.125 0 L 0.390625 0 L 61.671875 -134.0625 L 75.65625 -134.0625 L 136.9375 0 L 122 0 Z M 100.734375 -47.296875 L 68.5625 -119.3125 L 36.390625 -47.296875 Z M 100.734375 -47.296875 "/></g></g></g><g fill="#ffffff" fill-opacity="1"><g transform="translate(264.606363, 183.459213)"><g><path d="M 113.375 0 L 82.734375 -43.09375 C 79.285156 -42.707031 75.710938 -42.515625 72.015625 -42.515625 L 36 -42.515625 L 36 0 L 21.828125 0 L 21.828125 -134.0625 L 72.015625 -134.0625 C 89.117188 -134.0625 102.519531 -129.972656 112.21875 -121.796875 C 121.925781 -113.628906 126.78125 -102.394531 126.78125 -88.09375 C 126.78125 -77.625 124.128906 -68.78125 118.828125 -61.5625 C 113.535156 -54.351562 105.972656 -49.15625 96.140625 -45.96875 L 128.890625 0 Z M 71.625 -54.578125 C 84.90625 -54.578125 95.054688 -57.515625 102.078125 -63.390625 C 109.097656 -69.265625 112.609375 -77.5 112.609375 -88.09375 C 112.609375 -98.945312 109.097656 -107.273438 102.078125 -113.078125 C 95.054688 -118.890625 84.90625 -121.796875 71.625 -121.796875 L 36 -121.796875 L 36 -54.578125 Z M 71.625 -54.578125 "/></g></g></g><g fill="#ffffff" fill-opacity="1"><g transform="translate(404.201549, 183.459213)"><g><path d="M 75.84375 1.15625 C 58.476562 1.15625 44.941406 -3.820312 35.234375 -13.78125 C 25.535156 -23.75 20.6875 -38.242188 20.6875 -57.265625 L 20.6875 -134.0625 L 34.859375 -134.0625 L 34.859375 -57.84375 C 34.859375 -42.257812 38.367188 -30.632812 45.390625 -22.96875 C 52.410156 -15.3125 62.5625 -11.484375 75.84375 -11.484375 C 89.25 -11.484375 99.460938 -15.3125 106.484375 -22.96875 C 113.503906 -30.632812 117.015625 -42.257812 117.015625 -57.84375 L 117.015625 -134.0625 L 130.8125 -134.0625 L 130.8125 -57.265625 C 130.8125 -38.242188 125.988281 -23.75 116.34375 -13.78125 C 106.707031 -3.820312 93.207031 1.15625 75.84375 1.15625 Z M 75.84375 1.15625 "/></g></g></g></g></g></g></g></g></svg></div>
+    <button class="m-buscar" type="button" onclick="abrirBusquedaMovil()" aria-label="Buscar en todo"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></button>
   </div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" onclick="showPage('dash',this)"><span class="tab-icon">⚡</span> Dashboard</button>
-    <button class="nav-tab" onclick="showPage('prod',this)"><span class="tab-icon">🪵</span> Producción</button>
-    <button class="nav-tab" onclick="showPage('seg',this)"><span class="tab-icon">📋</span> Seguimiento</button>
-    <button class="nav-tab" onclick="showPage('fin',this)"><span class="tab-icon">💰</span> Finanzas</button>
-    <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon">📊</span> Pixel Meta</button>
-    <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon">🔧</span> Costos</button>
-    <button class="nav-tab" onclick="showPage('gastos',this)"><span class="tab-icon">📄</span> Gastos</button>
-    <button class="nav-tab" onclick="showPage('madera',this)"><span class="tab-icon"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M7 7v10M11 10h6M11 14h4"/></svg></span> Madera</button>
-    <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon">👥</span> Clientes</button>
-    <button class="nav-tab" onclick="showPage('emp',this)"><span class="tab-icon">🏢</span> Empresas</button>
-    <button class="nav-tab" onclick="showPage('pv',this)"><span class="tab-icon">🛠</span> Post venta</button>
-  </div>
-  <!-- Sidebar footer -->
-  <div id="sidebar-footer" style="padding:10px 8px;border-top:1px solid rgba(245,237,227,0.12)">
-    <div class="gsearch-wrap" style="position:relative;margin-bottom:8px">
-      <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:rgba(245,237,227,0.5);font-size:13px">⌕</span>
-      <input id="global-search" type="text" placeholder="Buscar en todo..." oninput="renderGlobalSearch()"
-        style="width:100%;padding:7px 8px 7px 26px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:12px;font-family:'Inter',sans-serif;color:#F5EDE3;background:rgba(245,237,227,0.1);outline:none">
-      <div id="global-results" style="display:none;position:absolute;bottom:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border-md);border-radius:8px;box-shadow:var(--shadow-lg);max-height:320px;overflow-y:auto;z-index:200"></div>
+  <!-- Buscador: en el PC va arriba, debajo del logo; en el celular se abre con la lupa. -->
+  <div id="sidebar-footer">
+    <div class="gsearch-wrap" style="position:relative">
+      <span class="gsearch-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></span>
+      <input id="global-search" type="text" placeholder="Buscar pedido o cliente" oninput="renderGlobalSearch()" autocomplete="off">
+      <div id="global-results" style="display:none"></div>
     </div>
     <button type="button" class="m-buscar-cerrar" onclick="cerrarBusquedaMovil()">Cancelar</button>
-    <button class="sb-export" onclick="exportTodoXLSX()" style="width:100%;padding:7px;border:1px solid rgba(245,237,227,0.2);border-radius:6px;font-size:11px;font-family:'Inter',sans-serif;color:rgba(245,237,227,0.7);background:rgba(245,237,227,0.08);cursor:pointer;text-align:left">↓ Exportar todo a Excel</button>
-    <div class="sb-version" style="margin-top:8px;text-align:center;font-size:10px;color:rgba(245,237,227,0.3);font-family:'Inter',sans-serif">v2.7 · 3 ago 2026</div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dash',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span> Inicio</button>
+    <button class="nav-tab" onclick="showPage('prod',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M7 7v10M11 10h6M11 14h4"/></svg></span> Producción</button>
+    <button class="nav-tab" onclick="showPage('fin',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 10h16M8 15h3"/></svg></span> Finanzas</button>
+    <button class="nav-tab" onclick="showPage('seg',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg></span> <span>Avisos<span class="nav-largo"> a clientes</span></span></button>
+    <div class="nav-sep" aria-hidden="true"></div>
+    <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><path d="M4 19c0-3 2.2-5 5-5s5 2 5 5M16 7.5a2.5 2.5 0 1 1 0 5M17 14c2 .4 3.5 2 3.5 5"/></svg></span> Clientes</button>
+    <button class="nav-tab" onclick="showPage('emp',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12M9 20v-5h6v5"/></svg></span> Empresas</button>
+    <button class="nav-tab" onclick="showPage('pv',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M14 6a4 4 0 0 0-5 5l-5 5 3 3 5-5a4 4 0 0 0 5-5l-2 2-2-2z"/></svg></span> Post venta</button>
+    <button class="nav-tab" onclick="showPage('gastos',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg></span> Gastos</button>
+    <button class="nav-tab" onclick="showPage('madera',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="3"/><circle cx="12" cy="8" r="3"/></svg></span> Madera</button>
+    <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/></svg></span> Costos</button>
+    <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 12h.01"/></svg></span> Pixel Meta</button>
+  </div>
+  <!-- Pie del PC: estado de la conexión, sesión, Excel y versión. En el celular
+       esto vive en la hoja «Más». -->
+  <div class="sb-pie">
+    <div class="sync-row"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Conectando...</span></div>
+    <div class="sb-rol" id="sb-rol"></div>
+    <button class="sb-export" type="button" onclick="exportTodoXLSX()">Exportar todo a Excel</button>
+    <div class="sb-version">v2.8 · 6 nov 2026</div>
   </div>
 </div>
 <!-- Móvil: fondo y hoja "Más" (secciones que no caben en la barra inferior). -->
@@ -26380,101 +26448,26 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 <div class="app-body">
 
 
-<!-- DASHBOARD -->
+<!-- INICIO (rediseño 06-11-2026, boceto A «Para hoy»). Una pregunta por bloque,
+     en orden de urgencia: qué se hace hoy, cómo va el mes, cuánto se vendió.
+     Lo que es plata (.dash-money) no se dibuja para el vendedor. -->
 <div class="page active" id="page-dash">
 <div class="main">
-
-  <!-- KPIs -->
-  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:8px">
-    <div>
-      <div style="font-size:22px;font-weight:700;color:var(--text);letter-spacing:-0.4px">Buenos días 👋</div>
-      <div style="font-size:13px;color:var(--text-3);margin-top:3px" id="dash-date"></div>
-    </div>
-    <button class="btn-ghost" onclick="renderDash();renderNotif();renderGrafico();renderRanking();" style="font-size:12px">↺ Actualizar</button>
+  <div class="ini-cab">
+    <div class="ini-k" id="dash-date"></div>
+    <h1 class="ini-h1" id="dash-saludo">Buenos días</h1>
   </div>
-
-  <!-- Selector de mes -->
-  <div id="dash-month-bar" class="month-bar" style="margin-bottom:16px"></div>
-
-  <!-- Fila KPIs mes actual vs anterior -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px" id="dash-kpis"></div>
-
-  <!-- Caja: qué plata entra y qué está vencida -->
-  <div class="table-card" style="padding:20px;margin-bottom:24px" id="dash-caja"></div>
-
-  <!-- Meta mensual -->
-  <div class="table-card" style="padding:20px;margin-bottom:24px" id="dash-meta"></div>
-
-  <!-- Fila 2: urgentes + checkpoints -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px" id="dash-grid">
-
-    <!-- Pedidos urgentes esta semana -->
-    <div class="table-card" style="padding:20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:10px;height:10px;border-radius:50%;background:var(--amber);animation:pulse-dot 1.5s infinite"></div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">📦 Entregas próximos 6 días</div>
-          <div id="dash-urgentes-count" style="font-size:11px;font-weight:600;background:var(--brand-dim);color:var(--brand);padding:3px 8px;border-radius:6px"></div>
-        </div>
-        <button class="btn-ghost" style="font-size:11px;padding:4px 10px" onclick="poll().then(function(){renderDash();showToast('Seguimiento actualizado');})">↺ Actualizar seguimiento</button>
-      </div>
-      <div id="dash-urgentes"></div>
-    </div>
-
-    <!-- Checkpoints críticos pendientes -->
-    <div class="table-card" style="padding:20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div style="font-size:14px;font-weight:700;color:var(--text)">⚠️ Checkpoints pendientes</div>
-        <div id="dash-checks-count" style="font-size:11px;font-weight:600;background:var(--red-dim);color:var(--red);padding:3px 8px;border-radius:6px"></div>
-      </div>
-      <div id="dash-checks"></div>
-    </div>
-
-    <!-- Contactos pendientes -->
-    <div class="table-card" style="padding:20px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-        <div style="display:flex;align-items:center;gap:10px">
-          <div style="font-size:14px;font-weight:700;color:var(--text)">💬 Contactos pendientes</div>
-          <div id="dash-contactos-count" style="font-size:11px;font-weight:600;background:#E8F5E9;color:#2E7D32;padding:3px 8px;border-radius:6px"></div>
-        </div>
-      </div>
-      <div id="dash-contactos"></div>
-    </div>
-
-  </div>
-
-  <!-- Fila 3: gráfico ventas + ranking productos -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-    <div class="table-card" style="padding:20px">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">📈 Ventas últimos 6 meses</div>
-      <div id="dash-grafico"></div>
-    </div>
-    <div class="table-card" style="padding:20px">
-      <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">🏆 Productos más vendidos</div>
-      <div id="dash-ranking"></div>
+  <div class="ini-tres" id="dash-tres"></div>
+  <div class="ini-cols">
+    <section class="ini-blk" id="dash-para"></section>
+    <div class="ini-der dash-money">
+      <section class="ini-blk" id="dash-meta"></section>
+      <section class="ini-blk">
+        <div class="ini-h">Ventas por mes</div>
+        <div id="dash-grafico"></div>
+      </section>
     </div>
   </div>
-
-  <!-- Fila 4: notificaciones pedidos sin movimiento -->
-  <div class="table-card" style="padding:20px;margin-bottom:16px" id="dash-notif-card">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-      <div style="font-size:14px;font-weight:700;color:var(--text)">🔔 Pedidos sin movimiento</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span style="font-size:11px;color:var(--text-3)">Días sin completar:</span>
-        <select id="notif-days" onchange="renderNotif()" style="font-size:12px;font-family:'Inter',sans-serif;border:1px solid var(--border-md);border-radius:6px;padding:3px 8px;background:var(--surface);color:var(--text)">
-          <option value="7">7 días</option><option value="14" selected>14 días</option><option value="21">21 días</option><option value="30">30 días</option>
-        </select>
-      </div>
-    </div>
-    <div id="dash-notif"></div>
-  </div>
-
-  <!-- Fila 4: actividad reciente -->
-  <div class="table-card" style="padding:20px">
-    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:16px">🕐 Últimos pedidos ingresados</div>
-    <div id="dash-recientes"></div>
-  </div>
-
 </div>
 </div>
 
@@ -27513,7 +27506,7 @@ var prodMonthFilter=currentMonthName();
 var pixelMonthFilter=currentMonthName();
 var costMonthFilter=currentMonthName();
 var dashMonthFilter=currentMonthName();
-function setDashMonth(m){dashMonthFilter=m;renderDash();renderNotif();renderGrafico();renderRanking();}
+function setDashMonth(m){dashMonthFilter=m;renderDash();}
 // Fecha de referencia para saber cuándo salió un pedido.
 // Si no está cargado el día de envío (los pedidos viejos no lo tienen), se
 // deduce de la semana: lo de la semana del 10 se despacha el lunes 17. Antes
@@ -27741,7 +27734,16 @@ function showPage(p,btn){
 // hay una segunda lista de secciones: los permisos por rol (que esconden los
 // botones) y restaurarPagina() siguen funcionando igual. Si el rol ve más de
 // 5 secciones, las primeras 4 van en la barra y el resto en la hoja "Más".
-var NAV_ORDEN=['dash','prod','seg','fin','cli','emp','pv','gastos','madera','cost','pixel'];
+// Orden del boceto A (06-11-2026): Inicio, Producción, Finanzas y Avisos en la
+// barra; lo demás en «Más». Es el mismo orden de los botones en el HTML.
+var NAV_ORDEN=['dash','prod','fin','seg','cli','emp','pv','gastos','madera','cost','pixel'];
+var _IC_LINEA={
+  mas:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>',
+  buscar:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
+  excel:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  salir:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>'
+};
+var ROL_TXT={admin:'Sesión de administrador',vendedor:'Sesión de vendedor',taller:'Sesión de taller'};
 function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
 function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
 function _paginaActiva(){var a=document.querySelector('.page.active');return a?a.id.replace('page-',''):'';}
@@ -27756,10 +27758,12 @@ function armarNavMovil(){
   if(!mas){
     mas=document.createElement('button');
     mas.id='nav-mas';mas.type='button';mas.className='nav-tab nav-mas';
-    mas.innerHTML='<span class="tab-icon">☰</span> Más';
+    mas.innerHTML='<span class="tab-icon">'+_IC_LINEA.mas+'</span> Más';
     mas.addEventListener('click',abrirMasMovil);
     nav.appendChild(mas);
   }
+  var rol=document.getElementById('sb-rol');
+  if(rol){rol.textContent=ROL_TXT[usuarioRol]||'';rol.title=usuarioEmail||'';}
   // Aunque no sobren secciones, "Más" queda: ahí están buscar, Excel y salir.
   window._navExtra=extra;
   actualizarNavMovil();
@@ -27775,14 +27779,15 @@ function abrirMasMovil(){
   var p=_paginaActiva();
   var filas=(window._navExtra||[]).map(function(x){
     var b=_tabDe(x),ic=b.querySelector('.tab-icon');
+    // innerHTML y no textContent: los íconos son SVG de línea (06-11-2026).
     return'<button type="button" class="m-mas-fila'+(x===p?' activa':'')+'" onclick="irDesdeMas(\''+x+'\')">'+
-      '<span class="m-mas-ic">'+(ic?ic.textContent:'')+'</span>'+esc(_textoTab(b))+'</button>';
+      '<span class="m-mas-ic">'+(ic?ic.innerHTML:'')+'</span>'+esc(_textoTab(b))+'</button>';
   }).join('');
-  var ver=document.querySelector('#sidebar-footer .sb-version');
+  var ver=document.querySelector('.sb-version');
   document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+filas+(filas?'<div class="m-mas-sep"></div>':'')+
-    '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirBusquedaMovil()"><span class="m-mas-ic">⌕</span>Buscar en todo</button>'+
-    '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();exportTodoXLSX()"><span class="m-mas-ic">↓</span>Exportar todo a Excel</button>'+
-    '<button type="button" class="m-mas-fila salir" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()"><span class="m-mas-ic">↩</span>Cerrar sesión</button>'+
+    '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirBusquedaMovil()"><span class="m-mas-ic">'+_IC_LINEA.buscar+'</span>Buscar en todo</button>'+
+    '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();exportTodoXLSX()"><span class="m-mas-ic">'+_IC_LINEA.excel+'</span>Exportar todo a Excel</button>'+
+    '<button type="button" class="m-mas-fila salir" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()"><span class="m-mas-ic">'+_IC_LINEA.salir+'</span>Cerrar sesión</button>'+
     '<div class="m-mas-pie">'+esc(usuarioEmail||'')+(ver?' · '+esc(ver.textContent):'')+'</div>';
   document.body.classList.add('m-mas-open');
 }
@@ -28657,12 +28662,8 @@ function _medidasPedido(p){
 function renderSaleSemana(){
   var el=document.getElementById('seg-semana');if(!el)return;
   var hoy=new Date();hoy.setHours(12,0,0,0);
-  var lunes=_lunesDe(new Date(hoy)),domingo=_sumarDias(lunes,6);
-  var semProd=semanaDeFecha(_isoLocal(hoy));
-  var lista=orders.filter(function(o){
-    if(o.dia_envio){var d=new Date(o.dia_envio+'T12:00:00');return d>=lunes&&d<=domingo;}
-    return normalizeSemana(o.semana)===semProd;   // sin día cargado: por su semana
-  });
+  // La misma lista que cuenta el Inicio (06-11-2026): una sola regla.
+  var lista=_saleEstaSemana();
   if(!lista.length){el.innerHTML='';return;}
   var dias={};
   lista.forEach(function(o){var k=o.dia_envio||'';(dias[k]=dias[k]||[]).push(o);});
@@ -36074,56 +36075,26 @@ function editarMeta(){
   var val=Number(String(input).replace(/\./g,'').replace(/,/g,''));
   if(!val||val<0){alert('Monto inválido');return;}
   localStorage.setItem('cazaru_meta_mensual',val);
-  renderMeta();showToast('✓ Meta actualizada: '+fmtCLP(val));
+  renderDash();showToast('✓ Meta actualizada: '+fmtCLP(val));
 }
 
-// ── GRÁFICO VENTAS ÚLTIMOS 6 MESES ───────────────────────────────────────────
+// ── VENTAS POR MES (Inicio) ───────────────────────────────────────────────────
+// Seis meses, en millones, solo ventas. El mes en curso va en verde.
 function renderGrafico(){
   var el=document.getElementById('dash-grafico');if(!el)return;
+  // Es plata: el vendedor no lo ve (igual que la Caja de antes).
+  if(usuarioRol!=='admin'){el.innerHTML='';return;}
   var now=new Date(),meses=[],labels=[];
-  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);meses.push(MESES_ES[d.getMonth()]);labels.push(MESES_ES[d.getMonth()].slice(0,3));}
+  for(var i=5;i>=0;i--){var d=new Date(now.getFullYear(),now.getMonth()-i,1);meses.push(MESES_ES[d.getMonth()]);labels.push(MESES_ES[d.getMonth()].slice(0,3).toLowerCase());}
   // soloVentas: un muestrario o una devolución no son venta y levantaban la barra.
   var vals=meses.map(function(m){return soloVentas(finRecords).filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===m;}).reduce(function(s,r){return s+(Number(r.total)||0);},0);});
   var maxVal=Math.max.apply(null,vals)||1;
-  var barW=30,gap=12,h=120,svgW=(barW+gap)*6+gap;
-  var bars=vals.map(function(v,i){
-    var barH=Math.round((v/maxVal)*h);var x=gap+i*(barW+gap);var y=h-barH+20;
-    var isActual=i===5;
-    return'<g>'+
-      '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+barH+'" rx="4" fill="'+(isActual?'var(--brand)':'var(--brand-dim)')+'"/>'+
-      '<text x="'+(x+barW/2)+'" y="'+(y-4)+'" text-anchor="middle" font-size="9" fill="var(--text-3)">'+( v>0?'$'+(v/1000000).toFixed(1)+'M':'')+'</text>'+
-      '<text x="'+(x+barW/2)+'" y="'+(h+36)+'" text-anchor="middle" font-size="9" fill="var(--text-3)">'+labels[i]+'</text>'+
-    '</g>';
+  var barras=vals.map(function(v,i){
+    var h=v>0?Math.max(2,Math.round(v/maxVal*100)):0;
+    var txt=(v/1000000).toFixed(1).replace('.',',');
+    return'<div class="ini-mes'+(i===5?' on':'')+'" title="'+fmtCLP(v)+'"><b>'+txt+'</b><i style="height:'+h+'%"></i><small>'+labels[i]+'</small></div>';
   }).join('');
-  el.innerHTML='<svg viewBox="0 0 '+(svgW)+' '+(h+50)+'" width="100%" xmlns="http://www.w3.org/2000/svg">'+bars+'</svg>';
-}
-
-// ── RANKING PRODUCTOS ─────────────────────────────────────────────────────────
-function renderRanking(){
-  var el=document.getElementById('dash-ranking');if(!el)return;
-  var map={};
-  // soloVentas: "más vendidos" es un ranking de ventas. Un muestrario contaba
-  // como producto vendido y una devolución sumaba una venta que se deshizo.
-  soloVentas(finRecords).forEach(function(r){
-    var p=(r.producto||'Sin especificar').split(' ').slice(0,3).join(' ');
-    if(!map[p])map[p]={producto:p,count:0,total:0};
-    map[p].count++;map[p].total+=(Number(r.total)||0);
-  });
-  var list=Object.values(map).sort(function(a,b){return b.count-a.count||b.total-a.total;}).slice(0,6);
-  if(!list.length){el.innerHTML='<div class="empty-dash">Sin datos</div>';return;}
-  var maxCount=list[0].count||1;
-  el.innerHTML=list.map(function(item,i){
-    var pct=Math.round((item.count/maxCount)*100);
-    return'<div style="margin-bottom:10px">'+
-      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">'+
-        '<div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%">'+item.producto+'</div>'+
-        '<div style="font-size:11px;color:var(--text-3)">'+item.count+' · '+fmtCLP(Math.round(item.total/item.count))+'</div>'+
-      '</div>'+
-      '<div style="height:5px;background:var(--surface3);border-radius:3px">'+
-        '<div style="height:100%;width:'+pct+'%;background:var(--brand);border-radius:3px"></div>'+
-      '</div>'+
-    '</div>';
-  }).join('');
+  el.innerHTML='<div class="ini-meses">'+barras+'</div><div class="ini-pie" style="margin-top:8px"><span>millones de pesos, solo ventas</span></div>';
 }
 
 // ── AVISO 5 DÍAS SIN MOVIMIENTO (BROWSER NOTIFICATION) ───────────────────────
@@ -36182,7 +36153,7 @@ function renderGlobalSearch(){
   // Pedidos (seguimiento)
   orders.forEach(function(o){
     var hay=(o.num||'').toLowerCase().includes(q)||(o.nombre||'').toLowerCase().includes(q)||(o.apellido||'').toLowerCase().includes(q)||(o.producto||'').toLowerCase().includes(q);
-    if(hay)results.push({icon:'📋',label:'#'+(o.num||'—')+' '+(o.nombre||'')+' '+(o.apellido||''),sub:'Seguimiento · '+(o.semana||''),page:'seg'});
+    if(hay)results.push({icon:'📋',label:'#'+(o.num||'—')+' '+(o.nombre||'')+' '+(o.apellido||''),sub:'Avisos a clientes · '+(o.semana||''),page:'seg'});
   });
   // Finanzas
   finRecords.forEach(function(r){
@@ -36199,14 +36170,14 @@ function renderGlobalSearch(){
     var hay=(r.email||'').toLowerCase().includes(q)||(r.fn||'').toLowerCase().includes(q)||(r.ln||'').toLowerCase().includes(q)||(r.order_id||'').toLowerCase().includes(q);
     if(hay)results.push({icon:'📊',label:(r.fn||'')+' '+(r.ln||'')+' '+(r.email||''),sub:'Pixel · '+(r.order_id||''),page:'pixel'});
   });
-  if(!results.length){box.style.display='block';box.innerHTML='<div style="padding:12px 16px;font-size:12px;color:var(--text-3)">Sin resultados para "'+q+'"</div>';return;}
+  if(!results.length){box.style.display='block';box.innerHTML='<div style="padding:12px 16px;font-size:13px;color:var(--z-sec)">Sin resultados para «'+esc(q)+'»</div>';return;}
   results=results.slice(0,12);
   box.style.display='block';
+  // Sin emojis (06-11-2026): la sección ya va escrita en la segunda línea.
   box.innerHTML=results.map(function(r,i){
-    return'<div class="gsearch-item" onclick="goToPage(\''+r.page+'\');document.getElementById(\'global-search\').value=\'\';document.getElementById(\'global-results\').style.display=\'none\';" style="display:flex;align-items:flex-start;gap:10px;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--border)" onmouseenter="this.style.background=\'var(--surface2)\'" onmouseleave="this.style.background=\'\'">'+
-      '<span style="font-size:14px;margin-top:1px">'+r.icon+'</span>'+
-      '<div><div style="font-size:12px;font-weight:600;color:var(--text)">'+esc(r.label)+'</div>'+
-      '<div style="font-size:11px;color:var(--text-3)">'+esc(r.sub)+'</div></div></div>';
+    return'<div class="gsearch-item" onclick="goToPage(\''+r.page+'\');document.getElementById(\'global-search\').value=\'\';document.getElementById(\'global-results\').style.display=\'none\';" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--z-linea)" onmouseenter="this.style.background=\'var(--z-papel)\'" onmouseleave="this.style.background=\'\'">'+
+      '<div style="font-size:13.5px;font-weight:600;color:var(--z-tinta)">'+esc(r.label)+'</div>'+
+      '<div style="font-size:12px;color:var(--z-sec)">'+esc(r.sub)+'</div></div>';
   }).join('');
 }
 document.addEventListener('click',function(e){
@@ -36215,31 +36186,6 @@ document.addEventListener('click',function(e){
 });
 
 // ── NOTIFICACIONES DE ESTADO ──────────────────────────────────────────────────
-function renderNotif(){
-  var el=document.getElementById('dash-notif');if(!el)return;
-  var dias=parseInt((document.getElementById('notif-days')||{value:'14'}).value)||14;
-  var now=Date.now();
-  var alertas=orders.filter(function(o){
-    if(getProgress(o.checks).pct===100)return false;
-    var fc=o.fecha_creacion||o.fecha||'';if(!fc)return false;
-    var d=new Date(fc.split('/').reverse?fc:fc);
-    if(isNaN(d.getTime())){var p=fc.split('/');if(p.length===3)d=new Date(p[2]+'-'+p[1]+'-'+p[0]);else return false;}
-    var diasPasados=Math.floor((now-d.getTime())/(1000*60*60*24));
-    return diasPasados>=dias;
-  });
-  if(!alertas.length){el.innerHTML='<div class="empty-dash" style="color:var(--green)">✓ Todos los pedidos activos están al día</div>';return;}
-  el.innerHTML=alertas.slice(0,8).map(function(o){
-    var fc=o.fecha_creacion||o.fecha||'';var d=new Date(fc);if(isNaN(d.getTime())){var p=fc.split('/');d=new Date(p[2]+'-'+p[1]+'-'+p[0]);}
-    var diasPasados=Math.floor((now-d.getTime())/(1000*60*60*24));
-    var prog=getProgress(o.checks).pct;
-    return'<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="goToSeg()">'+
-      '<div style="background:var(--amber-dim);color:var(--amber);font-weight:700;font-size:11px;border-radius:6px;padding:3px 8px;flex-shrink:0">'+diasPasados+'d</div>'+
-      '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--text)">#'+(o.num||'—')+' '+(o.nombre||'')+' '+(o.apellido||'')+'</div>'+
-      '<div style="font-size:11px;color:var(--text-3)">'+(o.semana||'')+' · '+prog+'% completado</div></div>'+
-      '<div style="height:4px;width:60px;background:var(--surface3);border-radius:2px"><div style="height:100%;width:'+prog+'%;background:var(--amber);border-radius:2px"></div></div></div>';
-  }).join('');
-}
-
 // ── TAB CLIENTES ──────────────────────────────────────────────────────────────
 // ── Documentos emitidos: boletas y facturas por cliente ───────────────────
 // Se cargan para TODOS los roles, no solo admin. Ese es justamente el punto de
@@ -36379,63 +36325,57 @@ function goToPage(page){
   showPage(page,btn);
 }
 
-function renderMeta(){
-  var metaEl=document.getElementById('dash-meta');
-  if(!metaEl)return;
+// ── INICIO (rediseño 06-11-2026, boceto A «Para hoy») ──────────────────────
+// Ningún número se calcula acá de otra manera: salen de _metaDatos(),
+// _cajaDatos(), avisosPendientes() y _saleEstaSemana(), que son las mismas
+// reglas que tenían la Meta, la Caja, Seguimiento y «Sale esta semana».
+// Se extrajeron a funciones para que el Inicio y el resto no puedan diferir.
+var dashFiltro='todo',dashVerTodo=false;
+var DASH_MAX=6;   // filas a la vista antes de «Ver las N que faltan»
+
+// Meta del mes. Mismas cuentas que tenía renderMeta: la meta vive en este
+// navegador (localStorage, $30.000.000 si no hay otra) y se mide contra ventas.
+function _metaDatos(){
   var META=Number(localStorage.getItem('cazaru_meta_mensual'))||30000000;
   var now=new Date();
-  var mesActual=now.getMonth();
-  var anoActual=now.getFullYear();
+  var mesActual=now.getMonth(),anoActual=now.getFullYear();
   var diasEnMes=new Date(anoActual,mesActual+1,0).getDate();
   var diaActual=now.getDate();
   var diasRestantes=diasEnMes-diaActual;
-  var MESES_NOM=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-  var mesNombre=MESES_NOM[mesActual].charAt(0).toUpperCase()+MESES_NOM[mesActual].slice(1);
   var mesNomUpper=MESES_ES[mesActual];
   // soloVentas: la meta se mide contra ventas. Un muestrario de $20.000 o una
   // devolución hacían avanzar la barra sin que hubiera venta detrás.
-  var facMes=soloVentas(finRecords).reduce(function(s,r){
-    return extractMonthFromDate(r.fecha_creacion||r.fecha)===mesNomUpper?s+(Number(r.total)||0):s;
-  },0);
-  var pctMeta=META>0?Math.min(100,Math.round(facMes/META*100)):0;
-  var proyeccion=Math.round((diaActual>0?facMes/diaActual:0)*diasEnMes);
+  var ventas=soloVentas(finRecords).filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===mesNomUpper;});
+  var facMes=ventas.reduce(function(s,r){return s+(Number(r.total)||0);},0);
   var falta=Math.max(0,META-facMes);
-  var ritmoNecesario=diasRestantes>0?Math.round(falta/diasRestantes):0;
-  var metaColor=pctMeta>=100?'var(--green)':pctMeta>=70?'var(--amber)':'var(--red)';
-  var proyOK=proyeccion>=META;
-  var ritmoIdeal=Math.round(META/diasEnMes*diaActual);
-  var vsIdeal=facMes-ritmoIdeal;
-  var vsColor=vsIdeal>=0?'var(--green)':'var(--red)';
-  var vsStr=vsIdeal>=0?'+$'+Math.abs(vsIdeal).toLocaleString('es-CL'):'-$'+Math.abs(vsIdeal).toLocaleString('es-CL');
-  var html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
-  html+='<div style="font-size:14px;font-weight:700;color:var(--text)">Meta mensual — '+mesNombre+' '+anoActual+'</div>';
-  html+='<div style="display:flex;gap:8px;align-items:center"><div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Meta: '+fmtCLP(META)+'</div><button onclick="editarMeta()" style="font-size:11px;border:1px solid var(--border-md);border-radius:6px;padding:3px 8px;background:none;color:var(--brand);cursor:pointer">✎</button>';
-  html+='<div style="font-size:11px;background:var(--surface3);color:var(--text-muted);padding:3px 10px;border-radius:20px">Dia '+diaActual+' de '+diasEnMes+'</div></div></div>';
-  html+='<div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin-bottom:16px"><div>';
-  html+='<div style="height:12px;background:var(--surface3);border-radius:6px;overflow:hidden;position:relative">';
-  html+='<div style="height:100%;width:'+pctMeta+'%;background:'+metaColor+';border-radius:6px"></div>';
-  var idealPct=Math.min(100,Math.round(ritmoIdeal/META*100));
-  html+='<div style="position:absolute;top:0;left:'+idealPct+'%;width:2px;height:100%;background:rgba(0,0,0,0.3)"></div></div>';
-  html+='<div style="display:flex;justify-content:space-between;margin-top:5px;font-size:11px">';
-  html+='<span style="color:var(--text-muted)">'+fmtCLP(facMes)+' vendido</span>';
-  html+='<span style="color:'+vsColor+';font-weight:600">'+vsStr+' vs ritmo ideal</span></div></div>';
-  html+='<div style="text-align:center;min-width:80px"><div style="font-size:32px;font-weight:800;color:'+metaColor+';line-height:1">'+pctMeta+'%</div>';
-  html+='<div style="font-size:10px;color:var(--text-muted);margin-top:2px">de la meta</div></div></div>';
-  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding-top:12px;border-top:1px solid var(--border)">';
-  html+='<div style="text-align:center"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Vendido</div>';
-  html+='<div style="font-size:16px;font-weight:700;color:var(--green)">'+fmtCLP(facMes)+'</div>';
-  html+='<div style="font-size:10px;color:var(--text-muted)">de $30.000.000</div></div>';
-  html+='<div style="text-align:center"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Falta vender</div>';
-  html+='<div style="font-size:16px;font-weight:700;color:'+(falta>0?'var(--amber)':'var(--green)')+'">'+fmtCLP(falta)+'</div>';
-  html+='<div style="font-size:10px;color:var(--text-muted)">'+diasRestantes+' dias restantes</div></div>';
-  html+='<div style="text-align:center"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Ritmo necesario</div>';
-  html+='<div style="font-size:16px;font-weight:700;color:var(--text)">'+fmtCLP(ritmoNecesario)+'</div>';
-  html+='<div style="font-size:10px;color:var(--text-muted)">por dia para llegar</div></div>';
-  html+='<div style="text-align:center"><div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Proyeccion</div>';
-  html+='<div style="font-size:16px;font-weight:700;color:'+(proyOK?'var(--green)':'var(--red)')+'">'+fmtCLP(proyeccion)+'</div>';
-  html+='<div style="font-size:10px;color:var(--text-3)">'+(pctMeta>=100?'Meta alcanzada':pctMeta>=70?'Ritmo ajustado':'Bajo el ritmo')+'</div></div>';
-  html+='</div>';
-  metaEl.innerHTML=html;
+  return{
+    META:META,facMes:facMes,nVentas:ventas.length,mes:mesActual,
+    diaActual:diaActual,diasEnMes:diasEnMes,diasRestantes:diasRestantes,
+    pct:META>0?Math.min(100,Math.round(facMes/META*100)):0,
+    anchoBarra:META>0?Math.min(100,facMes/META*100):0,
+    falta:falta,
+    ritmoNecesario:diasRestantes>0?Math.round(falta/diasRestantes):0,
+    proyeccion:Math.round((diaActual>0?facMes/diaActual:0)*diasEnMes),
+    ritmoIdeal:Math.round(META/diasEnMes*diaActual)
+  };
+}
+function renderMeta(){
+  var el=document.getElementById('dash-meta');if(!el)return;
+  if(usuarioRol!=='admin'){el.innerHTML='';return;}
+  var m=_metaDatos();
+  var mesNom=MESES_LARGO_D[m.mes].charAt(0).toUpperCase()+MESES_LARGO_D[m.mes].slice(1);
+  var idealPct=m.META>0?Math.min(100,m.ritmoIdeal/m.META*100):0;
+  var celda1=m.falta<=0
+    ?'<div><div class="l">Meta</div><div class="v">Cumplida</div></div>'
+    :m.diasRestantes>0
+      ?'<div><div class="l">Falta, por día</div><div class="v">'+fmtCLP(m.ritmoNecesario)+'</div></div>'
+      :'<div><div class="l">Falta hoy</div><div class="v">'+fmtCLP(m.falta)+'</div></div>';
+  el.innerHTML='<div class="ini-h">'+mesNom+' <span>día '+m.diaActual+' de '+m.diasEnMes+'</span></div>'+
+    '<div class="ini-meta-n"><b>'+fmtCLP(m.facMes)+'</b><button type="button" class="ini-meta-de" onclick="editarMeta()" title="Cambiar la meta del mes">de '+fmtCLP(m.META)+'</button></div>'+
+    '<div class="ini-barra"><i style="width:'+m.anchoBarra.toFixed(2)+'%"></i><em style="left:'+idealPct.toFixed(2)+'%" title="Donde deberías ir hoy para llegar a la meta"></em></div>'+
+    '<div class="ini-pie"><span>'+m.pct+' %</span><span>al día '+m.diaActual+' deberías ir en '+fmtCLP(m.ritmoIdeal)+'</span></div>'+
+    '<div class="ini-dos">'+celda1+
+      '<div><div class="l">A este ritmo cierras en</div><div class="v">'+fmtCLP(m.proyeccion)+'</div></div></div>';
 }
 // ¿Esta fecha cae en la semana en curso? Se toma de lunes a domingo, que es
 // como se habla en el taller ("esta semana despachamos X"), no los 7 días
@@ -36447,89 +36387,6 @@ function _esEstaSemana(d){
   lun.setDate(lun.getDate()-dow);
   var dom=new Date(lun);dom.setDate(dom.getDate()+7);
   return d>=lun&&d<dom;
-}
-function renderContactosPendientes(){
-  var hoy=new Date();hoy.setHours(0,0,0,0);
-  var pendientes=[];
-  orders.forEach(function(o){
-    var numStr=String(o.num||'');
-    var fin=finRecords.find(function(r){return String(r.num||'')===numStr;});
-    var cel=fin?(String(fin.celular||'').replace(/^\+?56/,'')):'';
-    var nombre=o.nombre||'';
-    var producto=o.producto||fin&&fin.producto||'';
-    var semana=o.semana||'';
-    var fechaC=o.fecha_creacion||(fin&&(fin.fecha_creacion||fin.fecha))||'';
-    var diaC=null;
-    // Las fechas se guardan sin rellenar con cero ("18/8/2026"), y armar el
-    // ISO así daba "2026-8-18T12:00:00", que es Invalid Date: con la T el
-    // parser exige dos dígitos. El aviso de "confirmar producción" no salía
-    // nunca para los meses 1 al 9 — o sea, casi todo el año, en silencio.
-    if(fechaC){
-      var pts=String(fechaC).split('/');
-      diaC=pts.length===3
-        ?new Date(pts[2]+'-'+String(pts[1]).padStart(2,'0')+'-'+String(pts[0]).padStart(2,'0')+'T12:00:00')
-        :new Date(fechaC+'T12:00:00');
-    }
-    if(diaC&&!isNaN(diaC)){
-      var d1=Math.round((hoy-diaC)/86400000);
-      if(d1>=3&&d1<=6&&!(o.contactos&&o.contactos.c1)){
-        var msg1=_saludoCesar(nombre)+'Te cuento que tu pedido ya está en producción. Apenas tenga la fecha de despacho te aviso.\n\nCualquier cosa me escribes.';
-        var _dEc1=fechaEnvioPedido(o);
-        var _dfeC1=(_dEc1&&!isNaN(_dEc1))?Math.round((_dEc1-hoy)/86400000):999;
-        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c1',tag:'Confirmar producción',sub:'Día '+d1+' desde la compra',color:'var(--brand)',msg:msg1,dfe:_dfeC1,estaSemana:(_dEc1&&!isNaN(_dEc1))?_esEstaSemana(_dEc1):false});
-      }
-    }
-    // fechaEnvioPedido deduce la fecha desde la semana cuando no hay día de
-    // envío cargado. Antes se leía o.dia_envio directo, así que todo pedido sin
-    // ese campo NUNCA generaba aviso de entrega ni de despacho: el cliente se
-    // quedaba sin saber, y en el tablero no aparecía nada.
-    var dE=fechaEnvioPedido(o);
-    if(dE&&!isNaN(dE)){
-      var dfe=Math.round((dE-hoy)/86400000);
-      var fechaEnvStr=dE.toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});
-      var estaSemana=_esEstaSemana(dE);
-      // Desde 3 días, no desde 5: c3 cubre 0-2 y c2 cubría 5-8, así que un
-      // pedido que despachaba en 3 o 4 días caía en el hueco y no generaba
-      // ningún aviso. Ahora las dos ventanas se tocan y no queda nadie afuera.
-      if(dfe>=3&&dfe<=8&&!(o.contactos&&o.contactos.c2)){
-        var msg2=_saludoCesar(nombre)+'Tu pedido queda listo para despacho el '+fechaEnvStr.replace(',','')+'. Te confirmo cuando salga.\n\nCualquier cosa me avisas.';
-        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c2',tag:'Avisar semana de entrega',sub:'Envío en '+dfe+' días ('+fechaEnvStr+')',color:'var(--amber)',msg:msg2,dfe:dfe,estaSemana:estaSemana});
-      }
-      if(dfe>=0&&dfe<=2&&!(o.contactos&&o.contactos.c3)){
-        var msg3=_saludoCesar(nombre)+'Tu pedido sale '+(dfe===0?'hoy':dfe===1?'mañana':'en los próximos días')+'. ¿La dirección de entrega sigue siendo la misma?\n\nMuchas gracias por tu compra.';
-        pendientes.push({numStr:numStr,nombre:nombre,cel:cel,tipo:'c3',tag:'Avisar despacho',sub:dfe===0?'¡HOY!':dfe===1?'Mañana':'En '+dfe+' días',color:'var(--red)',msg:msg3,dfe:dfe,estaSemana:estaSemana});
-      }
-    }
-  });
-  // Orden: lo que se despacha antes, primero. Como los avisos siguen el ciclo
-  // del pedido (confirmar producción → avisar semana → avisar despacho), y el
-  // despacho de un pedido recién ingresado está lejos, ordenar por días hasta
-  // el envío deja la lista en el orden natural del proceso y además pone
-  // arriba lo urgente. Antes salía en el orden en que estaban los pedidos.
-  pendientes.sort(function(a,b){
-    var da=(a.dfe===undefined?999:a.dfe),db=(b.dfe===undefined?999:b.dfe);
-    if(da!==db)return da-db;
-    return Number(a.numStr||0)-Number(b.numStr||0);
-  });
-  var el=document.getElementById('dash-contactos'),cnt=document.getElementById('dash-contactos-count');
-  var nSemana=pendientes.filter(function(p){return p.estaSemana;}).length;
-  if(cnt)cnt.textContent=pendientes.length+(pendientes.length===1?' contacto':' contactos')+(nSemana?' · '+nSemana+' esta semana':'');
-  if(!el)return;
-  if(!pendientes.length){el.innerHTML='<div class="empty-dash" style="color:var(--green)">&#10003; Sin contactos pendientes</div>';return;}
-  el.innerHTML=pendientes.map(function(p){
-    var waUrl=p.cel?'https://wa.me/56'+p.cel+'?text='+encodeURIComponent(p.msg):'';
-    // Sin número no se puede escribir: en vez de dejar un cartel muerto, el
-    // botón lleva a Finanzas a cargar el celular, que es lo que hay que hacer.
-    var waBtn=waUrl
-      ?'<a class="cont-wa" href="'+waUrl+'" target="_blank" onclick="event.stopPropagation();marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')">📲 Escribir</a>'
-      :'<button class="cont-wa cont-wa-off" onclick="event.stopPropagation();irACargarCelular(\''+p.numStr+'\')" title="Este pedido no tiene celular cargado">📵 Falta celular</button>';
-    var doneBtn='<button class="cont-done" onclick="event.stopPropagation();marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')">✓ Ya enviado</button>';
-    // Toda la fila abre WhatsApp: en el teléfono apuntarle a un botón chico es
-    // incómodo, y esta lista se usa para escribirle al cliente, no para leerla.
-    var rowClick=waUrl?' onclick="window.open(\''+waUrl.replace(/'/g,"%27")+'\',\'_blank\');marcarContacto(\''+p.numStr+'\',\''+p.tipo+'\')" style="cursor:pointer"':'';
-    var badgeSemana=p.estaSemana?'<span class="cont-semana">Se envía esta semana</span>':'';
-    return'<div class="cont-row"'+rowClick+'><div class="cont-dot" style="background:'+p.color+'"></div><div class="cont-info"><div class="cont-nom">#'+p.numStr+' '+esc(p.nombre)+badgeSemana+'</div><div class="cont-tag" style="color:'+p.color+'">'+p.tag+'</div><div class="cont-sub">'+p.sub+'</div></div><div class="cont-acciones">'+waBtn+doneBtn+'</div></div>';
-  }).join('');
 }
 // Sin celular no hay a quién escribirle. En vez de un cartel muerto que dice
 // "Sin número", se lleva al usuario justo al lugar donde se carga.
@@ -36569,142 +36426,217 @@ function irAFinanzas(numStr){
   renderFin();
   setTimeout(function(){var f=document.querySelector('#fin-editorial .fe-fila.abierta');if(f)f.scrollIntoView({behavior:'smooth',block:'center'});},250);
 }
-async function marcarContacto(numStr,tipo){
-  if(!DB_URL||!numStr)return;
-  var o=orders.find(function(x){return String(x.num||'')===String(numStr);});
-  if(!o)return;
-  if(!o.contactos)o.contactos={};
-  o.contactos[tipo]=Date.now();
-  try{await api('pedidos/'+numStr+'/contactos/'+tipo,'PUT',Date.now());}catch(e){}
-  renderContactosPendientes();
+// «Ver» del Inicio: abre el pedido en Avisos a clientes (Seguimiento), donde
+// están sus checks, el comprobante y «Sale esta semana». La búsqueda por N°
+// salta el filtro de mes y las semanas anteriores escondidas.
+function irASeg(numStr){
+  showPage('seg',_tabDe('seg'));
+  var b=document.getElementById('seg-search');
+  if(b){b.value=String(numStr);renderSeg();}
 }
 // ── Caja ───────────────────────────────────────────────────────────────────
 // El negocio cobra 70/30: el saldo se paga contra la pieza terminada. Cruzando
 // el saldo pendiente de cada pedido con su fecha de envío se responde la
 // pregunta de todos los días: cuánta plata entra, y cuánta ya debió entrar.
-function renderCaja(){
-  var el=document.getElementById('dash-caja');if(!el)return;
-  // Solo el admin: esto sale de Finanzas, que el vendedor no ve. El CSS ya la
-  // esconde, pero eso se salta con devtools; acá directamente no se dibuja.
-  if(usuarioRol!=='admin'){el.innerHTML='';el.style.display='none';return;}
-  el.style.display='';
+// Solo el admin: sale de Finanzas, que el vendedor no ve.
+function _cajaDatos(){
   var hoy=new Date();hoy.setHours(0,0,0,0);
-  var vencidos=[],estaSem=0,proxSem=0,despues=0,nEsta=0,nProx=0;
+  var r={vencidos:[],estaSem:0,proxSem:0,despues:0,nEsta:0,nProx:0,total:0,nPend:0};
   // soloVentas: acá se calcula lo que FALTA POR COBRAR. Un pedido devuelto no
   // se le cobra a nadie, así que figuraba como plata que te deben y no existe.
   soloVentas(finRecords).forEach(function(f){
     var total=Number(f.total)||0;
     var pend=total-((Number(f.abono1)||0)+(Number(f.abono2)||0)+(Number(f.abono3)||0));
     if(pend<=0)return;
+    r.total+=pend;r.nPend++;
     var numStr=String(f.num||'');
     var o=orders.find(function(x){return String(x.num||'')===numStr;});
     var env=o?fechaEnvioPedido(o):null;
-    if(!env){despues+=pend;return;}
+    if(!env){r.despues+=pend;return;}
     // fechaEnvioPedido devuelve el día a las 12:00; sin normalizar, "hace 9
     // días" salía como 8.
     env.setHours(0,0,0,0);
     var dias=Math.round((env-hoy)/86400000);
     // La fecha de envío es la PLANIFICADA. Si el pedido se atrasó, esa fecha
-    // pasa igual y el saldo aparecía como vencido aunque la pieza nunca salió:
-    // plata que figura como cobrable sin que exista nada que cobrar todavía.
+    // pasa igual y el saldo aparecía como vencido aunque la pieza nunca salió.
     // El check "comprobante enviado" es la señal de que el pedido de verdad se
     // despachó, así que separa un cobro exigible de un atraso de taller.
-    if(dias<0)vencidos.push({num:numStr,nombre:((f.nombre||'')+' '+(f.apellido||'')).trim(),monto:pend,dias:-dias,comp:!!(o&&o.checks&&o.checks.comprobante)});
-    else if(dias<=7){estaSem+=pend;nEsta++;}
-    else if(dias<=14){proxSem+=pend;nProx++;}
-    else despues+=pend;
+    if(dias<0)r.vencidos.push({num:numStr,nombre:((f.nombre||'')+' '+(f.apellido||'')).trim(),monto:pend,dias:-dias,comp:!!(o&&o.checks&&o.checks.comprobante)});
+    else if(dias<=7){r.estaSem+=pend;r.nEsta++;}
+    else if(dias<=14){r.proxSem+=pend;r.nProx++;}
+    else r.despues+=pend;
   });
-  vencidos.sort(function(a,b){return b.monto-a.monto;});
-  // Dos grupos que NO significan lo mismo, y por eso no se suman juntos:
+  r.vencidos.sort(function(a,b){return b.monto-a.monto;});
+  // Dos grupos que NO significan lo mismo, y por eso no se juntan:
   //   exigibles — el comprobante salió, el cliente lo tiene y no ha pagado.
   //   enEspera  — la fecha pasó pero nadie confirmó el envío: primero hay que
   //               averiguar si el pedido salió, no salir a cobrarlo.
-  var exigibles=vencidos.filter(function(v){return v.comp;});
-  var enEspera =vencidos.filter(function(v){return !v.comp;});
-  var totalVencido=exigibles.reduce(function(s,v){return s+v.monto;},0);
-  var totalEspera =enEspera.reduce(function(s,v){return s+v.monto;},0);
-  function bloque(lbl,val,sub,color){
-    return '<div style="flex:1;min-width:130px"><div style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.03em;font-weight:600">'+lbl+'</div><div style="font-family:\'DM Serif Display\',serif;font-size:22px;color:'+color+';line-height:1.2">'+fmtCLP(val)+'</div><div style="font-size:11px;color:var(--text-3)">'+sub+'</div></div>';
+  r.exigibles=r.vencidos.filter(function(v){return v.comp;});
+  r.enEspera=r.vencidos.filter(function(v){return !v.comp;});
+  return r;
+}
+// Lo que se despacha esta semana: con día de envío entre lunes y domingo, o
+// sin día pero con la semana de producción anterior (lo de la semana del 26
+// sale la del 2). Es la lista de «Sale esta semana» de Seguimiento.
+function _saleEstaSemana(){
+  var hoy=new Date();hoy.setHours(12,0,0,0);
+  var lunes=_lunesDe(new Date(hoy)),domingo=_sumarDias(lunes,6);
+  var semProd=semanaDeFecha(_isoLocal(hoy));
+  return orders.filter(function(o){
+    if(o.dia_envio){var d=new Date(o.dia_envio+'T12:00:00');return d>=lunes&&d<=domingo;}
+    return normalizeSemana(o.semana)===semProd;   // sin día cargado: por su semana
+  });
+}
+function _salioPedido(o){
+  var p=_prodDe(String(o.num||''));
+  return !!(p&&p.estado==='Entregado')||!!(o.checks&&o.checks.comprobante);
+}
+// «Camila R.», como en el boceto: con el N° delante alcanza para reconocerlo y
+// cabe junto al monto y el botón a 390 px.
+function _nomCorto(n){
+  var p=String(n||'').trim().split(/\s+/).filter(Boolean);
+  if(p.length<2)return p[0]||'';
+  return p[0]+' '+p[1].charAt(0).toUpperCase()+'.';
+}
+function _celDePedido(numStr){
+  var fin=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
+  return fin?String(fin.celular||'').replace(/[^0-9]/g,'').replace(/^56/,''):'';
+}
+var _ICO_INI={
+  reloj:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
+  menos:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M9 12h6"/></svg>',
+  chat:'<svg viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg>',
+  camion:'<svg viewBox="0 0 24 24"><path d="M3 8h11v8H3zM14 11h4l3 3v2h-7"/><circle cx="7" cy="17" r="1.6"/><circle cx="17" cy="17" r="1.6"/></svg>'
+};
+// Todo lo que hay que hacer hoy, en orden de urgencia. Cada fila termina en
+// una acción: Cobrar (Finanzas), Escribir (WhatsApp con el mensaje listo) o
+// Ver (el pedido en Avisos a clientes).
+function _dashItems(){
+  var items=[],hoy=new Date();hoy.setHours(0,0,0,0);
+  if(usuarioRol==='admin'){
+    var c=_cajaDatos();
+    c.exigibles.forEach(function(v){
+      items.push({tipo:'cobrar',prio:0,orden:-v.dias,num:v.num,nombre:v.nombre,rojo:true,ic:'reloj',acc:'cobrar',monto:v.monto,
+        desc:'Saldo vencido · hace '+v.dias+(v.dias===1?' día':' días')});
+    });
+    c.enEspera.forEach(function(v){
+      items.push({tipo:'cobrar',prio:5,orden:-v.dias,num:v.num,nombre:v.nombre,ic:'menos',acc:'ver',monto:v.monto,
+        desc:'Sin comprobante · ¿salió?'});
+    });
   }
-  // Una sola función para los dos grupos: cambia el color y el pie de cada fila,
-  // no la estructura. El grupo en espera va apagado a propósito — está para
-  // mirarlo, no para salir a cobrarlo.
-  function seccionVencidos(items,titulo,color,pie){
-    if(!items.length)return'';
-    return '<div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px"><div style="font-size:12px;font-weight:700;color:'+color+';margin-bottom:8px">'+titulo+' — '+items.length+(items.length===1?' pedido':' pedidos')+'</div>'+
-      items.slice(0,6).map(function(v){
-        return '<div class="caja-fila" onclick="irAFinanzas(\''+esc(v.num)+'\')" title="Abrir el pedido en Finanzas" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 4px;border-bottom:1px dashed var(--border);font-size:12px;cursor:pointer"><div style="min-width:0"><span style="font-weight:700;color:var(--brand-hi)">#'+esc(v.num)+'</span> <span style="color:var(--text)">'+esc(v.nombre)+'</span><div style="font-size:10px;color:'+color+'">'+pie+' hace '+v.dias+(v.dias===1?' día':' días')+'</div></div><div style="font-family:\'DM Serif Display\',serif;font-size:14px;color:'+color+';white-space:nowrap">'+fmtCLP(v.monto)+'</div></div>';
-      }).join('')+
-      (items.length>6?'<div style="font-size:11px;color:var(--text-3);padding-top:6px">y '+(items.length-6)+' más…</div>':'')+'</div>';
+  // Los avisos son UNA sola lista: la de Seguimiento (avisosPendientes). El
+  // «¿lo recibió?» y la reseña son cortesía post-entrega y se ven allá.
+  avisosPendientes().lista.forEach(function(p){
+    if(p.avisoId==='recibido'||p.avisoId==='resena')return;
+    var urg=!!(p.urgente||p.atrasado);
+    items.push({tipo:'avisar',prio:urg?1:(p.falta<=0?3:4),orden:p.falta,num:p.numStr,nombre:p.nombre,rojo:urg,ic:'chat',acc:'escribir',
+      avisoId:p.avisoId,msg:p.msg,desc:String(p.tag).replace(/^⚠\s*/,'')+' · '+p.sub});
+  });
+  // Despachar: lo de esta semana que sale hoy o mañana (o ya debió salir) y
+  // todavía no salió. Sin día de envío no se sabe cuándo: se pide ponerlo.
+  _saleEstaSemana().forEach(function(o){
+    if(_salioPedido(o))return;
+    var numStr=String(o.num||''),nom=((o.nombre||'')+' '+(o.apellido||'')).trim(),prod=o.producto?' · '+o.producto:'';
+    if(!o.dia_envio){
+      items.push({tipo:'despachar',prio:4,orden:9,num:numStr,nombre:nom,ic:'camion',acc:'ver',desc:'Sale esta semana · sin día de envío'});
+      return;
+    }
+    var env=new Date(o.dia_envio+'T00:00:00'),d=Math.round((env-hoy)/86400000);
+    if(d>1)return;
+    var dia=env.toLocaleDateString('es-CL',{weekday:'long'});
+    items.push({tipo:'despachar',prio:2,orden:d,num:numStr,nombre:nom,rojo:d<0,ic:'camion',acc:'ver',
+      desc:(d<0?'Debió salir el '+dia:d===0?'Despachar hoy':'Despachar mañana')+prod});
+  });
+  items.sort(function(a,b){return a.prio-b.prio||a.orden-b.orden||Number(a.num||0)-Number(b.num||0);});
+  return items;
+}
+function _dashFila(it){
+  var nq='\''+esc(it.num)+'\'',acc;
+  if(it.acc==='cobrar'){
+    acc='<button type="button" class="ini-acc" onclick="irAFinanzas('+nq+')">Cobrar</button>';
+  }else if(it.acc==='escribir'){
+    var cel=_celDePedido(it.num);
+    // Escribir abre WhatsApp con el mensaje listo y marca el aviso, igual que
+    // «Abrir WhatsApp» en Seguimiento (marcarAviso → el mismo check).
+    acc=cel
+      ?'<a class="ini-acc pri" target="_blank" rel="noopener" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(it.msg)+'" onclick="dashAvisado('+nq+',\''+esc(it.avisoId)+'\')">Escribir</a>'
+      :'<button type="button" class="ini-acc" onclick="irACargarCelular('+nq+')">Falta celular</button>';
+  }else{
+    acc='<button type="button" class="ini-acc" onclick="irASeg('+nq+')">Ver</button>';
   }
-  var lista=
-    seccionVencidos(exigibles,'Ya debió entrar','#993556','comprobante enviado')+
-    seccionVencidos(enEspera,'Sin comprobante enviado — ¿salió el pedido?','var(--text-3)','fecha de envío pasó');
-  el.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px"><div style="font-size:14px;font-weight:700;color:var(--text)">💵 Caja — saldos por cobrar</div><div style="font-size:11px;color:var(--text-3)">según la fecha de envío de cada pedido</div></div>'+
-    '<div style="display:flex;flex-wrap:wrap;gap:16px">'+
-      bloque('Vencido sin cobrar',totalVencido,exigibles.length+(exigibles.length===1?' pedido':' pedidos')+' · con comprobante',totalVencido>0?'#993556':'var(--green)')+
-      bloque('Sin comprobante aún',totalEspera,enEspera.length+(enEspera.length===1?' pedido':' pedidos')+' · ¿atrasados?','var(--text-3)')+
-      bloque('Entra esta semana',estaSem,nEsta+(nEsta===1?' pedido':' pedidos'),'var(--green)')+
-      bloque('Entra la próxima',proxSem,nProx+(nProx===1?' pedido':' pedidos'),'var(--text)')+
-      bloque('Más adelante',despues,'sin fecha cercana','var(--text-3)')+
-    '</div>'+lista;
+  return'<div class="ini-fila'+(it.rojo?' rojo':'')+'">'+
+    '<div class="ini-ico">'+_ICO_INI[it.ic]+'</div>'+
+    '<div class="t"><div class="n"><small>#'+esc(it.num)+'</small>'+esc(_nomCorto(it.nombre))+'</div><div class="d">'+esc(it.desc)+'</div></div>'+
+    (it.monto?'<div class="m">'+fmtCLP(it.monto)+'</div>':'')+
+    acc+'</div>';
+}
+function dashAvisado(numStr,avisoId){
+  marcarAviso(numStr,avisoId);
+  // Después del clic: si la fila se borra durante el clic, el enlace puede no abrirse.
+  setTimeout(renderDash,400);
+}
+function setDashFiltro(f){dashFiltro=f;dashVerTodo=false;renderPara();}
+function renderPara(){
+  var el=document.getElementById('dash-para');if(!el)return;
+  var todos=_dashItems(),admin=usuarioRol==='admin';
+  var tipos=admin?['todo','cobrar','avisar','despachar']:['todo','avisar','despachar'];
+  if(tipos.indexOf(dashFiltro)<0)dashFiltro='todo';
+  var cuenta={todo:todos.length,cobrar:0,avisar:0,despachar:0};
+  todos.forEach(function(it){cuenta[it.tipo]++;});
+  var nombres={todo:'Todo',cobrar:'Cobrar',avisar:'Avisar',despachar:'Despachar'};
+  var anchos={todo:'.8fr',cobrar:'1fr',avisar:'1fr',despachar:'1.25fr'};
+  var seg='<div class="ini-seg" role="group" aria-label="Filtrar lo de hoy" style="--cols:'+tipos.map(function(t){return anchos[t];}).join(' ')+'">'+
+    tipos.map(function(t){
+      return'<button type="button" class="'+(t===dashFiltro?'on':'')+'" aria-pressed="'+(t===dashFiltro)+'" onclick="setDashFiltro(\''+t+'\')">'+nombres[t]+'<b>'+cuenta[t]+'</b></button>';
+    }).join('')+'</div>';
+  var lista=dashFiltro==='todo'?todos:todos.filter(function(it){return it.tipo===dashFiltro;});
+  var vista=dashVerTodo?lista:lista.slice(0,DASH_MAX);
+  var vacio={todo:'Nada pendiente para hoy.',cobrar:'Nada por cobrar hoy.',avisar:'No hay avisos pendientes.',despachar:'Nada por despachar hoy ni mañana.'};
+  var cuerpo=vista.length
+    ?'<div class="ini-lista">'+vista.map(_dashFila).join('')+'</div>'
+    :'<div class="ini-lista"><div class="ini-vacio">'+vacio[dashFiltro]+'</div></div>';
+  var resto=lista.length-vista.length;
+  var mas=resto>0
+    ?'<button type="button" class="ini-mas" onclick="dashVerTodo=true;renderPara()">Ver '+(resto===1?'la que falta':'las '+resto+' que faltan')+'</button>'
+    :(dashVerTodo&&lista.length>DASH_MAX?'<button type="button" class="ini-mas" onclick="dashVerTodo=false;renderPara()">Ver menos</button>':'');
+  el.innerHTML='<div class="ini-h">Para hoy <span>'+todos.length+(todos.length===1?' cosa':' cosas')+'</span></div>'+seg+cuerpo+mas;
+}
+function renderTres(){
+  var el=document.getElementById('dash-tres');if(!el)return;
+  var sale=_saleEstaSemana(),salieron=sale.filter(_salioPedido).length;
+  var mesNom=MESES_LARGO_D[new Date().getMonth()];
+  function caja(lbl,val,sub,click){
+    return'<button type="button" class="ini-n" onclick="'+click+'"><div class="l">'+lbl+'</div><div class="v">'+val+'</div><div class="s">'+sub+'</div></button>';
+  }
+  var cSale=caja('Sale esta semana',sale.length,salieron?(salieron+' ya '+(salieron===1?'salió':'salieron')):(sale.length===1?'pedido':'pedidos'),'goToPage(\'seg\')');
+  if(usuarioRol==='admin'){
+    var m=_metaDatos(),c=_cajaDatos();
+    el.innerHTML=caja('Vendido en '+mesNom,fmtCLP(m.facMes),m.pct+' % de la meta','goToPage(\'fin\')')+
+      caja('Por cobrar',fmtCLP(c.total),c.nPend+(c.nPend===1?' pedido':' pedidos'),'goToPage(\'fin\')')+cSale;
+  }else{
+    // Vendedor: sin montos. Lo suyo es avisar y que lo de hoy salga.
+    var its=_dashItems();
+    var nAv=its.filter(function(it){return it.tipo==='avisar';}).length;
+    var nDe=its.filter(function(it){return it.tipo==='despachar';}).length;
+    el.innerHTML=caja('Por avisar',nAv,nAv===1?'cliente':'clientes','setDashFiltro(\'avisar\')')+
+      caja('Por despachar',nDe,nDe===1?'pedido':'pedidos','setDashFiltro(\'despachar\')')+cSale;
+  }
 }
 function renderDash(){
-  renderMeta();renderCaja();
-  var now=new Date(),mesHoy=MESES_ES[now.getMonth()];
-  var mesActual=dashMonthFilter||mesHoy;
-  var idxActual=MESES_ES.indexOf(mesActual);
-  var mesAnterior=MESES_ES[idxActual===0?11:idxActual-1];
-  var el=document.getElementById('dash-date');if(el)el.textContent=SEMANAS_ES_D[now.getDay()].charAt(0).toUpperCase()+SEMANAS_ES_D[now.getDay()].slice(1)+', '+now.getDate()+' de '+MESES_LARGO_D[now.getMonth()]+' '+now.getFullYear();
-  renderMonthBar('dash-month-bar',finRecords,dashMonthFilter,'setDashMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);});
-  // soloVentas: los muestrarios y las devoluciones no son facturación ni
-  // cuentan como pedido, así que no pueden entrar al ticket promedio ni a la meta.
-  function finByMonth(m){return soloVentas(finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===m;}));}
-  function sumField(arr,field){return arr.reduce(function(s,r){return s+(Number(r[field])||0);},0);}
-  function sumAbonos(arr){return arr.reduce(function(s,r){return s+(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);},0);}
-  function sumPend(arr){return arr.reduce(function(s,r){var t=Number(r.total)||0,a=(Number(r.abono1)||0)+(Number(r.abono2)||0)+(Number(r.abono3)||0);return s+Math.max(0,t-a);},0);}
-  var finMes=finByMonth(mesActual),finAnt=finByMonth(mesAnterior),facMes=sumField(finMes,'total'),facAnt=sumField(finAnt,'total'),pedMes=finMes.length,pedAnt=finAnt.length,saldoMes=sumPend(finMes),ticketMes=pedMes?Math.round(facMes/pedMes):0,ticketAnt=pedAnt?Math.round(facAnt/pedAnt):0,cobrMes=sumAbonos(finMes);
-  function delta(cur,prev){if(!prev)return{cls:'flat',txt:'sin datos'};var pct=Math.round((cur-prev)/prev*100);return{cls:pct>0?'up':pct<0?'down':'flat',txt:(pct>0?'↑ ':pct<0?'↓ ':'')+Math.abs(pct)+'%'};}
-  var mesLabel=mesActual.charAt(0).toUpperCase()+mesActual.slice(1);
-  var kpis=[
-    {label:'Facturación '+mesLabel,val:fmtCLP(facMes),sub:'Ant: '+fmtCLP(facAnt),delta:delta(facMes,facAnt),color:'var(--green)',page:'fin'},
-    {label:'Pedidos '+mesLabel,val:pedMes,sub:'Ant: '+pedAnt+' pedidos',delta:delta(pedMes,pedAnt),color:'var(--brand)',page:'fin'},
-    {label:'Cobrado '+mesLabel,val:fmtCLP(cobrMes),sub:'Saldo: '+fmtCLP(saldoMes),delta:null,color:'var(--text)',page:'fin'},
-    {label:'Saldo por cobrar',val:fmtCLP(saldoMes),sub:pedMes+' pedidos activos',delta:null,color:saldoMes>0?'var(--amber)':'var(--green)',page:'fin'},
-    {label:'Ticket promedio',val:fmtCLP(ticketMes),sub:'Ant: '+fmtCLP(ticketAnt),delta:delta(ticketMes,ticketAnt),color:'var(--text)',page:'fin'},
-    /* Cuenta por mes de FABRICACIÓN, igual que la vista de Producción: un
-       pedido vendido en agosto que se fabrica en septiembre está en producción
-       en septiembre, no en agosto. Antes miraba la fecha de venta. */
-    {label:'En producción',val:prodOrders.filter(function(o){return mesDeProduccion(o)===mesActual;}).length,sub:'pedidos este mes',delta:null,color:'var(--brand)',page:'prod'}
-  ];
-  var kpiEl=document.getElementById('dash-kpis');if(kpiEl)kpiEl.innerHTML=kpis.map(function(k){var dHtml=k.delta?'<span class="kpi-delta '+k.delta.cls+'">'+k.delta.txt+'</span>':'';return'<div class="kpi-card" onclick="goToPage(\''+k.page+'\')" style="cursor:pointer;transition:transform .12s" onmouseenter="this.style.transform=\'translateY(-2px)\'" onmouseleave="this.style.transform=\'\'"><div class="kpi-label">'+k.label+'</div><div class="kpi-val" style="color:'+k.color+'">'+k.val+'</div>'+dHtml+'<div class="kpi-sub">'+k.sub+'</div></div>';}).join('');
-  var hoyD=new Date();hoyD.setHours(0,0,0,0);
-  var urgentes=orders.filter(function(o){
-    if(getProgress(o.checks).pct===100)return false;
-    if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00');var diff=Math.round((de-hoyD)/86400000);return diff>=-1&&diff<=6;}
-    return o.semana&&o.semana.toUpperCase().indexOf(mesActual.toUpperCase())!==-1;
-  }).sort(function(a,b){
-    var da=a.dia_envio?new Date(a.dia_envio+'T12:00:00').getTime():9e12;
-    var db=b.dia_envio?new Date(b.dia_envio+'T12:00:00').getTime():9e12;
-    return da-db;
-  }).slice(0,10);
-  var urgEl=document.getElementById('dash-urgentes'),urgCnt=document.getElementById('dash-urgentes-count');if(urgCnt)urgCnt.textContent=urgentes.length+' pedidos';
-  if(urgEl){if(!urgentes.length){urgEl.innerHTML='<div class="empty-dash">No hay entregas en los próximos 6 días</div>';}else{urgEl.innerHTML=urgentes.map(function(o){
-    var p=getProgress(o.checks),pc=p.pct===100?'var(--green)':p.pct>0?'var(--amber)':'var(--red)';
-    var diaInfo='';if(o.dia_envio){var de=new Date(o.dia_envio+'T12:00:00'),diff=Math.round((de-hoyD)/86400000);var diaStr=de.toLocaleDateString('es-CL',{weekday:'short',day:'numeric',month:'short'});var diaColor=diff<=0?'var(--red)':diff<=2?'var(--amber)':'var(--text-3)';diaInfo='<div style="font-size:10px;color:'+diaColor+';font-weight:'+(diff<=2?'700':'400')+'">📅 '+diaStr+(diff===0?' HOY':diff===1?' mañana':diff<0?' VENCIDO':'')+'</div>';}
-    else{diaInfo='<div class="urgente-semana">'+(o.semana||'')+'</div>';}
-    return'<div class="urgente-row" onclick="goToSeg()"><div class="urgente-num">'+(o.num||'—')+'</div><div class="urgente-info"><div class="urgente-nombre">'+esc(o.nombre)+' '+esc(o.apellido)+'</div>'+diaInfo+'</div><div class="urgente-prog"><div style="font-size:13px;font-weight:700;color:'+pc+'">'+p.pct+'%</div><div style="height:3px;width:60px;background:var(--surface3);border-radius:2px;margin-top:3px"><div style="height:100%;width:'+p.pct+'%;background:'+pc+';border-radius:2px"></div></div></div></div>';
-  }).join('');}}
-  var CRIT_LABELS={word:'Orden Word no creada',aviso_sem:'Aviso semana previa',aviso_dia:'Aviso día previo',comprobante:'Comprobante no enviado'};var alerts=[];
-  orders.forEach(function(o){if(getProgress(o.checks).pct===100)return;var mes=extractMonth(o.semana||'');if(mes!==mesActual)return;Object.keys(CRIT_LABELS).forEach(function(cid){if(!(o.checks&&o.checks[cid]))alerts.push({o:o,cid:cid,label:CRIT_LABELS[cid]});});});
-  var PRIO=['aviso_dia','comprobante','aviso_sem','word'];alerts.sort(function(a,b){return PRIO.indexOf(a.cid)-PRIO.indexOf(b.cid);});alerts=alerts.slice(0,10);
-  var chkEl=document.getElementById('dash-checks'),chkCnt=document.getElementById('dash-checks-count');if(chkCnt)chkCnt.textContent=alerts.length+' pendientes';
-  if(chkEl){if(!alerts.length){chkEl.innerHTML='<div class="empty-dash" style="color:var(--green)">&#10003; Sin checkpoints críticos pendientes</div>';}else{chkEl.innerHTML=alerts.map(function(a){var isCrit=a.cid==='aviso_dia'||a.cid==='comprobante',cls=isCrit?'check-alert':'check-alert warn',badge=isCrit?'<span class="check-badge critico">CRÍTICO</span>':'<span class="check-badge warn">PENDIENTE</span>';return'<div class="'+cls+'" onclick="goToSeg()"><div><div class="check-alert-num">#'+(a.o.num||'—')+'</div>'+badge+'</div><div class="check-alert-info"><div class="check-alert-cliente">'+esc(a.o.nombre)+' '+esc(a.o.apellido)+'</div><div class="check-alert-tipo">'+a.label+'</div></div></div>';}).join('');}}
-  var recientes=finRecords.filter(function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha)===mesActual;}).sort(function(a,b){var da=a.fecha_creacion||a.fecha||'',db=b.fecha_creacion||b.fecha||'';return db.localeCompare(da);}).slice(0,6);
-  var recEl=document.getElementById('dash-recientes');
-  if(recEl){if(!recientes.length){recEl.innerHTML='<div class="empty-dash">No hay pedidos recientes</div>';}else{recEl.innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:8px">'+recientes.map(function(r){var listo=r.doc1_emitida&&r.doc2_emitida,_p=estadoPagoFin(r),dc=_p.excedente?'var(--blue)':listo?'var(--green)':_p.debe?'var(--amber)':'var(--brand)';return'<div class="reciente-row" onclick="goToPage(\'fin\')" style="cursor:pointer"><div class="reciente-dot" style="background:'+dc+'"></div><div style="min-width:40px;font-size:14px;font-weight:700;color:var(--brand)">'+(r.num||'—')+'</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.nombre)+' '+esc(r.apellido)+'</div><div style="font-size:11px;color:var(--text-3)">'+esc(r.semana)+' &middot; '+(r.fecha_creacion||r.fecha||'')+'</div></div><div style="text-align:right;flex-shrink:0"><div style="font-size:13px;font-weight:700;color:var(--text)">'+fmtCLP(r.total)+'</div><div style="font-size:11px;color:'+(_p.excedente?'var(--blue)':_p.debe?'var(--amber)':'var(--green)')+'">'+(_p.excedente?'Excedente '+_p.txt:_p.debe?'Pend: '+_p.txt:'&#10003; Pagado')+'</div></div></div>';}).join('')+'</div>';}}
+  var now=new Date(),h=now.getHours();
+  var el=document.getElementById('dash-date');
+  if(el){var dia=SEMANAS_ES_D[now.getDay()];el.textContent=dia.charAt(0).toUpperCase()+dia.slice(1)+' '+now.getDate()+' de '+MESES_LARGO_D[now.getMonth()];}
+  var sal=document.getElementById('dash-saludo');
+  if(sal)sal.textContent=h<12?'Buenos días':h<20?'Buenas tardes':'Buenas noches';
+  renderTres();renderPara();renderMeta();renderGrafico();
 }
-function initDash(){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();checkAvisoSinMovimiento();setInterval(function(){if(document.getElementById('page-dash').classList.contains('active')){if(DB_URL)Promise.all([loadFin(),loadProd()]).then(function(){renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();});else{renderDash();renderNotif();renderGrafico();renderRanking();renderContactosPendientes();}}},30000);}
+function initDash(){
+  renderDash();checkAvisoSinMovimiento();
+  setInterval(function(){
+    if(!document.getElementById('page-dash').classList.contains('active'))return;
+    if(DB_URL)Promise.all([loadFin(),loadProd()]).then(renderDash);else renderDash();
+  },30000);
+}
 function downloadXLSX(wb,filename){try{var wbout=XLSX.write(wb,{bookType:'xlsx',type:'array'}),blob=new Blob([wbout],{type:'application/octet-stream'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(url);document.body.removeChild(a);},200);showToast('✓ Excel descargado');}catch(e){console.error('Excel error:',e);showToast('Error al generar Excel: '+e.message,true);}}
 
 // ── TARJETAS MÓVIL ────────────────────────────────────────────────────────
