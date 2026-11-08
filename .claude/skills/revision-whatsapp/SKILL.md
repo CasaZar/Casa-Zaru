@@ -106,6 +106,41 @@ enviado con SendUserFile:
 6. Tres ideas para redes
 Al pie: no leídos antes y después, y archivos actualizados.
 
+## 8 · Subir los pendientes al panel («WhatsApp al día»)
+Desde el 08-11-2026 lo de la sección 2 también aparece en el panel del cotizador
+(`cotizador.casazaru.cl/?panel=…`), en el bloque «WhatsApp al día», **separado** del
+seguimiento de cotizaciones y fuera de la meta del día. Lo ven solo el admin y César.
+Requiere que `supabase-cotizador/whatsapp-al-dia.sql` esté aplicado (comprobarlo con el MCP
+de solo lectura: `select to_regclass('public.whatsapp_pendientes')`). Si no está, saltarse
+este paso y decirlo en el informe.
+
+Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
+- Abrir el panel en el Chrome del usuario, que tiene la sesión del admin, y en la consola:
+  `await sbClient.rpc('wa_cargar', { p_revision: '<hora de la revisión, ISO>', p_filas: [...] })`.
+  Solo el admin puede cargar. Mostrar al usuario el resumen que devuelve
+  (`nuevos / actualizados / ya_resueltos / cerrados`).
+- **Va la lista COMPLETA de lo pendiente**, no solo lo nuevo: el chat que no viene se da por
+  cerrado. Si César lo marcó respondido después de `p_revision`, se respeta su marca.
+- Una fila por chat:
+  `chat_id` (id del hilo en Meta, estable entre revisiones) · `cliente` (nombre de pila y
+  apellido como aparece) · `telefono` (solo dígitos con 56, o null) · `tipo` · `prioridad` ·
+  `espera_desde` (hora del último mensaje del cliente, ISO) · `contexto` (una línea: qué pasó)
+  · `cita` (lo último que dijo, ≤ 400) · `mensaje` (el sugerido: párrafos separados por
+  `\n\n`; todo dato que no sepamos va entre corchetes, `$[total]`, y el panel no deja
+  enviarlo hasta que se complete) · `monto` (entero, solo si sale de un chat o de la base) ·
+  `pedido` (N° de la Gestión si es cliente).
+- `tipo` y `prioridad` (menor = más urgente):
+  - `responder` 10-39: el cliente preguntó y lo último lo dijo él. Ya pagó o es post venta
+    10-19 · le prometimos algo para hoy 20-29 · el resto 30-39, más arriba cuanto más espera.
+  - `promesa` 40-59: algo que prometimos y vence (sin pregunta pendiente del cliente).
+  - `plata` 60-79: el cliente dijo que pagaba o volvía; no hay que escribirle, solo mirar si
+    llegó (sin `mensaje`).
+- **No se suben**: chats con NO CONTACTAR, los que ya tienen 2 mensajes nuestros sin
+  respuesta (tope), chats internos ni proveedores.
+- Teléfono: si Meta no lo muestra en el hilo, cruzarlo con `cotizaciones.contacto` o con la
+  Gestión por nombre. Si no aparece, `null` (el panel ofrece «Copiar mensaje»).
+- Nunca se suben datos bancarios, RUT ni direcciones.
+
 ## Los lunes, además
 - Tasa de cierre por frase, por intención y por tiempo de primera respuesta.
 - Las 10 preguntas más repetidas de la semana, marcando las que no tienen todavía una
