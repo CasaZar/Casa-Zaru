@@ -44,6 +44,7 @@ redes, fichas de producto) y para que el vendedor (César) encuentre rápido la 
  "orientacion":"vertical|horizontal|cuadrada",
  "personas":true|false,
  "texto_encima":true|false,
+ "ia":"sí|posible|no",
  "descripcion":"una frase concreta y buscable, ej. 'Cubierta de cocina de castaño con lavaplatos bajo cubierta, cocina blanca, recién instalada'",
  "gancho":"(opcional) por qué sirve para contenido, ej. 'antes/después', 'veta espectacular', 'volcán de fondo'",
  "etiquetas":["palabras","clave","para","buscar"]}
@@ -59,4 +60,9 @@ Reglas:
 - Capturas de pantalla, conversaciones de WhatsApp, cotizaciones, documentos → producto «otro», uso
   «descartar», descripción breve de qué es.
 - Personas reconocibles (clientes) → `personas:true`; no describir quiénes son.
+- **ia**: «sí» si la imagen (o el video) fue generada o retocada con inteligencia artificial: ambiente
+  demasiado perfecto, veta repetida o que no calza entre tablas, sombras o reflejos imposibles, patas o
+  bordes deformes, texto ilegible, objetos fundidos. «posible» si dudas. «no» si es una foto real.
+  Un render 3D (SketchUp) no es IA: va «no» con la etiqueta «render». Si es «sí» o «posible», agrega
+  también la etiqueta «imagen ia». El equipo necesita saberlo antes de usarla como foto de un trabajo real.
 - No inventes. Si dudas entre dos, elige la más probable y baja la confianza.

@@ -44,6 +44,11 @@ main .wrap{padding-block:14px 40px}
 .item{position:relative;aspect-ratio:1;max-width:100%;border-radius:8px;overflow:hidden;background-color:var(--line);background-repeat:no-repeat;border:0;padding:0;cursor:pointer}
 .item .tag{position:absolute;left:5px;bottom:5px;font-size:.7rem;font-weight:600;padding:2px 7px;border-radius:999px;background:rgba(20,22,18,.72);color:#fff;font-variant-numeric:tabular-nums}
 .item .top{position:absolute;right:5px;top:5px;font-size:.7rem;padding:2px 6px;border-radius:999px;background:var(--terra);color:#fff;font-weight:600}
+.item .ia{position:absolute;left:5px;top:5px;font-size:.68rem;letter-spacing:.04em;padding:2px 7px;border-radius:999px;background:#5b2e8c;color:#fff;font-weight:700}
+.item .ia.posible{background:rgba(91,46,140,.6)}
+.aviso-ia{background:#efe6f8;color:#4a2373;border-radius:8px;padding:8px 10px;font-size:.85rem;margin:8px 0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .aviso-ia{background:#2f2340;color:#dcc8f2}}
+:root[data-theme="dark"] .aviso-ia{background:#2f2340;color:#dcc8f2}
 .vacio{padding:40px 0;color:var(--muted);text-align:center}
 .mas{display:block;margin:18px auto 0;font:inherit;padding:10px 18px;border-radius:999px;border:1px solid var(--verde);color:var(--verde);background:transparent;cursor:pointer}
 /* ficha */
@@ -80,6 +85,8 @@ main .wrap{padding-block:14px 40px}
     <select id="f-uso" aria-label="Uso"></select>
     <select id="f-ambiente" aria-label="Ambiente"></select>
     <button class="chip" id="f-mejores" aria-pressed="false">Solo las mejores</button>
+    <button class="chip" id="f-sinia" aria-pressed="false">Ocultar IA</button>
+    <button class="chip" id="f-soloia" aria-pressed="false">Solo IA</button>
     <button class="chip" id="f-descartes" aria-pressed="false">Ver descartadas</button>
   </div>
   <div class="sugerencias" id="sugerencias"></div>
@@ -119,9 +126,13 @@ function filtrar(){
   const f={}; Object.keys(ETQ).forEach(c=>f[c]=$('#f-'+c).value);
   const mejores=$('#f-mejores').getAttribute('aria-pressed')==='true';
   const desc=$('#f-descartes').getAttribute('aria-pressed')==='true';
+  const sinia=$('#f-sinia').getAttribute('aria-pressed')==='true';
+  const soloia=$('#f-soloia').getAttribute('aria-pressed')==='true';
   vista=DATA.filter(d=>{
     if(!desc && d.uso==='descartar') return false;
     if(mejores && (d.calidad||0)<4) return false;
+    if(sinia && esIA(d)) return false;
+    if(soloia && !esIA(d)) return false;
     for(const c in f) if(f[c] && d[c]!==f[c]) return false;
     return toks.every(t=>d._txt.includes(t));
   }).sort((a,b)=>(b.calidad||0)-(a.calidad||0));
@@ -134,13 +145,14 @@ function pintar(){
   const lado=g.firstElementChild?g.firstElementChild.offsetWidth:Math.min(200,(g.clientWidth-8)/3);
   vista.slice(mostrados,mostrados+PASO).forEach(d=>{
     const b=document.createElement('button'); b.className='item'; b.setAttribute('aria-label',d.descripcion||d.id);
-    b.dataset.id=d.id; b.innerHTML=(d.tipo==='video'?'<span class="tag">▶ '+fmtDur(d.dur)+'</span>':'')+((d.calidad||0)>=5?'<span class="top">top</span>':'');
+    b.dataset.id=d.id; b.innerHTML=(d.tipo==='video'?'<span class="tag">▶ '+fmtDur(d.dur)+'</span>':'')+((d.calidad||0)>=5?'<span class="top">top</span>':'')+(esIA(d)?'<span class="ia'+(d.ia==='posible'?' posible':'')+'">'+(d.ia==='posible'?'IA?':'IA')+'</span>':'');
     b.onclick=()=>abrir(d); frag.appendChild(b);
   });
   g.appendChild(frag); mostrados=Math.min(vista.length,mostrados+PASO);
   ajustar(); $('#mas').hidden=mostrados>=vista.length;
 }
 function ajustar(){ document.querySelectorAll('.item').forEach(el=>{ const d=DATA_BY[el.dataset.id]; if(d) sprite(el,d,el.offsetWidth) }) }
+function esIA(d){ return d.ia==='sí'||d.ia==='posible' }
 function fmtDur(s){ s=+s||0; return Math.floor(s/60)+':'+String(s%60).padStart(2,'0') }
 function esc(s){ return (s||'').toString().replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])) }
 function abrir(d){
@@ -150,6 +162,7 @@ function abrir(d){
     ['Uso',d.uso],['Calidad',d.calidad?d.calidad+' de 5':''],['Formato',d.orientacion],['Carpeta',d.ruta]].filter(r=>r[1]);
   $('#ficha').innerHTML='<button class="cerrar" id="cerrar" aria-label="Cerrar">×</button>'+
     '<div class="img" id="fimg"></div><h2>'+esc(d.producto||'Archivo')+(d.madera&&d.madera!=='no se distingue'?' de '+esc(d.madera):'')+'</h2>'+
+    (esIA(d)?'<div class="aviso-ia"><b>'+(d.ia==='sí'?'Imagen hecha con IA.':'Posible imagen hecha con IA.')+'</b> No usarla como foto de un trabajo real'+(d.ia_nota?' ('+esc(d.ia_nota)+')':'')+'.</div>':'')+
     '<p class="desc">'+esc(d.descripcion)+'</p>'+(d.que_pasa?'<p class="desc"><b>En el video:</b> '+esc(d.que_pasa)+'</p>':'')+
     (d.gancho?'<div class="gancho">Para contenido: '+esc(d.gancho)+'</div>':'')+
     '<dl class="datos">'+filas.map(r=>'<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>').join('')+'</dl>'+
@@ -165,7 +178,8 @@ function abrir(d){
 }
 function cerrar(){ $('#ficha').hidden=true; $('#velo').hidden=true; }
 $('#velo').onclick=cerrar; document.addEventListener('keydown',e=>{ if(e.key==='Escape') cerrar() });
-['#f-mejores','#f-descartes'].forEach(s=>$(s).onclick=e=>{ const b=e.currentTarget; b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')==='true'?'false':'true'); filtrar(); });
+['#f-mejores','#f-descartes','#f-sinia','#f-soloia'].forEach(s=>$(s).onclick=e=>{ const b=e.currentTarget; const on=b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',on?'true':'false');
+  if(on && s==='#f-sinia') $('#f-soloia').setAttribute('aria-pressed','false'); if(on && s==='#f-soloia') $('#f-sinia').setAttribute('aria-pressed','false'); filtrar(); });
 let tq; $('#q').addEventListener('input',()=>{ clearTimeout(tq); tq=setTimeout(filtrar,150) });
 $('#mas').onclick=pintar; let tr; addEventListener('resize',()=>{ clearTimeout(tr); tr=setTimeout(ajustar,150) });
 let DATA_BY={};
