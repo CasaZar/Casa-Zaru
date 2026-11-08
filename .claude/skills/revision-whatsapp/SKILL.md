@@ -24,14 +24,24 @@ Carpeta: `G:\Mi unidad\Casa Zaru\Revision WhatsApp\` (en adelante `RW\`).
 - Datos de clientes **solo en `RW\`**. Nunca en el repo, en la memoria ni en un mensaje
   fuera del informe.
 - Todo número sale de un chat o de la base. Si no está escrito, «—».
+- **Plata: siempre con captura.** `innerText` no trae imágenes, y los comprobantes son
+  imágenes. Antes de decir «pagó», «no ha pagado» o «falta $X», subir en el chat hasta la
+  cotización o el resumen y mirar con captura cada imagen desde ahí. Si no se pudo ver todo,
+  se escribe «no vi el resto del chat», nunca «falta». (08-11: dos clientes quedaron como
+  impagos y habían pagado.)
 - Español. «Madera noble», nunca «nativa». Mensajes en párrafos (`waParrafos()`); César se
   presenta solo en el primer mensaje. Tope: 2 mensajes nuestros sin respuesta → no se
   sugiere otro. Si dijo que no → NO CONTACTAR.
 
 ## 0 · Desde cuándo
-Lee `RW\ultima-revision.txt` (fecha y hora, `AAAA-MM-DD HH:MM`) y cubre desde ahí hasta
-ahora. Si el usuario pide otro rango («lo de ayer»), manda el usuario. Al final escribe la
-hora nueva.
+**Desde el 08-11-2026, una revisión al día que cubre el día anterior COMPLETO** (decisión del
+usuario): todas las conversaciones que se movieron ayer, de 00:00 a 23:59, más lo que haya
+llegado hoy hasta la hora de la revisión. Si la última revisión es más vieja que ayer a las
+00:00, se cubre desde la última revisión: **nunca se deja un rato sin mirar**.
+Lee `RW\ultima-revision.txt` (fecha y hora, `AAAA-MM-DD HH:MM`); el inicio es lo que sea
+anterior entre esa hora y ayer a las 00:00. Ese inicio va como `p_desde` al subir al panel
+(paso 8): si entre dos revisiones queda un hueco, el Historial del panel lo muestra en rojo.
+Si el usuario pide otro rango, manda el usuario. Al final escribe la hora nueva.
 
 ## 1 · Leer
 - **Lo reciente: Meta Business Suite en Chrome** (Claude in Chrome). Bandeja de WhatsApp;
@@ -116,11 +126,20 @@ este paso y decirlo en el informe.
 
 Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
 - Abrir el panel en el Chrome del usuario, que tiene la sesión del admin, y en la consola:
-  `await sbClient.rpc('wa_cargar', { p_revision: '<hora de la revisión, ISO>', p_filas: [...] })`.
+  `await sbClient.rpc('wa_cargar', { p_revision: '<hora de la revisión, ISO>', p_desde: '<inicio
+  del paso 0, ISO>', p_filas: [...] })`.
   Solo el admin puede cargar. Mostrar al usuario el resumen que devuelve
-  (`nuevos / actualizados / ya_resueltos / cerrados`).
+  (`nuevos / actualizados / ya_resueltos / cerrados` y `cerrados_quienes`).
 - **Va la lista COMPLETA de lo pendiente**, no solo lo nuevo: el chat que no viene se da por
   cerrado. Si César lo marcó respondido después de `p_revision`, se respeta su marca.
+- **Freno** (`supabase-cotizador/whatsapp-al-dia-historial.sql`, 08-11): si la carga cerraría
+  más de la mitad de lo pendiente (y más de 3), falla con «FRENO…», dice cuáles y no aplica
+  nada. No se repite con `p_forzar: true` sin antes abrir cada uno de esos chats y confirmar
+  que de verdad se respondió; decirle al usuario cuáles eran. Tampoco acepta una revisión más
+  vieja que la última cargada.
+- Cada carga queda en `whatsapp_revisiones` y en el panel (WhatsApp al día → Historial), junto
+  con todo lo cerrado en 30 días y quién lo cerró. Después de subir, abrir el Historial y
+  confirmar que la revisión aparece y que no hay aviso rojo de hueco.
 - Una fila por chat:
   `chat_id` (id del hilo en Meta, estable entre revisiones) · `cliente` (nombre de pila y
   apellido como aparece) · `telefono` (solo dígitos con 56, o null) · `tipo` · `prioridad` ·
