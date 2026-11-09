@@ -98,7 +98,7 @@ $MP += @($mpNombres | Where-Object { $_.fecha -gt $hastaMP -and $_.fecha -lt $A1
 
 # ── Visa Empresa 8340 (export MovimientosNoFacturados.xls) ──
 $VISA = @()
-foreach ($n in (Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'Movimientos*Facturados*.xls' -ErrorAction SilentlyContinue)) {
+foreach ($n in (Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'Mov*Facturado*.xls' -ErrorAction SilentlyContinue)) {
   $VISA += @(Read-XlsRows $n.FullName | Where-Object { $_.Count -ge 10 -and "$($_[1])" -match '^\d{2}/\d{2}/\d{4}$' } | ForEach-Object {
     [pscustomobject]@{ fecha = (FechaDe $_[1]); glosa = "$($_[4])"; monto = (V $_[10]) } })
 }

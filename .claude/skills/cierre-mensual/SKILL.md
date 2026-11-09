@@ -75,8 +75,10 @@ proveedores aparte** (ya pasó una vez y hubo que borrarlo).
   entre el cierre del estado y el 31). Desde el 01-11 el cargador lee los dos formatos: una compra que sale en ambos se
   cuenta una vez por fecha y monto, y una reversa anula su cargo. Solo el facturado trae los cargos propios de la
   tarjeta (intereses, comisiones, impuesto DL 3475), que van a Comisiones bancarias por `reglas-cierre.csv`; la
-  comisión de administración mensual calza con la factura exenta de Banco de Chile y no se cuenta dos veces. Un
-  export en dólares no se lee. Reglas: FACEBK = Publicidad Meta (suma al gasto real de Meta si falta
+  comisión de administración mensual calza con la factura exenta de Banco de Chile y no se cuenta dos veces. Desde
+  noviembre 2026 el banco los baja como `Mov_Facturado (N).xls` (se aceptan los dos nombres) y el estado de cuenta
+  viene en DOS archivos, pesos y dólares: hay que bajar los dos. El de dólares trae los cobros de Facebook; se toma el
+  «Monto Moneda Origen», que ya está en pesos (antes del 09-11 ese archivo no se leía y faltaba Meta). Reglas: FACEBK = Publicidad Meta (suma al gasto real de Meta si falta
   `meta-AAAA-MM.json`), GOOGLE ADS = pago de factura ya contada, SII RECAUDAC (SII 11001 en el facturado) = impuestos.
   Cada cobro de Meta a la Visa trae aparte una comisión de compra internacional del 2,54 % (octubre 2026).
   El pago de la tarjeta, cuando llegue, es traspaso. Ojo: lo pagado a Facebook trae IVA; el reporte de Meta no.

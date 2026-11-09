@@ -258,9 +258,9 @@ foreach ($c in @(@('BCI 7175', $cBci, 'egr'), @('Banco de Chile', $cBdc, 'cargo'
 $dirCart = Join-Path $env:TEMP ('libro-cartolas-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $dirCart | Out-Null
 foreach ($a in @(@($cBci.archivos) + @($cBdc.archivo)) | Where-Object { $_ }) { Copy-Item $a.FullName $dirCart }
-# Tarjeta Visa 8340 de Banco de Chile (export "Movimientos[No]Facturados.xls") y movimientos leídos en la web del banco
+# Tarjeta Visa 8340 de Banco de Chile (export "Movimientos[No]Facturados.xls", desde nov-2026 "Mov_Facturado (N).xls"; pesos y dólares) y movimientos leídos en la web del banco
 # cuando la cartola no alcanza (movs-extra-AAAA-MM.csv, privado).
-$tarjetas = @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'Movimientos*Facturados*.xls' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $iniMes })
+$tarjetas = @(Get-ChildItem "$env:USERPROFILE\Downloads" -Filter 'Mov*Facturado*.xls' -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $iniMes })
 foreach ($a in $tarjetas) { Copy-Item $a.FullName $dirCart }
 if ($fExtra) { Copy-Item $fExtra (Join-Path $dirCart "movs-extra-$tag.csv") }
 $tmpBanco = Join-Path $env:TEMP "banco-$tag.csv"
