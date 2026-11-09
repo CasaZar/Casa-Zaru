@@ -184,7 +184,7 @@ let tq; $('#q').addEventListener('input',()=>{ clearTimeout(tq); tq=setTimeout(f
 $('#mas').onclick=pintar; let tr; addEventListener('resize',()=>{ clearTimeout(tr); tr=setTimeout(ajustar,150) });
 let DATA_BY={};
 fetch('datos.json').then(r=>r.json()).then(j=>{
-  META=j.meta; DATA=j.items; DATA.forEach(d=>{ DATA_BY[d.id]=d; d._txt=norm([d.producto,d.madera,d.tipo,d.etapa,d.ambiente,d.forma,d.uso,d.descripcion,d.gancho,d.que_pasa,(d.etiquetas||[]).join(' '),d.ruta,d.nombre].join(' ')) });
+  META=j.meta; DATA=j.items; DATA.forEach(d=>{ DATA_BY[d.id]=d; d._txt=norm([d.id,d.producto,d.madera,d.tipo,d.etapa,d.ambiente,d.forma,d.uso,d.descripcion,d.gancho,d.que_pasa,(d.etiquetas||[]).join(' '),d.ruta,d.nombre].join(' ')) });
   opciones();
   $('#sugerencias').innerHTML=(META.sugerencias||[]).map(s=>'<button class="sug">'+esc(s)+'</button>').join('');
   $('#sugerencias').querySelectorAll('.sug').forEach(b=>b.onclick=()=>{ $('#q').value=b.textContent; filtrar(); });
