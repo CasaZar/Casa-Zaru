@@ -111,6 +111,9 @@ Agrega a `RW\contenido-rrss.md`:
 - Elogios («éxito total», «me encanta») → pedir foto y reseña, con el mensaje listo.
 - Fotos de piezas instaladas que mande el cliente → candidatas, solo con permiso.
 Cita de cliente solo con permiso y sin apellido.
+Si una idea también sirve para un correo o un anuncio, agregarla como una línea en
+«Candidatos» de `RW\temas-marketing.md` (fecha, idea, evidencia): el lunes se decide si pasa a
+ficha (ver «Los lunes»).
 
 ## 6 · Consejos para el equipo
 Máximo 3, con el ejemplo real: qué funcionó (repetirlo) y qué costó (con la frase alternativa).
@@ -183,3 +186,39 @@ Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
   respuesta `modelo` en el corpus (huecos del bot).
 - Actualizar `RW\guia-respuestas.md`, que después será el prompt del bot: por intención, la
   respuesta modelo, los datos vivos que hay que consultar y cuándo se pasa a una persona.
+
+### Para Klaviyo, contenido y anuncios de Meta (desde el 09-11-2026)
+Lo que se aprende en WhatsApp se convierte en campañas. Cada lunes, en `RW\temas-marketing.md`:
+
+1. **Elegir 1 a 3 temas de la semana**, en este orden de fuerza:
+   - lo que destrabó compras (corpus `compró` + `modelo`, `RW\voz-del-cliente\cierres-*.md`);
+   - preguntas que se repiten 3 o más veces (las 10 de arriba);
+   - objeciones (precio, plazo, espesor, humedad, «¿tienen tienda?»);
+   - fallas nuestras que un aviso previo evita (qué revisar al recibir, cuándo llega).
+   Para elegir un tema no hacen falta tasas: basta con que se repita. Antes de agregar uno,
+   revisar que no esté ya en el archivo (si está, sumar la evidencia nueva a su ficha).
+2. **Una ficha por tema**, con estas partes:
+   - **Evidencia:** cuántas veces y en qué fechas, líneas del corpus o del estudio de cierres, y
+     una cita anonimizada. Sin evidencia escrita no hay tema.
+   - **Correo (Klaviyo):** segmento (suscritos sin compra · cotizó y no compró · clientes
+     recientes · clientes antiguos), asunto y vista previa propuestos, ángulo en una línea y un
+     solo botón al cotizador con `utm_source=klaviyo&utm_medium=email&utm_campaign=<tema>`.
+     Las listas «Clientes Offline» y «Clientes WhatsApp» no reciben promociones (sin
+     consentimiento). El texto final se escribe con `/copy-correos`.
+   - **Contenido orgánico (redes):** formato (reel, carrusel, historia), gancho de la primera
+     línea y qué hay que fotografiar o filmar en el taller. Si es para Cote, como misión con
+     definición de «listo».
+   - **Anuncio de Meta:** gancho, cuerpo y CTA; público (frío o remarketing); destino = el
+     cotizador con `utm_medium=paid` (así el cotizador manda al WhatsApp de anuncios 0141, nunca
+     al 5558); formato. Para armarlo a partir de material suelto, `todo-es-un-anuncio`.
+   - **Estado:** propuesto → boceto → aprobado → enviado o publicado → medido, con fecha.
+3. **Medir lo que salió** (lunes siguiente): aperturas y clics en Klaviyo; cotizaciones con ese
+   `utm_campaign` (columna `origen` de `cotizaciones`); ventas en la Gestión; y si la pregunta
+   bajó en WhatsApp. Anotarlo en la ficha.
+
+Reglas: nada se arma en Klaviyo ni en Meta sin boceto aprobado por el usuario (y nada se
+programa, envía ni activa sin su sí explícito; el MCP de Meta está en solo lectura). Solo
+datos que estén en la web, el cotizador o las condiciones de venta: «sin vender humo»,
+«madera noble» y plazos de 7 a 15 días hábiles. Citas y fotos de clientes, solo con su
+permiso y sin apellido. Ningún dato personal en este archivo: solo citas anonimizadas.
+En el PDF del lunes, una sección «Para marketing» con los temas nuevos de la semana.
