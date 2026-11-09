@@ -36498,8 +36498,10 @@ function _salioPedido(o){
 // cabe junto al monto y el botón a 390 px.
 function _nomCorto(n){
   var p=String(n||'').trim().split(/\s+/).filter(Boolean);
-  if(p.length<2)return p[0]||'';
-  return p[0]+' '+p[1].charAt(0).toUpperCase()+'.';
+  // Hay nombres cargados en mayúsculas («SEBASTIÁN»): se muestran como nombre.
+  var pn=p[0]?p[0].charAt(0).toUpperCase()+p[0].slice(1).toLowerCase():'';
+  if(p.length<2)return pn;
+  return pn+' '+p[1].charAt(0).toUpperCase()+'.';
 }
 function _celDePedido(numStr){
   var fin=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
@@ -36529,12 +36531,32 @@ function _dashItems(){
   }
   // Los avisos son UNA sola lista: la de Seguimiento (avisosPendientes). El
   // «¿lo recibió?» y la reseña son cortesía post-entrega y se ven allá.
+  // Una fila por pedido (09-11-2026): con datos reales un pedido atrasado traía
+  // hasta 4 avisos en fila. Se muestra solo el más avanzado del proceso (el
+  // cambio de fecha va primero). Un aviso anterior a uno ya mandado no se pide
+  // acá: el cliente ya tiene el dato más nuevo (en Avisos a clientes sigue).
+  var porPed={},ordenPed=[];
+  function _rangoAviso(id){return id==='cambio'?99:AVISOS.findIndex(function(a){return a.id===id;});}
   avisosPendientes().lista.forEach(function(p){
     if(p.avisoId==='recibido'||p.avisoId==='resena')return;
-    var urg=!!(p.urgente||p.atrasado);
+    var rango=_rangoAviso(p.avisoId);
+    if(rango<99){
+      var o=orders.find(function(x){return String(x.num||'')===p.numStr;})||{},ch=o.checks||{};
+      var hecho=-1;AVISOS.forEach(function(a,i){if(ch[a.id])hecho=i;});
+      if(rango<hecho)return;
+    }
+    var x=porPed[p.numStr];
+    if(!x){porPed[p.numStr]={p:p,r:rango};ordenPed.push(p.numStr);return;}
+    if(rango>x.r){x.p=p;x.r=rango;}
+  });
+  ordenPed.forEach(function(k){
+    var p=porPed[k].p,urg=!!(p.urgente||p.atrasado);
     items.push({tipo:'avisar',prio:urg?1:(p.falta<=0?3:4),orden:p.falta,num:p.numStr,nombre:p.nombre,rojo:urg,ic:'chat',acc:'escribir',
       avisoId:p.avisoId,msg:p.msg,desc:String(p.tag).replace(/^⚠\s*/,'')+' · '+p.sub});
   });
+  // En «Todo» cada pedido aparece una vez: si ya tiene aviso, la fila de
+  // despacho o de «¿salió?» queda solo en su filtro (dup).
+  items.forEach(function(it){if(it.tipo==='cobrar'&&it.acc==='ver'&&porPed[it.num])it.dup=true;});
   // Despachar: lo de esta semana que sale hoy o mañana (o ya debió salir) y
   // todavía no salió. Sin día de envío no se sabe cuándo: se pide ponerlo.
   _saleEstaSemana().forEach(function(o){
@@ -36547,7 +36569,7 @@ function _dashItems(){
     var env=new Date(o.dia_envio+'T00:00:00'),d=Math.round((env-hoy)/86400000);
     if(d>1)return;
     var dia=env.toLocaleDateString('es-CL',{weekday:'long'});
-    items.push({tipo:'despachar',prio:2,orden:d,num:numStr,nombre:nom,rojo:d<0,ic:'camion',acc:'ver',
+    items.push({tipo:'despachar',prio:2,orden:d,num:numStr,nombre:nom,rojo:d<0,ic:'camion',acc:'ver',dup:!!porPed[numStr],
       desc:(d<0?'Debió salir el '+dia:d===0?'Despachar hoy':'Despachar mañana')+prod});
   });
   items.sort(function(a,b){return a.prio-b.prio||a.orden-b.orden||Number(a.num||0)-Number(b.num||0);});
@@ -36581,18 +36603,19 @@ function dashAvisado(numStr,avisoId){
 function setDashFiltro(f){dashFiltro=f;dashVerTodo=false;renderPara();}
 function renderPara(){
   var el=document.getElementById('dash-para');if(!el)return;
-  var todos=_dashItems(),admin=usuarioRol==='admin';
+  var items=_dashItems(),admin=usuarioRol==='admin';
+  var todos=items.filter(function(it){return!it.dup;});
   var tipos=admin?['todo','cobrar','avisar','despachar']:['todo','avisar','despachar'];
   if(tipos.indexOf(dashFiltro)<0)dashFiltro='todo';
   var cuenta={todo:todos.length,cobrar:0,avisar:0,despachar:0};
-  todos.forEach(function(it){cuenta[it.tipo]++;});
+  items.forEach(function(it){cuenta[it.tipo]++;});
   var nombres={todo:'Todo',cobrar:'Cobrar',avisar:'Avisar',despachar:'Despachar'};
   var anchos={todo:'.8fr',cobrar:'1fr',avisar:'1fr',despachar:'1.25fr'};
   var seg='<div class="ini-seg" role="group" aria-label="Filtrar lo de hoy" style="--cols:'+tipos.map(function(t){return anchos[t];}).join(' ')+'">'+
     tipos.map(function(t){
       return'<button type="button" class="'+(t===dashFiltro?'on':'')+'" aria-pressed="'+(t===dashFiltro)+'" onclick="setDashFiltro(\''+t+'\')">'+nombres[t]+'<b>'+cuenta[t]+'</b></button>';
     }).join('')+'</div>';
-  var lista=dashFiltro==='todo'?todos:todos.filter(function(it){return it.tipo===dashFiltro;});
+  var lista=dashFiltro==='todo'?todos:items.filter(function(it){return it.tipo===dashFiltro;});
   var vista=dashVerTodo?lista:lista.slice(0,DASH_MAX);
   var vacio={todo:'Nada pendiente para hoy.',cobrar:'Nada por cobrar hoy.',avisar:'No hay avisos pendientes.',despachar:'Nada por despachar hoy ni mañana.'};
   var cuerpo=vista.length
