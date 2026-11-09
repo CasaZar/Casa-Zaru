@@ -76,8 +76,20 @@ Agrega a `RW\corpus-respuestas.jsonl` una línea por intercambio que enseñe alg
  "cliente":"texto del cliente ANONIMIZADO","respuesta":"lo que respondimos",
  "quien":"César|Tomás|automático","dato_vivo":"precio|cupo|plazo|stock|ninguno",
  "resultado_7d":"compró|siguió|silencio|perdido|pendiente",
- "calidad":"modelo|ok|evitar","por_que":"una línea"}
+ "calidad":"modelo|ok|evitar","por_que":"una línea",
+ "hora_cliente":"2026-11-08T19:09","hora_respuesta":"2026-11-09T09:40","espera_habil_min":40}
 ```
+
+- **Horas (desde el 10-11-2026):** `hora_cliente` = hora del mensaje del cliente que abre el
+  intercambio; `hora_respuesta` = hora de nuestro primer mensaje después de ese (no el
+  automático de Meta). Hora de Chile, como la muestra Meta. Si todavía no respondimos,
+  `hora_respuesta` = null y `espera_habil_min` = null (se completa en la revisión siguiente).
+- **`espera_habil_min`** = minutos de espera contando **solo el horario de atención publicado**
+  (el que dice la respuesta automática del 5558): lunes a viernes 9:00-18:00 y sábado
+  10:00-14:00; domingos y feriados no cuentan. Si cambia la respuesta automática, cambia esto.
+  Ejemplo: escribe el domingo 19:09 y respondemos el lunes 9:40 → 40 min (no 14 h 31 min).
+  Si escribe dentro del horario, corre desde que escribió; si escribe fuera, corre desde la
+  apertura siguiente. Si respondimos fuera de horario antes de la apertura → 0.
 
 - Anonimizar: nombres → `[CLIENTE]`; sin teléfonos, direcciones, RUT ni datos bancarios.
 - `modelo` = clara, honesta y con un siguiente paso concreto: la que el bot debería copiar.
@@ -163,6 +175,10 @@ Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
 
 ## Los lunes, además
 - Tasa de cierre por frase, por intención y por tiempo de primera respuesta.
+  Tiempo de respuesta = `espera_habil_min` (solo horario de atención): mediana de la semana,
+  cuántos se respondieron en ≤ 30 min, ≤ 2 h y al día hábil siguiente, y compra a 7 días por
+  tramo. Aparte, cuántos mensajes llegaron fuera de horario (dato para decidir turnos o un
+  bot nocturno). Con menos de 8 casos por tramo: «pocos datos».
 - Las 10 preguntas más repetidas de la semana, marcando las que no tienen todavía una
   respuesta `modelo` en el corpus (huecos del bot).
 - Actualizar `RW\guia-respuestas.md`, que después será el prompt del bot: por intención, la
