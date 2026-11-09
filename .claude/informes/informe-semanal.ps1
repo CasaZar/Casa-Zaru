@@ -80,7 +80,7 @@ $fin_ = @($j.tablas.gestion_finanzas) | ForEach-Object {
     como = $(if ("$($d.como)") { "$($d.como)" } else { '(sin dato)' })
     pago = $(if ("$($d.canal_pago)") { "$($d.canal_pago)" } else { "$($d.medio_pago)" })
     producto = $d.producto; web = ("$($d.canal_pago)" -match 'SHOPIFY')
-    d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3)
+    d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; d3 = [bool]$d.doc3_emitida; a2 = (N $d.abono2); a3 = (N $d.abono3); m2 = (N $d.doc2_monto); a1 =(N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3)
     tipoDoc = $d.doc1_tipo; envio = $(if ($p) { Envio $p } else { $null }); semana = $(if ($p) { $p.envio } else { $d.semana })
   }
 }
@@ -107,8 +107,11 @@ $cobrar = @($fin_ | Where-Object { $_.tipo -eq 'VENTA' -and $_.saldo -gt 1000 -a
 $docs = @()
 foreach ($r in ($fin_ | Where-Object { $_.tipo -eq 'VENTA' -and -not $_.web })) {
   if ($r.a1 -gt 0 -and -not $r.d1) { $docs += [pscustomobject]@{ num=$r.num; cliente=$r.cliente; doc='Doc 1'; tipo=$r.tipoDoc; monto=$r.a1 } }
-  # El doc 2 cubre todo lo pagado después del abono 1: si todavía debe, se emite al completar.
-  if ($r.a23 -gt 0 -and -not $r.d2) { $docs += [pscustomobject]@{ num=$r.num; cliente=$r.cliente; doc=$(if ($r.saldo -gt 1000) { 'Doc 2 · pago parcial, esperar el resto' } else { 'Doc 2' }); tipo=$r.tipoDoc; monto=$r.a23 } }
+  # Un documento por abono desde el 09-11-2026 (migración 0028): doc 2 = abono 2 y doc 3 = abono 3.
+  # Ya no se espera el saldo para emitir: cada pago lleva su boleta o factura cuando llega.
+  $p2 = if ($r.a2 -gt 0) { $r.a2 } else { $r.a3 }
+  if ($p2 -gt 0 -and -not $r.d2) { $docs += [pscustomobject]@{ num=$r.num; cliente=$r.cliente; doc='Doc 2'; tipo=$r.tipoDoc; monto=$p2 } }
+  if ($r.a2 -gt 0 -and $r.a3 -gt 0 -and -not $r.d3 -and (-not $r.d2 -or ($r.m2 -gt 0 -and $r.m2 -lt $r.a2 + $r.a3))) { $docs += [pscustomobject]@{ num=$r.num; cliente=$r.cliente; doc='Doc 3'; tipo=$r.tipoDoc; monto=$r.a3 } }
 }
 
 # Producción: lo que se fabrica esta semana y lo que se despacha esta semana

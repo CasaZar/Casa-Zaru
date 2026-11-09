@@ -164,7 +164,12 @@ onclick="editar('${numStr}')"
 ```
 
 ### Tabla de finanzas
-El número de `<th>` debe ser **igual** al de `<td>` (actualmente 20 = 20). Verificar antes de cualquier cambio de columnas.
+El número de `<th>` debe ser **igual** al de `<td>` (actualmente 21 = 21, desde que se sumó «Doc. 3» el 09-11-2026). Verificar antes de cualquier cambio de columnas.
+
+### Documentos: uno por abono
+Desde el 09-11-2026 (migración 0028) cada pedido tiene hasta tres documentos: **doc N = abono N**
+(`_montoSugeridoDoc`). El doc 3 solo se pide si hay abono 3 que el doc 2 no cubrió (`_doc3Requerido`);
+«listo» y «pendiente» pasan siempre por `_docsListos`. No volver a escribir `doc1_emitida&&doc2_emitida`.
 
 ### Cantidades: decimal + unidad, siempre
 Toda cantidad de material es **decimal**, nunca entero: media pulgada de Coihue son $14.000 y hay ítems

@@ -69,7 +69,7 @@ $ventasTodas = @(@($j.tablas.gestion_finanzas) | ForEach-Object {
     total = $tot; vp = (N $d.val_prod); envio = (N $d.val_envio); inst = (N $d.val_instalacion); abonado = $a; saldo = $tot - $a; semana = "$($d.semana)"
     vendedor = $(if ("$($d.vendedor)") { "$($d.vendedor)" } else { '(sin asignar)' })
     producto = "$($d.producto)"; web = ("$($d.canal_pago)" -match 'SHOPIFY')
-    d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; ab = @((N $d.abono1), (N $d.abono2), (N $d.abono3)); a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3); tipoDoc = $d.doc1_tipo
+    d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; d3 = [bool]$d.doc3_emitida; a2 = (N $d.abono2); a3 = (N $d.abono3); m2 = (N $d.doc2_monto); ab =@((N $d.abono1), (N $d.abono2), (N $d.abono3)); a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3); tipoDoc = $d.doc1_tipo
     # Hoja Pasarelas: costo_mp es lo que la pasarela descontó del depósito (con IVA), costo_shopify el 2 % de Shopify
     pasarela = "$($d.pasarela)"; ordenWeb = "$($d.orden_web)"; cPas = (N $d.costo_mp); cShop = (N $d.costo_shopify)
   }
@@ -589,7 +589,11 @@ $pctMB = if ($ventaNeta) { $margenBruto / $ventaNeta } else { 0 }
 $pend = @()
 foreach ($r in ($ventasTodas | Where-Object { -not $_.web -and $_.fecha -and $_.fecha -le $finMes })) {
   if ($r.a1 -gt 0 -and -not $r.d1) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 1', $r.tipoDoc, $r.a1) }
-  if ($r.a23 -gt 0 -and -not $r.d2) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 2', $r.tipoDoc, $r.a23) }
+  # Un documento por abono desde el 09-11-2026 (migración 0028): doc 2 = abono 2 y doc 3 = abono 3.
+  # El doc 3 no se pide si el doc 2 ya salió por abono 2 + abono 3 (o sin monto guardado), como se hacía antes.
+  $p2 = if ($r.a2 -gt 0) { $r.a2 } else { $r.a3 }
+  if ($p2 -gt 0 -and -not $r.d2) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 2', $r.tipoDoc, $p2) }
+  if ($r.a2 -gt 0 -and $r.a3 -gt 0 -and -not $r.d3 -and (-not $r.d2 -or ($r.m2 -gt 0 -and $r.m2 -lt $r.a2 + $r.a3))) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 3', $r.tipoDoc, $r.a3) }
 }
 $pendTot = 0; foreach ($p in $pend) { $pendTot += $p[4] }
 $porClasTot = Suma @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' }) 'neto'

@@ -30,6 +30,8 @@ $rows = @($j.tablas.gestion_finanzas) | ForEach-Object {
     d1_monto = $d.doc1_monto
     d2 = $(if ($d.doc2_emitida) { "$($d.doc2_num)" } elseif ($d.doc2_procesando) { 'PROC' } else { '' })
     d2_monto = $d.doc2_monto
+    d3 = $(if ($d.doc3_emitida) { "$($d.doc3_num)" } elseif ($d.doc3_procesando) { 'PROC' } else { '' })
+    d3_monto = $d.doc3_monto
     semana = $p.envio; estado = $p.estado
   }
 }

@@ -116,15 +116,18 @@ primera vez). Aun así revisar los pedidos con saldo de semanas anteriores.
 
 ## 3. Documentos (boletas/facturas)
 
-Cada pedido tiene **dos** documentos. El panel sugiere el monto con
-`_montoSugeridoDoc` (index.html): **doc 1 = abono1**; **doc 2 = abono2 + abono3**
-(o total − abono1 si no hay pagos después). Por eso, al proponer cómo marcar:
-- Lo que cubre el doc 1 va **sumado en abono1** (si el 70 % llegó en dos
-  transferencias, abono1 = la suma).
-- Lo que cubre el doc 2 va en abono2/abono3. Un saldo en dos partes: una en
-  abono2 y la otra en abono3.
-- Si un pedido ya tiene doc 1 emitido y entra un pago que el doc 1 no cubrió, no
-  hay doc 3: se factura dentro del doc 2.
+Desde el 09-11-2026 (migración 0028) cada pedido tiene **hasta tres** documentos,
+**uno por abono: doc N = abono N** (`_montoSugeridoDoc` en index.html). Cada pago
+lleva su boleta o factura cuando llega; ya no se espera al saldo. Al proponer
+cómo marcar:
+- Cada transferencia va en el **primer abono libre**: si el doc 1 ya salió y
+  llega el resto del 70 %, va a abono2 (doc 2) y el saldo después a abono3 (doc 3).
+- Si el doc del abono todavía **no** se emitió y el pago llegó partido (ej. $429 +
+  $708.000), se suman en el mismo abono: un documento por la suma.
+- Solo hay tres casilleros. Un cuarto pago se suma a abono3 si el doc 3 no salió;
+  si ya salió, va directo en Wasabil (como los envíos de oct-2026).
+- Pedidos de antes del cambio con el doc 2 emitido por abono2 + abono3 no piden
+  doc 3: la app lo detecta (`_doc3Requerido`).
 
 Tipo de documento: el de `doc1_tipo` del pedido (FACTURA si tiene razón social/
 giro). Ventas web (`canal_pago` con SHOPIFY) → la boleta la emite Shopify
