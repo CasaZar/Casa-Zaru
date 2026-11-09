@@ -128,6 +128,7 @@ Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
 - Abrir el panel en el Chrome del usuario, que tiene la sesión del admin, y en la consola:
   `await sbClient.rpc('wa_cargar', { p_revision: '<hora de la revisión, ISO>', p_desde: '<inicio
   del paso 0, ISO>', p_filas: [...] })`.
+  `p_revision` es la hora real en que terminó la lectura: una hora futura la rechaza la base.
   Solo el admin puede cargar. Mostrar al usuario el resumen que devuelve
   (`nuevos / actualizados / ya_resueltos / cerrados` y `cerrados_quienes`).
 - **Va la lista COMPLETA de lo pendiente**, no solo lo nuevo: el chat que no viene se da por
