@@ -27365,6 +27365,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="form-grid tri">
       <div class="form-group"><label>Valor producto ($)</label><input id="fn-val-prod" type="number" placeholder="435305" oninput="calcFinPreview()"></div>
       <div class="form-group"><label>Envío ($)</label><input id="fn-envio" type="number" placeholder="0" oninput="calcFinPreview()"></div>
+      <div class="form-group"><label>Instalación ($)</label><input id="fn-instalacion" type="number" placeholder="0" oninput="calcFinPreview()"></div>
       <div class="form-group"><label>Comisión link pago ($) <span style="font-weight:400;color:var(--text-3)">— sistema viejo</span></label><input id="fn-comision" type="number" placeholder="0" oninput="calcFinPreview()"></div>
     </div>
 
@@ -30529,7 +30530,7 @@ function finSet(numStr,field,val,inp){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r||finLectura)return;
   r[field]=val;
-  var MONEY=['val_prod','val_envio','val_comision','total','abono1','abono2','abono3'];
+  var MONEY=['val_prod','val_envio','val_instalacion','val_comision','total','abono1','abono2','abono3'];
   if(inp&&MONEY.indexOf(field)>=0){
     var prev=inp.previousElementSibling;
     if(prev&&prev.classList.contains('monto'))
@@ -30565,8 +30566,10 @@ function _costoPasarela(base,pasarela){var t=TASA_PASARELA[pasarela];return t?Ma
 
 function _numFin(id){return Number(document.getElementById(id).value)||0;}
 // Devuelve todos los números de la venta a partir de lo cargado en el formulario.
-function calcularVenta(vp,env,com,descPct,costoMp,costoShop){
+// inst = instalación o trabajo en casa (09-11-2026). Suma al total igual que el envío.
+function calcularVenta(vp,env,com,descPct,costoMp,costoShop,inst){
   var descMonto=Math.round(vp*(descPct||0)/100);
+  env=(Number(env)||0)+(Number(inst)||0);
   var total=vp-descMonto+env+com;
   var costos=(costoMp||0)+(costoShop||0);
   return{descMonto:descMonto,total:total,costos:costos,neto:total-costos,
@@ -30594,8 +30597,8 @@ function aplicarCanalPago(){
 }
 function calcFinPreview(){
   var vp=_numFin('fn-val-prod');
-  if(!vp){document.getElementById('fin-calc-preview').style.display='none';return;}
-  var c=calcularVenta(vp,_numFin('fn-envio'),_numFin('fn-comision'),_numFin('fn-desc-pct'),_numFin('fn-costo-mp'),_numFin('fn-costo-shopify'));
+  if(!vp&&!_numFin('fn-instalacion')){document.getElementById('fin-calc-preview').style.display='none';return;}
+  var c=calcularVenta(vp,_numFin('fn-envio'),_numFin('fn-comision'),_numFin('fn-desc-pct'),_numFin('fn-costo-mp'),_numFin('fn-costo-shopify'),_numFin('fn-instalacion'));
   document.getElementById('fin-calc-preview').style.display='block';
   document.getElementById('fc-desc').textContent=c.descMonto?('-'+fmtCLP(c.descMonto)):'—';
   document.getElementById('fc-costos').textContent=c.costos?('-'+fmtCLP(c.costos)):'—';
@@ -31503,7 +31506,7 @@ function _finFicha(r){
   }
   pagos+='<div class="fe-tot"><span>Pagado</span><b>'+fmtCLP(tot-p.saldo)+'</b></div>'+
     '<div class="fe-tot" style="border-top:none;padding-top:0"><span>'+(p.excedente?'Excedente':'Pendiente')+'</span><b class="'+(p.debe?'rojo':'ok')+'">'+(p.excedente?'+'+fmtCLP(p.excedente):(p.debe?fmtCLP(p.saldo):'$0'))+'</b></div>';
-  var montos=[['val_prod','Producto'],['val_envio','Envío'],['val_comision','Comisión']].map(function(m){
+  var montos=[['val_prod','Producto'],['val_envio','Envío'],['val_instalacion','Instalación'],['val_comision','Comisión']].map(function(m){
     return '<div class="fe-r"><span>'+m[1]+'</span>'+_inpPesos(r[m[0]],'finMontoEd('+q+',\''+m[0]+'\',this.value)','$0')+'</div>';
   }).join('')+(Number(r.descuento_monto)?'<div class="fe-r"><span>Descuento</span><span style="text-align:right">−'+fmtCLP(r.descuento_monto)+'</span></div>':'')+
     '<div class="fe-tot"><span>Total</span><b>'+fmtCLP(tot)+'</b></div>';
@@ -31576,7 +31579,7 @@ function finRecalcTotal(numStr){
   var r=finRecords.find(function(x){return String(x.num||'')===String(numStr);});
   if(!r)return;
   var c=calcularVenta(Number(r.val_prod)||0,Number(r.val_envio)||0,Number(r.val_comision)||0,
-                      Number(r.descuento_pct)||0,Number(r.costo_mp)||0,Number(r.costo_shopify)||0);
+                      Number(r.descuento_pct)||0,Number(r.costo_mp)||0,Number(r.costo_shopify)||0,Number(r.val_instalacion)||0);
   r.total=c.total;r.descuento_monto=c.descMonto;r.costo_plataformas=c.costos;
   r.neto_recibido=c.neto;r.sin_com=c.sincom;r.sin_iva=c.siniva;
   var inp=document.getElementById('fintot-'+numStr);
@@ -31647,8 +31650,8 @@ function openFinModal(idx){
   document.getElementById('fin-modal-title').textContent=editingFinIdx!==null?'Editar registro':'Nuevo registro financiero';
   document.getElementById('fin-btn-del').style.display=editingFinIdx!==null?'block':'none';
   document.getElementById('fin-calc-preview').style.display='none';
-  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-canal').value=r.canal_pago||'TRANSFERENCIA';document.getElementById('fn-desc-pct').value=r.descuento_pct||'';document.getElementById('fn-pasarela').value=r.pasarela||'';document.getElementById('fn-costo-mp').value=r.costo_mp||'';document.getElementById('fn-costo-shopify').value=r.costo_shopify||'';document.getElementById('fn-bloque-costos').style.display=(r.canal_pago==='LINK_MP'||r.canal_pago==='WEB_SHOPIFY')?'':'none';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
-  else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-comision','fn-desc-pct','fn-costo-mp','fn-costo-shopify'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';document.getElementById('fn-canal').value='TRANSFERENCIA';document.getElementById('fn-pasarela').value='';aplicarCanalPago();toggleCamposFactura();}
+  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-instalacion').value=r.val_instalacion||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-canal').value=r.canal_pago||'TRANSFERENCIA';document.getElementById('fn-desc-pct').value=r.descuento_pct||'';document.getElementById('fn-pasarela').value=r.pasarela||'';document.getElementById('fn-costo-mp').value=r.costo_mp||'';document.getElementById('fn-costo-shopify').value=r.costo_shopify||'';document.getElementById('fn-bloque-costos').style.display=(r.canal_pago==='LINK_MP'||r.canal_pago==='WEB_SHOPIFY')?'':'none';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
+  else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-instalacion','fn-comision','fn-desc-pct','fn-costo-mp','fn-costo-shopify'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';document.getElementById('fn-canal').value='TRANSFERENCIA';document.getElementById('fn-pasarela').value='';aplicarCanalPago();toggleCamposFactura();}
   b2bAvisoRut(document.getElementById('fn-rut').value,'fn-rut');
   document.getElementById('modal-fin-bg').classList.add('open');
 }
@@ -31658,12 +31661,13 @@ async function saveFinRecord(){
   const descPct=Number(document.getElementById('fn-desc-pct').value)||0;
   const costoMp=Number(document.getElementById('fn-costo-mp').value)||0;
   const costoShop=Number(document.getElementById('fn-costo-shopify').value)||0;
-  const _c=calcularVenta(vp,env,com,descPct,costoMp,costoShop);
+  const inst=Number(document.getElementById('fn-instalacion').value)||0;
+  const _c=calcularVenta(vp,env,com,descPct,costoMp,costoShop,inst);
   const total=_c.total,abono=_c.abono,saldo=_c.saldo,sincom=_c.sincom,siniva=_c.siniva;
   const prev=editingFinIdx!==null?finRecords[editingFinIdx]:{};
   const numStr=document.getElementById('fn-num').value.trim();if(!numStr){alert('El número de pedido es requerido.');return;}
   var _fnFechaISO=document.getElementById('fn-fecha-creacion').value;var _fnFecha=_fnFechaISO?(function(){var p=_fnFechaISO.split('-');return parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];})():'';
-  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,pasarela:(['LINK_MP','WEB_SHOPIFY'].indexOf(document.getElementById('fn-canal').value)>=0)?document.getElementById('fn-pasarela').value:'',descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||0,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
+  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_instalacion:inst,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,pasarela:(['LINK_MP','WEB_SHOPIFY'].indexOf(document.getElementById('fn-canal').value)>=0)?document.getElementById('fn-pasarela').value:'',descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||0,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
   if(!record.nombre&&!record.num){alert('Ingresa al menos nombre o número.');return;}
   if(editingFinIdx!==null)finRecords[editingFinIdx]=record;else finRecords.push(record);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',record);
@@ -31673,17 +31677,17 @@ function deleteFinRecord(){if(editingFinIdx===null)return;if(!confirm('¿Elimina
 document.getElementById('modal-fin-bg').addEventListener('click',e=>{if(e.target===document.getElementById('modal-fin-bg'))closeFinModal();});
 function exportFinCSV(){
   var toExport=getFilteredFin();if(!toExport.length){showToast('No hay registros');return;}
-  var sumValProd=0,sumEnvio=0,sumCom=0,sumTotal=0,sumA1=0,sumA2=0,sumA3=0,sumPend=0,sumSinCom=0,sumSinIva=0;
-  var dataRows=toExport.map(function(r){var vp=Number(r.val_prod)||0,ve=Number(r.val_envio)||0,vc=Number(r.val_comision)||0,total=Number(r.total)||0,a1=Number(r.abono1)||0,a2=Number(r.abono2)||0,a3=Number(r.abono3)||0,pend=Math.max(0,total-(a1+a2+a3)),sinCom=vp+ve,sinIva=sinCom?Math.round(sinCom/1.19):0;sumValProd+=vp;sumEnvio+=ve;sumCom+=vc;sumTotal+=total;sumA1+=a1;sumA2+=a2;sumA3+=a3;sumPend+=pend;sumSinCom+=sinCom;sumSinIva+=sinIva;return{'N° VENTA':r.num||'','FECHA VENTA':r.fecha_creacion||r.fecha||'','SEMANA':r.semana||'','NOMBRE':(r.nombre||'')+' '+(r.apellido||''),'EMAIL':r.email||'','CELULAR':r.celular||'','PRODUCTO':r.producto||'','MEDIO PAGO':r.medio_pago||'','CÓMO NOS CONOCIÓ':r.como||'','VENDEDOR':r.vendedor||'','TIPO':tipoDe(r),'VALOR PRODUCTO':vp,'ENVÍO':ve,'COMISIÓN':vc,'TOTAL':total,'ABONO 1':a1,'ABONO 2':a2,'ABONO 3':a3,'PENDIENTE':pend,'SIN COM/ENV':sinCom,'SIN IVA':sinIva,'DOC 1':(r.doc1_tipo||'BOLETA')+(r.doc1_num?' #'+r.doc1_num:'')+(r.doc1_emitida?' ✓':''),'DOC 2':(r.doc2_tipo||'BOLETA')+(r.doc2_num?' #'+r.doc2_num:'')+(r.doc2_emitida?' ✓':''),'ESTADO':(r.doc1_emitida&&r.doc2_emitida)?'LISTO':'PENDIENTE'};});
-  dataRows.push({'N° VENTA':'TOTALES','FECHA VENTA':'','SEMANA':'','NOMBRE':'','EMAIL':'','CELULAR':'','PRODUCTO':'','MEDIO PAGO':'','CÓMO NOS CONOCIÓ':'','VENDEDOR':'','TIPO':'','VALOR PRODUCTO':sumValProd,'ENVÍO':sumEnvio,'COMISIÓN':sumCom,'TOTAL':sumTotal,'ABONO 1':sumA1,'ABONO 2':sumA2,'ABONO 3':sumA3,'PENDIENTE':sumPend,'SIN COM/ENV':sumSinCom,'SIN IVA':sumSinIva,'DOC 1':'','DOC 2':'','ESTADO':''});
+  var sumValProd=0,sumEnvio=0,sumInst=0,sumCom=0,sumTotal=0,sumA1=0,sumA2=0,sumA3=0,sumPend=0,sumSinCom=0,sumSinIva=0;
+  var dataRows=toExport.map(function(r){var vp=Number(r.val_prod)||0,ve=Number(r.val_envio)||0,vi=Number(r.val_instalacion)||0,vc=Number(r.val_comision)||0,total=Number(r.total)||0,a1=Number(r.abono1)||0,a2=Number(r.abono2)||0,a3=Number(r.abono3)||0,pend=Math.max(0,total-(a1+a2+a3)),sinCom=vp+ve+vi,sinIva=sinCom?Math.round(sinCom/1.19):0;sumValProd+=vp;sumEnvio+=ve;sumInst+=vi;sumCom+=vc;sumTotal+=total;sumA1+=a1;sumA2+=a2;sumA3+=a3;sumPend+=pend;sumSinCom+=sinCom;sumSinIva+=sinIva;return{'N° VENTA':r.num||'','FECHA VENTA':r.fecha_creacion||r.fecha||'','SEMANA':r.semana||'','NOMBRE':(r.nombre||'')+' '+(r.apellido||''),'EMAIL':r.email||'','CELULAR':r.celular||'','PRODUCTO':r.producto||'','MEDIO PAGO':r.medio_pago||'','CÓMO NOS CONOCIÓ':r.como||'','VENDEDOR':r.vendedor||'','TIPO':tipoDe(r),'VALOR PRODUCTO':vp,'ENVÍO':ve,'INSTALACIÓN':vi,'COMISIÓN':vc,'TOTAL':total,'ABONO 1':a1,'ABONO 2':a2,'ABONO 3':a3,'PENDIENTE':pend,'SIN COM/ENV':sinCom,'SIN IVA':sinIva,'DOC 1':(r.doc1_tipo||'BOLETA')+(r.doc1_num?' #'+r.doc1_num:'')+(r.doc1_emitida?' ✓':''),'DOC 2':(r.doc2_tipo||'BOLETA')+(r.doc2_num?' #'+r.doc2_num:'')+(r.doc2_emitida?' ✓':''),'ESTADO':(r.doc1_emitida&&r.doc2_emitida)?'LISTO':'PENDIENTE'};});
+  dataRows.push({'N° VENTA':'TOTALES','FECHA VENTA':'','SEMANA':'','NOMBRE':'','EMAIL':'','CELULAR':'','PRODUCTO':'','MEDIO PAGO':'','CÓMO NOS CONOCIÓ':'','VENDEDOR':'','TIPO':'','VALOR PRODUCTO':sumValProd,'ENVÍO':sumEnvio,'INSTALACIÓN':sumInst,'COMISIÓN':sumCom,'TOTAL':sumTotal,'ABONO 1':sumA1,'ABONO 2':sumA2,'ABONO 3':sumA3,'PENDIENTE':sumPend,'SIN COM/ENV':sumSinCom,'SIN IVA':sumSinIva,'DOC 1':'','DOC 2':'','ESTADO':''});
   var wb=XLSX.utils.book_new(),ws=XLSX.utils.json_to_sheet(dataRows);
-  ws['!cols']=[{wch:8},{wch:12},{wch:16},{wch:22},{wch:24},{wch:14},{wch:22},{wch:16},{wch:18},{wch:12},{wch:12},{wch:14},{wch:10},{wch:10},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:10}];
+  ws['!cols']=[{wch:8},{wch:12},{wch:16},{wch:22},{wch:24},{wch:14},{wch:22},{wch:16},{wch:18},{wch:12},{wch:12},{wch:14},{wch:10},{wch:12},{wch:10},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:12},{wch:16},{wch:16},{wch:10}];
   var range=XLSX.utils.decode_range(ws['!ref']);
   var headerStyle={font:{bold:true,color:{rgb:'FFFFFF'},sz:11},fill:{fgColor:{rgb:'5C3D20'}},alignment:{horizontal:'center',vertical:'center'},border:{bottom:{style:'medium',color:{rgb:'C4936A'}}}};
   var totalStyle={font:{bold:true,sz:11},fill:{fgColor:{rgb:'F5EDE3'}},border:{top:{style:'medium',color:{rgb:'8B5E3C'}}}};
   var moneyStyle={numFmt:'"$"#,##0'},moneyTotalStyle={font:{bold:true},numFmt:'"$"#,##0',fill:{fgColor:{rgb:'F5EDE3'}}};
-  // Corridos en 2 al insertar VENDEDOR y TIPO en las posiciones 9 y 10.
-  var moneyCols=[11,12,13,14,15,16,17,18,19,20],totalRow=dataRows.length;
+  // Corridos en 2 al insertar VENDEDOR y TIPO (9 y 10) y en 1 más por INSTALACIÓN (13).
+  var moneyCols=[11,12,13,14,15,16,17,18,19,20,21],totalRow=dataRows.length;
   for(var C=range.s.c;C<=range.e.c;C++){var hcell=XLSX.utils.encode_cell({r:0,c:C});if(ws[hcell])ws[hcell].s=headerStyle;var tcell=XLSX.utils.encode_cell({r:totalRow,c:C});if(ws[tcell])ws[tcell].s=totalStyle;}
   for(var R=1;R<totalRow;R++){moneyCols.forEach(function(C){var cell=XLSX.utils.encode_cell({r:R,c:C});if(ws[cell])ws[cell].s=moneyStyle;});}
   moneyCols.forEach(function(C){var cell=XLSX.utils.encode_cell({r:totalRow,c:C});if(ws[cell])ws[cell].s=moneyTotalStyle;});
@@ -36299,7 +36303,7 @@ function exportTodoXLSX(){
     }
     // Hoja 3: Finanzas
     if(finRecords.length){
-      var finRows=finRecords.map(function(r){return{'N°':r.num||'','Fecha':r.fecha_creacion||r.fecha||'','Semana':r.semana||'','Nombre':(r.nombre||'')+' '+(r.apellido||''),'Email':r.email||'','Celular':r.celular||'','Producto':r.producto||'','Medio pago':r.medio_pago||'','Cómo nos conoció':r.como||'','Val. prod':Number(r.val_prod)||0,'Envío':Number(r.val_envio)||0,'Comisión':Number(r.val_comision)||0,'Total':Number(r.total)||0,'Abono 1':Number(r.abono1)||0,'Abono 2':Number(r.abono2)||0,'Abono 3':Number(r.abono3)||0,'Pendiente':Math.max(0,saldoFin(r)),'Excedente':estadoPagoFin(r).excedente,'Estado':(r.doc1_emitida&&r.doc2_emitida)?'Listo':'Pendiente'};});
+      var finRows=finRecords.map(function(r){return{'N°':r.num||'','Fecha':r.fecha_creacion||r.fecha||'','Semana':r.semana||'','Nombre':(r.nombre||'')+' '+(r.apellido||''),'Email':r.email||'','Celular':r.celular||'','Producto':r.producto||'','Medio pago':r.medio_pago||'','Cómo nos conoció':r.como||'','Val. prod':Number(r.val_prod)||0,'Envío':Number(r.val_envio)||0,'Instalación':Number(r.val_instalacion)||0,'Comisión':Number(r.val_comision)||0,'Total':Number(r.total)||0,'Abono 1':Number(r.abono1)||0,'Abono 2':Number(r.abono2)||0,'Abono 3':Number(r.abono3)||0,'Pendiente':Math.max(0,saldoFin(r)),'Excedente':estadoPagoFin(r).excedente,'Estado':(r.doc1_emitida&&r.doc2_emitida)?'Listo':'Pendiente'};});
       var wsFin=XLSX.utils.json_to_sheet(finRows);XLSX.utils.book_append_sheet(wb,wsFin,'Finanzas');
     }
     // Hoja 4: Pixel

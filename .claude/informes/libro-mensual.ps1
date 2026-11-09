@@ -66,7 +66,7 @@ $ventasTodas = @(@($j.tablas.gestion_finanzas) | ForEach-Object {
   [pscustomobject]@{
     num = $_.num; cliente = ("$($d.nombre) $($d.apellido)").Trim(); apellido = "$($d.apellido)"; tipo = $tipo
     fecha = Fecha $(if ($d.fecha_creacion) { $d.fecha_creacion } else { $d.fecha })
-    total = $tot; vp = (N $d.val_prod); envio = (N $d.val_envio); abonado = $a; saldo = $tot - $a; semana = "$($d.semana)"
+    total = $tot; vp = (N $d.val_prod); envio = (N $d.val_envio); inst = (N $d.val_instalacion); abonado = $a; saldo = $tot - $a; semana = "$($d.semana)"
     vendedor = $(if ("$($d.vendedor)") { "$($d.vendedor)" } else { '(sin asignar)' })
     producto = "$($d.producto)"; web = ("$($d.canal_pago)" -match 'SHOPIFY')
     d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; ab = @((N $d.abono1), (N $d.abono2), (N $d.abono3)); a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3); tipoDoc = $d.doc1_tipo
@@ -514,7 +514,7 @@ if ($meta -and $metaReal - $metaFact -gt 1000) { Aviso "Meta: gasto real $(Plata
 if ($ventasFeria.Count) { Aviso "Ventas de feria con Point: $(Plata (Suma $ventasFeria 'bruto')) sin boleta electrónica (el voucher vale como boleta). Su IVA ($(Plata ((Suma $ventasFeria 'bruto') - $vNetaFeria))) no está en el débito de Wasabil: confirmar que entre al F29." }
 foreach ($v in $vMes) {
   # Un total MAYOR que producto + envío es un cobro extra (instalación, marco): no es error. Uno menor sí.
-  if (-not $v.web -and $v.total -gt 0 -and ($v.vp + $v.envio - $v.total) -gt 1000) { Aviso "Venta #$($v.num) ($($v.cliente)): total $(Plata $v.total) es menor que valor producto $(Plata $v.vp) + envío $(Plata $v.envio). Cambia la comisión de César." }
+  if (-not $v.web -and $v.total -gt 0 -and ($v.vp + $v.envio + $v.inst - $v.total) -gt 1000) { Aviso "Venta #$($v.num) ($($v.cliente)): total $(Plata $v.total) es menor que valor producto $(Plata $v.vp) + envío $(Plata $v.envio) + instalación $(Plata $v.inst). Cambia la comisión de César." }
   if ($v.vendedor -eq '(sin asignar)') { Aviso "Venta #$($v.num) ($($v.cliente)) sin vendedor." }
 }
 
@@ -868,7 +868,7 @@ Hoja 'Caja' $f @(38, 15, 15, 15, 15, 17, 17)
 # ── 3. Ventas ──
 $f = New-Object System.Collections.ArrayList
 Titulo $f "Ventas — $mesNom" "Pedidos por fecha de venta (solo tipo venta). Mes anterior: $($vAnt.Count) ventas por $(Plata (Suma $vAnt 'total')) con IVA."
-Tabla $f @('N°', 'Fecha', 'Cliente', 'Producto', 'Vendedor', 'Total con IVA', 'Neto', 'Valor producto', 'Envío', 'Abonado', 'Saldo') @($vMes | ForEach-Object { ,@("#$($_.num)", $_.fecha, $_.cliente, $_.producto, $_.vendedor, $_.total, (Neto $_.total), $_.vp, $_.envio, $_.abonado, $(if ($_.web) { 0 } else { $_.saldo })) }) @(5, 6, 7, 8, 9, 10)
+Tabla $f @('N°', 'Fecha', 'Cliente', 'Producto', 'Vendedor', 'Total con IVA', 'Neto', 'Valor producto', 'Envío', 'Instalación', 'Abonado', 'Saldo') @($vMes | ForEach-Object { ,@("#$($_.num)", $_.fecha, $_.cliente, $_.producto, $_.vendedor, $_.total, (Neto $_.total), $_.vp, $_.envio, $_.inst, $_.abonado, $(if ($_.web) { 0 } else { $_.saldo })) }) @(5, 6, 7, 8, 9, 10, 11)
 Sub $f 'Por vendedor'
 Tabla $f @('Vendedor', 'Ventas', 'Total con IVA') @($vMes | Group-Object vendedor | ForEach-Object { ,@($_.Name, $_.Count, (Suma $_.Group 'total')) }) @(1, 2)
 Sub $f "Comisión de César (tramo $([math]::Round($tramo[1]*100,1).ToString($cl))%)"
