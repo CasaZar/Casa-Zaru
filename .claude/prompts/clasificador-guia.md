@@ -39,7 +39,7 @@ redes, fichas de producto) y para que el vendedor (César) encuentre rápido la 
  "etapa":"taller fabricando|terminado en taller|instalado cliente|fondo blanco catálogo|pieza gráfica o anuncio|otro",
  "ambiente":"cocina|baño|living|comedor|oficina|escalera|exterior|taller|feria|otro",
  "forma":"rectangular|redonda|ovalada|en L|con curva|borde vivo|otra|n/a",
- "uso":"catálogo|anuncio|testimonio cliente|proceso taller|detalle de madera|descartar",
+ "uso":"catálogo|anuncio|instalado donde el cliente|proceso taller|detalle de madera|descartar",
  "calidad":1-5,
  "orientacion":"vertical|horizontal|cuadrada",
  "personas":true|false,
@@ -53,6 +53,9 @@ Para **videos** agregar: `"que_pasa"` (qué ocurre a lo largo de los cuadros: "l
 aceite") y `"tipo_video"` (proceso|instalación|recorrido producto|testimonio|anuncio editado|otro).
 
 Reglas:
+- **uso «instalado donde el cliente»**: el mueble ya puesto en la casa del cliente (prueba de trabajo real).
+  Hasta el 10-11-2026 se llamaba «testimonio cliente»; se cambió porque se confundía con un cliente
+  hablando a cámara. Eso es `tipo_video` «testimonio» (solo videos).
 - **calidad**: 5 = lista para anuncio/ficha (nítida, buena luz, producto completo); 3 = usable en historia
   o redes; 1 = borrosa, oscura, cortada o repetida → uso «descartar».
 - Etiquetas en minúscula, en español, incluyendo madera y producto y detalles (lavaplatos, encimera,

@@ -38,7 +38,7 @@ function armarBiblioteca() {
     const nombre = f[i('id')] + ' · ' + (f[i('descripcion')] || f[i('nombre')]).slice(0, 90);
     const destinos = [[prod, mad, tipo]];
     const q = +f[i('calidad')] || 0;
-    if (q >= 4 && ['anuncio', 'catálogo', 'testimonio cliente'].includes(uso)) destinos.push(['★ Mejores para contenido', prod, tipo]);
+    if (q >= 4 && ['anuncio', 'catálogo', 'instalado donde el cliente', 'testimonio cliente'].includes(uso)) destinos.push(['★ Mejores para contenido', prod, tipo]);
     for (const ruta of destinos) {
       const clave = ruta.join('/');
       let carp = cache[clave];
