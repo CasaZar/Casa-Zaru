@@ -66,6 +66,12 @@ Reglas:
 - **ia**: «sí» si la imagen (o el video) fue generada o retocada con inteligencia artificial: ambiente
   demasiado perfecto, veta repetida o que no calza entre tablas, sombras o reflejos imposibles, patas o
   bordes deformes, texto ilegible, objetos fundidos. «posible» si dudas. «no» si es una foto real.
-  Un render 3D (SketchUp) no es IA: va «no» con la etiqueta «render». Si es «sí» o «posible», agrega
-  también la etiqueta «imagen ia». El equipo necesita saberlo antes de usarla como foto de un trabajo real.
+  Si es «sí» o «posible», agrega también la etiqueta «imagen ia». El equipo necesita saberlo antes de
+  usarla como foto de un trabajo real.
+- **Renders 3D y planos** (SketchUp, diseño con cotas, plano técnico): no son IA (`ia` «no»), pero no sirven
+  como contenido → uso «descartar», etiqueta «render». Desde el 11-11-2026 se sacaron 94 de la Fototeca.
+  Una pieza gráfica o anuncio con una foto real dentro NO es render.
+- **Proyecto del colegio**: muebles de melamina o de terciado (sillas, estantes, casilleros, escritorios) y
+  cualquier foto de un colegio o sala de clases son de un proyecto aparte que NO es Casa Zaru → producto
+  «otro», uso «descartar», `"zaru":"no"` si el trabajo lo pide. Casa Zaru trabaja madera maciza.
 - No inventes. Si dudas entre dos, elige la más probable y baja la confianza.
