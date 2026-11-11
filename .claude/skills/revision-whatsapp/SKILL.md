@@ -211,6 +211,8 @@ Lo que se aprende en WhatsApp se convierte en campañas. Cada lunes, en `RW\tema
    - **Anuncio de Meta:** gancho, cuerpo y CTA; público (frío o remarketing); destino = el
      cotizador con `utm_medium=paid` (así el cotizador manda al WhatsApp de anuncios 0141, nunca
      al 5558); formato. Para armarlo a partir de material suelto, `todo-es-un-anuncio`.
+   - **Fototeca:** una búsqueda de fotos para la ficha (p. ej. `vitrificado`). Probarla con
+     `.claude\scripts\marketing-json.ps1 -Buscar "<q>"`: que traiga piezas que sirvan.
    - **Estado:** propuesto → boceto → aprobado → enviado o publicado → medido, con fecha.
 3. **Medir lo que salió** (lunes siguiente): aperturas y clics en Klaviyo; cotizaciones con ese
    `utm_campaign` (columna `origen` de `cotizaciones`); ventas en la Gestión; y si la pregunta
@@ -222,3 +224,20 @@ datos que estén en la web, el cotizador o las condiciones de venta: «sin vende
 «madera noble» y plazos de 7 a 15 días hábiles. Citas y fotos de clientes, solo con su
 permiso y sin apellido. Ningún dato personal en este archivo: solo citas anonimizadas.
 En el PDF del lunes, una sección «Para marketing» con los temas nuevos de la semana.
+
+### Subir a la pestaña «Marketing» del panel (desde el 11-11-2026)
+María José (marketing) trabaja desde la pestaña Marketing del panel del Cotizador, que lee
+`marketing.json` del bucket PRIVADO `marketing` (lo leen solo `hola@` y ella). Después de
+actualizar `temas-marketing.md`, `contenido-rrss.md`, `guia-respuestas.md` y el análisis del lunes:
+1. `powershell -ExecutionPolicy Bypass -File .claude\scripts\marketing-json.ps1 -Salida <scratchpad>\marketing.json`
+   Junta fichas, candidatos, ideas para redes, las 10 preguntas (SIN la columna de casos, que
+   trae nombres) y `RW\reglas-marketing.md`, y elige 4 fotos por ficha del índice de la Fototeca
+   (`Biblioteca\Clasificacion 2026-11\fototeca-datos.json`; si la Fototeca se republica, copiar
+   ahí su `datos.json` nuevo).
+2. Subirlo desde el Chrome del usuario, en `cotizador.casazaru.cl/?panel=zr25` con la sesión
+   admin: `await sbClient.storage.from('marketing').upload('marketing.json', new Blob([texto],
+   {type:'application/json'}), {upsert:true})`. Solo el admin puede subir.
+3. Verificar: recargar el panel → Más → Marketing muestra la fecha del lunes.
+Las reglas de la marca se cambian en `RW\reglas-marketing.md` (no en el código). Lo que va al
+JSON no lleva datos personales, salvo los nombres de pila de la columna «fuente» de las ideas,
+que solo se ven en el panel y nunca van en «Copiar para Claude».
