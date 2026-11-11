@@ -955,6 +955,16 @@ body.rol-taller .btn-edit-item { display:none !important; }
 .api-ok.on { display:flex; }
 .api-cambiar { margin-left:auto;background:none;border:1px solid rgba(45,125,50,0.35);color:var(--green);font-size:11px;font-weight:600;padding:4px 12px;border-radius:6px;cursor:pointer; }
 .api-cambiar:hover { background:rgba(45,125,50,0.10); }
+.vpc-banda { background:#EEF5EC; border:1px solid #cfe3cb; border-radius:var(--radius-xl); padding:12px; margin-bottom:16px; }
+.vpc-tit { display:flex; justify-content:space-between; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#2E7D32; margin:0 2px 8px; }
+.vpc-c { background:var(--surface); border:1px solid var(--border-md); border-radius:var(--radius-lg); padding:10px 12px; margin-bottom:8px; }
+.vpc-c:last-child { margin-bottom:0; }
+.vpc-n { font-weight:600; font-size:14px; }
+.vpc-d { font-size:12px; color:var(--text-muted); margin-top:3px; line-height:1.45; }
+.vpc-row { display:flex; gap:8px; margin-top:10px; }
+.vpc-btn { flex:1; border:0; border-radius:8px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; background:var(--surface2); color:var(--text); }
+.vpc-btn.pri { background:#485B3D; color:#fff; }
+.vpc-ficha { margin-top:10px; padding:10px 12px; background:#F3F8F1; border:1px solid #cfe3cb; border-radius:var(--radius-lg); font-size:12px; line-height:1.5; }
 .uzone { border:2px dashed var(--border-md); border-radius:var(--radius-xl); background:var(--surface); padding:36px 24px; text-align:center; cursor:pointer; position:relative; margin-bottom:16px; transition:all .2s; }
 .uzone:hover,.uzone.drag { border-color:var(--brand); background:var(--brand-dim); }
 .uzone input { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
@@ -26507,6 +26517,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="stat-card"><div class="stat-label" title="Ventas cuya semana de producción cae en el período. El Dashboard cuenta por fecha de venta.">Pedidos en producción</div><div class="stat-val wood" id="p-ped">0</div></div>
     <div class="stat-card"><div class="stat-label">Líneas producción</div><div class="stat-val" id="p-lin">0</div></div>
   </div>
+  <div class="vpc-banda" id="vpc-banda" style="display:none"></div>
   <div class="uzone" id="dz">
     <input type="file" id="fi" accept="image/*" onchange="handleFile(this.files[0])">
     <div style="font-size:36px;margin-bottom:10px">📷</div>
@@ -26521,6 +26532,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div style="flex:1">
         <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--wood);margin-bottom:10px">📋 Revisa y edita antes de confirmar</div>
         <div class="chips" id="chips"></div>
+        <div class="vpc-ficha" id="prev-ficha" style="display:none"></div>
       </div>
     </div>
     <!-- Quién vendió: base para la comisión, así que va arriba y no se salta -->
@@ -29061,6 +29073,7 @@ async function loadProd(){
     renderProd();updateProdStats();renderSaleSemana();
     renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   }catch(e){console.error('Error cargando producción',e);}
+  vpcCargar();   // ventas del Cotizador por cargar (solo admin; no frena si falla)
 }
 async function saveProdOrder(order){
   if(!DB_URL)return;
@@ -29395,10 +29408,18 @@ async function confirmOrder(){
   // para cruzar con la tienda cuando hay que revisar un pedido web.
   if(o.orden_web)o.orden_web=String(o.orden_web);
   // 1. PRODUCCIÓN
+  // Si el N° ya existía (se aceptó sobreescribir arriba), PATCH y no PUT: el PUT
+  // reemplaza el registro entero y se llevaba lo que el taller anotó después
+  // (11-11-2026, etapa 2 de Cotizador → Gestión). Un pedido nuevo va igual que antes.
   const existProdIdx=prodOrders.findIndex(p=>String(p.pedido||'')===numStr);
-  if(existProdIdx>=0)prodOrders[existProdIdx]=o;else prodOrders.push(o);
+  if(existProdIdx>=0){
+    var _mzProd=DB_URL?await api('produccion/'+numStr,'PATCH',o):null;
+    prodOrders[existProdIdx]=_mzProd||o;
+  }else{
+    prodOrders.push(o);
+    if(DB_URL)await saveProdOrder(o);
+  }
   prodOrders.sort((a,b)=>Number(a.pedido||0)-Number(b.pedido||0));
-  if(DB_URL)await saveProdOrder(o);
   // 2. SEGUIMIENTO
   if(DB_URL){
     const checks={};CHECKS.forEach(c=>checks[c.id]=false);
@@ -29450,11 +29471,20 @@ async function confirmOrder(){
   const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:(((document.getElementById('pp-como')||{}).value)||(existFin?(existFin.como||''):'')),fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
   Object.assign(finData,datosDoc);
   // Volver a guardar desde Producción no borra nada de los documentos (folio,
-  // PDF, monto facturado, «en proceso», doc 3): el PUT de abajo reemplaza el registro entero.
+  // PDF, monto facturado, «en proceso», doc 3).
   if(existFin)Object.keys(existFin).forEach(function(k){if(/^doc[123]_/.test(k)&&!(k in finData))finData[k]=existFin[k];});
+  // Y desde el 11-11-2026 un registro que ya existía se guarda con PATCH: el PUT
+  // lo reemplazaba entero y se perdía todo lo que no estuviera en finData
+  // (fechas de abono, notas, lo que Finanzas anotó después). Las boletas
+  // duplicadas de septiembre fueron justo eso: un PUT pisando doc1_emitida.
   const existFinIdx=finRecords.findIndex(r=>String(r.num||'')===numStr);
-  if(existFinIdx>=0)finRecords[existFinIdx]=finData;else finRecords.push(finData);
-  if(DB_URL)await api('finanzas/'+numStr,'PUT',finData);
+  if(existFinIdx>=0){
+    var _mzFin=DB_URL?await api('finanzas/'+numStr,'PATCH',finData):null;
+    finRecords[existFinIdx]=_mzFin||Object.assign({},existFin,finData);
+  }else{
+    finRecords.push(finData);
+    if(DB_URL)await api('finanzas/'+numStr,'PUT',finData);
+  }
   // 4. PIXEL
   // Una compra hecha EN el sitio ya disparó el pixel de Meta en el navegador
   // del cliente. Subirla también desde acá hace que Meta cuente la misma compra
@@ -29485,8 +29515,14 @@ async function confirmOrder(){
     // Antes el Pixel tomaba cli.ct/cli.st y lo escrito en Comuna y Ciudad no llegaba.
     const pixelData={email:fmtEmail(cli.email),phone:fmtPhone(cli.phone),fn:fmtName(o.comprador||cli.fn||''),ln:fmtName(o.apellido||cli.ln||''),ct:fmtRegion(datosDoc.comuna||cli.ct||''),st:fmtRegion(datosDoc.ciudad||cli.st||''),country:'CL',order_id:orderId,value:cli.value||total||0,event_time:fmtEventTime(cli.event_time),status:'nosubida',fecha:o.fecha_creacion};
     const existPixelIdx=pixelRecords.findIndex(r=>r.order_id===orderId);
-    if(existPixelIdx>=0){pixelData.status=pixelRecords[existPixelIdx].status||'nosubida';pixelRecords[existPixelIdx]=pixelData;}else pixelRecords.push(pixelData);
-    if(DB_URL)await api('pixel/'+numStr,'PUT',pixelData);
+    if(existPixelIdx>=0){
+      pixelData.status=pixelRecords[existPixelIdx].status||'nosubida';
+      var _mzPix=DB_URL?await api('pixel/'+numStr,'PATCH',pixelData):null;
+      pixelRecords[existPixelIdx]=_mzPix||pixelData;
+    }else{
+      pixelRecords.push(pixelData);
+      if(DB_URL)await api('pixel/'+numStr,'PUT',pixelData);
+    }
   }
   // 5. COSTOS
   const existCostIdx=costRecords.findIndex(r=>String(r.num||'')===numStr);
@@ -29495,10 +29531,23 @@ async function confirmOrder(){
   // precios más importante del negocio.
   const _maderas=[];(o.lineas||[]).forEach(function(l){if(l.madera&&_maderas.indexOf(l.madera)<0)_maderas.push(l.madera);});
   const costData={num:numStr,semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',venta_total:total,costo_plataformas:_cv.costos,venta_neta:Math.round((total-_cv.costos)/1.19),madera:_maderas.join(' / '),canal:canalPago||'',fecha:o.fecha_creacion||fechaFromSemana(o.envio||''),lineas:(existCostIdx>=0&&(costRecords[existCostIdx].lineas||[]).length)?costRecords[existCostIdx].lineas:_lineasEstandar(o.lineas||[])};
-  if(existCostIdx>=0)costRecords[existCostIdx]=costData;else costRecords.push(costData);
-  if(DB_URL)await api('costos/'+numStr,'PUT',costData);
+  if(existCostIdx>=0){
+    var _mzCost=DB_URL?await api('costos/'+numStr,'PATCH',costData):null;
+    costRecords[existCostIdx]=_mzCost||costData;
+  }else{
+    costRecords.push(costData);
+    if(DB_URL)await api('costos/'+numStr,'PUT',costData);
+  }
   showToast('✓ Pedido #'+numStr+' guardado en todas las secciones');
-  prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';
+  // Venta que llegó del Cotizador: queda cargada y apunta a su pedido. Si falla
+  // (ej. ese N° ya está ligado a otra ficha), el pedido quedó guardado igual y
+  // la ficha sigue en la banda: se avisa, no se esconde.
+  if(o._vpc_id){
+    try{await sbUpdate('ventas_por_cargar',o._vpc_id,{estado:'cargada',pedido_num:numStr});}
+    catch(e){console.error('ventas_por_cargar',e);showToast('⚠️ El pedido se guardó, pero la ficha del Cotizador sigue en «Por cargar»: '+String(e.message||e).slice(0,80),true);}
+    vpcCargar();
+  }
+  prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';vpcNotaFicha(null);
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();
   if(document.getElementById('page-dash')&&document.getElementById('page-dash').classList.contains('active'))renderDash();
   // Con el abono cargado ya se puede armar el documento. Solo para ventas: un
@@ -29506,7 +29555,112 @@ async function confirmOrder(){
   // revisión, que NO emite: la emisión sigue siendo un clic aparte.
   if(tipoSel==='VENTA'&&(Number(abono)||0)>0)setTimeout(function(){prepararDocumento(numStr);},400);
 }
-function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';}
+function cancelPrev(){prodPending=null;document.getElementById('prev').classList.remove('on');document.getElementById('fi').value='';vpcNotaFicha(null);}
+
+// ══ POR CARGAR · DEL COTIZADOR (etapa 2, 11-11-2026, migración 0029) ══
+// Cuando el cliente confirma la ficha de venta en el panel del Cotizador, la
+// ficha llega a ventas_por_cargar. Acá se muestra arriba de Producción (solo
+// admin: RLS) y «Cargar pedido» arma prodPending con ella y abre la vista
+// previa de siempre: el pedido se confirma con confirmOrder(), igual que un
+// pantallazo. La ficha no se edita acá; se corrige en la vista previa.
+// El abono NO se carga: la ficha dice lo que el cliente debe pagar, no lo que
+// pagó. Se marca cuando llega la plata.
+var VPC=[];
+async function vpcCargar(){
+  if(usuarioRol!=='admin'){VPC=[];vpcPintar();return;}
+  try{VPC=await sbGet('ventas_por_cargar','select=*&estado=eq.por_cargar&order=recibida_at.asc');}
+  catch(e){console.error('ventas_por_cargar',e);VPC=[];}
+  vpcPintar();
+}
+function _vpcFecha(iso){if(!iso)return'';var d=new Date(iso);return d.getDate()+'/'+(d.getMonth()+1);}
+function vpcPintar(){
+  var el=document.getElementById('vpc-banda');if(!el)return;
+  if(!VPC.length){el.innerHTML='';el.style.display='none';return;}
+  el.style.display='';
+  el.innerHTML='<div class="vpc-tit"><span>Por cargar · del Cotizador</span><span>'+VPC.length+'</span></div>'+
+    VPC.map(function(v){
+      var f=v.ficha||{},env=f.envio||{},doc=f.doc||{};
+      var envTxt=env.tipo==='retiro'?'Retira en Villarrica':((env.tipo==='starken'?'Starken a ':'Envío a ')+(env.comuna||'—'));
+      var pagoTxt=Number(f.abono_pct)===100?'paga todo':'abono '+(f.abono_pct||70)+' %';
+      var items=String(f.items||'').split('\n').filter(Boolean);
+      return '<div class="vpc-c">'+
+        '<div class="vpc-n">'+esc(v.cliente)+' · '+fmtCLP(v.total)+'</div>'+
+        '<div class="vpc-d">'+items.map(esc).join('<br>')+(f.madera?' · '+esc(f.madera):'')+'<br>'+
+          esc(envTxt)+' · '+(doc.tipo==='factura'?'Factura':'Boleta')+' · '+pagoTxt+'<br>'+
+          'Confirmó el '+_vpcFecha(f.confirmada||v.recibida_at)+(v.vendedor?' · vendió '+esc(v.vendedor):'')+'</div>'+
+        '<div class="vpc-row"><button class="vpc-btn pri" onclick="vpcAbrir('+Number(v.id)+')">Cargar pedido</button>'+
+        '<button class="vpc-btn" onclick="vpcDescartar('+Number(v.id)+')">No es venta</button></div>'+
+      '</div>';
+    }).join('');
+}
+// nombre y apellido desde «Nombre Apellido1 Apellido2»
+function _vpcPartirNombre(n){var p=String(n||'').trim().split(/\s+/);return{fn:p[0]||'',ln:p.slice(1).join(' ')};}
+function vpcAbrir(id){
+  var v=VPC.filter(function(x){return Number(x.id)===Number(id);})[0];if(!v)return;
+  if(prodPending&&!confirm('Hay un pedido a medio revisar en la vista previa. ¿Lo reemplazo por esta venta?'))return;
+  var f=v.ficha||{},env=f.envio||{},doc=f.doc||{},c=f.calc||{};
+  var nom=_vpcPartirNombre(v.cliente);
+  var madera=f.madera?maderaCanonica(String(f.madera).toUpperCase()):'';
+  var lineas=(Array.isArray(f.lineas)&&f.lineas.length)?f.lineas.map(function(l){
+      return{producto:l.producto||'',cantidad:Number(l.cantidad)||1,madera:madera,largo:Number(l.largo)||0,ancho:Number(l.ancho)||0,
+             canto:'TIPO 1',acabado:'VIT MATE',espesor:Number(l.espesor)||4,observaciones:''};})
+    :[{producto:String(f.items||'').split('\n')[0]||'',cantidad:1,madera:madera,largo:0,ancho:0,canto:'TIPO 1',acabado:'VIT MATE',espesor:4,observaciones:String(f.items||'')}];
+  var _nums=prodOrders.map(function(o){return Number(o.pedido)||0;}).concat(finRecords.map(function(r){return Number(r.num)||0;}),orders.map(function(o){return Number(o.num)||0;}));
+  var nextNum=_nums.length?Math.max.apply(null,_nums)+1:451;
+  var fConf=String(f.confirmada||v.recibida_at||'');
+  var _d=fConf?new Date(fConf):new Date();
+  var fechaVenta=_d.getFullYear()+'-'+String(_d.getMonth()+1).padStart(2,'0')+'-'+String(_d.getDate()).padStart(2,'0');
+  var esFactura=doc.tipo==='factura';
+  var pedidoData={pedido:nextNum,envio:'',comprador:nom.fn,apellido:nom.ln,lineas:lineas,fecha_venta:fechaVenta,
+    _vpc_id:Number(v.id),
+    // f.lista puede venir escrito con puntos («463.546»): solo los dígitos
+    _finanzas:{valor_producto:Number(String(f.lista==null?'':f.lista).replace(/\D/g,''))||0,valor_envio:Number(c.envio)||0,valor_comision:0,
+               medio_pago:f.pago==='link'?'MERCADO PAGO':'TRANSFERENCIA'},
+    _cliente:{phone:v.contacto||'',direccion:f.direccion||'',ct:env.comuna||'',st:'',rut:esFactura?'':(doc.rut||''),fn:nom.fn,ln:nom.ln,country:'CL'},
+    _factura:{doc_tipo:esFactura?'FACTURA':'BOLETA',razon_social:doc.razon||'',rut_empresa:esFactura?(doc.rut||''):''}};
+  pedidoData.fecha=todayStr;
+  prodPending=pedidoData;
+  document.getElementById('prev-img').src='';
+  renderPrevVendedor(VENDEDORES.indexOf(v.vendedor)>=0?v.vendedor:VENDEDOR_DEFAULT);
+  renderPrevTipo('VENTA');
+  renderPrevCanal('Cotizador');
+  renderPrevProd(pedidoData);
+  // Cómo paga: transferencia con su descuento, o link de pago. Va DESPUÉS de
+  // renderPrevProd, que deja el formulario en transferencia sin descuento.
+  if(f.pago==='link'){document.getElementById('pp-canal').value='LINK_MP';}
+  else{document.getElementById('pp-desc').value=Math.round((Number(c.pct_transf)||0.05)*1000)/10;}
+  aplicarCanalPrev();
+  vpcNotaFicha(v);
+  document.getElementById('prev').classList.add('on');
+  document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
+  var _tot=document.getElementById('pf-total');
+  var totForm=Number(String(_tot?_tot.textContent:'').replace(/\D/g,''))||0;
+  if(c.total&&totForm&&totForm!==Number(c.total))showToast('⚠️ El total del formulario ('+fmtCLP(totForm)+') no calza con el de la ficha ('+fmtCLP(c.total)+'): revisá descuento y envío',true);
+  else showToast('Venta del Cotizador cargada: falta la semana de producción');
+}
+// Recuadro con lo que dice la ficha, para revisar contra el formulario
+function vpcNotaFicha(v){
+  var el=document.getElementById('prev-ficha');if(!el)return;
+  if(!v){el.style.display='none';el.innerHTML='';return;}
+  var f=v.ficha||{},c=f.calc||{};
+  var abono=Number(f.abono_pct)===100?'Paga todo: '+fmtCLP(c.total||0):'Abono esperado (no pagado): '+fmtCLP(c.abono||0)+' · saldo '+fmtCLP(c.saldo||0);
+  el.innerHTML='<b>Ficha del Cotizador'+(v.cotizacion_num?' · '+esc(v.cotizacion_num):'')+'</b><br>'+
+    esc(String(f.items||'')).replace(/\n/g,'<br>')+(f.madera?'<br>Madera: '+esc(f.madera):'')+
+    '<br>Total '+fmtCLP(c.total||0)+' · '+abono+
+    '<br><span style="color:var(--text-muted)">El abono se marca en Finanzas cuando llegue la plata.</span>';
+  el.style.display='';
+}
+async function vpcDescartar(id){
+  var v=VPC.filter(function(x){return Number(x.id)===Number(id);})[0];if(!v)return;
+  var motivo=prompt('¿Por qué no es venta? (ej. se arrepintió, era un duplicado)\n\nLa cotización vuelve a quedar abierta en el panel del Cotizador con este motivo.');
+  if(motivo===null)return;
+  motivo=motivo.trim();
+  if(!motivo){showToast('Falta el motivo',true);return;}
+  try{await sbUpdate('ventas_por_cargar',v.id,{estado:'descartada',motivo:motivo.slice(0,300)});showToast('Listo: '+v.cliente+' sale de «Por cargar»');}
+  catch(e){showToast('✗ No se pudo: '+String(e.message||e).slice(0,90),true);}
+  if(prodPending&&Number(prodPending._vpc_id)===Number(id))cancelPrev();
+  vpcCargar();
+}
 const CANTOS_PROD=['TIPO 1','TIPO 2','BISELADO','RECTO','SIN CANTO'];
 const ACABADOS_PROD=['VIT MATE','VIT SEMI BRILLO','CUTEK','ACEITE','CERA','BARNIZ','TEÑIDO MATE','TEÑIDO SEMI BRILLO','TEÑIDO CHOCOLATE 3 MANOS'];
 // Quién hizo la venta. Se elige al subir el pantallazo y queda en Producción y
