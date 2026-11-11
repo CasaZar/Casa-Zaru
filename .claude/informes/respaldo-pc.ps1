@@ -29,7 +29,7 @@ $fuentes = @(
   @{ De = "$h\Casa Zaru - Claude";   A = 'repo-Casa-Zaru'
      XD = @('.git', 'worktrees', 'node_modules'); XF = @('.mcp.json', 'settings.local.json') }
   @{ De = "$h\.casazaru";            A = 'casazaru'
-     XD = @('snapshots'); XF = @('config.ps1', 'codigo_fixed.gs', 'apps-script-*.json') }
+     XD = @('snapshots'); XF = @('config.ps1', 'codigo_fixed.gs', 'apps-script-*.json', 'cerebro-token.txt') }
   @{ De = "$h\Casa Zaru Planillas";  A = 'planillas';      XD = @(); XF = @() }
   @{ De = "$h\finanzas-casa";        A = 'finanzas-casa';  XD = @('.git', 'node_modules'); XF = @() }
   @{ De = "$h\.claude\projects\C--Users-dell-Casa-Zaru---Claude\memory"; A = 'claude\memoria'; XD = @(); XF = @() }

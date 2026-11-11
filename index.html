@@ -1262,6 +1262,75 @@ tr.fin-no-venta:hover td { opacity:1; }
 /* ── INICIO (rediseño 06-11-2026, boceto A «Para hoy») ──
    Bloques planos separados por una línea, títulos chicos en mayúscula
    espaciada, cifras grandes en Nanum Myeongjo, radios de 4 px, sin sombras. */
+/* ── Mi día (Cerebro Zaru, 11-11-2026): mismo diseño aprobado de «Tu día», una columna desde 390 px ── */
+#page-midia{--md-bg:#F6F4EF;--md-card:#fff;--md-ink:#22251F;--md-muted:#6B6F63;--md-line:#E2DED3;--md-verde:#485B3D;--md-verde-soft:#E6EBE1;
+  --md-terra:#B5652E;--md-terra-soft:#F4E6DA;--md-rojo:#B23A2E;--md-rojo-soft:#F6E1DE;--md-ambar:#B98A1E;--md-ambar-soft:#F5ECD5;--md-ok:#3F7A46;--md-ok-soft:#E1EEDF;
+  background:var(--md-bg);color:var(--md-ink);font-family:'Poppins',sans-serif;font-size:15px;line-height:1.5;min-height:100vh;padding:20px max(16px,env(safe-area-inset-left,0px)) 110px}
+#page-midia *{box-sizing:border-box}
+#page-midia .md-wrap{max-width:680px;width:100%;min-width:0;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+#page-midia h1,#page-midia h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;margin:0}
+#page-midia h1{font-size:1.9rem;line-height:1.15}
+#page-midia h2{font-size:1.25rem}
+#page-midia .md-eyebrow{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--md-muted);font-weight:600}
+#page-midia .md-foco{font-size:1.02rem;margin:6px 0 0}
+#page-midia .md-meta{font-size:.78rem;color:var(--md-muted)}
+#page-midia section{background:var(--md-card);border:1px solid var(--md-line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+#page-midia .md-sec-head{display:flex;align-items:center;gap:10px;justify-content:space-between}
+#page-midia .md-sec-head .md-left{display:flex;align-items:center;gap:10px;min-width:0}
+#page-midia .md-ico{width:22px;height:22px;flex:none;stroke:var(--md-terra);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#page-midia .md-min{font-size:.75rem;color:var(--md-muted);white-space:nowrap}
+#page-midia ul.md-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+#page-midia .md-item{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:10px;background:var(--md-bg);min-width:0}
+#page-midia .md-txt{flex:1;min-width:0}
+#page-midia .md-t{font-weight:500;overflow-wrap:anywhere}
+#page-midia .md-s{font-size:.8rem;color:var(--md-muted);overflow-wrap:anywhere}
+#page-midia .md-item.md-done .md-t{text-decoration:line-through;color:var(--md-muted)}
+#page-midia .md-chk{appearance:none;-webkit-appearance:none;width:22px;height:22px;flex:none;border:1.6px solid var(--md-verde);border-radius:6px;margin:1px 0 0;display:grid;place-content:center;cursor:pointer;background:var(--md-card)}
+#page-midia .md-chk:checked{background:var(--md-verde)}
+#page-midia .md-chk:checked::after{content:"";width:10px;height:6px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+#page-midia .md-pill{font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+#page-midia .md-p-rojo{background:var(--md-rojo-soft);color:var(--md-rojo)}
+#page-midia .md-p-ambar{background:var(--md-ambar-soft);color:var(--md-ambar)}
+#page-midia .md-p-neutro{background:var(--md-verde-soft);color:var(--md-verde)}
+#page-midia .md-grid6{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:560px){#page-midia .md-grid6{grid-template-columns:repeat(3,minmax(0,1fr))}}
+#page-midia .md-kpi{padding:10px;border-radius:10px;background:var(--md-bg);display:flex;flex-direction:column;gap:2px;min-width:0}
+#page-midia .md-kpi .md-v{font-family:'Playfair Display',Georgia,serif;font-size:1.35rem;font-weight:700;overflow-wrap:anywhere}
+#page-midia .md-kpi .md-l{font-size:.76rem;color:var(--md-muted)}
+#page-midia .md-kpi .md-c{font-size:.72rem}
+#page-midia .md-c-bien{color:var(--md-ok)} #page-midia .md-c-mal{color:var(--md-rojo)} #page-midia .md-c-igual{color:var(--md-muted)}
+#page-midia .md-raro{border-left:3px solid var(--md-terra);padding:6px 10px;background:var(--md-terra-soft);border-radius:0 8px 8px 0;font-size:.88rem}
+#page-midia .md-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+#page-midia button{font-family:'Poppins',sans-serif;font-size:.8rem;font-weight:500;border:1px solid var(--md-line);background:var(--md-card);color:var(--md-ink);border-radius:8px;padding:5px 10px;cursor:pointer}
+#page-midia button[aria-pressed="true"]{background:var(--md-verde);color:#fff;border-color:var(--md-verde)}
+#page-midia button.md-matar[aria-pressed="true"]{background:var(--md-rojo);border-color:var(--md-rojo)}
+#page-midia button.md-cl{border-color:var(--md-terra);color:var(--md-terra);font-weight:600}
+#page-midia button.md-cl svg{width:14px;height:14px;vertical-align:-2px;margin-right:5px;stroke:currentColor;fill:none;stroke-width:1.6}
+#page-midia button.md-enc{border:0;background:var(--md-verde-soft);color:var(--md-verde);font-weight:600;font-size:.74rem;border-radius:999px;padding:4px 10px;margin-top:6px}
+#page-midia .md-persona{display:flex;flex-direction:column;gap:6px;padding:10px;border-radius:10px;background:var(--md-bg)}
+#page-midia .md-persona .md-n{font-weight:600}
+#page-midia .md-msg{font-size:.86rem;white-space:pre-wrap;background:var(--md-card);border:1px dashed var(--md-line);border-radius:8px;padding:8px;overflow-wrap:anywhere}
+#page-midia .md-semaforo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:560px){#page-midia .md-semaforo{grid-template-columns:repeat(4,minmax(0,1fr))}}
+#page-midia .md-area{padding:10px;border-radius:10px;background:var(--md-bg);display:flex;flex-direction:column;gap:4px;min-width:0}
+#page-midia .md-area .md-top{display:flex;align-items:center;gap:6px}
+#page-midia .md-dot{width:10px;height:10px;border-radius:50%;flex:none}
+#page-midia .md-d-rojo{background:var(--md-rojo)} #page-midia .md-d-amarillo{background:var(--md-ambar)} #page-midia .md-d-verde{background:var(--md-ok)} #page-midia .md-d-gris{background:var(--md-muted)}
+#page-midia .md-area .md-n{font-weight:600;font-size:.86rem}
+#page-midia .md-area .md-s{font-size:.74rem}
+#page-midia table{width:100%;border-collapse:collapse;font-size:.84rem}
+#page-midia td{padding:7px 4px;border-bottom:1px solid var(--md-line);vertical-align:top}
+#page-midia td.md-r{text-align:right;white-space:nowrap}
+#page-midia .md-scroll{overflow-x:auto}
+#page-midia .md-total{display:flex;justify-content:space-between;gap:10px;font-weight:600;padding-top:4px;flex-wrap:wrap}
+#page-midia textarea{width:100%;min-height:90px;font-family:'Poppins',sans-serif;font-size:.9rem;border:1px solid var(--md-line);border-radius:10px;padding:10px;background:var(--md-bg);color:var(--md-ink);resize:vertical}
+#page-midia .md-estado{font-size:.82rem;color:var(--md-muted);padding:10px;border-radius:10px;background:var(--md-card);border:1px solid var(--md-line)}
+#page-midia .md-vacio{color:var(--md-muted);font-size:.86rem}
+#page-midia details summary{cursor:pointer;font-size:.84rem;color:var(--md-verde);font-weight:500}
+#page-midia .md-fuentes{font-size:.75rem;color:var(--md-muted)}
+#page-midia .md-fall{color:var(--md-rojo)}
+#page-midia .md-toast{position:fixed;left:12px;right:12px;bottom:76px;max-width:520px;margin:0 auto;background:#22251F;color:#fff;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.45;z-index:300}
+#page-midia .md-toast b{color:#F2C9A6}
 #page-dash { background: var(--z-papel); min-height: 100vh; font-family: 'Poppins', sans-serif; color: var(--z-tinta); font-size: 15px; line-height: 1.45; }
 #page-dash .main { max-width: 1180px; padding: 0 32px 40px; }
 #page-dash button { font-family: inherit; cursor: pointer; }
@@ -26434,6 +26503,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab active" onclick="showPage('dash',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span> Inicio</button>
     <button class="nav-tab" onclick="showPage('prod',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1"/><path d="M7 7v10M11 10h6M11 14h4"/></svg></span> Producción</button>
     <button class="nav-tab" onclick="showPage('fin',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 10h16M8 15h3"/></svg></span> Finanzas</button>
+    <button class="nav-tab" onclick="showPage('midia',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M9 15l2 2 4-4"/></svg></span> Mi día</button>
     <button class="nav-tab" onclick="showPage('seg',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M5 5h14v10H9l-4 4z"/></svg></span> <span>Avisos<span class="nav-largo"> a clientes</span></span></button>
     <div class="nav-sep" aria-hidden="true"></div>
     <button class="nav-tab" onclick="showPage('cli',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><path d="M4 19c0-3 2.2-5 5-5s5 2 5 5M16 7.5a2.5 2.5 0 1 1 0 5M17 14c2 .4 3.5 2 3.5 5"/></svg></span> Clientes</button>
@@ -26450,7 +26520,6 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="sync-row"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Conectando...</span></div>
     <div class="sb-rol" id="sb-rol"></div>
     <button class="sb-export" type="button" onclick="exportTodoXLSX()">Exportar todo a Excel</button>
-    <button class="sb-export" id="sb-tudia" type="button" style="display:none" onclick="abrirTuDia()">Tu día (Cerebro Zaru)</button>
     <div class="sb-version">v2.8 · 6 nov 2026</div>
   </div>
 </div>
@@ -26953,6 +27022,22 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 </div></div>
 
 <!-- P6 CLIENTES -->
+<!-- MI DÍA (Cerebro Zaru, 11-11-2026): la pantalla diaria del dueño, solo admin.
+     El día lo arma la corrida de las 07:30 (tabla cerebro_dias, migración 0030);
+     lo que se marca acá va a cerebro_marcas. -->
+<div class="page" id="page-midia">
+<div class="md-wrap">
+  <header class="md-cab">
+    <div class="md-eyebrow" id="md-fecha">Casa Zaru</div>
+    <h1>Mi día</h1>
+    <p class="md-foco" id="md-foco">Cargando lo de hoy…</p>
+    <div class="md-meta" id="md-meta"></div>
+  </header>
+  <div class="md-estado" id="md-estado" hidden></div>
+  <div class="md-wrap" id="md-app"></div>
+</div>
+<div class="md-toast" id="md-toast" hidden></div>
+</div>
 <!-- POST VENTA: un caso por problema después de la venta (16-10-2026) -->
 <div class="page" id="page-madera">
 <div class="main"><div class="mz-wrap">
@@ -27737,6 +27822,7 @@ function showPage(p,btn){
   if(p==='pv'){loadPostventa();}
   if(p==='madera'){loadMadera();}
   if(p==='emp'){loadEmpresas();}
+  if(p==='midia'){loadMiDia();}
   if(p==='dash'){
     if(DB_URL){
       Promise.all([loadFin(),loadProd()]).then(function(){renderDash();});
@@ -27752,7 +27838,7 @@ function showPage(p,btn){
 // 5 secciones, las primeras 4 van en la barra y el resto en la hoja "Más".
 // Orden del boceto A (06-11-2026): Inicio, Producción, Finanzas y Avisos en la
 // barra; lo demás en «Más». Es el mismo orden de los botones en el HTML.
-var NAV_ORDEN=['dash','prod','fin','seg','cli','emp','pv','gastos','madera','cost','pixel'];
+var NAV_ORDEN=['dash','prod','fin','midia','seg','cli','emp','pv','gastos','madera','cost','pixel'];
 var _IC_LINEA={
   mas:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>',
   buscar:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
@@ -27760,10 +27846,6 @@ var _IC_LINEA={
   salir:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>',
   dia:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M9 15l2 2 4-4"/></svg>'
 };
-// «Tu día» (Cerebro Zaru) vive en una página privada de claude.ai: el link no lleva datos y solo abre
-// con la cuenta del dueño. Aquí solo hay un acceso directo, visible para admin (cosmético; 11-11-2026).
-var TU_DIA_URL='https://claude.ai/artifact/S8WBWpNSw8atMA789xv3kj';
-function abrirTuDia(){window.open(TU_DIA_URL,'_blank','noopener');}
 var ROL_TXT={admin:'Sesión de administrador',vendedor:'Sesión de vendedor',taller:'Sesión de taller'};
 function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
 function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
@@ -27785,7 +27867,6 @@ function armarNavMovil(){
   }
   var rol=document.getElementById('sb-rol');
   if(rol){rol.textContent=ROL_TXT[usuarioRol]||'';rol.title=usuarioEmail||'';}
-  var td=document.getElementById('sb-tudia');if(td)td.style.display=usuarioRol==='admin'?'':'none';
   // Aunque no sobren secciones, "Más" queda: ahí están buscar, Excel y salir.
   window._navExtra=extra;
   actualizarNavMovil();
@@ -27806,8 +27887,7 @@ function abrirMasMovil(){
       '<span class="m-mas-ic">'+(ic?ic.innerHTML:'')+'</span>'+esc(_textoTab(b))+'</button>';
   }).join('');
   var ver=document.querySelector('.sb-version');
-  var tuDia=usuarioRol==='admin'?'<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirTuDia()"><span class="m-mas-ic">'+_IC_LINEA.dia+'</span>Tu día</button><div class="m-mas-sep"></div>':'';
-  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+tuDia+filas+(filas?'<div class="m-mas-sep"></div>':'')+
+  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+filas+(filas?'<div class="m-mas-sep"></div>':'')+
     '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirBusquedaMovil()"><span class="m-mas-ic">'+_IC_LINEA.buscar+'</span>Buscar en todo</button>'+
     '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();exportTodoXLSX()"><span class="m-mas-ic">'+_IC_LINEA.excel+'</span>Exportar todo a Excel</button>'+
     '<button type="button" class="m-mas-fila salir" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()"><span class="m-mas-ic">'+_IC_LINEA.salir+'</span>Cerrar sesión</button>'+
@@ -28140,7 +28220,7 @@ async function cargarPermisos(){
 }
 // Oculta lo que el usuario no puede usar. Es solo cosmético: la protección real
 // está en el servidor (RLS), así que aunque alguien fuerce la pantalla no ve datos.
-var SECCIONES_ADMIN=['fin','cost','pixel','gastos','madera'];
+var SECCIONES_ADMIN=['fin','cost','pixel','gastos','madera','midia'];
 // El taller entra a Gastos, pero solo a la bodega: recibe la mercadería y
 // hace la toma física. No ve facturas, ni el libro mayor, ni precios de venta.
 function aplicarPermisos(){
@@ -28148,7 +28228,7 @@ function aplicarPermisos(){
   if(usuarioRol==='taller'){
     document.body.classList.add('rol-taller');
     // Al taller se le esconde todo lo que NO sea suyo, en vez de solo lo de admin.
-    ['fin','cost','pixel','seg','cli','emp','dash'].forEach(function(p){
+    ['fin','cost','pixel','seg','cli','emp','dash','midia'].forEach(function(p){
       document.querySelectorAll('[onclick*="showPage(\''+p+'\'"]').forEach(function(b){b.style.display='none';});
       var pg=document.getElementById('page-'+p);if(pg)pg.classList.remove('active');
     });
@@ -32871,6 +32951,284 @@ async function sbDelete(tabla,id){
     {method:'DELETE',headers:{'Prefer':'return=minimal'}});
 }
 
+// ── Mi día (Cerebro Zaru, 11-11-2026) ─────────────────────────────────────
+// El día lo arma la corrida de las 07:30 y lo escribe la Edge Function
+// cerebro-dia en cerebro_dias (migración 0030). Acá solo se LEE el día y se
+// guardan las marcas del dueño en cerebro_marcas. Para que el celu y el PC no
+// se pisen, cada cambio se anota como una operación y al guardar se vuelve a
+// leer la fila de la base, se le aplican las operaciones y se sube el resultado.
+var _md={dia:null,fecha:null,marcas:_mdVacias(),ops:[],timer:null,guardando:Promise.resolve(),cargando:false,eventos:false};
+var _MD_IC={
+  alarma:'<circle cx="12" cy="13" r="7"/><path d="M12 9v4l2.5 2M5 4 2.5 6.5M19 4l2.5 2.5"/>',
+  pulso:'<path d="M2 12h4l2.5-6 4 12 3-8 1.5 2H22"/>',
+  decidir:'<path d="M12 3v18M5 7h14M5 7l-3 6a3 3 0 0 0 6 0zM19 7l-3 6a3 3 0 0 0 6 0z"/>',
+  equipo:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A5 5 0 0 1 21 19"/>',
+  crecer:'<path d="M12 21V11M12 11c0-4 3-6 7-6 0 4-3 6-7 6zM12 14c0-3-2.5-5-6-5 0 3 2.5 5 6 5z"/>',
+  deuda:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>',
+  areas:'<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
+  fijo:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  cierre:'<path d="M4 12.5 9 17.5 20 6.5"/>',
+  claude:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>'
+};
+function _mdVacias(){return{hechos:{},decisiones:{},notas:'',encargos:{}};}
+function _mdNorm(d){d=d||{};return{hechos:d.hechos||{},decisiones:d.decisiones||{},notas:d.notas||'',encargos:d.encargos||{}};}
+function _mdPlata(n){if(n==null||n==='')return'sin dato';var v=Number(n);if(!isFinite(v))return esc(n);return'$'+Math.round(v).toLocaleString('es-CL');}
+function _mdValor(k){if(k.valor==null)return'sin dato';if(k.fmt==='plata')return _mdPlata(k.valor);return Number(k.valor).toLocaleString('es-CL');}
+function _mdFechaLarga(f){try{return new Date(f+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});}catch(e){return f;}}
+function _mdDias(n){if(n==null)return'';if(n<0)return'vencido hace '+(-n)+(n===-1?' día':' días');if(n===0)return'vence hoy';return'en '+n+(n===1?' día':' días');}
+function _mdPill(n){var c=n==null?'md-p-neutro':(n<=0?'md-p-rojo':(n<=3?'md-p-ambar':'md-p-neutro'));return'<span class="md-pill '+c+'">'+esc(_mdDias(n))+'</span>';}
+function _mdIco(k){return'<svg class="md-ico" viewBox="0 0 24 24" aria-hidden="true">'+_MD_IC[k]+'</svg>';}
+function _mdHead(icon,titulo,min){return'<div class="md-sec-head"><div class="md-left">'+_mdIco(icon)+'<h2>'+titulo+'</h2></div>'+(min?'<span class="md-min">'+min+'</span>':'')+'</div>';}
+function _mdChk(id){var on=!!_md.marcas.hechos[id];return'<input type="checkbox" class="md-chk" data-hecho="'+esc(id)+'" aria-label="Marcar como hecho"'+(on?' checked':'')+'>';}
+function _mdHora(iso){try{return new Date(iso).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',hour12:false});}catch(e){return'';}}
+// Botón «Resolver con Claude» o, si ya se encargó, el chip «En manos de Claude».
+function _mdClaude(id,corto){
+  var desde=_md.marcas.encargos[id];
+  if(desde)return'<button type="button" class="md-enc" data-enc-quitar="'+esc(id)+'" title="Tocar para quitar el encargo">En manos de Claude · desde '+esc(_mdHora(desde))+'</button>';
+  return'<button type="button" class="md-cl" data-claude="'+esc(id)+'">'+_mdIco('claude').replace('md-ico','')+(corto?'Claude':'Resolver con Claude')+'</button>';
+}
+function _mdEstado(t){var e=document.getElementById('md-estado');if(!e)return;e.hidden=!t;e.textContent=t||'';}
+function _mdToast(html){
+  var t=document.getElementById('md-toast');if(!t)return;
+  t.innerHTML=html;t.hidden=false;clearTimeout(t._tm);t._tm=setTimeout(function(){t.hidden=true;},5000);
+}
+
+function renderMiDia(){
+  var app=document.getElementById('md-app');if(!app)return;
+  var dia=_md.dia;if(!dia){app.innerHTML='';return;}
+  var M=_md.marcas;
+  document.getElementById('md-fecha').textContent=_mdFechaLarga(dia.fecha||_md.fecha);
+  document.getElementById('md-foco').textContent=dia.foco||'';
+  document.getElementById('md-meta').textContent=dia.generado?('Armado '+new Date(dia.generado).toLocaleString('es-CL',{hour:'2-digit',minute:'2-digit',day:'numeric',month:'short'})):'';
+  var h='';
+
+  // Que no se pase
+  var al=dia.alarmas||[];
+  h+='<section>'+_mdHead('alarma','Que no se pase',al.length+' con fecha');
+  h+=al.length?'<ul class="md-list">'+al.map(function(a){
+    var d=!!M.hechos[a.id];
+    var sub=esc(a.area||'')+(a.monto!=null?' · '+_mdPlata(a.monto):'')+(a.vence?' · '+esc(a.vence):'');
+    return'<li class="md-item'+(d?' md-done':'')+'">'+_mdChk(a.id)+'<div class="md-txt"><div class="md-t">'+esc(a.titulo)+'</div><div class="md-s">'+sub+'</div>'+
+      (d?'':'<div class="md-btns">'+_mdClaude(a.id,false)+'</div>')+'</div>'+_mdPill(a.dias)+'</li>';
+  }).join('')+'</ul>':'<p class="md-vacio">Nada vence en los próximos 10 días.</p>';
+  if(dia.alarmas_mas)h+='<p class="md-meta" style="margin:0">Y '+esc(dia.alarmas_mas)+' más con fecha en pendientes.csv.</p>';
+  h+='</section>';
+
+  // Pulso
+  var p=dia.pulso||{};
+  h+='<section>'+_mdHead('pulso','Pulso','15 min')+'<div class="md-grid6">'+(p.cifras||[]).map(function(k){
+    var c=k.comp?'<span class="md-c md-c-'+esc(k.tono||'igual')+'">'+esc(k.comp)+'</span>':'';
+    return'<div class="md-kpi" title="'+esc(k.fuente||'')+'"><span class="md-l">'+esc(k.label)+'</span><span class="md-v">'+_mdValor(k)+'</span>'+c+'</div>';
+  }).join('')+'</div>';
+  if(p.raro)h+='<div class="md-raro"><strong>Lo raro de hoy.</strong> '+esc(p.raro)+'</div>';
+  h+='</section>';
+
+  // Decidir
+  var de=dia.decidir||[];
+  h+='<section>'+_mdHead('decidir','Decidir','40 min');
+  h+=de.length?'<ul class="md-list">'+de.map(function(x){
+    var v=M.decisiones[x.id]||'';
+    var b=['hacer','delegar','matar'].map(function(o){return'<button type="button" class="md-'+o+'" data-dec="'+esc(x.id)+'" data-op="'+o+'" aria-pressed="'+(v===o)+'">'+o.charAt(0).toUpperCase()+o.slice(1)+'</button>';}).join('');
+    var esp=Number(x.espera_dias)||0;
+    return'<li class="md-item"><div class="md-txt"><div class="md-t">'+esc(x.titulo)+'</div><div class="md-s">'+esc(x.porque||'')+'</div><div class="md-btns">'+b+_mdClaude(x.id,true)+'</div></div>'+
+      '<span class="md-pill '+(esp>14?'md-p-rojo':(esp>5?'md-p-ambar':'md-p-neutro'))+'">'+esc(x.espera_dias)+' d esperando</span></li>';
+  }).join('')+'</ul>':'<p class="md-vacio">Nada que solo tú puedas resolver hoy.</p>';
+  h+='</section>';
+
+  // Equipo
+  var eq=dia.equipo||[];
+  h+='<section>'+_mdHead('equipo','Equipo','30 min');
+  h+=eq.length?eq.map(function(e,i){
+    var items=(e.items&&e.items.length)?'<ul class="md-list">'+e.items.map(function(it){
+      var id=it.id||('eq'+i+'-'+it.titulo);var d=!!M.hechos[id];
+      return'<li class="md-item'+(d?' md-done':'')+'" style="background:var(--md-card)">'+_mdChk(id)+'<div class="md-txt"><div class="md-t">'+esc(it.titulo)+'</div>'+(it.detalle?'<div class="md-s">'+esc(it.detalle)+'</div>':'')+'</div></li>';
+    }).join('')+'</ul>':'';
+    var msg=e.mensaje?'<div class="md-msg" id="md-msg'+i+'">'+esc(e.mensaje)+'</div><div class="md-btns"><button type="button" data-copiar="md-msg'+i+'">Copiar mensaje</button></div>':'';
+    return'<div class="md-persona"><span class="md-n">'+esc(e.quien)+'</span>'+items+msg+'</div>';
+  }).join(''):'<p class="md-vacio">Sin encargos para el equipo hoy.</p>';
+  h+='</section>';
+
+  // Crecer
+  var cr=dia.crecer;
+  h+='<section>'+_mdHead('crecer','Crecer','25 min');
+  if(cr){
+    var cid=cr.id||'crecer';var cd=!!M.hechos[cid];
+    h+='<div class="md-item'+(cd?' md-done':'')+'">'+_mdChk(cid)+'<div class="md-txt"><div class="md-t">'+esc(cr.titulo)+'</div><div class="md-s">'+esc(cr.porque||'')+'</div>'+
+      (cr.evidencia?'<div class="md-s">Evidencia: '+esc(cr.evidencia)+'</div>':'')+(cd?'':'<div class="md-btns">'+_mdClaude(cid,false)+'</div>')+'</div>'+
+      (cr.impacto!=null?'<span class="md-pill md-p-neutro">'+_mdPlata(cr.impacto)+esc(cr.impacto_unidad||'')+'</span>':'')+'</div>';
+  }else h+='<p class="md-vacio">Sin mejora propuesta hoy.</p>';
+  h+='</section>';
+
+  // Deudas
+  var du=dia.deudas;
+  if(du){
+    var filas=(du.items||[]).map(function(x){
+      return'<tr><td>'+esc(x.acreedor)+'<div class="md-s">'+esc(x.detalle||'')+'</div></td><td class="md-r">'+esc(x.proximo||'')+'<div class="md-s">'+_mdPlata(x.monto)+'</div></td><td class="md-r">'+(x.saldo!=null?_mdPlata(x.saldo):'sin dato')+'<div class="md-s">saldo</div></td></tr>';
+    }).join('');
+    h+='<section>'+_mdHead('deuda','Deudas y lo que vence',null);
+    h+='<div class="md-total"><span>Vence en 30 días</span><span>'+_mdPlata(du.vence_30d)+'</span></div>';
+    if(du.nota)h+='<p class="md-meta" style="margin:0">'+esc(du.nota)+'</p>';
+    h+='<details><summary>Ver el detalle ('+(du.items||[]).length+')</summary><div class="md-scroll"><table><tbody>'+filas+'</tbody></table></div>';
+    h+='<div class="md-total"><span>Deuda total conocida</span><span>'+_mdPlata(du.total)+'</span></div></details></section>';
+  }
+
+  // Áreas
+  var ar=dia.areas||[];
+  h+='<section>'+_mdHead('areas','Todas las áreas',null)+'<div class="md-semaforo">'+ar.map(function(a){
+    return'<div class="md-area"><div class="md-top"><span class="md-dot md-d-'+esc(a.estado||'gris')+'"></span><span class="md-n">'+esc(a.nombre)+'</span></div>'+
+      '<span class="md-s">'+esc(a.abiertos)+' abiertos'+(a.vencidos?' · '+esc(a.vencidos)+' vencidos':'')+'</span><span class="md-s">'+esc(a.cadencia)+(a.ultima?' · revisada '+esc(a.ultima):'')+'</span></div>';
+  }).join('')+'</div></section>';
+
+  // Lo fijo del mes
+  var fi=dia.fijo||[];
+  h+='<section>'+_mdHead('fijo','Lo fijo del mes',null)+(fi.length?'<div class="md-scroll"><table><tbody>'+fi.map(function(x){
+    return'<tr><td style="white-space:nowrap">'+esc(x.fecha)+'</td><td>'+esc(x.obligacion)+'</td><td class="md-r">'+(x.monto!=null?_mdPlata(x.monto):'')+'</td></tr>';
+  }).join('')+'</tbody></table></div>':'<p class="md-vacio">Nada fijo en los próximos días.</p>')+'</section>';
+
+  // Cierre
+  var pend=0;al.forEach(function(a){if(!M.hechos[a.id])pend++;});
+  var nEnc=Object.keys(M.encargos).length;
+  h+='<section>'+_mdHead('cierre','Cierre','10 min')+'<p class="md-meta" style="margin:0">Marca lo hecho arriba y anota lo nuevo. Mañana a las 07:30 se lee esto: lo que se salte 5 días vuelve a «Decidir».</p>';
+  h+='<label for="md-notas" class="md-eyebrow">Lo nuevo de hoy</label><textarea id="md-notas" placeholder="Ideas, encargos, cosas que pasaron…">'+esc(M.notas||'')+'</textarea>';
+  h+='<div class="md-btns"><span class="md-meta" id="md-guardado"></span></div>';
+  h+='<p class="md-meta" style="margin:0">'+pend+' alarmas sin marcar'+(nEnc?' · '+nEnc+' en manos de Claude':'')+'.</p></section>';
+
+  // Fuentes
+  var fu=dia.fuentes||{};
+  h+='<p class="md-fuentes">Fuentes leídas: '+esc((fu.ok||[]).join(', ')||'sin dato')+'.'+((fu.fallidas||[]).length?' <span class="md-fall">No se pudo leer: '+esc(fu.fallidas.join(', '))+'.</span>':'')+'</p>';
+
+  var foco=document.activeElement&&document.activeElement.id==='md-notas';
+  var pos=foco?document.activeElement.selectionStart:null;
+  app.innerHTML=h;
+  if(foco){var t=document.getElementById('md-notas');t.focus();try{t.setSelectionRange(pos,pos);}catch(e){}}
+}
+
+// Cada cambio es una operación sobre las marcas: se aplica ya en pantalla y se
+// vuelve a aplicar sobre la versión de la base al guardar.
+function _mdCambio(op){
+  op(_md.marcas);_md.ops.push(op);
+  var g=document.getElementById('md-guardado');if(g)g.textContent='Guardando…';
+  clearTimeout(_md.timer);_md.timer=setTimeout(_mdGuardar,700);
+}
+function _mdGuardar(){
+  var f=_md.fecha;if(!f||!_md.ops.length)return _md.guardando;
+  var ops=_md.ops;_md.ops=[];
+  _md.guardando=_md.guardando.then(async function(){
+    var filas=await sbGet('cerebro_marcas','select=data&fecha=eq.'+f);
+    var base=_mdNorm(filas[0]&&filas[0].data);
+    ops.forEach(function(op){op(base);});
+    base.actualizado=new Date().toISOString();
+    await sbJson(_rest('cerebro_marcas')+'?on_conflict=fecha',{method:'POST',
+      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({fecha:f,data:base})});
+    if(!_md.ops.length){_md.marcas=_mdNorm(base);}
+    var g=document.getElementById('md-guardado');if(g)g.textContent='Guardado '+_mdHora(base.actualizado);
+  }).catch(function(e){
+    _md.ops=ops.concat(_md.ops);   // no se pierde: se reintenta con el próximo cambio o al volver a la pestaña
+    var g=document.getElementById('md-guardado');if(g)g.textContent='No se pudo guardar. Se reintenta solo.';
+    console.error('Mi día: guardar marcas',e);
+    clearTimeout(_md.timer);_md.timer=setTimeout(_mdGuardar,15000);
+  });
+  return _md.guardando;
+}
+
+// El encargo para pegar en Claude: todo lo que hace falta para empezar sin preguntar.
+function _mdEncargo(id){
+  var d=_md.dia||{},it=null,tipo='';
+  (d.alarmas||[]).forEach(function(a){if(a.id===id){it=a;tipo='Alarma (que no se pase)';}});
+  (d.decidir||[]).forEach(function(a){if(a.id===id){it=a;tipo='Decisión pendiente';}});
+  if(d.crecer&&(d.crecer.id||'crecer')===id){it=d.crecer;tipo='Mejora para crecer';}
+  if(!it)return'';
+  var l=['Encargo desde «Mi día» de la Gestión — '+(d.fecha||_md.fecha),'',
+    'Pendiente '+id+' · '+tipo,'Qué: '+(it.titulo||'')];
+  if(it.area)l.push('Área: '+it.area);
+  if(it.vence)l.push('Vence: '+it.vence+(it.dias!=null?' ('+_mdDias(it.dias)+')':''));
+  if(it.monto!=null)l.push('Monto: '+_mdPlata(it.monto));
+  if(it.porque)l.push('Por qué: '+it.porque);
+  if(it.evidencia)l.push('Evidencia: '+it.evidencia);
+  if(it.espera_dias!=null)l.push('Lleva '+it.espera_dias+' días esperando.');
+  l.push('','Contexto: fila '+id+' de G:\\Mi unidad\\Casa Zaru\\Cerebro\\pendientes.csv y la bitácora de esa carpeta.',
+    'Listo es: dejarlo resuelto y verificado en la fuente, o decirme exactamente qué paso me toca a mí. Al terminar, marcarlo hecho en pendientes.csv con la evidencia.',
+    'Reglas de siempre: Supabase, SII, Wasabil y Shopify en solo lectura; nada de pagar, emitir ni mandar mensajes sin mi ok.');
+  return l.join('\n');
+}
+function _mdCopiar(txt){
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(txt).then(function(){return true;},function(){return _mdCopiarViejo(txt);});}catch(e){}
+  return Promise.resolve(_mdCopiarViejo(txt));
+}
+function _mdCopiarViejo(txt){
+  try{var ta=document.createElement('textarea');ta.value=txt;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();var ok=document.execCommand('copy');document.body.removeChild(ta);return ok;}catch(e){return false;}
+}
+
+function _mdEventos(){
+  if(_md.eventos)return;_md.eventos=true;
+  var app=document.getElementById('md-app');
+  app.addEventListener('change',function(ev){
+    var t=ev.target,id=t.dataset&&t.dataset.hecho;if(!id)return;
+    var on=t.checked;
+    _mdCambio(function(m){if(on)m.hechos[id]=true;else delete m.hechos[id];});
+    renderMiDia();
+  });
+  app.addEventListener('input',function(ev){
+    if(ev.target.id!=='md-notas')return;
+    var v=ev.target.value;
+    _mdCambio(function(m){m.notas=v;});
+  });
+  app.addEventListener('click',function(ev){
+    var b=ev.target.closest('button');if(!b)return;
+    if(b.dataset.dec){
+      var id=b.dataset.dec,op=b.dataset.op,quitar=_md.marcas.decisiones[id]===op;
+      _mdCambio(function(m){if(quitar)delete m.decisiones[id];else m.decisiones[id]=op;});
+      renderMiDia();
+    }else if(b.dataset.copiar){
+      var el=document.getElementById(b.dataset.copiar);
+      _mdCopiar(el?el.textContent:'').then(function(ok){b.textContent=ok?'Copiado':'No se pudo copiar';setTimeout(function(){b.textContent='Copiar mensaje';},1500);});
+    }else if(b.dataset.claude){
+      var cid=b.dataset.claude,txt=_mdEncargo(cid);if(!txt)return;
+      _mdCopiar(txt).then(function(ok){
+        if(!ok){_mdToast('No se pudo copiar el encargo. Vuelve a intentarlo.');return;}
+        var ahora=new Date().toISOString();
+        _mdCambio(function(m){m.encargos[cid]=ahora;});
+        renderMiDia();
+        _mdToast('<b>Encargo copiado.</b> Pégalo en Claude (la app o claude.ai/code). Queda marcado «en manos de Claude» y mañana a las 07:30 se revisa.');
+      });
+    }else if(b.dataset.encQuitar){
+      var qid=b.dataset.encQuitar;
+      if(!confirm('¿Quitar el encargo a Claude de este pendiente?'))return;
+      _mdCambio(function(m){delete m.encargos[qid];});
+      renderMiDia();
+    }
+  });
+}
+
+async function loadMiDia(){
+  if(usuarioRol!=='admin'||_md.cargando)return;
+  _md.cargando=true;_mdEventos();
+  if(!_md.dia){document.getElementById('md-foco').textContent='Cargando lo de hoy…';}
+  try{
+    if(_md.ops.length)await _mdGuardar();   // primero subir lo pendiente, después leer
+    var dias=await sbGet('cerebro_dias','select=fecha,data&order=fecha.desc&limit=1');
+    if(!dias.length){
+      _md.dia=null;renderMiDia();document.getElementById('md-foco').textContent='';
+      _mdEstado('Todavía no hay ningún día armado. Se arma de lunes a sábado a las 07:30, o con /tu-dia en Claude Code.');
+      return;
+    }
+    var f=dias[0].fecha,dia=dias[0].data||{};if(!dia.fecha)dia.fecha=f;
+    var mar=await sbGet('cerebro_marcas','select=data&fecha=eq.'+f);
+    _md.fecha=f;_md.dia=dia;
+    if(!_md.ops.length)_md.marcas=_mdNorm(mar[0]&&mar[0].data);
+    var hoy=new Date();var hoyTxt=hoy.getFullYear()+'-'+String(hoy.getMonth()+1).padStart(2,'0')+'-'+String(hoy.getDate()).padStart(2,'0');
+    _mdEstado(f<hoyTxt?('Este es el último día armado ('+_mdFechaLarga(f)+'). El de hoy todavía no llega: se arma a las 07:30.'):'');
+    renderMiDia();
+  }catch(e){
+    console.error('Mi día: cargar',e);
+    var m=String(e&&e.message||e);
+    if(/cerebro_(dias|marcas)/.test(m)&&/404|PGRST205|does not exist|schema cache/.test(m)){
+      _mdEstado('Falta aplicar la migración 0030 (cerebro_dias y cerebro_marcas) en el SQL Editor de la Gestión.');
+    }else _mdEstado('No se pudo leer el día. Revisa la conexión y vuelve a abrir la pestaña.');
+    if(!_md.dia)document.getElementById('md-foco').textContent='';
+  }finally{_md.cargando=false;}
+}
+
 // ── Precisión numérica ────────────────────────────────────────────────────
 // Las cantidades son SIEMPRE decimales. Nunca parseInt, nunca Math.round:
 // media pulgada de Coihue son $14.000 y hay ítems del catálogo que se
@@ -34905,17 +35263,24 @@ async function loadClientesSeguro(){
   }catch(e){console.error('clientes',e);finRecords=[];}
 }
 async function initAllModules(){
-  await loadProd();
-  // Fuera del if de rol a propósito: los tres roles ven el historial de
-  // documentos del cliente. Es lo único de facturación que un vendedor puede
-  // leer, y la política de la tabla (es_usuario) lo permite explícitamente.
-  await loadDocumentos();
+  // La barra de abajo depende solo de los permisos (ya cargados): se arma al
+  // tiro y no espera a los datos. Antes salía al final y en el celular tardaba
+  // varios segundos en aparecer (11-11-2026). Se vuelve a armar al final igual.
+  armarNavMovil();
+  // Las cargas son independientes entre sí (cada una llena su propio arreglo y
+  // los render van al final), así que corren en paralelo en vez de una tras otra.
+  var cargas=[loadProd(),
+    // Fuera del if de rol a propósito: los tres roles ven el historial de
+    // documentos del cliente. Es lo único de facturación que un vendedor puede
+    // leer, y la política de la tabla (es_usuario) lo permite explícitamente.
+    loadDocumentos()];
   // Cuentas empresa: admin y vendedor las necesitan antes de cargar una venta
   // (el aviso por RUT en Producción y Finanzas sale de acá).
-  if(usuarioRol!=='taller')await loadEmpresas();
-  if(usuarioRol==='admin'){await loadFin();await loadPixel();await loadCost();await loadGastos();}
-  else if(usuarioRol==='taller'){await loadGastos();}
+  if(usuarioRol!=='taller')cargas.push(loadEmpresas());
+  if(usuarioRol==='admin'){cargas.push(loadFin(),loadPixel(),loadCost(),loadGastos());await Promise.all(cargas);}
+  else if(usuarioRol==='taller'){cargas.push(loadGastos());await Promise.all(cargas);}
   else{
+    await Promise.all(cargas);
     document.body.classList.add('rol-vendedor');
     // Finanzas en SOLO LECTURA para el vendedor (13-10-2026): ve los pagos
     // pendientes de sus clientes, sin poder cambiar nada. Lo decide el servidor:
