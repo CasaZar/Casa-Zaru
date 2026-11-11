@@ -17,7 +17,7 @@ Todo lo que tiene datos vive en Drive (`Cerebro\`) o en la base privada de la p�
 
 | Qué | Dónde |
 |---|---|
-| Dónde se ve | Gestión → pestaña **«Mi día»** (solo admin). Tablas `cerebro_dias` y `cerebro_marcas` del proyecto Gestión (migración 0030). Respaldo: el artifact de `config.json` → `artifact_url` |
+| Dónde se ve | Gestión → pestaña **«Mi día»** (solo admin). Tablas `cerebro_dias` y `cerebro_marcas` del proyecto Gestión (migración 0030). La página aparte (artifact) se dio de baja el 11-11 |
 | Inventario | `Cerebro\pendientes.csv`, `areas.csv`, `calendario.csv` |
 | Días armados (respaldo) | `Cerebro\dias\<fecha>.json` |
 | Bitácora y cierres | `Cerebro\bitacora.md`, `Cerebro\cierres.txt`, `Cerebro\respaldos\` |
@@ -43,8 +43,8 @@ scratchpad.
   sesión. La corrida de las 07:30 **no los ejecuta** (nada de trabajo pagado por su cuenta): los lista en el
   resumen y, si el pendiente sigue abierto en `pendientes.csv` y lleva más de 2 días encargado, lo dice.
 
-Mientras la 0030 o la función no estén funcionando, se publica como antes en el artifact (ArtifactData,
-`estado/actual`, `dias/<fecha>`, `marcas/<fecha>`, con `if_version`).
+Si la función falla, el JSON igual queda en `Cerebro\dias\` y se dice en el resumen. **No hay respaldo en otra
+página**: el artifact de antes se dio de baja el 11-11-2026.
 
 ## Procedimiento
 
@@ -80,7 +80,7 @@ Mientras la 0030 o la función no estén funcionando, se publica como antes en e
    que es lo que el cierre de mañana usa para sumar saltos.
 7. **Publicar.** `publicar-dia.ps1 -Dia "G:/Mi unidad/Casa Zaru/Cerebro/dias/<hoy>.json"` → tiene que decir
    `OK 200`. Confirmar con el MCP: `select fecha, updated_at from public.cerebro_dias order by fecha desc limit 1`.
-   Si dice `SIN_TOKEN` o `ERROR`, publicar en el artifact (respaldo) y decirlo en el resumen.
+   Si dice `SIN_TOKEN` o `ERROR`, no publicar en otro lado: decirlo en el resumen (el día queda en Drive).
 8. **Resumen** en el chat (corto, en español): lo que vence hoy y mañana, la cifra rara, cuántos se
    cerraron ayer, fuentes que fallaron, los encargos «en manos de Claude» y que se ve en Gestión → «Mi día».
 
