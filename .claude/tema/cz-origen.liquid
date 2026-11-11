@@ -46,7 +46,9 @@
       if (!a || !a.href) return;
       var u;
       try { u = new URL(a.href, location.href); } catch (e) { return; }
-      if (u.hostname !== HOST) return;
+      // Desde el 11-11 los botones van a www.casazaru.cl/cotizador (redirección de Shopify que pasa los parámetros).
+      var tienda = (u.hostname === 'www.casazaru.cl' || u.hostname === 'casazaru.cl') && /^\/cotizador\/?$/.test(u.pathname);
+      if (u.hostname !== HOST && !tienda) return;
       var g = origen(), cambio = false;
       LLAVES.forEach(function (k) {
         if (g[k] && !u.searchParams.has(k)) { u.searchParams.set(k, g[k]); cambio = true; }
@@ -55,7 +57,7 @@
     }
 
     function marcarTodos() {
-      document.querySelectorAll('a[href*="' + HOST + '"]').forEach(marcar);
+      document.querySelectorAll('a[href*="cotizador"]').forEach(marcar);
     }
 
     // Al hacer clic (también links que el tema dibuja después de cargar).
