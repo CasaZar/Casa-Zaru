@@ -26450,6 +26450,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <div class="sync-row"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Conectando...</span></div>
     <div class="sb-rol" id="sb-rol"></div>
     <button class="sb-export" type="button" onclick="exportTodoXLSX()">Exportar todo a Excel</button>
+    <button class="sb-export" id="sb-tudia" type="button" style="display:none" onclick="abrirTuDia()">Tu día (Cerebro Zaru)</button>
     <div class="sb-version">v2.8 · 6 nov 2026</div>
   </div>
 </div>
@@ -27756,8 +27757,13 @@ var _IC_LINEA={
   mas:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>',
   buscar:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
   excel:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
-  salir:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>'
+  salir:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>',
+  dia:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4M9 15l2 2 4-4"/></svg>'
 };
+// «Tu día» (Cerebro Zaru) vive en una página privada de claude.ai: el link no lleva datos y solo abre
+// con la cuenta del dueño. Aquí solo hay un acceso directo, visible para admin (cosmético; 11-11-2026).
+var TU_DIA_URL='https://claude.ai/artifact/S8WBWpNSw8atMA789xv3kj';
+function abrirTuDia(){window.open(TU_DIA_URL,'_blank','noopener');}
 var ROL_TXT={admin:'Sesión de administrador',vendedor:'Sesión de vendedor',taller:'Sesión de taller'};
 function _esMovil(){return window.matchMedia('(max-width:768px)').matches;}
 function _tabDe(p){return document.querySelector('.nav-tabs .nav-tab[onclick*="showPage(\''+p+'\'"]');}
@@ -27779,6 +27785,7 @@ function armarNavMovil(){
   }
   var rol=document.getElementById('sb-rol');
   if(rol){rol.textContent=ROL_TXT[usuarioRol]||'';rol.title=usuarioEmail||'';}
+  var td=document.getElementById('sb-tudia');if(td)td.style.display=usuarioRol==='admin'?'':'none';
   // Aunque no sobren secciones, "Más" queda: ahí están buscar, Excel y salir.
   window._navExtra=extra;
   actualizarNavMovil();
@@ -27799,7 +27806,8 @@ function abrirMasMovil(){
       '<span class="m-mas-ic">'+(ic?ic.innerHTML:'')+'</span>'+esc(_textoTab(b))+'</button>';
   }).join('');
   var ver=document.querySelector('.sb-version');
-  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+filas+(filas?'<div class="m-mas-sep"></div>':'')+
+  var tuDia=usuarioRol==='admin'?'<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirTuDia()"><span class="m-mas-ic">'+_IC_LINEA.dia+'</span>Tu día</button><div class="m-mas-sep"></div>':'';
+  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+tuDia+filas+(filas?'<div class="m-mas-sep"></div>':'')+
     '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirBusquedaMovil()"><span class="m-mas-ic">'+_IC_LINEA.buscar+'</span>Buscar en todo</button>'+
     '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();exportTodoXLSX()"><span class="m-mas-ic">'+_IC_LINEA.excel+'</span>Exportar todo a Excel</button>'+
     '<button type="button" class="m-mas-fila salir" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()"><span class="m-mas-ic">'+_IC_LINEA.salir+'</span>Cerrar sesión</button>'+
