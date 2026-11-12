@@ -66,8 +66,28 @@ foreach ($a in $areas) {
   $atraso = if ($ult) { [int]($hoy - $ult).TotalDays - $cd } else { $null }
   $estado = 'verde'
   if ($venc -gt 0 -or ($null -ne $atraso -and $atraso -gt $cd)) { $estado = 'rojo' }
-  elseif ($pronto -gt 0 -or $null -eq $atraso -or $atraso -gt 0) { $estado = 'amarillo' }
-  $semaforo += [pscustomobject]@{ area=$a.area; nombre=$a.nombre; estado=$estado; abiertos=$mios.Count; vencidos=$venc; vencen_3d=$pronto; cadencia=$a.cadencia; ultima=$a.ultima_revision; atraso_revision=$atraso }
+  elseif ($pronto -gt 0 -or ($mios.Count -gt 0 -and $null -eq $atraso) -or $atraso -gt 0) { $estado = 'amarillo' }
+  elseif ($mios.Count -eq 0 -and $null -eq $atraso) { $estado = 'gris' }   # sin pendientes y nunca revisada
+  # Los 3 próximos del área: primero los que tienen fecha (los más cercanos), después el resto por id.
+  $prox = @($mios | Sort-Object @{e={ $v = D $_.vence; if ($v) { 0 } else { 1 } }}, @{e={ $v = D $_.vence; if ($v) { $v } else { [datetime]::MaxValue } }}, id | Select-Object -First 3 | ForEach-Object {
+    $v = D $_.vence
+    [pscustomobject]@{ id=$_.id; titulo=$_.titulo; vence=$_.vence; dias=$(if ($v) { [int][math]::Floor(($v - $hoy).TotalDays) } else { $null }) }
+  })
+  $semaforo += [pscustomobject]@{ grupo=$a.grupo; area=$a.area; nombre=$a.nombre; estado=$estado; abiertos=$mios.Count; vencidos=$venc; vencen_3d=$pronto; cadencia=$a.cadencia; ultima=$a.ultima_revision; atraso_revision=$atraso; prox=$prox }
+}
+
+# ---------- Grupos (Vender, Marketing, Hacer, Plata, La base): el peor color de sus áreas ----------
+$gruposDef = @(@('vender','Vender'), @('marketing','Marketing'), @('hacer','Hacer'), @('plata','Plata'), @('base','La base'))
+$peso = @{ 'rojo'=3; 'amarillo'=2; 'verde'=1; 'gris'=0 }
+$grupos = @()
+foreach ($g in $gruposDef) {
+  $suyas = @($semaforo | Where-Object { $_.grupo -eq $g[0] })
+  if (-not $suyas.Count) { continue }
+  $peor = ($suyas | Sort-Object @{e={ $peso[$_.estado] }} -Descending | Select-Object -First 1).estado
+  $proxV = @($suyas | ForEach-Object { $_.prox } | Where-Object { $null -ne $_.dias -and $_.dias -ge 0 } | Sort-Object dias | Select-Object -First 1)
+  $grupos += [pscustomobject]@{ grupo=$g[0]; nombre=$g[1]; estado=$peor;
+    abiertos=($suyas | Measure-Object abiertos -Sum).Sum; vencidos=($suyas | Measure-Object vencidos -Sum).Sum;
+    areas=$suyas.Count; proximo=$(if ($proxV.Count) { $proxV[0].vence } else { $null }) }
 }
 
 # ---------- Calendario: próxima fecha según la regla ----------
@@ -187,6 +207,7 @@ $out = [pscustomobject]@{
   calculado = (Get-Date).ToString('o')
   alarmas = $alarmas
   areas = $semaforo
+  grupos = $grupos
   fijo = $fijo
   deudas = [pscustomobject]@{ total=[math]::Round($total); vence_30d=[math]::Round($v30); deudas_sin_saldo=$sinSaldo; items=$deudas }
   candidatos_decidir = $cand

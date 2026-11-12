@@ -41,6 +41,7 @@ $dia = [pscustomobject]@{
   crecer = $n.crecer
   deudas = $c.deudas
   areas = $c.areas
+  grupos = $c.grupos
   fijo = $c.fijo
   salud = $c.salud
   fuentes = $fuentes

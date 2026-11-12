@@ -1312,6 +1312,23 @@ tr.fin-no-venta:hover td { opacity:1; }
 #page-midia .md-msg{font-size:.86rem;white-space:pre-wrap;background:var(--md-card);border:1px dashed var(--md-line);border-radius:8px;padding:8px;overflow-wrap:anywhere}
 #page-midia .md-semaforo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 @media (min-width:560px){#page-midia .md-semaforo{grid-template-columns:repeat(4,minmax(0,1fr))}}
+#page-midia .md-grupos{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+#page-midia button.md-g{background:var(--md-bg);border:2px solid transparent;border-radius:10px;padding:8px 2px;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0}
+#page-midia button.md-g.md-sel{border-color:var(--md-verde);background:var(--md-verde-soft);color:var(--md-ink)}
+#page-midia .md-gn{font-size:.62rem;letter-spacing:-.01em;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#page-midia .md-gc{font-size:.66rem;color:var(--md-muted)}
+#page-midia .md-grupo{border:1px solid var(--md-line);border-radius:12px;overflow:hidden}
+#page-midia button.md-gh{width:100%;display:flex;align-items:center;gap:10px;padding:12px;border:0;border-radius:0;background:var(--md-card);text-align:left;font-size:.95rem}
+#page-midia .md-gt{font-weight:600}
+#page-midia .md-gs{flex:1;font-size:.74rem;color:var(--md-muted);text-align:right;min-width:0}
+#page-midia .md-chev{width:16px;height:16px;flex:none;stroke:var(--md-muted);fill:none;stroke-width:2}
+#page-midia .md-gareas{background:var(--md-bg);padding:8px;display:flex;flex-direction:column;gap:6px}
+#page-midia .md-ar{background:var(--md-card);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+#page-midia .md-arh{display:flex;align-items:center;gap:8px}
+#page-midia .md-arh .md-n{flex:1;font-weight:500;font-size:.9rem}
+#page-midia .md-pend{font-size:.8rem;color:var(--md-muted);padding-left:12px;border-left:2px solid var(--md-line);margin-left:4px;overflow-wrap:anywhere}
+#page-midia .md-pend b{color:var(--md-ink);font-weight:500}
+#page-midia .md-plegadas{font-size:.8rem;color:var(--md-verde);font-weight:500;padding:4px 2px}
 #page-midia .md-area{padding:10px;border-radius:10px;background:var(--md-bg);display:flex;flex-direction:column;gap:4px;min-width:0}
 #page-midia .md-area .md-top{display:flex;align-items:center;gap:6px}
 #page-midia .md-dot{width:10px;height:10px;border-radius:50%;flex:none}
@@ -32993,6 +33010,52 @@ function _mdToast(html){
   t.innerHTML=html;t.hidden=false;clearTimeout(t._tm);t._tm=setTimeout(function(){t.hidden=true;},5000);
 }
 
+function _mdNomArea(dia,k){var a=(dia.areas||[]).filter(function(x){return x.area===k;})[0];return a&&a.nombre?a.nombre:(k||'');}
+function _mdPillArea(a){
+  if(a.vencidos)return'<span class="md-pill md-p-rojo">'+esc(a.vencidos)+(a.vencidos==1?' vencido':' vencidos')+'</span>';
+  return'<span class="md-pill '+(a.estado==='amarillo'?'md-p-ambar':'md-p-neutro')+'">'+esc(a.abiertos)+(a.abiertos==1?' abierto':' abiertos')+'</span>';
+}
+function _mdAreasHtml(dia){
+  var ar=dia.areas||[],gr=dia.grupos||[];
+  if(!gr.length){
+    return'<section>'+_mdHead('areas','Todas las áreas',null)+'<div class="md-semaforo">'+ar.map(function(a){
+      return'<div class="md-area"><div class="md-top"><span class="md-dot md-d-'+esc(a.estado||'gris')+'"></span><span class="md-n">'+esc(a.nombre)+'</span></div>'+
+        '<span class="md-s">'+esc(a.abiertos)+' abiertos'+(a.vencidos?' · '+esc(a.vencidos)+' vencidos':'')+'</span><span class="md-s">'+esc(a.cadencia)+(a.ultima?' · revisada '+esc(a.ultima):'')+'</span></div>';
+    }).join('')+'</div></section>';
+  }
+  // Grupo abierto: el que eligió el dueño en esta sesión; si no, el primero con vencidos; si no, el primero.
+  var abierto=_md.grupo;
+  if(abierto==='-')abierto=null;   // el dueño cerró todos
+  else if(!abierto||!gr.some(function(g){return g.grupo===abierto;})){
+    var conV=gr.filter(function(g){return g.vencidos>0;})[0];abierto=(conV||gr[0]).grupo;
+  }
+  var h='<section>'+_mdHead('areas','Todas las áreas',gr.length+' grupos · '+ar.length+' áreas');
+  h+='<div class="md-grupos">'+gr.map(function(g){
+    return'<button type="button" class="md-g'+(g.grupo===abierto?' md-sel':'')+'" data-grupo="'+esc(g.grupo)+'" aria-pressed="'+(g.grupo===abierto)+'">'+
+      '<span class="md-dot md-d-'+esc(g.estado||'gris')+'"></span><span class="md-gn">'+esc(g.nombre)+'</span><span class="md-gc">'+esc(g.abiertos)+'</span></button>';
+  }).join('')+'</div>';
+  h+=gr.map(function(g){
+    var suyas=ar.filter(function(a){return a.grupo===g.grupo;});
+    var res=esc(g.abiertos)+(g.abiertos==1?' abierto':' abiertos')+(g.vencidos?' · '+esc(g.vencidos)+(g.vencidos==1?' vencido':' vencidos'):(g.proximo?' · próximo '+esc(g.proximo):' · nada vencido'));
+    var abiertoEste=g.grupo===abierto;
+    var cab='<button type="button" class="md-gh" data-grupo="'+esc(g.grupo)+'" aria-expanded="'+abiertoEste+'"><span class="md-dot md-d-'+esc(g.estado||'gris')+'"></span>'+
+      '<span class="md-gt">'+esc(g.nombre)+'</span><span class="md-gs">'+res+'</span><svg class="md-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="'+(abiertoEste?'M6 15l6-6 6 6':'M6 9l6 6 6-6')+'"/></svg></button>';
+    if(!abiertoEste)return'<div class="md-grupo">'+cab+'</div>';
+    var conPend=suyas.filter(function(a){return a.abiertos>0;}),sinPend=suyas.filter(function(a){return!a.abiertos;});
+    var cuerpo=conPend.map(function(a){
+      var pr=(a.prox||[]).map(function(p){
+        var cuando=p.dias==null?'sin fecha':_mdDias(p.dias);
+        return'<div class="md-pend"><b>'+esc(p.titulo)+'</b> · '+esc(cuando)+'</div>';
+      }).join('');
+      var mas=a.abiertos>(a.prox||[]).length?'<div class="md-pend md-s">y '+esc(a.abiertos-(a.prox||[]).length)+' más</div>':'';
+      return'<div class="md-ar"><div class="md-arh"><span class="md-dot md-d-'+esc(a.estado||'gris')+'"></span><span class="md-n">'+esc(a.nombre)+'</span>'+_mdPillArea(a)+'</div>'+pr+mas+'</div>';
+    }).join('');
+    if(sinPend.length)cuerpo+='<div class="md-plegadas">+ '+esc(sinPend.map(function(a){return a.nombre;}).join(', '))+': sin pendientes</div>';
+    return'<div class="md-grupo md-abierto">'+cab+'<div class="md-gareas">'+cuerpo+'</div></div>';
+  }).join('');
+  return h+'</section>';
+}
+
 function renderMiDia(){
   var app=document.getElementById('md-app');if(!app)return;
   var dia=_md.dia;if(!dia){app.innerHTML='';return;}
@@ -33007,7 +33070,7 @@ function renderMiDia(){
   h+='<section>'+_mdHead('alarma','Que no se pase',al.length+' con fecha');
   h+=al.length?'<ul class="md-list">'+al.map(function(a){
     var d=!!M.hechos[a.id];
-    var sub=esc(a.area||'')+(a.monto!=null?' · '+_mdPlata(a.monto):'')+(a.vence?' · '+esc(a.vence):'');
+    var sub=esc(_mdNomArea(dia,a.area))+(a.monto!=null?' · '+_mdPlata(a.monto):'')+(a.vence?' · '+esc(a.vence):'');
     return'<li class="md-item'+(d?' md-done':'')+'">'+_mdChk(a.id)+'<div class="md-txt"><div class="md-t">'+esc(a.titulo)+'</div><div class="md-s">'+sub+'</div>'+
       (d?'':'<div class="md-btns">'+_mdClaude(a.id,false)+'</div>')+'</div>'+_mdPill(a.dias)+'</li>';
   }).join('')+'</ul>':'<p class="md-vacio">Nada vence en los próximos 10 días.</p>';
@@ -33072,12 +33135,8 @@ function renderMiDia(){
     h+='<div class="md-total"><span>Deuda total conocida</span><span>'+_mdPlata(du.total)+'</span></div></details></section>';
   }
 
-  // Áreas
-  var ar=dia.areas||[];
-  h+='<section>'+_mdHead('areas','Todas las áreas',null)+'<div class="md-semaforo">'+ar.map(function(a){
-    return'<div class="md-area"><div class="md-top"><span class="md-dot md-d-'+esc(a.estado||'gris')+'"></span><span class="md-n">'+esc(a.nombre)+'</span></div>'+
-      '<span class="md-s">'+esc(a.abiertos)+' abiertos'+(a.vencidos?' · '+esc(a.vencidos)+' vencidos':'')+'</span><span class="md-s">'+esc(a.cadencia)+(a.ultima?' · revisada '+esc(a.ultima):'')+'</span></div>';
-  }).join('')+'</div></section>';
+  // Áreas: 5 grupos (12-11-2026). Los días armados antes no traen «grupos»: se muestran como antes.
+  h+=_mdAreasHtml(dia);
 
   // Lo fijo del mes
   var fi=dia.fijo||[];
@@ -33175,7 +33234,10 @@ function _mdEventos(){
   });
   app.addEventListener('click',function(ev){
     var b=ev.target.closest('button');if(!b)return;
-    if(b.dataset.dec){
+    if(b.dataset.grupo){
+      _md.grupo=(_md.grupo===b.dataset.grupo&&b.classList.contains('md-gh'))?'-':b.dataset.grupo;  // la cabecera abierta se cierra
+      renderMiDia();
+    }else if(b.dataset.dec){
       var id=b.dataset.dec,op=b.dataset.op,quitar=_md.marcas.decisiones[id]===op;
       _mdCambio(function(m){if(quitar)delete m.decisiones[id];else m.decisiones[id]=op;});
       renderMiDia();
