@@ -1,6 +1,6 @@
 ---
 name: revision-whatsapp
-description: Revisión de los chats de WhatsApp 5558 de Casa Zaru (solo lectura) — pendientes y promesas por responder con el mensaje sugerido, interesados, corpus anonimizado para el futuro bot, frases que cierran, ideas para redes y consejos para el equipo, con PDF en Drive. Actívala cuando el usuario pida "revisa WhatsApp", "revisa los chats", "lo de ayer en WhatsApp", "qué falta responder", "pendientes de WhatsApp", "/revision-whatsapp", o cuando la tarea programada de revisión corra.
+description: Revisión de los chats de WhatsApp 5558 de Casa Zaru (solo lectura) — pendientes y promesas por responder con el mensaje sugerido, interesados, corpus anonimizado para el futuro bot, frases que cierran, ideas para redes, conteos de quién escribe y «10 minutos con César» (auditoría de vendedor senior), publicado en «Mi día» de la Gestión (sin PDF). Actívala cuando el usuario pida "revisa WhatsApp", "revisa los chats", "lo de ayer en WhatsApp", "qué falta responder", "pendientes de WhatsApp", "/revision-whatsapp", o cuando la tarea programada de revisión corra.
 ---
 
 # Revisión de WhatsApp · Casa Zaru (número 5558)
@@ -163,19 +163,35 @@ la revisión; el rato de hoy se cuenta en la revisión siguiente) en `RW\conteos
   hay datos). Si el día ya tiene línea, se reemplaza, no se duplica.
 Solo números: ningún nombre ni teléfono en este archivo. Es solo el 5558 (el 0141 no se revisa).
 
-## 7 · Entregable
-HTML en el scratchpad → PDF de 338 × 190 mm con Edge headless
-(`--headless=new --no-pdf-header-footer --print-to-pdf=...`), copiado a
-`RW\revision-whatsapp-AAAA-MM-DD.pdf` (sufijo `-manana` / `-tarde` si hay dos al día) y
-enviado con SendUserFile:
-1. Lo principal (3 a 5 líneas)
-2. Responder hoy: cliente · qué pasó · mensaje sugerido
-3. Promesas que vencen hoy o mañana
-4. Interesados que se enfrían (5 días o más sin contacto)
-5. 10 minutos con César (sección 6) y los conteos del día (6b)
-6. Tres ideas para redes
-(El usuario pidió el 12-11 tenerlo en línea y no en PDF: cuando exista la vista en el panel,
-este paso pasa a subirse ahí y el PDF se deja de hacer.)
+## 7 · Entregable: sección «WhatsApp» de Mi día (desde el 12-11-2026, YA NO hay PDF)
+El usuario lo quiere en línea y solo para él: va en la Gestión → **Mi día**, que desde la
+migración 0031 lee solo su cuenta dueña (ni hola@ ni César). Nada de PDF ni SendUserFile.
+1. Escribir `RW\mi-dia-whatsapp.json` (reemplaza el anterior; UTF-8 sin BOM):
+   ```json
+   {"revision":"<ISO con -03:00>","cubre":"<texto corto: «miércoles 11-11 completo»>",
+    "conteos":{"dia":"mié 11-11","chats":0,"nuevas":0,"en_conversacion":0,"clientes_pedido":0,
+               "fuera_horario":0,"sin_responder":0,"mediana_espera_min":0},
+    "serie":[{"dia":"29-10","chats":0,"nuevas":0}],
+    "principal":["3 a 5 líneas"],
+    "promesas":[{"titulo":"cliente o pedido","detalle":"qué","cuando":"hoy|mañana|DD-MM|esperando"}],
+    "enfrian":[{"titulo":"…","detalle":"último toque y cuántos van"}],
+    "cesar":{"cifras":[{"v":"1 h 43","l":"espera mediana"}],"repetir":"…",
+             "cambiar":[{"titulo":"…","caso":"…","frase":"«…»"}],"ejercicio":"…"},
+    "ideas":["tres ideas para redes"],"pendientes":0}
+   ```
+   - `conteos` = la línea del día de `RW\conteos-diarios.csv` (6b); `serie` = sus últimos 14 días.
+   - `cesar` = lo de la sección 6, igual que en `coaching-cesar.md`.
+   - `pendientes` = cuántos chats quedaron cargados en el panel (paso 8).
+   - Puede llevar nombres de clientes (Mi día es privado), nunca RUT, teléfonos, direcciones ni
+     datos bancarios. Lo que no se sepa: `null` o fuera, nunca inventado.
+2. Publicar: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/cerebro/publicar-whatsapp.ps1`
+   Lo mete en el día más reciente de `Cerebro\dias\` y lo publica con la misma Edge Function de
+   Mi día (`cerebro-dia`). La corrida de las 07:30 lo vuelve a copiar en el día nuevo
+   (`componer-dia.ps1 -WhatsApp`), así que la sección no se pierde. Si responde `SIN_TOKEN` o
+   `ERROR`, decirlo en el resumen.
+3. Al usuario, en el chat: 3 a 5 líneas (lo principal + qué responder hoy) y «está en Mi día».
+Los «Responder hoy» con su mensaje sugerido siguen yendo al panel del cotizador (paso 8), que es
+donde César los responde.
 Al pie: no leídos antes y después, y archivos actualizados.
 
 ## 8 · Subir los pendientes al panel («WhatsApp al día»)

@@ -1267,6 +1267,18 @@ tr.fin-no-venta:hover td { opacity:1; }
   --md-terra:#B5652E;--md-terra-soft:#F4E6DA;--md-rojo:#B23A2E;--md-rojo-soft:#F6E1DE;--md-ambar:#B98A1E;--md-ambar-soft:#F5ECD5;--md-ok:#3F7A46;--md-ok-soft:#E1EEDF;
   background:var(--md-bg);color:var(--md-ink);font-family:'Poppins',sans-serif;font-size:15px;line-height:1.5;min-height:100vh;padding:20px max(16px,env(safe-area-inset-left,0px)) 110px}
 #page-midia *{box-sizing:border-box}
+#page-midia .md-wa p{margin:0}
+#page-midia .md-wa-bars{display:flex;align-items:flex-end;gap:4px;height:64px}
+#page-midia .md-wa-bars i{flex:1;min-width:0;background:var(--md-verde);opacity:.8;border-radius:3px 3px 0 0}
+#page-midia .md-wa-bars i.md-wa-hoy{background:var(--md-terra);opacity:1}
+#page-midia .md-wa-leg{display:flex;justify-content:space-between;font-size:.7rem;color:var(--md-muted);margin-top:-6px}
+#page-midia ul.md-wa-ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;overflow-wrap:anywhere}
+#page-midia .md-wa-cesar{border:1px solid var(--md-verde);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+#page-midia .md-wa-cifras{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+#page-midia .md-wa-cifras div{background:var(--md-bg);border-radius:8px;padding:8px;font-size:.72rem;color:var(--md-muted);min-width:0}
+#page-midia .md-wa-cifras b{display:block;font-size:1.05rem;color:var(--md-verde)}
+#page-midia .md-wa-h{font-size:.74rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--md-terra)}
+#page-midia .md-wa-frase{background:var(--md-bg);border-left:3px solid var(--md-verde);border-radius:6px;padding:8px 10px;font-size:.88rem;overflow-wrap:anywhere}
 #page-midia .md-wrap{max-width:680px;width:100%;min-width:0;margin:0 auto;display:flex;flex-direction:column;gap:18px}
 #page-midia h1,#page-midia h2{font-family:'Playfair Display',Georgia,serif;font-weight:700;margin:0}
 #page-midia h1{font-size:1.9rem;line-height:1.15}
@@ -28012,7 +28024,7 @@ window.addEventListener('unhandledrejection',function(ev){
   registrarErrorCliente('Promesa rechazada: '+((r&&r.message)||String(r)),r&&r.stack,null);
 });
 var sesion=null; try{sesion=JSON.parse(localStorage.getItem(SESION_KEY)||'null');}catch(e){sesion=null;}
-var usuarioEmail='',usuarioRol='';
+var usuarioEmail='',usuarioRol='',usuarioDueno=false;
 // Solo las colecciones {num, data jsonb} que habla api(). El módulo de gastos
 // NO está acá: sus siete tablas son relacionales, con id numérico y llaves
 // foráneas, y se hablan por PostgREST directo (ver sbGet/sbInsert más abajo).
@@ -28233,6 +28245,13 @@ async function cargarPermisos(){
   var r=await sbJson(SB_URL+'/rest/v1/gestion_usuarios?select=rol,nombre&email=eq.'+encodeURIComponent(usuarioEmail));
   usuarioRol=(r&&r.length)?r[0].rol:'';
   if(!usuarioRol)throw new Error('Tu cuenta no tiene acceso asignado. Pedile al administrador que te habilite.');
+  // «Mi día» es solo de la cuenta dueña (0031). Consulta aparte: si la columna todavía
+  // no existe, el login sigue funcionando y Mi día queda oculto.
+  usuarioDueno=false;
+  if(usuarioRol==='admin'){
+    try{var dd=await sbJson(SB_URL+'/rest/v1/gestion_usuarios?select=dueno&email=eq.'+encodeURIComponent(usuarioEmail));usuarioDueno=!!(dd&&dd[0]&&dd[0].dueno);}
+    catch(e){usuarioDueno=false;}
+  }
   aplicarPermisos();
 }
 // Oculta lo que el usuario no puede usar. Es solo cosmético: la protección real
@@ -28241,7 +28260,13 @@ var SECCIONES_ADMIN=['fin','cost','pixel','gastos','madera','midia'];
 // El taller entra a Gastos, pero solo a la bodega: recibe la mercadería y
 // hace la toma física. No ve facturas, ni el libro mayor, ni precios de venta.
 function aplicarPermisos(){
-  if(usuarioRol==='admin')return;
+  if(usuarioRol==='admin'){
+    if(!usuarioDueno){
+      document.querySelectorAll('[onclick*="showPage(\'midia\'"]').forEach(function(b){b.style.display='none';});
+      var md=document.getElementById('page-midia');if(md)md.classList.remove('active');
+    }
+    return;
+  }
   if(usuarioRol==='taller'){
     document.body.classList.add('rol-taller');
     // Al taller se le esconde todo lo que NO sea suyo, en vez de solo lo de admin.
@@ -32985,6 +33010,8 @@ var _MD_IC={
   areas:'<rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5"/>',
   fijo:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
   cierre:'<path d="M4 12.5 9 17.5 20 6.5"/>',
+  whatsapp:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
+  cesar:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0M12 14v3"/>',
   claude:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>'
 };
 function _mdVacias(){return{hechos:{},decisiones:{},notas:'',encargos:{}};}
@@ -33056,6 +33083,53 @@ function _mdAreasHtml(dia){
   return h+'</section>';
 }
 
+// Sección «WhatsApp» de Mi día: la última revisión del 5558 (skill revision-whatsapp →
+// publicar-whatsapp.ps1). Solo se muestra lo que trae el JSON; todo número viene calculado.
+function _mdMin(m){if(m==null||m==='')return'sin dato';var n=Math.round(Number(m));if(!isFinite(n))return'sin dato';var h=Math.floor(n/60),r=n%60;return h?(h+' h '+String(r).padStart(2,'0')):(r+' min');}
+function _mdNum(v){return v==null||v===''?'—':esc(v);}
+function _mdWhatsappHtml(w){
+  if(!w)return'';
+  var h='<section class="md-wa">'+_mdHead('whatsapp','WhatsApp',w.cubre?esc(w.cubre):null);
+  if(w.revision)h+='<p class="md-meta" style="margin:0">Revisión del '+esc(new Date(w.revision).toLocaleString('es-CL',{weekday:'long',day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}))+'</p>';
+  var c=w.conteos;
+  if(c){
+    h+='<div class="md-eyebrow">Cuánta gente escribió'+(c.dia?' · '+esc(c.dia):'')+'</div><div class="md-grid6">'+
+      [['chats','escribieron'],['nuevas','personas nuevas'],['en_conversacion','ya venían conversando'],['clientes_pedido','clientes con pedido']].map(function(k){
+        return'<div class="md-kpi"><span class="md-l">'+k[1]+'</span><span class="md-v">'+_mdNum(c[k[0]])+'</span></div>';
+      }).join('')+'</div>';
+    var serie=w.serie||[];
+    if(serie.length>1){
+      var mx=Math.max.apply(null,serie.map(function(s){return Number(s.chats)||0;}))||1;
+      h+='<div class="md-wa-bars" aria-label="Chats por día">'+serie.map(function(s,i){
+        var alto=Math.max(4,Math.round((Number(s.chats)||0)*100/mx));
+        return'<i class="'+(i===serie.length-1?'md-wa-hoy':'')+'" style="height:'+alto+'%" title="'+esc(s.dia)+': '+esc(s.chats)+' chats, '+esc(s.nuevas==null?'—':s.nuevas)+' nuevas"></i>';
+      }).join('')+'</div><div class="md-wa-leg"><span>'+esc(serie[0].dia)+'</span><span>'+esc(serie[serie.length-1].dia)+'</span></div>';
+    }
+    h+='<p class="md-meta" style="margin:0">Respuesta: mediana '+_mdMin(c.mediana_espera_min)+' en horario · '+_mdNum(c.fuera_horario)+' escribieron fuera de horario · '+_mdNum(c.sin_responder)+' quedaron sin respuesta. Solo el 5558.</p>';
+  }
+  if((w.principal||[]).length)h+='<div class="md-eyebrow">Lo principal</div><ul class="md-wa-ul">'+w.principal.map(function(x){return'<li>'+esc(x)+'</li>';}).join('')+'</ul>';
+  if((w.promesas||[]).length)h+='<div class="md-eyebrow">Promesas que vencen</div><ul class="md-list">'+w.promesas.map(function(x){
+    return'<li class="md-item"><div class="md-txt"><div class="md-t">'+esc(x.titulo)+'</div>'+(x.detalle?'<div class="md-s">'+esc(x.detalle)+'</div>':'')+'</div>'+(x.cuando?'<span class="md-pill '+(/hoy|vencid/i.test(x.cuando)?'md-p-rojo':'md-p-ambar')+'">'+esc(x.cuando)+'</span>':'')+'</li>';
+  }).join('')+'</ul>';
+  if((w.enfrian||[]).length)h+='<div class="md-eyebrow">Se enfrían</div><ul class="md-list">'+w.enfrian.map(function(x){
+    return'<li class="md-item"><div class="md-txt"><div class="md-t">'+esc(x.titulo)+'</div>'+(x.detalle?'<div class="md-s">'+esc(x.detalle)+'</div>':'')+'</div></li>';
+  }).join('')+'</ul>';
+  var ce=w.cesar;
+  if(ce){
+    h+='<div class="md-wa-cesar"><div class="md-sec-head"><div class="md-left">'+_mdIco('cesar')+'<h2>10 minutos con César</h2></div><span class="md-min">solo tú</span></div>';
+    if((ce.cifras||[]).length)h+='<div class="md-wa-cifras">'+ce.cifras.map(function(k){return'<div><b>'+esc(k.v)+'</b>'+esc(k.l)+'</div>';}).join('')+'</div>';
+    if(ce.repetir)h+='<div class="md-wa-h">Repetir</div><p>'+esc(ce.repetir)+'</p>';
+    (ce.cambiar||[]).forEach(function(x){
+      h+='<div class="md-wa-h">Cambiar · '+esc(x.titulo)+'</div>'+(x.caso?'<p>'+esc(x.caso)+'</p>':'')+(x.frase?'<div class="md-wa-frase">'+esc(x.frase)+'</div>':'');
+    });
+    if(ce.ejercicio)h+='<div class="md-wa-h">Ejercicio de hoy · 2 min</div><p>'+esc(ce.ejercicio)+'</p>';
+    h+='</div>';
+  }
+  if((w.ideas||[]).length)h+='<div class="md-eyebrow">Ideas para redes</div><ul class="md-wa-ul">'+w.ideas.map(function(x){return'<li>'+esc(x)+'</li>';}).join('')+'</ul>';
+  if(w.pendientes!=null)h+='<p class="md-meta" style="margin:0">'+esc(w.pendientes)+' chats por responder en el panel del cotizador (WhatsApp al día).</p>';
+  return h+'</section>';
+}
+
 function renderMiDia(){
   var app=document.getElementById('md-app');if(!app)return;
   var dia=_md.dia;if(!dia){app.innerHTML='';return;}
@@ -33085,6 +33159,9 @@ function renderMiDia(){
   }).join('')+'</div>';
   if(p.raro)h+='<div class="md-raro"><strong>Lo raro de hoy.</strong> '+esc(p.raro)+'</div>';
   h+='</section>';
+
+  // WhatsApp (revisión del 5558, desde 12-11-2026). Los días armados antes no la traen.
+  h+=_mdWhatsappHtml(dia.whatsapp);
 
   // Decidir
   var de=dia.decidir||[];
@@ -33263,7 +33340,7 @@ function _mdEventos(){
 }
 
 async function loadMiDia(){
-  if(usuarioRol!=='admin'||_md.cargando)return;
+  if(usuarioRol!=='admin'||!usuarioDueno||_md.cargando)return;
   _md.cargando=true;_mdEventos();
   if(!_md.dia){document.getElementById('md-foco').textContent='Cargando lo de hoy…';}
   try{

@@ -7,7 +7,9 @@ param(
   [Parameter(Mandatory=$true)][string]$Calc,
   [Parameter(Mandatory=$true)][string]$Narrativa,
   [Parameter(Mandatory=$true)][string]$Salida,
-  [int]$MaxAlarmas = 12
+  [int]$MaxAlarmas = 12,
+  # Última revisión de WhatsApp (skill revision-whatsapp, desde 12-11-2026): se copia tal cual en la sección «WhatsApp».
+  [string]$WhatsApp = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\mi-dia-whatsapp.json'
 )
 $ErrorActionPreference = 'Stop'
 $c = Get-Content -LiteralPath $Calc -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -44,6 +46,7 @@ $dia = [pscustomobject]@{
   grupos = $c.grupos
   fijo = $c.fijo
   salud = $c.salud
+  whatsapp = $(if ($WhatsApp -and (Test-Path -LiteralPath $WhatsApp)) { Get-Content -LiteralPath $WhatsApp -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null })
   fuentes = $fuentes
   mostrados = @($mostrados | Select-Object -Unique)
 }
