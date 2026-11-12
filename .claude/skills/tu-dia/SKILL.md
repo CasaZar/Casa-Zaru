@@ -19,6 +19,7 @@ Todo lo que tiene datos vive en Drive (`Cerebro\`) o en la base privada de la p�
 |---|---|
 | Dónde se ve | Gestión → pestaña **«Mi día»** (solo admin). Tablas `cerebro_dias` y `cerebro_marcas` del proyecto Gestión (migración 0030). La página aparte (artifact) se dio de baja el 11-11 |
 | Inventario | `Cerebro\pendientes.csv`, `areas.csv`, `calendario.csv` |
+| Áreas | 27 áreas en 5 grupos (`areas.csv` → columna `grupo`: vender, marketing, hacer, plata, base). Todo pendiente nuevo lleva un `area` que exista ahí; si no calza ninguna, preguntar antes de inventar una |
 | Días armados (respaldo) | `Cerebro\dias\<fecha>.json` |
 | Bitácora y cierres | `Cerebro\bitacora.md`, `Cerebro\cierres.txt`, `Cerebro\respaldos\` |
 | Aprendizajes | `Cerebro\insights.csv` (`fecha,insight,evidencia,confianza`) |
