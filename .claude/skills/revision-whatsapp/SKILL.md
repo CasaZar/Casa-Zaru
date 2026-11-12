@@ -115,8 +115,53 @@ Si una idea también sirve para un correo o un anuncio, agregarla como una líne
 «Candidatos» de `RW\temas-marketing.md` (fecha, idea, evidencia): el lunes se decide si pasa a
 ficha (ver «Los lunes»).
 
-## 6 · Consejos para el equipo
-Máximo 3, con el ejemplo real: qué funcionó (repetirlo) y qué costó (con la frase alternativa).
+## 6 · 10 minutos con César (auditoría de vendedor senior, desde el 12-11-2026)
+Pedido del usuario: auditar las respuestas como un vendedor senior y dejarle a César consejos
+que se lean y practiquen en 10 minutos. Reemplaza los antiguos «consejos para el equipo».
+
+**Qué se audita:** TODAS las respuestas de César del período (no solo las que van al corpus),
+con esta pauta:
+1. **Velocidad:** `espera_habil_min`. Comprobantes de pago y clientes listos para pagar van
+   primero en la cola; un cliente que pagó no espera horas.
+2. **Descubrir antes de cotizar:** uso (interior/terraza/restaurante), medidas, comuna, para
+   cuándo, y lo que el producto exige (mesas: sillas por lado y su ancho; repisas: herraje).
+3. **Respuesta que calza:** la plantilla se adapta a lo que dijo el cliente (si dice terraza, no
+   va el texto de interior). Nada técnico se afirma sin saberlo («sí, soporta»).
+4. **Dato correcto:** plazo 7 a 15 días hábiles + tránsito, precios del cotizador, condiciones
+   de venta. Sin «vender humo».
+5. **Siguiente paso:** cada mensaje termina con UNA pregunta de sí o no o pidiendo el dato que
+   falta (comuna, madera, abono).
+6. **Cierre:** cuando el cliente está listo, pedir el abono con monto y fecha de producción.
+7. **Malas noticias primero:** si una fecha se corre, avisar ese día con la fecha nueva, antes
+   de que el cliente pregunte. Toda promesa lleva día.
+8. **Forma:** se presenta en el primer mensaje, párrafos, sin «al tiro», «madera noble».
+
+**Qué se entrega** (se lee en 10 minutos; tono de colega con experiencia, directo, sin retar):
+- **Lo que repetir (1):** un caso real del período que salió bien y por qué.
+- **Lo que cambiar (2):** caso real → qué costó → la frase mejor, lista para copiar.
+- **Ejercicio de hoy (1):** algo de 2 minutos para practicar en el turno (p. ej. «antes de
+  mandar cada cotización, revisa que termine en una pregunta»).
+- **La cifra:** mediana de `espera_habil_min` del período y cuántas respuestas terminaron con
+  siguiente paso, contra la revisión anterior.
+Sin nombres de clientes (producto y situación). Un consejo no se repite más de 3 revisiones
+seguidas salvo que siga pasando. Se guarda en `RW\coaching-cesar.md` (fecha, puntos, cifra)
+para ver si mejora.
+
+## 6b · Conteos del día (desde el 12-11-2026)
+Para saber cuánta gente escribe. Una línea por **día calendario completo** (el «ayer» que cubre
+la revisión; el rato de hoy se cuenta en la revisión siguiente) en `RW\conteos-diarios.csv`:
+`dia,chats,nuevas,en_conversacion,clientes_pedido,fuera_horario,sin_responder,mediana_espera_min,revision`
+- `chats`: chats de clientes con al menos un mensaje del cliente ese día (sin internos ni
+  proveedores).
+- `nuevas`: de esos, los que escribieron por primera vez (el hilo no tiene nada antes).
+- `en_conversacion`: ya habían escrito antes y no tienen pedido.
+- `clientes_pedido`: con pedido en la Gestión (compró o post venta).
+  (`nuevas + en_conversacion + clientes_pedido = chats`.)
+- `fuera_horario`: cuántos escribieron fuera de L-V 9-18 / sáb 10-14.
+- `sin_responder`: al cierre del día, cuántos tenían lo último dicho por el cliente.
+- `mediana_espera_min`: mediana de `espera_habil_min` de las respuestas de ese día (vacío si no
+  hay datos). Si el día ya tiene línea, se reemplaza, no se duplica.
+Solo números: ningún nombre ni teléfono en este archivo. Es solo el 5558 (el 0141 no se revisa).
 
 ## 7 · Entregable
 HTML en el scratchpad → PDF de 338 × 190 mm con Edge headless
@@ -127,8 +172,10 @@ enviado con SendUserFile:
 2. Responder hoy: cliente · qué pasó · mensaje sugerido
 3. Promesas que vencen hoy o mañana
 4. Interesados que se enfrían (5 días o más sin contacto)
-5. Consejos
+5. 10 minutos con César (sección 6) y los conteos del día (6b)
 6. Tres ideas para redes
+(El usuario pidió el 12-11 tenerlo en línea y no en PDF: cuando exista la vista en el panel,
+este paso pasa a subirse ahí y el PDF se deja de hacer.)
 Al pie: no leídos antes y después, y archivos actualizados.
 
 ## 8 · Subir los pendientes al panel («WhatsApp al día»)
