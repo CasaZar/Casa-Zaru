@@ -30263,7 +30263,18 @@ function _stkPartirDir(dir){
   var s=String(dir||'').trim().replace(/\s+/g,' ');
   var m=s.match(/^(.*?)\s*(?:#|n[°º]\.?|num(?:ero|\.)?)\s*(\d+[A-Za-z]?)\b[\s,]*(.*)$/i)||
         s.match(/^(.*?)[\s,]+(\d+[A-Za-z]?)(?=\s*(?:,|$|dep|dpto|depto|casa|of|oficina|block|torre|piso|lote|parcela))[\s,]*(.*)$/i);
-  return m?{calle:m[1].replace(/[,\s]+$/,''),numero:m[2],depto:m[3].replace(/^[,\s]+/,'')}:{calle:s,numero:'',depto:''};
+  if(m)return{calle:m[1].replace(/[,\s]+$/,''),numero:m[2],depto:m[3].replace(/^[,\s]+/,'')};
+  // «Callejón Kramm sn», «Ruta 5 S/N», «Los Aromos sin número»: dirección sin número.
+  var sn=s.match(/^(.*?)[\s,]+(?:s\s*\/\s*n|sn|sin\s+n[uú]mero|sin\s+n[°º])\.?(?=[\s,]|$)[\s,]*(.*)$/i);
+  if(sn)return{calle:sn[1].replace(/[,\s]+$/,''),numero:'S/N',depto:sn[2].replace(/^[,\s]+/,'')};
+  return{calle:s,numero:'',depto:''};
+}
+// Casilla «Sin número»: deja S/N en el número y lo bloquea; al desmarcarla vuelve lo que había.
+function stkSinNumero(on){
+  var el=document.getElementById('stk-numero');if(!el)return;
+  if(on){if(el.value!=='S/N')el.dataset.prev=el.value;el.value='S/N';el.readOnly=true;}
+  else{el.value=el.dataset.prev||'';el.readOnly=false;el.focus();}
+  stkCambio('stk-numero');
 }
 // Starken guarda el depto en 10 caracteres y corta el resto sin avisar (OF 281309090:
 // «depto D-202» quedó «DEPTO D 20»). Se compacta igual que deptoStarken() en starken-emitir,
@@ -30342,7 +30353,9 @@ function stkPintar(){
     '<div class="form-grid">'+campo('stk-tel','Teléfono',f.celular)+campo('stk-email','Correo',f.email)+'</div>'+
     '<div class="form-grid">'+campo('stk-rut','RUT (opcional)',f.rut)+'<div></div></div>'+
     '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Dirección de entrega</div>'+
-    '<div class="form-grid">'+campo('stk-calle','Calle',dir.calle)+campo('stk-numero','Número',dir.numero)+'</div>'+
+    '<div class="form-grid">'+campo('stk-calle','Calle',dir.calle)+
+      '<div class="form-group"><label>Número</label><input id="stk-numero" type="text" value="'+esc(dir.numero||'')+'"'+(dir.numero==='S/N'?' readonly':'')+' oninput="stkCambio(\'stk-numero\')">'+
+      '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-2);cursor:pointer"><input type="checkbox" id="stk-sn" style="width:auto;margin:0"'+(dir.numero==='S/N'?' checked':'')+' onchange="stkSinNumero(this.checked)">Sin número</label></div></div>'+
     '<div class="form-grid">'+campo('stk-depto','Depto / casa (máx. 10, ej. D-202)',_stkDeptoCorto(dir.depto),'maxlength="10"')+
       '<div class="form-group" style="position:relative"><label>Comuna</label><input id="stk-comuna" type="text" value="'+esc(f.comuna||'')+'" autocomplete="off" oninput="stkBuscarComuna(this.value)" onblur="setTimeout(stkComunaSalir,200)"><div id="stk-com-lista" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border-md);border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.12)"></div></div></div>'+
     '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Bulto</div>'+
