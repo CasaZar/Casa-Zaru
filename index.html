@@ -37598,9 +37598,15 @@ function _celPorEmitir(){
   out.sort(function(a,b){return(b.proc-a.proc)||(Number(b.n)-Number(a.n))||(a.dn-b.dn);});
   return out;
 }
+// Un pedido con el check «comprobante enviado» ya salió aunque en Producción
+// nadie lo haya pasado a Entregado (pasaba con 73 pedidos el 13-11-2026).
+function _celSalio(n){
+  var pe=orders.find(function(x){return String(x.num||'')===String(n);});
+  return !!(pe&&pe.checks&&pe.checks.comprobante);
+}
 function _celListos(){
   return prodOrders.filter(function(o){
-    if((o.estado||'')!=='Listo')return false;
+    if((o.estado||'')!=='Listo'||_celSalio(o.pedido))return false;
     var e=_celEnvio(o.pedido);return!(e&&e.estado==='emitida');
   }).sort(function(a,b){return Number(a.pedido)-Number(b.pedido);});
 }
@@ -37609,7 +37615,8 @@ function _celEnviados(){
   return(CEL.envios||[]).filter(function(e){return e.estado==='emitida'&&new Date(e.created_at).getTime()>=lim;});
 }
 function _celTaller(){
-  return prodOrders.filter(function(o){return(o.estado||'En taller')==='En taller';})
+  // Solo pedidos con N° (las filas viejas de Firebase no tienen) y que no salieron.
+  return prodOrders.filter(function(o){return(o.estado||'En taller')==='En taller'&&/^\d+$/.test(String(o.pedido||''))&&!_celSalio(o.pedido);})
     .sort(function(a,b){return Number(a.pedido)-Number(b.pedido);});
 }
 function celIrTab(t){CEL.tab=t;CEL.ficha=null;celPintar();var b=document.querySelector('#cel .c-body');if(b)b.scrollTop=0;}
