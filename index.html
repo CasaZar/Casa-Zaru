@@ -27916,7 +27916,8 @@ function abrirMasMovil(){
       '<span class="m-mas-ic">'+(ic?ic.innerHTML:'')+'</span>'+esc(_textoTab(b))+'</button>';
   }).join('');
   var ver=document.querySelector('.sb-version');
-  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+filas+(filas?'<div class="m-mas-sep"></div>':'')+
+  var volverCel=(usuarioRol==='admin'&&_celPref()==='off')?'<button type="button" class="m-mas-fila" onclick="celEncender()"><span class="m-mas-ic">'+_IC_LINEA.dia+'</span>Modo celular</button>':'';
+  document.getElementById('m-mas').innerHTML='<div class="m-mas-asa"></div>'+volverCel+filas+(filas?'<div class="m-mas-sep"></div>':'')+
     '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();abrirBusquedaMovil()"><span class="m-mas-ic">'+_IC_LINEA.buscar+'</span>Buscar en todo</button>'+
     '<button type="button" class="m-mas-fila" onclick="cerrarMasMovil();exportTodoXLSX()"><span class="m-mas-ic">'+_IC_LINEA.excel+'</span>Exportar todo a Excel</button>'+
     '<button type="button" class="m-mas-fila salir" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()"><span class="m-mas-ic">'+_IC_LINEA.salir+'</span>Cerrar sesión</button>'+
@@ -30166,6 +30167,7 @@ function renderProdEditorial(list){
   el.innerHTML='<div class="fe">'+html+'</div>';
 }
 function renderProd(){
+  celRefrescar();
   const tbody=document.getElementById('prod-tbody');
   renderMonthBar('prod-month-bar',prodOrders,prodMonthFilter,'setProdMonth',function(o){return mesDeProduccion(o);},'prod');
   renderProdCards();
@@ -30319,7 +30321,7 @@ async function abrirEnvioStarken(numStr){
   stkPintar();
   if(!stk.envio)stkCargarComunas();
 }
-function cerrarEnvioStarken(){document.getElementById('modal-stk-bg').classList.remove('open');}
+function cerrarEnvioStarken(){document.getElementById('modal-stk-bg').classList.remove('open');if(document.body.classList.contains('cel-on'))celCargar();}
 function stkBanner(){
   return stk.modo==='qa'?'<div style="background:#EEF6FF;color:#1E40AF;font-size:12px;font-weight:600;border-radius:8px;padding:7px 10px;margin-bottom:10px">MODO PRUEBA (QA de Starken): no se crea ninguna orden real</div>':'';
 }
@@ -31376,6 +31378,7 @@ async function toggleFinDoc(numStr,docNum,pre){
     if(data&&data.success){
       await _cerrarCandadoDocumento(docRowId,data);
       showToast('✓ '+tipo+' emitida — folio '+(data.folio||'?'));
+      if(guardado)celTrasEmitir(numStr,docNum);   // modo celular: ofrece mandarla
       // Si el documento existe en el SII pero no logramos guardar el estado, hay
       // que decirlo fuerte: es la situación que provoca la doble emisión.
       if(!guardado)alert('⚠ OJO: la '+tipo+' SÍ se emitió (folio '+(data.folio||'?')+') pero NO se pudo guardar el estado.\n\nNO vuelvas a apretar Emitir para este documento. Revisá la conexión, recargá la página y usá "Marcar emitido manual" con ese folio.');
@@ -31726,6 +31729,7 @@ function _docTarjeta(numStr,docNum,titulo){
   return '<div class="zdoc">'+cab+pill+'</div>'+cuerpo+'<div class="zdoc-acc">'+acc+'</div>'+(lnk?'<div class="zdoc-lnk">'+lnk+'</div>':'')+'</div>';
 }
 function renderFin(){
+  celRefrescar();
   renderFinStats();renderMonthBar('fin-month-bar',finRecords,finMonthFilter,'setFinMonth',function(r){return extractMonthFromDate(r.fecha_creacion||r.fecha);},'fin');renderFinCards();
   const list=getFilteredFin(),tbody=document.getElementById('fin-tbody'),empty=document.getElementById('fin-empty');
   renderFinEditorial(list);
@@ -35446,6 +35450,7 @@ async function initAllModules(){
   renderProd();updateProdStats();renderFin();renderPixel();renderCost();initDash();
   armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
+  celIniciar();        /* modo celular (admin en el teléfono) */
 }
 // ── CUENTAS EMPRESA · B2B (22-10-2026) ────────────────────────────────────
 // Una cuenta por RUT. El acumulado es lo comprado en los ÚLTIMOS 12 MESES
@@ -37443,6 +37448,514 @@ function renderProdCards(){
   el.innerHTML=html2;
 }
 function renderMobileCards(){renderFinCards();renderProdCards();}
+// ── MODO CELULAR (13-11-2026, boceto «emitir, enviar, revisar») ───────────
+// En el teléfono, y solo para el administrador, la app abre una capa propia con
+// cinco pantallas: Hoy, Emitir, Despachar, Buscar y Más. No duplica lógica: los
+// botones llaman a las mismas funciones de escritorio (emitirConRevision →
+// toggleFinDoc con su candado, abrirEnvioStarken, marcarAviso), y las fórmulas
+// (saldo, monto por documento, doc 3) son las de Finanzas. El computador no
+// cambia. «Versión completa» la apaga en ese teléfono (localStorage zaru_cel).
+var CEL={tab:'hoy',subEm:'por',subDe:'listos',ficha:null,volverA:'hoy',q:'',envios:null,docs:null,piezas:false,cargando:false};
+var _CEL_IC={
+  hoy:'<svg viewBox="0 0 24 24"><path d="M4 11l8-6 8 6v8H4z"/></svg>',
+  emitir:'<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4M10 13h5M10 17h5"/></svg>',
+  desp:'<svg viewBox="0 0 24 24"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg>',
+  buscar:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
+  mas:'<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></svg>',
+  wa:'<svg viewBox="0 0 24 24"><path d="M5 19l1.3-3.6A7 7 0 1 1 9 18.3z"/></svg>',
+  doc:'<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7zM14 3v4h4"/></svg>',
+  subir:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 9l5-5 5 5M5 20h14"/></svg>',
+  copiar:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M5 15V5h10"/></svg>',
+  atras:'<svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg>',
+  recargar:'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6M20 4v5h-5"/></svg>',
+  plata:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3h4"/></svg>',
+  piezas:'<svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  pc:'<svg viewBox="0 0 24 24"><path d="M4 5h16v10H4zM8 19h8M12 15v4"/></svg>',
+  salir:'<svg viewBox="0 0 24 24"><path d="M10 5H5v14h5M14 8l4 4-4 4M18 12H9"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M5 12l4 4 10-10"/></svg>'
+};
+var _CEL_CSS='#cel{display:none}'+
+/* Sobre el encabezado y la barra de la app (200); las ventanas de emitir y de
+   Starken (.modal-bg) y la hoja «Más» se suben por encima mientras está prendido. */
+'body.cel-on #cel{display:flex;flex-direction:column;position:fixed;inset:0;z-index:205;background:#F6F3EE;color:#2B2B2B;font-family:Poppins,"Segoe UI",Arial,sans-serif}'+
+'body.cel-on{overflow:hidden}body.cel-on .modal-bg{z-index:230}body.cel-on .m-velo{z-index:231}body.cel-on #m-mas{z-index:232}'+
+'#cel svg{width:18px;height:18px;fill:none;stroke:#6B4F3A;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}'+
+'#cel .c-top{background:#485B3D;color:#fff;padding:13px 14px 11px;font-weight:600;font-size:16px;display:flex;align-items:center;gap:10px;flex-shrink:0}'+
+'#cel .c-top svg{stroke:#fff}#cel .c-top button{background:none;border:0;padding:4px;margin:-4px;display:flex;color:#fff}'+
+'#cel .c-top .r{margin-left:auto}'+
+'#cel .c-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:18px}'+
+'#cel .c-nav{flex-shrink:0;background:#fff;border-top:1px solid #E4DDD3;display:flex;justify-content:space-around;padding:7px 0 calc(9px + env(safe-area-inset-bottom))}'+
+'#cel .c-nav button{background:none;border:0;font-size:11px;color:#7A746C;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;font-family:inherit}'+
+'#cel .c-nav svg{width:22px;height:22px;stroke:#9a938a}#cel .c-nav .on{color:#485B3D;font-weight:600}#cel .c-nav .on svg{stroke:#485B3D}'+
+'#cel .c-h{font-size:11.5px;font-weight:600;color:#7A746C;text-transform:uppercase;letter-spacing:.5px;margin:16px 16px 6px;display:flex;justify-content:space-between}'+
+'#cel .c-tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 14px 4px}'+
+'#cel .c-tile{background:#fff;border:1px solid #E4DDD3;border-radius:13px;padding:10px;text-align:left;font-family:inherit;color:inherit}'+
+'#cel .c-tile .n{font-family:"Playfair Display",Georgia,serif;font-size:27px;color:#B5652E;line-height:1.1}'+
+'#cel .c-tile .l{font-size:12.5px;font-weight:600;margin-top:2px}#cel .c-tile .s{font-size:10.5px;color:#7A746C}'+
+'#cel .c-li{background:#fff;margin:6px 14px;border-radius:12px;border:1px solid #E4DDD3;padding:10px 11px;display:flex;align-items:center;gap:10px}'+
+'#cel .c-li.rojo{border-left:3px solid #b04a2a}'+
+'#cel .c-li .t{flex:1;min-width:0}#cel .c-li .t b{font-size:14.5px;display:block}#cel .c-li .t small{display:block;color:#7A746C;font-size:12px;margin-top:1px;line-height:1.35}'+
+'#cel .c-li .t.tap{cursor:pointer}'+
+'#cel .c-b{border:0;background:#B5652E;color:#fff;border-radius:10px;padding:10px 11px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:inherit;text-decoration:none}'+
+'#cel .c-b svg{stroke:#fff;width:15px;height:15px}#cel .c-b.v{background:#485B3D}'+
+'#cel .c-b.g{background:#fff;color:#2B2B2B;border:1.5px solid #E4DDD3}#cel .c-b.g svg{stroke:#6B4F3A}'+
+'#cel .c-b[disabled]{opacity:.55}'+
+'#cel .c-ok{color:#3c5a2c;font-size:12px;font-weight:600;white-space:nowrap}'+
+'#cel .c-rojo{color:#b04a2a}'+
+'#cel .c-tabs{display:flex;gap:6px;margin:10px 14px 2px;overflow-x:auto}'+
+'#cel .c-tab{font-size:13px;padding:7px 12px;border-radius:20px;background:#fff;border:1px solid #E4DDD3;white-space:nowrap;font-family:inherit;color:inherit}'+
+'#cel .c-tab.on{background:#485B3D;color:#fff;border-color:#485B3D}'+
+'#cel .c-busc{margin:12px 14px 4px;background:#fff;border:1.5px solid #485B3D;border-radius:12px;padding:0 12px;display:flex;align-items:center;gap:8px}'+
+'#cel .c-busc input{border:0;outline:0;font-size:16px;padding:12px 0;flex:1;background:transparent;font-family:inherit;color:inherit;min-width:0}'+
+'#cel .c-card{background:#fff;margin:8px 14px;border-radius:13px;border:1px solid #E4DDD3;padding:6px 13px}'+
+'#cel .c-kv{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;padding:8px 0;border-bottom:1px dashed #E4DDD3}'+
+'#cel .c-kv:last-child{border:0}'+
+'#cel .c-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 14px}'+
+'#cel .c-gi{background:#fff;border:1px solid #E4DDD3;border-radius:12px;padding:12px;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px;text-align:left;font-family:inherit;color:inherit;text-decoration:none}'+
+'#cel .c-gi small{display:block;font-weight:400;color:#7A746C;font-size:11px}'+
+'#cel .c-vacio{margin:14px 16px;color:#7A746C;font-size:13.5px}'+
+'#cel .c-nota{font-size:11.5px;color:#7A746C;margin:8px 16px;line-height:1.45}'+
+'#cel .c-badge{font-size:11px;font-weight:600;border-radius:20px;padding:2px 9px;background:#F7EAD9;color:#8a5520;white-space:nowrap}'+
+'#cel .c-badge.ok{background:#E5EEDF;color:#3c5a2c}'+
+'#cel-hoja-bg{display:none;position:fixed;inset:0;z-index:215;background:rgba(30,30,30,.4)}'+
+'body.cel-hoja #cel-hoja-bg{display:block}'+
+'#cel-hoja{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));font-family:Poppins,"Segoe UI",Arial,sans-serif;color:#2B2B2B;max-height:85vh;overflow-y:auto}'+
+'#cel-hoja .asa{width:40px;height:4px;background:#ccc;border-radius:3px;margin:0 auto 10px}'+
+'#cel-hoja .ht{font-weight:600;font-size:16.5px}#cel-hoja .hs{font-size:12.5px;color:#7A746C;margin:3px 0 8px}'+
+'#cel-hoja .hb{width:100%;border-radius:12px;padding:13px 12px;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;border:1.5px solid #E4DDD3;background:#fff;margin-top:8px;font-family:inherit;color:#2B2B2B;text-decoration:none;box-sizing:border-box}'+
+'#cel-hoja .hb.v{background:#485B3D;border-color:#485B3D;color:#fff}#cel-hoja .hb.v svg{stroke:#fff}'+
+'#cel-hoja .hb[disabled]{opacity:.5}'+
+'#cel-hoja svg{width:18px;height:18px;fill:none;stroke:#6B4F3A;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}'+
+'#cel-volver{display:none;position:fixed;left:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:206;background:#485B3D;color:#fff;border:0;border-radius:20px;padding:8px 14px;font-size:13px;font-weight:600;box-shadow:0 3px 10px rgba(0,0,0,.25);font-family:inherit}'+
+'body.cel-fuera #cel-volver{display:block}';
+function _celPref(){try{return localStorage.getItem('zaru_cel')||'';}catch(e){return'';}}
+function _celSetPref(v){try{localStorage.setItem('zaru_cel',v);}catch(e){}}
+function _celPuede(){return _esMovil()&&usuarioRol==='admin';}
+function celIniciar(){
+  if(!_celPuede()||_celPref()==='off'){document.body.classList.remove('cel-on','cel-fuera','cel-hoja');return;}
+  if(!document.getElementById('cel')){
+    var st=document.createElement('style');st.textContent=_CEL_CSS;document.head.appendChild(st);
+    var d=document.createElement('div');d.id='cel';document.body.appendChild(d);
+    var h=document.createElement('div');h.id='cel-hoja-bg';
+    h.innerHTML='<div id="cel-hoja"></div>';
+    h.addEventListener('click',function(e){if(e.target===h)celCerrarHoja();});
+    document.body.appendChild(h);
+    var v=document.createElement('button');v.id='cel-volver';v.type='button';v.textContent='‹ Volver al modo celular';
+    v.addEventListener('click',celVolver);document.body.appendChild(v);
+  }
+  if(!document.body.classList.contains('cel-fuera'))document.body.classList.add('cel-on');
+  celPintar();celCargar();
+}
+// Lo que no viene en finRecords/prodOrders: las órdenes de Starken y los
+// documentos de la última semana (para «Enviar»). Si falla, se pinta igual.
+async function celCargar(){
+  if(CEL.cargando)return;CEL.cargando=true;
+  try{
+    var desde=new Date(Date.now()-7*86400000).toISOString();
+    var rs=await Promise.all([
+      sbFetch(SB_URL+'/rest/v1/envios_starken?select=pedido,estado,of_numero,created_at&estado=in.(emitida,emitiendo)&order=id.desc&limit=500'),
+      sbFetch(SB_URL+'/rest/v1/gestion_documentos?select=num,doc_num,tipo,folio,monto,pdf_url,cliente,creado&anulada=eq.false&creado=gte.'+encodeURIComponent(desde)+'&order=creado.desc&limit=200')
+    ]);
+    CEL.envios=rs[0].ok?await rs[0].json():CEL.envios;
+    CEL.docs=rs[1].ok?await rs[1].json():CEL.docs;
+  }catch(e){console.warn('modo celular: no pude leer envíos/documentos',e);}
+  CEL.cargando=false;celPintar();
+}
+async function celRecargar(){
+  showToast('Actualizando…');
+  try{await Promise.all([loadFin(),loadProd()]);}catch(e){}
+  await celCargar();
+}
+// Las pantallas de escritorio llaman a renderFin/renderProd después de cada
+// cambio; desde ahí se repinta la capa si está a la vista.
+function celRefrescar(){if(document.body.classList.contains('cel-on'))celPintar();}
+function _celFin(n){return finRecords.find(function(x){return String(x.num||'')===String(n);});}
+function _celNombre(n){
+  var f=_celFin(n);if(f&&(f.nombre||f.apellido))return((f.nombre||'')+' '+(f.apellido||'')).trim();
+  var p=_prodDe(n);if(p)return((p.comprador||'')+' '+(p.apellido||'')).trim();
+  var o=orders.find(function(x){return String(x.num||'')===String(n);});
+  return o?((o.nombre||'')+' '+(o.apellido||'')).trim():'';
+}
+function _celEnvio(n){return(CEL.envios||[]).find(function(e){return String(e.pedido)===String(n);})||null;}
+function _celSem(o){var s=String(normalizeSemana(o.envio)||o.envio||'').replace(/^semana\s*/i,'').trim();return s?'Semana '+s.toLowerCase():'';}
+function _celComuna(n){var f=_celFin(n)||{};return f.comuna||f.fact_comuna||'';}
+function _celTipoDoc(r,dn){return(r['doc'+dn+'_tipo']||r.doc1_tipo||'BOLETA')==='FACTURA'?'Factura':'Boleta';}
+function _celQ(n){return"'"+String(n).replace(/[^0-9A-Za-z_-]/g,'')+"'";}
+// Documentos por emitir: un abono cobrado sin su documento (doc N = abono N).
+// Las ventas web no: esas boletas las emite Shopify.
+function _celPorEmitir(){
+  var out=[];
+  finRecords.forEach(function(r){
+    var n=String(r.num||'');if(!n||_esVentaWeb(r))return;
+    [1,2,3].forEach(function(dn){
+      if(dn===3&&!_doc3Requerido(r))return;
+      if(r['doc'+dn+'_emitida'])return;
+      var proc=!!r['doc'+dn+'_procesando'],ab=Number(r['abono'+dn])||0;
+      if(!ab&&!proc)return;
+      out.push({r:r,n:n,dn:dn,proc:proc,monto:Number(r['doc'+dn+'_monto'])||_montoSugeridoDoc(r,dn)});
+    });
+  });
+  out.sort(function(a,b){return(b.proc-a.proc)||(Number(b.n)-Number(a.n))||(a.dn-b.dn);});
+  return out;
+}
+function _celListos(){
+  return prodOrders.filter(function(o){
+    if((o.estado||'')!=='Listo')return false;
+    var e=_celEnvio(o.pedido);return!(e&&e.estado==='emitida');
+  }).sort(function(a,b){return Number(a.pedido)-Number(b.pedido);});
+}
+function _celEnviados(){
+  var lim=Date.now()-14*86400000;
+  return(CEL.envios||[]).filter(function(e){return e.estado==='emitida'&&new Date(e.created_at).getTime()>=lim;});
+}
+function _celTaller(){
+  return prodOrders.filter(function(o){return(o.estado||'En taller')==='En taller';})
+    .sort(function(a,b){return Number(a.pedido)-Number(b.pedido);});
+}
+function celIrTab(t){CEL.tab=t;CEL.ficha=null;celPintar();var b=document.querySelector('#cel .c-body');if(b)b.scrollTop=0;}
+function celPintar(){
+  var el=document.getElementById('cel');if(!el||!document.body.classList.contains('cel-on'))return;
+  var titulo,cuerpo,izq='';
+  if(CEL.ficha){titulo='#'+esc(CEL.ficha)+' '+esc(_nomCorto(_celNombre(CEL.ficha)));cuerpo=_celFicha(CEL.ficha);
+    izq='<button type="button" onclick="celCerrarFicha()" aria-label="Volver">'+_CEL_IC.atras+'</button>';}
+  else if(CEL.tab==='emitir'){titulo='Emitir';cuerpo=_celEmitir();}
+  else if(CEL.tab==='desp'){titulo='Despachar';cuerpo=_celDespachar();}
+  else if(CEL.tab==='buscar'){titulo='Buscar';cuerpo=_celBuscar();}
+  else if(CEL.tab==='mas'){titulo='Más';cuerpo=_celMas();}
+  else if(CEL.tab==='cobrar'){titulo='Por cobrar';cuerpo=_celCobrar();
+    izq='<button type="button" onclick="celIrTab(\'mas\')" aria-label="Volver">'+_CEL_IC.atras+'</button>';}
+  else{titulo=_celHoyTitulo();cuerpo=_celHoy();}
+  var tabs=[['hoy','Hoy'],['emitir','Emitir'],['desp','Despachar'],['buscar','Buscar'],['mas','Más']];
+  var activo=CEL.ficha?CEL.volverA:(CEL.tab==='cobrar'?'mas':CEL.tab);
+  var scroll=(document.querySelector('#cel .c-body')||{}).scrollTop||0;
+  var foco=document.activeElement&&document.activeElement.id==='cel-q';
+  el.innerHTML='<div class="c-top">'+izq+'<span>'+titulo+'</span><button type="button" class="r" onclick="celRecargar()" aria-label="Actualizar">'+_CEL_IC.recargar+'</button></div>'+
+    '<div class="c-body">'+cuerpo+'</div>'+
+    '<nav class="c-nav">'+tabs.map(function(t){
+      return'<button type="button" class="'+(t[0]===activo?'on':'')+'" onclick="celIrTab(\''+t[0]+'\')">'+_CEL_IC[t[0]]+t[1]+'</button>';
+    }).join('')+'</nav>';
+  var b=el.querySelector('.c-body');if(b)b.scrollTop=scroll;
+  if(foco){var i=document.getElementById('cel-q');if(i){i.focus();var L=i.value.length;try{i.setSelectionRange(L,L);}catch(e){}}}
+}
+function _celHoyTitulo(){
+  var d=new Date(),dia=SEMANAS_ES_D[d.getDay()];
+  return'Hoy · '+dia+' '+d.getDate();
+}
+function _celHoy(){
+  var nEm=_celPorEmitir().length,nDe=_celListos().length,c=_cajaDatos();
+  var h='<div class="c-busc" onclick="celIrTab(\'buscar\')">'+_CEL_IC.buscar+'<input readonly placeholder="Buscar cliente, N°, teléfono…" tabindex="-1"></div>'+
+    '<div class="c-tiles">'+
+      '<button type="button" class="c-tile" onclick="celIrTab(\'emitir\')"><div class="n">'+nEm+'</div><div class="l">Por emitir</div><div class="s">boletas y facturas</div></button>'+
+      '<button type="button" class="c-tile" onclick="celIrTab(\'desp\')"><div class="n">'+nDe+'</div><div class="l">Por despachar</div><div class="s">listos sin Starken</div></button>'+
+      '<button type="button" class="c-tile" onclick="celIrTab(\'cobrar\')"><div class="n">'+c.exigibles.length+'</div><div class="l">Por cobrar</div><div class="s">ya despachados</div></button>'+
+    '</div>';
+  var its=_dashItems();
+  var av=its.filter(function(it){return it.tipo==='avisar';});
+  var de=its.filter(function(it){return it.tipo==='despachar';});
+  h+='<div class="c-h"><span>Avisar a clientes</span><span>'+av.length+'</span></div>';
+  h+=av.length?av.map(function(it){
+    var cel=_celDePedido(it.num),q=_celQ(it.num);
+    var acc=cel?'<a class="c-b v" target="_blank" rel="noopener" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(it.msg)+'" onclick="celAvisado('+q+',\''+esc(it.avisoId)+'\')">'+_CEL_IC.wa+'Escribir</a>'
+               :'<span class="c-badge">sin celular</span>';
+    return'<div class="c-li'+(it.rojo?' rojo':'')+'"><div class="t tap" onclick="celAbrirFicha('+q+')"><b>#'+esc(it.num)+' '+esc(_nomCorto(it.nombre))+'</b><small>'+esc(it.desc)+'</small></div>'+acc+'</div>';
+  }).join(''):'<div class="c-vacio">No hay avisos pendientes.</div>';
+  if(de.length){
+    h+='<div class="c-h"><span>Sale hoy o mañana</span><span>'+de.length+'</span></div>'+de.map(function(it){
+      return'<div class="c-li'+(it.rojo?' rojo':'')+'"><div class="t tap" onclick="celAbrirFicha('+_celQ(it.num)+')"><b>#'+esc(it.num)+' '+esc(_nomCorto(it.nombre))+'</b><small>'+esc(it.desc)+'</small></div></div>';
+    }).join('');
+  }
+  return h;
+}
+function celAvisado(n,avisoId){dashAvisado(n,avisoId);setTimeout(celPintar,600);}
+function _celEmitir(){
+  var lista=_celPorEmitir(),docs=CEL.docs||[];
+  var h='<div class="c-tabs"><button type="button" class="c-tab'+(CEL.subEm==='por'?' on':'')+'" onclick="CEL.subEm=\'por\';celPintar()">Por emitir '+lista.length+'</button>'+
+    '<button type="button" class="c-tab'+(CEL.subEm==='hechos'?' on':'')+'" onclick="CEL.subEm=\'hechos\';celPintar()">Emitidos 7 días'+(CEL.docs?' '+docs.length:'')+'</button></div>';
+  if(CEL.subEm==='hechos'){
+    if(!CEL.docs)return h+'<div class="c-vacio">Cargando…</div>';
+    if(!docs.length)return h+'<div class="c-vacio">No hay documentos emitidos en los últimos 7 días.</div>';
+    return h+docs.map(function(d){
+      var dia=new Date(d.creado).toLocaleDateString('es-CL',{weekday:'short',day:'numeric'});
+      var tipo=String(d.tipo||'').toUpperCase()==='FACTURA'?'Factura':'Boleta';
+      return'<div class="c-li"><div class="t tap" onclick="celAbrirFicha('+_celQ(d.num)+')"><b>#'+esc(d.num)+' '+esc(_nomCorto(d.cliente||_celNombre(d.num)))+'</b><small>'+tipo+(d.folio?' N° '+esc(d.folio):' · sin folio aún')+' · '+fmtCLP(d.monto)+' · '+esc(dia)+'</small></div>'+
+        '<button type="button" class="c-b g" onclick="celEnviar('+_celQ(d.num)+','+Number(d.doc_num)+')">'+_CEL_IC.subir+'Enviar</button></div>';
+    }).join('');
+  }
+  if(!lista.length)return h+'<div class="c-vacio">Todo emitido. No hay abonos sin su boleta o factura.</div>';
+  return h+lista.map(function(x){
+    var q=_celQ(x.n),tipo=_celTipoDoc(x.r,x.dn);
+    var sub=tipo+' · abono '+x.dn+' · '+fmtCLP(x.monto);
+    var acc=x.proc
+      ?'<button type="button" class="c-b v" onclick="verificarFinDoc('+q+','+x.dn+')">Verificar</button>'
+      :(finEmitiendo[x.n+'_'+x.dn]?'<button type="button" class="c-b" disabled>Emitiendo…</button>'
+        :'<button type="button" class="c-b" onclick="emitirConRevision('+q+','+x.dn+')">'+_CEL_IC.doc+'Emitir</button>');
+    return'<div class="c-li'+(x.proc?' rojo':'')+'"><div class="t tap" onclick="celAbrirFicha('+q+')"><b>#'+esc(x.n)+' '+esc(_nomCorto(_celNombre(x.n)))+'</b><small>'+sub+(x.proc?' · <span class="c-rojo">en proceso en Wasabil</span>':'')+'</small></div>'+acc+'</div>';
+  }).join('')+'<p class="c-nota">«Emitir» abre la revisión de siempre (tipo, monto, RUT y glosa) y pide confirmar antes de mandarlo al SII.</p>';
+}
+// Hoja «Enviar»: el documento a César o al cliente por WhatsApp, con el link
+// del PDF. El celular de César vive solo en este teléfono (localStorage).
+function _celDocInfo(n,dn){
+  var r=_celFin(n)||{},d=(CEL.docs||[]).find(function(x){return String(x.num)===String(n)&&Number(x.doc_num)===Number(dn);})||{};
+  return{
+    tipo:d.tipo?(String(d.tipo).toUpperCase()==='FACTURA'?'Factura':'Boleta'):_celTipoDoc(r,dn),
+    folio:r['doc'+dn+'_num']||d.folio||'',
+    pdf:r['doc'+dn+'_pdf_url']||d.pdf_url||'',
+    monto:Number(r['doc'+dn+'_monto'])||Number(d.monto)||0,
+    nombre:_celNombre(n)||d.cliente||'',
+    cel:_celDePedido(n),emitida:!!r['doc'+dn+'_emitida']||!!d.folio
+  };
+}
+function celEnviar(n,dn){
+  var i=_celDocInfo(n,dn),q=_celQ(n);
+  var titulo=i.tipo+(i.folio?' N° '+esc(i.folio):'')+(i.emitida?' emitida':'');
+  var sinPdf=!i.pdf;
+  var h='<div class="asa"></div><div class="ht">'+titulo+'</div>'+
+    '<div class="hs">#'+esc(n)+' '+esc(i.nombre)+(i.monto?' · '+fmtCLP(i.monto):'')+'</div>'+
+    (sinPdf?'<div class="hs c-rojo" style="color:#b04a2a">Wasabil todavía no entrega el PDF. Toca «Verificar» en Emitir o espera unos minutos.</div>':'')+
+    '<button type="button" class="hb v" '+(sinPdf?'disabled':'')+' onclick="celEnviarA('+q+','+dn+',\'cesar\')">'+_CEL_IC.wa+'Mandar a César por WhatsApp</button>'+
+    '<button type="button" class="hb" '+(sinPdf||!i.cel?'disabled':'')+' onclick="celEnviarA('+q+','+dn+',\'cliente\')">'+_CEL_IC.wa+(i.cel?'Mandar al cliente por WhatsApp':'El cliente no tiene celular cargado')+'</button>'+
+    (sinPdf?'':'<a class="hb" href="'+esc(i.pdf)+'" target="_blank" rel="noopener">'+_CEL_IC.doc+'Ver PDF</a>'+
+      '<button type="button" class="hb" onclick="celCopiar('+q+','+dn+')">'+_CEL_IC.copiar+'Copiar link del PDF</button>')+
+    '<button type="button" class="hb" onclick="celCerrarHoja()">Cerrar</button>';
+  document.getElementById('cel-hoja').innerHTML=h;
+  document.body.classList.add('cel-hoja');
+}
+function celCerrarHoja(){document.body.classList.remove('cel-hoja');}
+function celEnviarA(n,dn,quien){
+  var i=_celDocInfo(n,dn);if(!i.pdf)return;
+  var num,txt;
+  if(quien==='cesar'){
+    num='';try{num=localStorage.getItem('zaru_cel_cesar')||'';}catch(e){}
+    if(!num){
+      var p=prompt('Celular de César (se guarda solo en este teléfono):','+569');
+      if(p===null)return;
+      num=String(p).replace(/[^0-9]/g,'').replace(/^56/,'');
+      if(num.length!==9){showToast('Ese número no tiene 9 dígitos',true);return;}
+      try{localStorage.setItem('zaru_cel_cesar',num);}catch(e){}
+    }
+    txt=i.tipo+(i.folio?' N° '+i.folio:'')+' de '+i.nombre+' (#'+n+')'+(i.monto?', '+fmtCLP(i.monto):'')+':\n'+i.pdf;
+  }else{
+    num=i.cel;if(!num)return;
+    var pn=String(i.nombre||'').split(/\s+/)[0]||'';
+    pn=pn?pn.charAt(0).toUpperCase()+pn.slice(1).toLowerCase():'';
+    txt='Hola'+(pn?' '+pn:'')+', te dejamos tu '+i.tipo.toLowerCase()+(i.folio?' N° '+i.folio:'')+' de Casa Zaru'+(i.monto?' por '+fmtCLP(i.monto):'')+'.\n\n'+i.pdf+'\n\n¡Gracias por tu compra!';
+  }
+  window.open('https://wa.me/56'+num+'?text='+encodeURIComponent(txt),'_blank');
+}
+function celCopiar(n,dn){
+  var i=_celDocInfo(n,dn);
+  (navigator.clipboard?navigator.clipboard.writeText(i.pdf):Promise.reject()).then(function(){showToast('✓ Link copiado');},function(){prompt('Copia el link:',i.pdf);});
+}
+// Después de una emisión exitosa (toggleFinDoc) se ofrece mandarla de una vez.
+function celTrasEmitir(n,dn){
+  if(!document.body.classList.contains('cel-on'))return;
+  celCargar();setTimeout(function(){celEnviar(n,dn);},300);
+}
+function _celDespachar(){
+  var L=_celListos(),E=_celEnviados(),T=_celTaller();
+  var h='<div class="c-tabs">'+[['listos','Listos '+L.length],['env','Enviados '+E.length],['taller','En taller '+T.length]].map(function(t){
+    return'<button type="button" class="c-tab'+(CEL.subDe===t[0]?' on':'')+'" onclick="CEL.subDe=\''+t[0]+'\';celPintar()">'+t[1]+'</button>';
+  }).join('')+'</div>';
+  if(CEL.subDe==='env'){
+    if(!CEL.envios)return h+'<div class="c-vacio">Cargando…</div>';
+    if(!E.length)return h+'<div class="c-vacio">No hay órdenes de Starken en las últimas dos semanas.</div>';
+    return h+E.map(function(e){
+      var n=String(e.pedido),q=_celQ(n),cel=_celDePedido(n);
+      var txt='¡Hola! Tu pedido ya va en camino con Starken.\n\nTu número de seguimiento es '+e.of_numero+'.\n\nPuedes seguirlo en https://www.starken.cl/seguimiento';
+      var dia=new Date(e.created_at).toLocaleDateString('es-CL',{weekday:'short',day:'numeric'});
+      return'<div class="c-li"><div class="t tap" onclick="celAbrirFicha('+q+')"><b>#'+esc(n)+' '+esc(_nomCorto(_celNombre(n)))+'</b><small>OF '+esc(e.of_numero)+' · '+esc(dia)+'</small></div>'+
+        (cel?'<a class="c-b g" target="_blank" rel="noopener" href="https://wa.me/56'+cel+'?text='+encodeURIComponent(txt)+'">'+_CEL_IC.wa+'Seguimiento</a>':'<span class="c-badge">sin celular</span>')+'</div>';
+    }).join('');
+  }
+  if(CEL.subDe==='taller'){
+    if(!T.length)return h+'<div class="c-vacio">No hay pedidos en taller.</div>';
+    return h+T.map(function(o){
+      var n=String(o.pedido||''),q=_celQ(n),dias=diasEnTaller(o);
+      var sem=_celSem(o);
+      return'<div class="c-li"><div class="t tap" onclick="celAbrirFicha('+q+')"><b>#'+esc(n)+' '+esc(_nomCorto(((o.comprador||'')+' '+(o.apellido||'')).trim()))+'</b><small>'+(sem?esc(sem):'Sin semana')+(dias!==null?' · <span'+(dias>14?' class="c-rojo"':'')+'>'+dias+' días</span>':'')+'</small></div>'+
+        '<button type="button" class="c-b g" onclick="celMarcarListo('+q+')">'+_CEL_IC.check+'Listo</button></div>';
+    }).join('');
+  }
+  if(!L.length)return h+'<div class="c-vacio">No hay pedidos listos esperando orden de Starken.</div>';
+  return h+L.map(function(o){
+    var n=String(o.pedido||''),q=_celQ(n),f=_celFin(n),s=f?saldoFin(f):0,e=_celEnvio(n);
+    var sub=[_celComuna(n),(f?(s>0?'<span class="c-rojo">debe '+fmtCLP(s)+'</span>':'pagado'):'')].filter(Boolean).join(' · ');
+    if(e&&e.estado==='emitiendo')sub+=' · <span class="c-rojo">orden a medias</span>';
+    return'<div class="c-li'+(s>0?' rojo':'')+'"><div class="t tap" onclick="celAbrirFicha('+q+')"><b>#'+esc(n)+' '+esc(_nomCorto(((o.comprador||'')+' '+(o.apellido||'')).trim()))+'</b><small>'+(sub||'&nbsp;')+'</small></div>'+
+      '<button type="button" class="c-b" onclick="celStarken('+q+')">'+_CEL_IC.desp+'Starken</button></div>';
+  }).join('')+'<p class="c-nota">Aparecen los pedidos en «Listo» sin orden de Starken. Los que se retiran o van por otro transporte se marcan «Entregado» en la ficha.</p>';
+}
+function celStarken(n){
+  var f=_celFin(n),s=f?saldoFin(f):0;
+  if(s>0&&!confirm('El pedido '+n+' todavía debe '+fmtCLP(s)+'.\n\n¿Emitir igual la orden de Starken?'))return;
+  abrirEnvioStarken(n);
+}
+function celMarcarListo(n){
+  if(!confirm('¿Marcar el pedido '+n+' como Listo?'))return;
+  var oi=_prodIdx(n);if(oi<0)return;
+  updateProdEstado(oi,'Listo');showToast('✓ #'+n+': Listo');celPintar();
+}
+function celEntregado(n){
+  if(!confirm('¿Marcar el pedido '+n+' como Entregado (retiro u otro transporte)?'))return;
+  var oi=_prodIdx(n);if(oi<0)return;
+  updateProdEstado(oi,'Entregado');showToast('✓ #'+n+': Entregado');celPintar();
+}
+function _celBuscar(){
+  var h='<div class="c-busc">'+_CEL_IC.buscar+'<input id="cel-q" type="search" autocomplete="off" placeholder="Nombre, N°, teléfono, RUT o correo" value="'+esc(CEL.q)+'" oninput="CEL.q=this.value;celPintar()"></div>';
+  var q=CEL.q.trim().toLowerCase();
+  if(q.length<2)return h+'<p class="c-nota">Sale una fila por pedido, los más recientes primero. Tócala para abrir su ficha.</p>';
+  var qd=q.replace(/[^0-9]/g,''),vistos={},res=[];
+  function mira(n,campos){
+    n=String(n||'');if(!n||vistos[n])return;
+    var txt=campos.join(' ').toLowerCase();
+    var ok=txt.indexOf(q)>=0||(qd.length>=4&&campos.join(' ').replace(/[^0-9]/g,' ').indexOf(qd)>=0)||n===q;
+    if(ok){vistos[n]=1;res.push(n);}
+  }
+  finRecords.forEach(function(r){mira(r.num,[r.num,r.nombre,r.apellido,r.celular,r.email,r.rut,r.razon_social,r.producto]);});
+  prodOrders.forEach(function(o){mira(o.pedido,[o.pedido,o.comprador,o.apellido]);});
+  orders.forEach(function(o){mira(o.num,[o.num,o.nombre,o.apellido,o.celular,o.email]);});
+  res.sort(function(a,b){return Number(b)-Number(a);});
+  if(!res.length)return h+'<div class="c-vacio">Sin resultados.</div>';
+  return h+res.slice(0,40).map(function(n){
+    var p=_prodDe(n),f=_celFin(n),est=p?(p.estado||'En taller'):'';
+    var s=f?saldoFin(f):0,sem=p?_celSem(p):'';
+    var badge=est?'<span class="c-badge'+(est==='En taller'?'':' ok')+'">'+esc(est)+'</span>':'';
+    return'<div class="c-li" onclick="celAbrirFicha('+_celQ(n)+')"><div class="t tap"><b>#'+esc(n)+' '+esc(_celNombre(n))+'</b><small>'+[sem?esc(sem):'',f?(s>0?'<span class="c-rojo">saldo '+fmtCLP(s)+'</span>':'saldo $0'):''].filter(Boolean).join(' · ')+'</small></div>'+badge+'</div>';
+  }).join('')+(res.length>40?'<p class="c-nota">Hay '+res.length+' resultados; afina la búsqueda.</p>':'');
+}
+function celAbrirFicha(n){
+  CEL.volverA=CEL.ficha?CEL.volverA:CEL.tab;CEL.ficha=String(n);CEL.piezas=false;
+  celPintar();var b=document.querySelector('#cel .c-body');if(b)b.scrollTop=0;
+}
+function celCerrarFicha(){CEL.ficha=null;CEL.tab=CEL.volverA||'hoy';celPintar();}
+function _celFicha(n){
+  var f=_celFin(n),p=_prodDe(n),q=_celQ(n),h='';
+  var nom=_celNombre(n),cel=_celDePedido(n);
+  h+='<div class="c-card"><div class="c-kv" style="display:block"><b style="font-size:16px">'+esc(nom||'(sin nombre)')+'</b>'+
+    '<div style="font-size:12.5px;color:#7A746C;margin-top:2px">'+[cel?'+56 '+esc(cel):'',esc(_celComuna(n)),f&&f.producto?esc(f.producto):''].filter(Boolean).join(' · ')+'</div></div>';
+  if(f){
+    var s=saldoFin(f);
+    h+='<div class="c-kv"><span>Total</span><b>'+fmtCLP(f.total)+'</b></div>'+
+      '<div class="c-kv"><span>Pagado</span><b>'+fmtCLP((Number(f.abono1)||0)+(Number(f.abono2)||0)+(Number(f.abono3)||0))+'</b></div>'+
+      '<div class="c-kv"><span>'+(s<0?'Pagado de más':'Saldo')+'</span><b'+(s>0?' class="c-rojo"':'')+'>'+(s?fmtCLP(Math.abs(s)):'$0')+'</b></div>';
+  }
+  h+='</div>';
+  if(f){
+    h+='<div class="c-h"><span>Documentos</span></div><div class="c-card">';
+    var dns=_doc3Requerido(f)?[1,2,3]:[1,2];
+    if(_esVentaWeb(f))h+='<div class="c-kv"><span>Venta web</span><span style="color:#7A746C">la boleta la emite Shopify</span></div>';
+    else dns.forEach(function(dn){
+      var tipo=_celTipoDoc(f,dn),ab=Number(f['abono'+dn])||0,acc;
+      var lbl='Doc '+dn+' · '+tipo;
+      if(f['doc'+dn+'_emitida']){
+        lbl+=(f['doc'+dn+'_num']?' N° '+esc(f['doc'+dn+'_num']):'');
+        acc='<button type="button" class="c-b g" onclick="celEnviar('+q+','+dn+')">'+_CEL_IC.subir+'Enviar</button>';
+      }else if(f['doc'+dn+'_procesando']){
+        acc='<button type="button" class="c-b v" onclick="verificarFinDoc('+q+','+dn+')">Verificar</button>';
+      }else if(ab){
+        acc='<button type="button" class="c-b" onclick="emitirConRevision('+q+','+dn+')">Emitir</button>';
+      }else acc='<span style="color:#7A746C;font-size:12.5px">sin pago</span>';
+      var m=Number(f['doc'+dn+'_monto'])||ab;
+      h+='<div class="c-kv"><span>'+lbl+(m?'<br><small style="color:#7A746C">'+fmtCLP(m)+'</small>':'')+'</span>'+acc+'</div>';
+    });
+    h+='</div>';
+  }
+  if(p){
+    var est=p.estado||'En taller',e=_celEnvio(n),dias=diasEnTaller(p),sem=_celSem(p);
+    h+='<div class="c-h"><span>Taller y envío</span></div><div class="c-card">'+
+      '<div class="c-kv"><span>'+(sem?esc(sem)+' · ':'')+esc(est)+'</span>'+(est==='En taller'&&dias!==null?'<span class="c-badge">'+dias+' días</span>':'')+'</div>';
+    if(e&&e.estado==='emitida')h+='<div class="c-kv"><span>Starken OF '+esc(e.of_numero)+'</span><button type="button" class="c-b g" onclick="abrirEnvioStarken('+q+')">Ver</button></div>';
+    else if(e&&e.estado==='emitiendo')h+='<div class="c-kv"><span class="c-rojo">Starken: orden a medias</span><button type="button" class="c-b g" onclick="abrirEnvioStarken('+q+')">Revisar</button></div>';
+    else h+='<div class="c-kv"><span>Starken: sin orden</span><button type="button" class="c-b" onclick="celStarken('+q+')">'+_CEL_IC.desp+'Starken</button></div>';
+    if(est==='En taller')h+='<div class="c-kv"><span>¿Ya está terminado?</span><button type="button" class="c-b g" onclick="celMarcarListo('+q+')">'+_CEL_IC.check+'Listo</button></div>';
+    else if(est==='Listo'&&!(e&&e.estado==='emitida'))h+='<div class="c-kv"><span>¿Lo retiraron o salió por otro lado?</span><button type="button" class="c-b g" onclick="celEntregado('+q+')">Entregado</button></div>';
+    h+='</div>';
+  }
+  h+='<div class="c-grid">'+
+    (cel?'<a class="c-gi" target="_blank" rel="noopener" href="https://wa.me/56'+cel+'">'+_CEL_IC.wa+'WhatsApp</a>':'<div class="c-gi" style="color:#7A746C">'+_CEL_IC.wa+'Sin celular</div>')+
+    (p&&(p.lineas||[]).length?'<button type="button" class="c-gi" onclick="CEL.piezas=!CEL.piezas;celPintar()">'+_CEL_IC.piezas+(CEL.piezas?'Ocultar piezas':'Ver piezas')+'</button>':'')+
+    (f?'<button type="button" class="c-gi" onclick="celIrFinanzas('+q+')">'+_CEL_IC.plata+'<div>Editar pagos<small>en Finanzas</small></div></button>':'')+
+  '</div>';
+  if(CEL.piezas&&p){
+    h+='<div class="c-card">'+(p.lineas||[]).map(function(l){
+      var m2=calcM2(l.largo,l.ancho,l.cantidad);
+      var specs=[(Number(l.cantidad)||1)>1?(l.cantidad+'×'):'',esc(l.madera),l.largo&&l.ancho?(esc(l.largo)+'×'+esc(l.ancho)+' cm'):'',m2>0?m2.toFixed(2)+' m²':'',esc(l.acabado)].filter(Boolean).join(' · ');
+      return'<div class="c-kv" style="display:block"><b style="font-size:13.5px">'+esc(l.producto||'(sin nombre)')+'</b><div style="font-size:12px;color:#7A746C">'+specs+'</div></div>';
+    }).join('')+'</div>';
+  }
+  if(!f&&!p)h+='<div class="c-vacio">Este pedido no está en Finanzas ni en Producción.</div>';
+  return h;
+}
+function _celCobrar(){
+  var c=_cajaDatos();
+  function fila(v,txt){
+    var cel=_celDePedido(v.num),q=_celQ(v.num);
+    return'<div class="c-li'+(v.comp?' rojo':'')+'"><div class="t tap" onclick="celAbrirFicha('+q+')"><b>#'+esc(v.num)+' '+esc(_nomCorto(v.nombre))+'</b><small>'+fmtCLP(v.monto)+' · '+txt+'</small></div>'+
+      (cel?'<a class="c-b g" target="_blank" rel="noopener" href="https://wa.me/56'+cel+'">'+_CEL_IC.wa+'Escribir</a>':'')+'</div>';
+  }
+  var h='<div class="c-h"><span>Despachados con saldo</span><span>'+c.exigibles.length+'</span></div>';
+  h+=c.exigibles.length?c.exigibles.map(function(v){return fila(v,'hace '+v.dias+(v.dias===1?' día':' días'));}).join(''):'<div class="c-vacio">Nadie debe de lo ya despachado.</div>';
+  if(c.enEspera.length)h+='<div class="c-h"><span>Pasó la fecha, sin comprobante</span><span>'+c.enEspera.length+'</span></div>'+
+    c.enEspera.map(function(v){return fila(v,'¿salió?');}).join('');
+  h+='<div class="c-card" style="margin-top:14px"><div class="c-kv"><span>Total por cobrar</span><b>'+fmtCLP(c.total)+'</b></div>'+
+    '<div class="c-kv"><span>Esta semana</span><b>'+fmtCLP(c.estaSem)+'</b></div><div class="c-kv"><span>Próxima semana</span><b>'+fmtCLP(c.proxSem)+'</b></div></div>';
+  return h;
+}
+function _celMas(){
+  var c=_cajaDatos();
+  function gi(p,ic,tit,sub){
+    var b=_tabDe(p);if(!b||b.style.display==='none')return'';
+    return'<button type="button" class="c-gi" onclick="celIrA(\''+p+'\')">'+ic+'<div>'+tit+(sub?'<small>'+sub+'</small>':'')+'</div></button>';
+  }
+  var ver=document.querySelector('.sb-version');
+  return'<div class="c-h"><span>Revisar</span></div><div class="c-grid">'+
+      '<button type="button" class="c-gi" onclick="celIrTab(\'cobrar\')">'+_CEL_IC.plata+'<div>Por cobrar<small>'+fmtCLP(c.total)+' · '+c.nPend+'</small></div></button>'+
+      gi('seg',_CEL_IC.wa,'Avisos','a clientes')+
+      gi('midia',_IC_LINEA.dia,'Mi día','')+
+      gi('pv',_CEL_IC.check,'Postventa','')+
+      gi('gastos',_CEL_IC.doc,'Gastos','')+
+      gi('cli',_CEL_IC.buscar,'Clientes','')+
+      gi('emp',_CEL_IC.piezas,'Empresas','')+
+    '</div>'+
+    '<div class="c-h"><span>Pantallas completas</span></div><div class="c-grid">'+
+      gi('prod',_CEL_IC.desp,'Producción','con piezas y comandas')+
+      gi('fin',_CEL_IC.plata,'Finanzas','tabla completa')+
+      gi('madera',_CEL_IC.piezas,'Madera','')+
+      gi('cost',_CEL_IC.plata,'Costos','')+
+    '</div>'+
+    '<div class="c-grid" style="margin-top:14px">'+
+      '<button type="button" class="c-gi" onclick="celApagar()">'+_CEL_IC.pc+'<div>Versión completa<small>la de antes</small></div></button>'+
+      '<button type="button" class="c-gi" onclick="if(confirm(\'¿Cerrar la sesión en este equipo?\'))cerrarSesion()">'+_CEL_IC.salir+'<div>Cerrar sesión</div></button>'+
+    '</div>'+
+    '<p class="c-nota">Ingresar pedidos (pantallazo), costos y exportar a Excel quedan para el computador.'+(ver?' · '+esc(ver.textContent):'')+'</p>';
+}
+// Salir a una pantalla de escritorio sin apagar el modo: arriba queda «Volver».
+function celIrA(p){
+  document.body.classList.remove('cel-on');document.body.classList.add('cel-fuera');
+  showPage(p,_tabDe(p));
+}
+function celIrFinanzas(n){
+  document.body.classList.remove('cel-on');document.body.classList.add('cel-fuera');
+  irAFinanzas(n);
+}
+function celVolver(){
+  document.body.classList.remove('cel-fuera');
+  if(!_celPuede()||_celPref()==='off')return;
+  document.body.classList.add('cel-on');celPintar();celCargar();
+}
+function celApagar(){
+  _celSetPref('off');document.body.classList.remove('cel-on','cel-fuera','cel-hoja');
+  showToast('Versión completa. Para volver: Más → «Modo celular».');
+}
+function celEncender(){
+  _celSetPref('');cerrarMasMovil();
+  document.body.classList.remove('cel-fuera');celIniciar();
+}
+window.addEventListener('resize',function(){
+  if(!document.getElementById('cel'))return;
+  if(!_esMovil())document.body.classList.remove('cel-on','cel-fuera','cel-hoja');
+  else if(_celPuede()&&_celPref()!=='off'&&!document.body.classList.contains('cel-fuera')&&!document.body.classList.contains('cel-on'))celIniciar();
+});
 // ── Acciones de las tarjetas de Producción (celular) ──────────────────────
 function prodEstadoNum(numStr,val){
   var oi=_prodIdx(numStr);if(oi<0)return;
