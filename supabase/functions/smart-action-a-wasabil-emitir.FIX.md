@@ -36,4 +36,4 @@ del codigo original y el corregido en C:/Users/dell/.casazaru/respaldos/.
 
 **Los 5 corruptos de agosto ya fueron reparados** re-bajando los 9 documentos
 desde Wasabil (los `document_pdf_url` se descargan sin auth) y reescribiendo
-`G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026`.
+`G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026`.

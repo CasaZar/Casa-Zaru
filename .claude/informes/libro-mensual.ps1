@@ -16,7 +16,7 @@
 # Uso:  .\libro-mensual.ps1 -Mes 2026-09
 param(
   [string]$Mes,
-  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Informes Gestion',
+  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Finanzas',   # el libro va a "<Salida>\AAAA-MM Mes\", el tablero a la raíz
   [string]$Respaldo   # ruta de un respaldo-gestion-*.json puntual (por defecto, el más nuevo de Drive)
 )
 $ErrorActionPreference = 'Stop'
@@ -55,7 +55,7 @@ function Aviso($texto) { [void]$avisos.Add($texto) }
 # ═════════════════════════════ DATOS ═════════════════════════════
 
 # ── Gestión (respaldo diario) ──
-$dirResp = 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
+$dirResp = 'G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
 $resp = if ($Respaldo) { Get-Item $Respaldo } else { Get-ChildItem $dirResp -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
 if (-not $resp) { throw "No hay respaldos en $dirResp" }
 $j = [IO.File]::ReadAllText($resp.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -638,7 +638,7 @@ Luz 'Orden administrativo' $(if ($ordenCount -eq 0 -and $sinFactTot -lt 300000) 
 
 # Historial: una fila por mes, se reescribe la del mes que se está generando.
 $histPath = Join-Path $PLAN 'historial-mensual.csv'
-$esReal = ($Salida -eq 'G:\Mi unidad\Casa Zaru\Informes Gestion')
+$esReal = ($Salida -eq 'G:\Mi unidad\Casa Zaru\Finanzas')
 function FilaHist($r) { [pscustomobject]@{ Mes = "$($r.Mes)"; Estado = "$($r.Estado)"; VentaNeta = (N $r.VentaNeta); Pedidos = (N $r.Pedidos); Ticket = (N $r.Ticket); MargenBruto = (N $r.MargenBruto); Contribucion = (N $r.Contribucion); GastosFijos = (N $r.GastosFijos); Resultado = (N $r.Resultado); Caja = (N $r.Caja); PorCobrar = (N $r.PorCobrar); CAC = (N $r.CAC); Publicidad = (N $r.Publicidad); Madera = (N $r.Madera); Generado = "$($r.Generado)" } }
 $hist = @(LeerCsv $histPath | Where-Object { "$($_.Mes)" -ne $tag } | ForEach-Object { FilaHist $_ })
 $filaMes = [pscustomobject]@{ Mes = $tag; Estado = $estadoMes; VentaNeta = [math]::Round($ventaNeta); Pedidos = $vMes.Count; Ticket = [math]::Round($ticket); MargenBruto = [math]::Round($margenBruto); Contribucion = [math]::Round($contrib); GastosFijos = [math]::Round($tFijosTot); Resultado = [math]::Round($resultado); Caja = [math]::Round($cajaFin); PorCobrar = [math]::Round($porCobrar); CAC = [math]::Round($cac); Publicidad = [math]::Round($ads); Madera = [math]::Round($maderaTot); Generado = (Get-Date).ToString('yyyy-MM-dd HH:mm') }
@@ -1177,11 +1177,13 @@ $ORDEN = @('Resumen', 'Semanas', 'Detalle de gastos', 'Historial', 'Madera', 'St
 $ordenadas = @($hojas | Sort-Object { $i = [array]::IndexOf($ORDEN, $_.nombre); if ($i -lt 0) { 99 } else { $i } })
 $hojas.Clear(); foreach ($h in $ordenadas) { [void]$hojas.Add($h) }
 
-New-Item -ItemType Directory -Force $Salida | Out-Null
-$ruta = Join-Path $Salida "Libro mensual Casa Zaru $tag.xlsx"
+# Una carpeta por mes ("2026-11 Noviembre") y el mes al principio del nombre, para que se ordenen solos (13-11-2026).
+$dirMes = Join-Path $Salida "$tag $mesNom"
+New-Item -ItemType Directory -Force $dirMes | Out-Null
+$ruta = Join-Path $dirMes "$tag Libro mensual.xlsx"
 GuardarXlsx $ruta
 "Libro: $ruta"
-# Tablero HTML al lado del libro (mismo nombre siempre: se abre desde Drive y muestra el último mes generado)
+# Tablero HTML en la raíz de Finanzas (mismo nombre siempre: se abre desde Drive y muestra el último mes generado)
 . (Join-Path $PSScriptRoot 'tablero.ps1')
 $rutaTab = Join-Path $Salida 'Tablero Casa Zaru.html'
 Tablero $rutaTab

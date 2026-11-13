@@ -13,7 +13,7 @@
 #       .\cierre-mensual.ps1 -Mes 2026-09     (un mes en particular)
 param(
   [string]$Mes,
-  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Informes Gestion'
+  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Finanzas'   # el PDF va a "<Salida>\AAAA-MM Mes\"
 )
 $ErrorActionPreference = 'Stop'
 $cl = [Globalization.CultureInfo]'es-CL'
@@ -29,7 +29,7 @@ function NomMes($d) { $n = $MESES[$d.Month - 1]; $n.Substring(0,1) + $n.Substrin
 $mesNom = NomMes $iniMes; $mesAntNom = NomMes $iniAnt
 
 # ── Datos ─────────────────────────────────────────────────────────────────
-$dirResp = 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
+$dirResp = 'G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
 $resp = Get-ChildItem $dirResp -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $resp) { throw "No hay respaldos en $dirResp" }
 $j = [IO.File]::ReadAllText($resp.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -259,11 +259,12 @@ $(Tabla @('N°','Fecha','Cliente','Total','Abonado','Saldo') $tCobrar)
 "@
 
 # ── PDF ───────────────────────────────────────────────────────────────────
-New-Item -ItemType Directory -Force $Salida | Out-Null
 $tag = $iniMes.ToString('yyyy-MM')
+$dirMes = Join-Path $Salida "$tag $mesNom"
+New-Item -ItemType Directory -Force $dirMes | Out-Null
 $tmp = Join-Path $env:TEMP "cierre-gestion-$tag.html"
 [IO.File]::WriteAllText($tmp, $html, (New-Object Text.UTF8Encoding($true)))
-$pdf = Join-Path $Salida "Cierre mensual Casa Zaru $tag.pdf"
+$pdf = Join-Path $dirMes "$tag Cierre mensual.pdf"
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $edge) { throw 'No encontré Microsoft Edge para generar el PDF.' }
 $uri = ([Uri]$tmp).AbsoluteUri

@@ -189,14 +189,14 @@ foreach ($q in $duenos) {
 # ---------- Automatizaciones mudas y trabajo a medias ----------
 $salud = @()
 function Edad([string]$ruta) { if (Test-Path -LiteralPath $ruta) { return [math]::Round(((Get-Date) - (Get-Item -LiteralPath $ruta).LastWriteTime).TotalHours, 1) } return $null }
-$rg = Get-ChildItem -LiteralPath 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion' -Filter 'respaldo-gestion-*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+$rg = Get-ChildItem -LiteralPath 'G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion' -Filter 'respaldo-gestion-*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 $rc = Get-ChildItem -LiteralPath 'G:\Mi unidad\Casa Zaru\Respaldos Cotizador' -Filter 'respaldo-cotizador-*.zip' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 $salud += [pscustomobject]@{ que='Respaldo Gestión'; horas=$(if($rg){[math]::Round(((Get-Date)-$rg.LastWriteTime).TotalHours,1)}else{$null}) }
 $salud += [pscustomobject]@{ que='Respaldo Cotizador'; horas=$(if($rc){[math]::Round(((Get-Date)-$rc.LastWriteTime).TotalHours,1)}else{$null}) }
 $salud += [pscustomobject]@{ que='Respaldo PC'; horas=(Edad 'G:\Mi unidad\Casa Zaru\Respaldo PC\ultimo-respaldo.txt') }
 $logs = Join-Path $env:LOCALAPPDATA 'CasaZaru'
 foreach ($l in @('informe-semanal.log','tablero-semanal.log','cierre-mensual.log','respaldo-pc.log')) { $salud += [pscustomobject]@{ que=$l; horas=(Edad (Join-Path $logs $l)) } }
-$aud = Get-ChildItem -LiteralPath 'G:\Mi unidad\Casa Zaru\Informes Gestion' -Filter 'auditoria-confiabilidad-*.md' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
+$aud = Get-ChildItem -LiteralPath 'G:\Mi unidad\Casa Zaru\Auditoria' -Filter 'auditoria-confiabilidad-*.md' -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1
 $salud += [pscustomobject]@{ que='Auditoría de confiabilidad'; horas=$(if($aud){[math]::Round(((Get-Date)-$aud.LastWriteTime).TotalHours,1)}else{$null}) }
 [void]$ok.Add('respaldos y logs')
 $git = @()

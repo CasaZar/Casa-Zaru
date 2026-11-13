@@ -9,7 +9,7 @@ param(
   [Parameter(Mandatory=$true)][string]$Salida
 )
 $ErrorActionPreference = 'Stop'
-$dir = 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
+$dir = 'G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
 if (-not $Respaldo) {
   $f = Get-ChildItem $dir -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
   if (-not $f) { throw "No hay respaldos en $dir" }

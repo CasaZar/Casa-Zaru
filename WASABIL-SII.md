@@ -99,7 +99,7 @@ Migraciones (todas del proyecto de Gestión):
 | Carga de cartolas y cruce banco ↔ factura | misma carpeta: `cargar-cartolas.ps1`, `lib-xls.ps1` |
 | Archivos del cierre (`emitidas-AAAA-MM.csv`, `sii-AAAA-MM.json`) | `C:\Users\dell\.casazaru\` |
 | Respaldos del Apps Script que sube PDFs a Drive | `C:\Users\dell\.casazaru\respaldos\` |
-| PDFs de boletas y facturas emitidas | Drive → `Casa Zaru\Boletas y Facturas - Ventas 2026` |
+| PDFs de boletas y facturas emitidas | Drive → `Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026` (movida el 13-11-2026; el Apps Script la ubica por id, no por ruta) |
 | Sheet mensual de gastos | Drive → "Gastos [Mes] Wasabil Oficiales" |
 | Token de Wasabil y secretos de la subida a Drive | Secretos de la Edge Function: `WASABIL_API_TOKEN`, `DRIVE_UPLOAD_URL`, `DRIVE_UPLOAD_SECRET` |
 | Tarea diaria `reporte-gastos-wasabil` (~8:00, solo con la app de Claude abierta) | `C:\Users\dell\.claude\scheduled-tasks\reporte-gastos-wasabil\` |

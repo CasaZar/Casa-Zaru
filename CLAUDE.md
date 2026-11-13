@@ -104,7 +104,7 @@ Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de h
 - Respaldo diario automático de los dos proyectos a Drive, por tabla, en formato restaurable. Retención
   objetivo: 30 diarios + 12 mensuales.
 - Prueba de restauración mensual comparando conteos y sumas. Un respaldo que nunca se restauró no existe.
-  Cada prueba se anota en `Informes Gestion/restauraciones.csv` (Drive): `fecha,proyecto,resultado,notas`.
+  Cada prueba se anota en `Auditoria/restauraciones.csv` (Drive): `fecha,proyecto,resultado,notas`.
 - Si el último respaldo tiene más de 36 horas, avisar al abrir la sesión.
 - Lo que vive solo en este PC (planillas, `~\.casazaru` sin llaves, memoria de Claude, archivos sin commit)
   se copia todos los días 14:00 a `G:\Mi unidad\Casa Zaru\Respaldo PC\` (tarea «CasaZaru - Respaldo PC»,

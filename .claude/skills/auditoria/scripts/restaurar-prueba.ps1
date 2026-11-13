@@ -1,7 +1,7 @@
 ﻿# Prueba de restauración mensual · Casa Zaru
 # Carga el respaldo del día (Drive) en el esquema restore_test del MISMO proyecto, por PostgREST,
 # y compara filas y sumas por columna numérica contra el archivo. Anota el resultado en
-# G:\Mi unidad\Casa Zaru\Informes Gestion\restauraciones.csv (fecha,proyecto,resultado,notas).
+# G:\Mi unidad\Casa Zaru\Auditoria\restauraciones.csv (fecha,proyecto,resultado,notas).
 # Requiere haber aplicado supabase/migrations/0020_restore_test.sql (Gestión) o
 # supabase-cotizador/restore-test.sql (Cotizador) en el SQL Editor.
 #
@@ -22,7 +22,7 @@ $ErrorActionPreference = 'Stop'
 $ua = 'casazaru-restore-test/1.0'
 $hoy = Get-Date
 $drive = 'G:\Mi unidad\Casa Zaru'
-$dirInf = "$drive\Informes Gestion"
+$dirInf = "$drive\Auditoria"
 $tmp = Join-Path $env:TEMP ('restore-' + $hoy.ToString('yyyyMMdd-HHmmss')); New-Item -ItemType Directory -Force $tmp | Out-Null
 $FILAS_POR_LOTE = 300; $BYTES_POR_LOTE = 400KB
 
@@ -40,8 +40,8 @@ function Filas($obj,$n){ $v=$obj.PSObject.Properties[$n].Value; if($v -eq $null)
 
 # ── 1. Archivo del respaldo ───────────────────────────────────────────────────
 if($Proyecto -eq 'gestion'){
-  $dir="$drive\Boletas y Facturas - Ventas 2026\Respaldos Gestion"; $patron='respaldo-gestion-*.json'
-} else { $dir="$drive\Boletas y Facturas - Ventas 2026\Respaldos Cotizador"; $patron='respaldo-cotizador-*.zip' }   # desde 26-10 (Edge Function respaldo-cotizador)
+  $dir="$drive\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion"; $patron='respaldo-gestion-*.json'
+} else { $dir="$drive\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Cotizador"; $patron='respaldo-cotizador-*.zip' }   # desde 26-10 (Edge Function respaldo-cotizador)
 if(-not $Archivo){ $f=Get-ChildItem "$dir\$patron" | sort LastWriteTime -desc | select -First 1; if(-not $f){ throw "No hay respaldos en $dir" }; $Archivo=$f.FullName }
 $f=Get-Item $Archivo; Copy-Item $f.FullName "$tmp\" ; $local=Join-Path $tmp $f.Name
 if($local -like '*.zip'){ Expand-Archive $local "$tmp\z" -Force; $local=(Get-ChildItem "$tmp\z\*.json" | select -First 1).FullName }

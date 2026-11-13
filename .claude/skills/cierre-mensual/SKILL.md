@@ -38,7 +38,7 @@ de `Casa Zaru Planillas`: `reglas-cierre.csv` (clasificación), `ferias.csv`, `c
 > $20.000 van solos a "Otros gastos". El día 2 se arma el libro con las cuatro semanas ya limpias y al
 > usuario se le dan tres cifras: resultado, caja y lo que falta cobrar.
 
-Genera `G:\Mi unidad\Casa Zaru\Informes Gestion\Libro mensual Casa Zaru AAAA-MM.xlsx` con
+Genera `G:\Mi unidad\Casa Zaru\Finanzas\AAAA-MM Mes\AAAA-MM Libro mensual.xlsx` (una carpeta por mes, desde el 13-11-2026; el tablero queda en la raíz de `Finanzas`) con
 `.claude/informes/libro-mensual.ps1 -Mes AAAA-MM`. El script no clasifica por su cuenta: usa la
 planilla de gastos Wasabil (categorías oficiales) y `reglas-cierre.csv`. **No armar mapas de
 proveedores aparte** (ya pasó una vez y hubo que borrarlo).
@@ -157,7 +157,7 @@ factura, Mercado Pago sin detalle, IVA de ferias). Todo número sale del script,
 
 Cinco libros con la misma estructura — **Resumen + una hoja por mes**, filas marcadas en rojo sobre crema — que el
 día 2 regenera `correr-cierre.ps1` vía `.claude/informes/por-mes/todas.ps1` (también a mano: `todas.ps1 -Anio 2026`).
-Salen a `Casa Zaru Planillas\<nombre> AAAA por mes.xlsx` y se copian a `G:\Mi unidad\Casa Zaru\Finanzas\`.
+Salen a `Casa Zaru Planillas\<nombre> AAAA por mes.xlsx` y se copian a `G:\Mi unidad\Casa Zaru\Finanzas\Planillas por mes\`.
 
 | Libro | Fila = | Rojo = | Fuente que hay que mantener |
 |---|---|---|---|

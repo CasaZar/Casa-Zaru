@@ -125,7 +125,7 @@ $ventasTodas = New-Object System.Collections.ArrayList
 foreach ($cfg in $CFG) { $vs = ParseVentas $cfg; foreach ($v in $vs) { [void]$ventasTodas.Add($v) } }
 
 # --- Gestion (respaldo diario en Drive): may 2026 -> hoy. Principal desde sep 2026 (antes manda la planilla). ---
-$dirResp = 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
+$dirResp = 'G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
 if ($Respaldo) { $resp = Get-Item -LiteralPath $Respaldo } else { $resp = Get-ChildItem $dirResp -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1 }
 $respNombre = ''
 if ($resp) {

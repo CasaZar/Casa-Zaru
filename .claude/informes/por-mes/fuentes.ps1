@@ -11,7 +11,7 @@ $CL = [Globalization.CultureInfo]::GetCultureInfo('es-CL')
 $PL = 'C:\Users\dell\Casa Zaru Planillas'; $CZ = "$env:USERPROFILE\.casazaru"
 $PRIV = Join-Path $PL 'por-mes'
 $CACHE = Join-Path $env:LOCALAPPDATA 'CasaZaru\por-mes'; New-Item -ItemType Directory -Force $CACHE | Out-Null
-$DRIVE = 'G:\Mi unidad\Casa Zaru\Finanzas'
+$DRIVE = 'G:\Mi unidad\Casa Zaru\Finanzas\Planillas por mes'
 if (-not $Anio) { $Anio = (Get-Date).AddMonths(-1).Year }
 . (Join-Path $PL 'lib-xls.ps1')
 . (Join-Path $PRIV 'config.ps1')

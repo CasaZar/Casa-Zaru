@@ -1,5 +1,5 @@
 ﻿# /auditoria — auditoría semanal de confiabilidad de Casa Zaru. SOLO LECTURA.
-# No inserta, no modifica, no borra nada en ninguna base. Informe en Drive (Informes Gestion).
+# No inserta, no modifica, no borra nada en ninguna base. Informe en Drive (Auditoria).
 # Requiere: %USERPROFILE%\.casazaru\config.ps1 ($SB_URL, $SB_KEY del Cotizador), Drive montado en G:.
 param([switch]$SinDrive)   # -SinDrive: no copia el informe a Drive (lo deja en %TEMP%)
 
@@ -10,9 +10,9 @@ $hoy  = Get-Date
 $repo = "$env:USERPROFILE\Casa Zaru - Claude"
 $repoCot = "$env:USERPROFILE\Cotizador"
 $drive = 'G:\Mi unidad\Casa Zaru'
-$dirG  = "$drive\Boletas y Facturas - Ventas 2026\Respaldos Gestion"
-$dirC  = "$drive\Boletas y Facturas - Ventas 2026\Respaldos Cotizador"   # desde 26-10 lo deja la Edge Function respaldo-cotizador; la tarea local sigue en $drive\Respaldos Cotizador
-$dirInf = "$drive\Informes Gestion"
+$dirG  = "$drive\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion"
+$dirC  = "$drive\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Cotizador"   # desde 26-10 lo deja la Edge Function respaldo-cotizador; la tarea local sigue en $drive\Respaldos Cotizador
+$dirInf = "$drive\Auditoria"
 $urlG = 'https://padnttpgzuotxeipjrry.supabase.co'
 $tmp = Join-Path $env:TEMP ('auditoria-' + $hoy.ToString('yyyyMMdd-HHmmss'))
 New-Item -ItemType Directory -Force $tmp | Out-Null

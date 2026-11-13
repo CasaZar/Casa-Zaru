@@ -20,7 +20,7 @@ Hace solo lo que se puede verificar desde esta máquina sin SQL Editor:
 | # | Punto | Cómo lo mide |
 |---|---|---|
 | 1 | Respaldo | Último archivo en Drive de cada proyecto (hora, tamaño, filas por tabla), retención. En el Cotizador compara conteos del zip contra la base en vivo (llave secreta local). Gestión no tiene llave admin local: se audita sobre el JSON. |
-| 2 | Restauración | Lee `Informes Gestion/restauraciones.csv` (`fecha,proyecto,resultado,notas`). Sin archivo o >30 días = rojo. |
+| 2 | Restauración | Lee `Auditoria/restauraciones.csv` (`fecha,proyecto,resultado,notas`). Sin archivo o >30 días = rojo. |
 | 3 | Migraciones | Lista `supabase/migrations/`, saca los `create table` y comprueba por PostgREST que existan (404 = no aplicada). Cotizador: exige `supabase-cotizador/migrations/`. Lo demás lo da `schema_migrations` (SQL abajo). |
 | 4 | RLS | Con la llave pública de cada proyecto: GET, PATCH y DELETE sobre cada tabla usando un filtro contradictorio (`and=(col.is.null,col.not.is.null)`) que nunca toca una fila. 401 = sin grants; 2xx = hay grant y la policy hay que mirarla en SQL. |
 | 5 | Secretos | Busca `sk-ant-api`, `sb_secret_` y JWT con rol distinto de `anon` en ambos repos y en los últimos 60 commits. |
@@ -28,7 +28,7 @@ Hace solo lo que se puede verificar desde esta máquina sin SQL Editor:
 | 7 | Errores | Existe `errores_cliente` en cada proyecto (0021 en Gestión, `errores-cliente.sql` en el Cotizador) y qué entró en los últimos 7 días, leído del respaldo diario y agrupado por mensaje. Las apps lo alimentan con `registrarErrorCliente()` (window.onerror + unhandledrejection). |
 | 8 | Sitios | HTTP a los sitios y a los dos PostgREST; hash de lo publicado vs lo local. |
 
-El informe queda en `G:\Mi unidad\Casa Zaru\Informes Gestion\auditoria-confiabilidad-<fecha>.md`
+El informe queda en `G:\Mi unidad\Casa Zaru\Auditoria\auditoria-confiabilidad-<fecha>.md`
 (Drive, privado: el repo es público y el informe trae números de pedido) y se imprime en consola.
 
 ## 2. Lo que el script no puede ver: pedir al usuario que pegue en el SQL Editor
@@ -94,7 +94,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File ".claude/skills/auditoria/sc
 ```
 
 Resultado OK = todas las tablas cargan sin error, filas y sumas iguales al archivo y ninguna tabla de
-`public` falta en el respaldo. Se anota en `Informes Gestion/restauraciones.csv`
+`public` falta en el respaldo. Se anota en `Auditoria/restauraciones.csv`
 (`fecha,proyecto,resultado,notas`); `auditoria.ps1` lee ese archivo para el punto 2. Las diferencias
 contra la base viva son solo informativas (actividad posterior al respaldo).
 

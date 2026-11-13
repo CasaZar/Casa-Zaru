@@ -11,7 +11,7 @@
 #       .\informe-semanal.ps1 -Lunes 2026-09-28   (informe como si hoy fuera ese lunes)
 param(
   [string]$Lunes,
-  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Informes Gestion'
+  [string]$Salida = 'G:\Mi unidad\Casa Zaru\Finanzas'   # el PDF va a "<Salida>\AAAA-MM Mes\" (mes del lunes de la semana)
 )
 $ErrorActionPreference = 'Stop'
 $cl = [Globalization.CultureInfo]'es-CL'
@@ -29,7 +29,7 @@ $iniMesAnt = $iniMes.AddMonths(-1); $finMesAnt = $iniMesAnt.AddDays($fin.Day - 1
 if ($finMesAnt.Month -ne $iniMesAnt.Month) { $finMesAnt = $iniMes.AddDays(-1) }
 
 # ── Datos ─────────────────────────────────────────────────────────────────
-$dirResp = 'G:\Mi unidad\Casa Zaru\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
+$dirResp = 'G:\Mi unidad\Casa Zaru\Finanzas\Boletas y Facturas - Ventas 2026\Respaldos Gestion'
 $resp = Get-ChildItem $dirResp -Filter 'respaldo-gestion-*.json' | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if (-not $resp) { throw "No hay respaldos en $dirResp" }
 $j = [IO.File]::ReadAllText($resp.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json
@@ -380,10 +380,12 @@ $czHtml
 "@
 
 # ── PDF ───────────────────────────────────────────────────────────────────
-New-Item -ItemType Directory -Force $Salida | Out-Null
+$nMes = $MESES[$lunesActual.Month - 1]
+$dirMes = Join-Path $Salida "$($lunesActual.ToString('yyyy-MM')) $($nMes.Substring(0,1) + $nMes.Substring(1).ToLower())"
+New-Item -ItemType Directory -Force $dirMes | Out-Null
 $tmp = Join-Path $env:TEMP "informe-gestion-$($lunesActual.ToString('yyyy-MM-dd')).html"
 [IO.File]::WriteAllText($tmp, $html, (New-Object Text.UTF8Encoding($true)))
-$pdf = Join-Path $Salida "Informe semanal Casa Zaru $($lunesActual.ToString('yyyy-MM-dd')).pdf"
+$pdf = Join-Path $dirMes "$($lunesActual.ToString('yyyy-MM-dd')) Informe semanal.pdf"
 $edge = @("${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe", "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $edge) { throw 'No encontré Microsoft Edge para generar el PDF.' }
 $uri = ([Uri]$tmp).AbsoluteUri
