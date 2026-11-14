@@ -38009,7 +38009,10 @@ async function _guardarEquilibrio(eq){
   if(!DB_URL||usuarioRol!=='admin')return false;
   try{
     var actual=await api('costos/'+COSTO_ESTANDAR_KEY);
-    var fila=Object.assign({num:COSTO_ESTANDAR_KEY},actual||costoEstandar,{equilibrio:eq});
+    // Si la fila todavía no existe se crea solo con el equilibrio: escribir ahí
+    // los costos por defecto los dejaría fijos en la base y un cambio posterior
+    // de esos valores en el código ya no se aplicaría (loadCost completa lo que falte).
+    var fila=Object.assign({num:COSTO_ESTANDAR_KEY},actual||{},{equilibrio:eq});
     await api('costos/'+COSTO_ESTANDAR_KEY,'PUT',fila);
     costoEstandar.equilibrio=eq;
     return true;
