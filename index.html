@@ -32479,7 +32479,10 @@ async function loadCost(){
       costoEstandar={items:cfg.items||COSTO_ESTANDAR_DEFAULT.items,
                      por_venta:cfg.por_venta||COSTO_ESTANDAR_DEFAULT.por_venta,
                      maderas:cfg.maderas||COSTO_ESTANDAR_DEFAULT.maderas,
-                     extras:cfg.extras||COSTO_ESTANDAR_DEFAULT.extras};
+                     extras:cfg.extras||COSTO_ESTANDAR_DEFAULT.extras,
+                     // punto de equilibrio y ritmo del taller (14-11-2026): viajan
+                     // en esta misma fila, que solo lee el admin
+                     equilibrio:cfg.equilibrio||null};
     }
     costRecords=todos.filter(function(r){return String(r.num||'')!==COSTO_ESTANDAR_KEY;})
                      .sort((a,b)=>Number(a.num||0)-Number(b.num||0));
@@ -32729,7 +32732,7 @@ async function guardarCostoEstandarUI(){
     var m=i.getAttribute('data-madera'),v=Number(i.value)||0;
     if(m)mads[m.toUpperCase()]=v;
   });
-  costoEstandar={items:items,por_venta:pv,maderas:mads,extras:_ceLeerExtras()};
+  costoEstandar={items:items,por_venta:pv,maderas:mads,extras:_ceLeerExtras(),equilibrio:costoEstandar.equilibrio||null};
   var ok=await guardarCostoEstandar();
   cerrarCostoEstandar();
   showToast(ok?'✓ Costos estándar guardados':'✗ No se pudieron guardar');
@@ -35451,6 +35454,7 @@ async function initAllModules(){
   armarNavMovil();     /* después de los permisos: la barra muestra solo lo del rol */
   restaurarPagina();   /* al final: recién acá están los datos y los permisos aplicados */
   celIniciar();        /* modo celular (admin en el teléfono) */
+  _accionesHash();     /* #piso/… desde el panel del cotizador, #equilibrio/… */
 }
 // ── CUENTAS EMPRESA · B2B (22-10-2026) ────────────────────────────────────
 // Una cuenta por RUT. El acumulado es lo comprado en los ÚLTIMOS 12 MESES
@@ -37104,7 +37108,8 @@ function renderMeta(){
     '<div class="ini-barra"><i style="width:'+m.anchoBarra.toFixed(2)+'%"></i><em style="left:'+idealPct.toFixed(2)+'%" title="Donde deberías ir hoy para llegar a la meta"></em></div>'+
     '<div class="ini-pie"><span>'+m.pct+' %</span><span>al día '+m.diaActual+' deberías ir en '+fmtCLP(m.ritmoIdeal)+'</span></div>'+
     '<div class="ini-dos">'+celda1+
-      '<div><div class="l">A este ritmo cierras en</div><div class="v">'+fmtCLP(m.proyeccion)+'</div></div></div>';
+      '<div><div class="l">A este ritmo cierras en</div><div class="v">'+fmtCLP(m.proyeccion)+'</div></div></div>'+
+    _eqHtml();
 }
 // ¿Esta fecha cae en la semana en curso? Se toma de lunes a domingo, que es
 // como se habla en el taller ("esta semana despachamos X"), no los 7 días
@@ -37656,6 +37661,7 @@ function _celHoy(){
       '<button type="button" class="c-tile" onclick="celIrTab(\'desp\')"><div class="n">'+nDe+'</div><div class="l">Por despachar</div><div class="s">listos sin Starken</div></button>'+
       '<button type="button" class="c-tile" onclick="celIrTab(\'cobrar\')"><div class="n">'+c.exigibles.length+'</div><div class="l">Por cobrar</div><div class="s">ya despachados</div></button>'+
     '</div>';
+  h+='<div style="margin:10px 14px 0">'+_eqHtml()+'</div>';
   var its=_dashItems();
   var av=its.filter(function(it){return it.tipo==='avisar';});
   var de=its.filter(function(it){return it.tipo==='despachar';});
@@ -37917,6 +37923,7 @@ function _celMas(){
   var ver=document.querySelector('.sb-version');
   return'<div class="c-h"><span>Revisar</span></div><div class="c-grid">'+
       '<button type="button" class="c-gi" onclick="celIrTab(\'cobrar\')">'+_CEL_IC.plata+'<div>Por cobrar<small>'+fmtCLP(c.total)+' · '+c.nPend+'</small></div></button>'+
+      '<button type="button" class="c-gi" onclick="abrirPiso()">'+_CEL_IC.piezas+'<div>Piso de precio<small>hasta dónde bajar</small></div></button>'+
       gi('seg',_CEL_IC.wa,'Avisos','a clientes')+
       gi('midia',_IC_LINEA.dia,'Mi día','')+
       gi('pv',_CEL_IC.check,'Postventa','')+
@@ -37963,6 +37970,211 @@ window.addEventListener('resize',function(){
   if(!_esMovil())document.body.classList.remove('cel-on','cel-fuera','cel-hoja');
   else if(_celPuede()&&_celPref()!=='off'&&!document.body.classList.contains('cel-fuera')&&!document.body.classList.contains('cel-on'))celIniciar();
 });
+// ── PUNTO DE EQUILIBRIO Y PISO DE PRECIO (14-11-2026) ─────────────────────
+// Equilibrio = la venta NETA mensual que cubre los gastos fijos (del cierre
+// mensual: gastos fijos ÷ % de contribución). Esa cifra y el ritmo del taller
+// en una semana buena son privadas: no van en el código. Se guardan dentro de
+// la fila de costos estándar (costos/__estandar, solo admin) y se fijan desde
+// la app o con el enlace #equilibrio/<venta neta>/<m² por semana>.
+// La venta neta del mes se mide igual que la meta: total de las ventas ÷ 1,19.
+var _EQ_CSS='.eq-caja{background:#fff;border:1px solid #E4DDD3;border-radius:13px;padding:12px 13px;margin-top:12px;font-size:13px;color:#2B2B2B;text-align:left}'+
+  '.eq-h{font-size:11.5px;font-weight:600;color:#7A746C;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;gap:8px}'+
+  '.eq-h button{background:none;border:0;color:#B5652E;font-size:11.5px;font-weight:600;padding:0;cursor:pointer;text-transform:none;letter-spacing:0;font-family:inherit}'+
+  '.eq-n{font-size:22px;font-weight:700;margin-top:4px;line-height:1.2}.eq-n small{font-size:13px;font-weight:400;color:#7A746C}'+
+  '.eq-b{position:relative;height:9px;background:#EDE8E0;border-radius:6px;margin:8px 0 5px;overflow:visible}'+
+  '.eq-b i{display:block;height:100%;border-radius:6px;background:#485B3D}.eq-b.mal i{background:#B5652E}'+
+  '.eq-b em{position:absolute;top:-3px;width:2px;height:15px;background:#2B2B2B}'+
+  '.eq-s{color:#7A746C;font-size:12.5px;line-height:1.45}.eq-s b{color:#2B2B2B}.eq-s .mal{color:#b04a2a;font-weight:600}.eq-s .bien{color:#3c5a2c;font-weight:600}'+
+  '.eq-dos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}'+
+  '.eq-dos>div{background:#F6F3EE;border-radius:9px;padding:8px 9px}.eq-dos .l{font-size:11px;color:#7A746C}.eq-dos .v{font-size:15px;font-weight:700}'+
+  '.eq-btn{margin-top:9px;border:1.5px solid #E4DDD3;background:#fff;border-radius:9px;padding:8px 11px;font-size:13px;font-weight:600;font-family:inherit;color:#2B2B2B;cursor:pointer}'+
+  '.piso-g{display:grid;grid-template-columns:1fr 1fr;gap:10px}.piso-g label{font-size:11px;font-weight:600;color:var(--text-3);display:block}'+
+  '.piso-g input,.piso-g select{width:100%;padding:8px 10px;border:1px solid var(--border-md);border-radius:8px;font-size:15px;background:var(--surface);color:var(--text);box-sizing:border-box}'+
+  '.piso-r{margin-top:14px;background:#F6F3EE;border-radius:10px;padding:11px 12px;font-size:13.5px;line-height:1.6}'+
+  '.piso-r b.g{font-size:20px;color:#485B3D}.piso-t{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}'+
+  '.piso-t td,.piso-t th{padding:5px 4px;border-bottom:1px solid #E4DDD3;text-align:right}.piso-t td:first-child,.piso-t th:first-child{text-align:left}'+
+  '.piso-t .no{color:#b04a2a;font-weight:600}.piso-t .si{color:#3c5a2c;font-weight:600}';
+function _eqCssUnaVez(){
+  if(document.getElementById('eq-css'))return;
+  var st=document.createElement('style');st.id='eq-css';st.textContent=_EQ_CSS;document.head.appendChild(st);
+}
+function _eqCfg(){
+  var e=(costoEstandar&&costoEstandar.equilibrio)||{};
+  return{venta:Number(e.venta_neta)||0,taller:Number(e.taller_m2)||0};
+}
+// Se relee la fila del servidor y se le suma solo este campo: lo que hay en
+// memoria puede ser el valor por defecto si la carga de costos falló, y un
+// PUT con eso pisaría los costos estándar guardados.
+async function _guardarEquilibrio(eq){
+  if(!DB_URL||usuarioRol!=='admin')return false;
+  try{
+    var actual=await api('costos/'+COSTO_ESTANDAR_KEY);
+    var fila=Object.assign({num:COSTO_ESTANDAR_KEY},actual||costoEstandar,{equilibrio:eq});
+    await api('costos/'+COSTO_ESTANDAR_KEY,'PUT',fila);
+    costoEstandar.equilibrio=eq;
+    return true;
+  }catch(e){console.error('No se guardó el equilibrio',e);return false;}
+}
+async function editarEquilibrio(){
+  var c=_eqCfg();
+  var v=prompt('Venta NETA mensual de equilibrio, en pesos.\n(Del cierre mensual: gastos fijos ÷ % de contribución.)',c.venta||'');
+  if(v===null)return;
+  v=Number(String(v).replace(/[^\d]/g,''));
+  if(!v){showToast('Monto inválido',true);return;}
+  var t=prompt('Ritmo del taller en una semana buena, en m² (0 si no lo quieres medir):',String(c.taller||'').replace('.',','));
+  if(t===null)return;
+  t=Number(String(t).replace(',','.').replace(/[^\d.]/g,''))||0;
+  var ok=await _guardarEquilibrio({venta_neta:v,taller_m2:t});
+  showToast(ok?'✓ Equilibrio guardado':'✗ No se pudo guardar',!ok);
+  renderDash();celRefrescar();
+}
+function _eqDatos(){
+  var c=_eqCfg(),m=_metaDatos();
+  var neta=Math.round(m.facMes/1.19);
+  var hoy=new Date();hoy.setHours(12,0,0,0);
+  // semanaDeFecha devuelve la semana de PRODUCCIÓN de lo que se despacha en esa
+  // fecha (una antes). Lo que el taller fabrica hoy es la semana que lleva el
+  // lunes de esta semana: la de lo que se despacha en 7 días.
+  var sem=semanaDeFecha(_isoLocal(_sumarDias(hoy,7))),sig=semanaDeFecha(_isoLocal(_sumarDias(hoy,14)));
+  function m2De(s){
+    return prodOrders.reduce(function(a,o){
+      if(normalizeSemana(o.envio)!==s)return a;
+      return a+(o.lineas||[]).reduce(function(b,l){return b+calcM2(l.largo,l.ancho,l.cantidad);},0);
+    },0);
+  }
+  return{cfg:c,neta:neta,nVentas:m.nVentas,dia:m.diaActual,dias:m.diasEnMes,mes:m.mes,
+    esperado:Math.round(c.venta*m.diaActual/m.diasEnMes),
+    proy:Math.round(m.proyeccion/1.19),
+    falta:Math.max(0,c.venta-neta),
+    ticket:m.nVentas?neta/m.nVentas:0,
+    m2Sem:m2De(sem),m2Sig:m2De(sig)};
+}
+function _eqHtml(){
+  if(usuarioRol!=='admin')return'';
+  _eqCssUnaVez();
+  var d=_eqDatos();
+  if(!d.cfg.venta){
+    return'<div class="eq-caja"><div class="eq-h"><span>Punto de equilibrio</span></div>'+
+      '<div class="eq-s" style="margin-top:4px">Es la venta neta mensual que cubre los gastos fijos. Todavía no está fijada.</div>'+
+      '<button type="button" class="eq-btn" onclick="editarEquilibrio()">Fijar el equilibrio</button> '+
+      '<button type="button" class="eq-btn" onclick="abrirPiso()">Piso de precio</button></div>';
+  }
+  var pct=Math.min(100,d.neta/d.cfg.venta*100),ideal=Math.min(100,d.esperado/d.cfg.venta*100);
+  var dif=d.neta-d.esperado,bien=dif>=0;
+  var pedidos=(d.falta>0&&d.ticket>0)?Math.ceil(d.falta/d.ticket):0;
+  var ritmo=bien
+    ?'<span class="bien">Vas '+fmtCLP(dif)+' sobre el ritmo</span> del día '+d.dia+'.'
+    :'<span class="mal">Vas '+fmtCLP(-dif)+' bajo el ritmo</span>: al día '+d.dia+' deberías llevar '+fmtCLP(d.esperado)+' netos.';
+  var cierra=d.proy>=d.cfg.venta
+    ?'<div class="v" style="color:#3c5a2c">'+fmtCLP(d.proy)+'</div>'
+    :'<div class="v" style="color:#b04a2a">'+fmtCLP(d.proy)+'</div>';
+  var h='<div class="eq-caja"><div class="eq-h"><span>Punto de equilibrio · '+MESES_LARGO_D[d.mes]+'</span><button type="button" onclick="editarEquilibrio()">cambiar</button></div>'+
+    '<div class="eq-n">'+fmtCLP(d.neta)+' <small>netos de '+fmtCLP(d.cfg.venta)+'</small></div>'+
+    '<div class="eq-b'+(bien?'':' mal')+'"><i style="width:'+pct.toFixed(1)+'%"></i><em style="left:'+ideal.toFixed(1)+'%" title="Donde deberías ir hoy"></em></div>'+
+    '<div class="eq-s">'+ritmo+'</div>'+
+    '<div class="eq-dos">'+
+      '<div><div class="l">Falta para el equilibrio</div><div class="v">'+(d.falta>0?fmtCLP(d.falta):'Cubierto')+'</div>'+
+        (pedidos?'<div class="l">unos '+pedidos+(pedidos===1?' pedido':' pedidos')+' al ticket del mes</div>':'')+'</div>'+
+      '<div><div class="l">A este ritmo cierras en</div>'+cierra+'<div class="l">netos</div></div>'+
+    '</div>';
+  if(d.cfg.taller>0){
+    var uso=Math.min(100,d.m2Sem/d.cfg.taller*100);
+    h+='<div class="eq-s" style="margin-top:10px"><b>Taller esta semana: '+_f3(d.m2Sem)+' m²</b> de '+_f3(d.cfg.taller)+' m² de una semana buena · próxima: '+_f3(d.m2Sig)+' m²</div>'+
+      '<div class="eq-b" style="margin-bottom:0"><i style="width:'+uso.toFixed(1)+'%"></i></div>';
+  }
+  h+='<button type="button" class="eq-btn" onclick="abrirPiso()">Piso de precio</button></div>';
+  return h;
+}
+// ── Piso de precio: hasta dónde se puede bajar sin perder ──────────────────
+// Usa los mismos costos estándar del módulo de Costos (madera por m², proceso
+// por m² según el acabado, lo fijo por venta y la base de fierro). Todo SIN
+// IVA contra el precio neto. Nada se guarda: es una calculadora.
+var _piso={};
+function _pisoBaseFierro(){
+  return(costoEstandar.extras||[]).filter(function(e){return e.prod==='Mesa'&&!e.condicional;})
+    .reduce(function(s,e){return s+(Number(e.valor)||0);},0);
+}
+function abrirPiso(pre){
+  _eqCssUnaVez();
+  _piso=pre||{};
+  var mads=Object.keys(costoEstandar.maderas||{}).filter(function(k){return k!=='PINO OREGÓN'&&k!=='LAUREL';});
+  var madIni=_piso.alto?'LENGA':(mads.indexOf('COIHUE')>=0?'COIHUE':mads[0]);
+  var precio=Math.round(_piso.alto||_piso.precio||0);
+  var pista=(_piso.bajo&&_piso.alto&&_piso.bajo!==_piso.alto)
+    ?'<div style="font-size:12px;color:var(--text-3);margin-bottom:10px">La cotización va de '+fmtCLP(_piso.bajo)+' (Pino Oregón) a '+fmtCLP(_piso.alto)+' (Coihue, Raulí o Lenga). Al cambiar la madera se ajusta el precio.</div>':'';
+  var html='<div class="modal" style="max-width:520px">'+
+    '<div class="modal-header"><div class="modal-title">Piso de precio</div><button class="btn-close" onclick="cerrarPiso()">×</button></div>'+
+    '<div style="padding:0 4px 4px">'+pista+
+      '<div class="piso-g">'+
+        '<div><label>Superficie (m²)</label><input type="number" id="pi-m2" step="0.001" min="0" inputmode="decimal" value="'+(_piso.m2||'')+'" oninput="pisoCalc()"></div>'+
+        '<div><label>Madera</label><select id="pi-mad" onchange="pisoMadera()">'+mads.map(function(k){return'<option'+(k===madIni?' selected':'')+'>'+esc(k)+'</option>';}).join('')+'</select></div>'+
+        '<div><label>Precio cotizado, con IVA</label><input type="number" id="pi-precio" step="1" min="0" inputmode="numeric" value="'+(precio||'')+'" oninput="pisoCalc()"></div>'+
+        '<div><label>Acabado</label><select id="pi-acab" onchange="pisoCalc()"><option value="VITRIFICADO">Vitrificado</option><option value="CUTEK">CUTEK (exterior)</option></select></div>'+
+        '<div><label>Bases de fierro</label><input type="number" id="pi-bases" step="1" min="0" inputmode="numeric" value="0" oninput="pisoCalc()"></div>'+
+        '<div><label>Margen mínimo que aceptas (%)</label><input type="number" id="pi-min" step="1" min="0" max="90" inputmode="numeric" value="30" oninput="pisoCalc()"></div>'+
+        '<div><label>Comisión y pasarela (%)</label><input type="number" id="pi-var" step="0.1" min="0" max="30" inputmode="decimal" value="2" oninput="pisoCalc()"></div>'+
+      '</div>'+
+      '<div id="pi-res" class="piso-r"></div>'+
+    '</div>'+
+    '<div class="modal-footer"><button class="btn-sec" onclick="cerrarPiso()">Cerrar</button></div></div>';
+  var bg=document.getElementById('modal-piso-bg');
+  if(!bg){bg=document.createElement('div');bg.className='modal-bg';bg.id='modal-piso-bg';document.body.appendChild(bg);}
+  bg.innerHTML=html;bg.classList.add('open');
+  pisoCalc();
+}
+function cerrarPiso(){var b=document.getElementById('modal-piso-bg');if(b)b.classList.remove('open');}
+// Viene del panel con el precio en Oregón y en las maderas altas: al cambiar
+// la madera se propone el precio de ese tramo (los del tramo medio no vienen).
+function pisoMadera(){
+  var mad=document.getElementById('pi-mad').value,p=document.getElementById('pi-precio');
+  if(_piso.bajo&&_piso.alto){
+    if(/OREG/.test(_normMad(mad)))p.value=Math.round(_piso.bajo);
+    else if(/COIHUE|RAULI|LENGA/.test(_normMad(mad)))p.value=Math.round(_piso.alto);
+  }
+  pisoCalc();
+}
+function pisoCalc(){
+  var el=document.getElementById('pi-res');if(!el)return;
+  function n(id){return Number(String(document.getElementById(id).value).replace(',','.'))||0;}
+  var m2=n('pi-m2'),precio=n('pi-precio'),bases=Math.round(n('pi-bases')),min=n('pi-min')/100,va=n('pi-var')/100;
+  var mad=document.getElementById('pi-mad').value,acab=document.getElementById('pi-acab').value;
+  if(!m2||!precio){el.innerHTML='Escribe la superficie y el precio cotizado.';return;}
+  var cMad=costoMaderaM2(mad),cProc=procesoTotalM2(acab);
+  var costo=Math.round(m2*(cMad+cProc)+porVentaTotal()+bases*_pisoBaseFierro());
+  var neto=precio/1.19;
+  function margen(p){var nt=p/1.19;return{pesos:Math.round(nt-costo-nt*va),pct:(nt-costo-nt*va)/nt};}
+  var hoy=margen(precio);
+  var divisor=1-min-va;
+  var pisoBruto=divisor>0?Math.round(costo/divisor*1.19):0;
+  var ceroBruto=(1-va)>0?Math.round(costo/(1-va)*1.19):0;
+  var rebaja=pisoBruto&&precio>pisoBruto?(1-pisoBruto/precio)*100:0;
+  var filas=[0,5,7,10,15,20].map(function(d){
+    var p=Math.round(precio*(1-d/100)),mg=margen(p),ok=mg.pct>=min;
+    return'<tr><td>'+(d?('−'+d+' %'):'Cotizado')+'</td><td>'+fmtCLP(p)+'</td><td>'+fmtCLP(mg.pesos)+'</td><td class="'+(ok?'si':'no')+'">'+(mg.pct*100).toFixed(1).replace('.',',')+' %</td></tr>';
+  }).join('');
+  el.innerHTML=
+    '<div>Costo directo: <b>'+fmtCLP(costo)+'</b> sin IVA <span style="color:var(--text-3)">('+fmtCLP(Math.round(cMad+cProc))+' por m², con mano de obra estándar)</span></div>'+
+    '<div>Hoy deja <b>'+fmtCLP(hoy.pesos)+'</b>, un <b>'+(hoy.pct*100).toFixed(1).replace('.',',')+' %</b> del precio neto.</div>'+
+    '<div style="margin-top:6px">Piso para tu margen mínimo: <b class="g">'+(pisoBruto?fmtCLP(pisoBruto):'—')+'</b> con IVA'+
+      (rebaja>0?' · puedes bajar hasta un <b>'+rebaja.toFixed(1).replace('.',',')+' %</b>':(pisoBruto&&precio<pisoBruto?' · <span style="color:#b04a2a;font-weight:600">el precio cotizado ya está bajo el piso</span>':''))+'</div>'+
+    '<div style="color:var(--text-3);font-size:12.5px">Bajo '+fmtCLP(ceroBruto)+' con IVA se pierde plata en el pedido.</div>'+
+    '<table class="piso-t"><thead><tr><th>Descuento</th><th>Precio</th><th>Deja</th><th>Margen</th></tr></thead><tbody>'+filas+'</tbody></table>';
+}
+// Enlaces que abren algo al entrar: #piso/<m²>/<precio Oregón>/<precio alto>
+// (desde la pestaña Proyectos del panel) y #equilibrio/<venta neta>/<m² semana>.
+function _accionesHash(){
+  if(usuarioRol!=='admin')return;
+  var p=String(location.hash||'').replace(/^#/,'').split('/');
+  if(p[0]==='piso'){
+    abrirPiso({m2:Number(p[1])||0,bajo:Number(p[2])||0,alto:Number(p[3])||0});
+  }else if(p[0]==='equilibrio'&&Number(p[1])>0){
+    var eq={venta_neta:Math.round(Number(p[1])),taller_m2:Number(p[2])||0};
+    if(confirm('¿Guardar el punto de equilibrio en '+fmtCLP(eq.venta_neta)+' netos al mes'+(eq.taller_m2?' y el ritmo del taller en '+String(eq.taller_m2).replace('.',',')+' m² por semana':'')+'?')){
+      _guardarEquilibrio(eq).then(function(ok){showToast(ok?'✓ Equilibrio guardado':'✗ No se pudo guardar',!ok);renderDash();celRefrescar();});
+    }
+  }else return;
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(e){}
+}
 // ── Acciones de las tarjetas de Producción (celular) ──────────────────────
 function prodEstadoNum(numStr,val){
   var oi=_prodIdx(numStr);if(oi<0)return;
