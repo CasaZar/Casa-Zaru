@@ -25,7 +25,7 @@ Todo lo que tiene datos vive en Drive (`Cerebro\`) o en la base privada de la p�
 | Aprendizajes | `Cerebro\insights.csv` (`fecha,insight,evidencia,confianza`) |
 | Deudas | `C:\Users\dell\Casa Zaru Planillas\cuotas-creditos.csv` y `por-pagar-manual.csv` (solo lectura) |
 | Scripts | `.claude/cerebro/armar-dia.ps1`, `componer-dia.ps1`, `cerrar-dia.ps1`, `publicar-dia.ps1` |
-| Consultas | `sql/gestion-pulso.sql` (MCP gestión), `sql/cotizador-pulso.sql` (MCP cotizador) |
+| Consultas | `sql/gestion-pulso.sql` (MCP gestión), `sql/cotizador-pulso.sql` y `sql/cotizador-proyectos.sql` (MCP cotizador) |
 
 Los `.ps1` se corren desde **Bash** con
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/cerebro/<script>.ps1 ...`
@@ -62,6 +62,13 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    `sql/cotizador-pulso.sql` con `mcp__supabase-cotizador__execute_sql` (nunca los dos proyectos en una
    consulta). Las cifras van **tal cual** salen: no redondear de cabeza ni recalcular. Si una consulta
    falla, esa cifra va como «sin dato» y la fuente a `fuentes_fallidas`.
+   **Proyectos (desde el 14-11-2026):** correr también `sql/cotizador-proyectos.sql` con el MCP del
+   cotizador. Son los clientes con $1,5 M o más abierto, que llama el dueño (panel del cotizador →
+   pestaña «Proyectos»). Si `nuevos_24_h` o `sin_primer_contacto` es mayor que cero, va en `foco`
+   («Llamar hoy a N proyectos nuevos por $X: panel → Proyectos»). Si `en_conversacion_sin_toque_72_h`
+   es mayor que cero, va como `pulso.raro` cuando no haya algo más grave. Una de las `pulso.cifras`
+   es «Proyectos vivos» (`vivos_30_dias`, con `vivos_30_dias_monto` en `comp`). Nunca nombres ni
+   teléfonos: la lista con nombres vive en el panel.
 4. **Barrido de olvidos** (solo lectura, rápido): logs de tareas programadas de las últimas 24 h, último
    respaldo (si pasa de 36 h es alarma), promesas nuevas en `promesas-pendientes.md` de la revisión de
    WhatsApp si existe. Lo que aparezca y no esté en `pendientes.csv`, se agrega (con respaldo previo).
