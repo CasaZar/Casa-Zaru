@@ -127,6 +127,8 @@ body {
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 .sync-label { font-size: 12.5px; color: var(--z-sec); }
 .sb-rol { color: var(--z-tinta); }
+.sb-correo { font-size: 11.5px; color: var(--z-sec); overflow-wrap: anywhere; margin-top: -4px; }
+.sb-correo:empty { display: none; }
 .sb-export {
   align-self: flex-start; border: 0; background: none; padding: 0; cursor: pointer;
   font: 12.5px 'Poppins', sans-serif; color: var(--z-sec);
@@ -26548,7 +26550,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
   <div class="sb-pie">
     <div class="sync-row"><span class="sync-dot" id="sync-dot"></span><span class="sync-label" id="sync-label">Conectando...</span></div>
     <div class="sb-rol" id="sb-rol"></div>
+    <div class="sb-correo" id="sb-correo"></div>
     <button class="sb-export" type="button" onclick="exportTodoXLSX()">Exportar todo a Excel</button>
+    <button class="sb-export" type="button" onclick="if(confirm('¿Cerrar la sesión en este equipo?'))cerrarSesion()">Cerrar sesión</button>
     <div class="sb-version">v2.8 · 6 nov 2026</div>
   </div>
 </div>
@@ -27896,6 +27900,7 @@ function armarNavMovil(){
   }
   var rol=document.getElementById('sb-rol');
   if(rol){rol.textContent=ROL_TXT[usuarioRol]||'';rol.title=usuarioEmail||'';}
+  var sbc=document.getElementById('sb-correo');if(sbc)sbc.textContent=usuarioEmail||'';
   // Aunque no sobren secciones, "Más" queda: ahí están buscar, Excel y salir.
   window._navExtra=extra;
   actualizarNavMovil();
