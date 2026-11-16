@@ -33174,7 +33174,7 @@ function _mdWhatsappHtml(w){
 // dia.cruce: grupos de avisos donde dos fuentes no calzan. Nada se escribe solo:
 // «Cargar pedido» deja la venta en la vista previa de Producción para revisarla,
 // y descartar pide un motivo que la corrida siguiente guarda para no repetir el aviso.
-var _MD_CZ_BTN={cargar:'Cargar pedido',descartar:'No es venta'};
+var _MD_CZ_BTN={cargar:'Cargar pedido',descartar:'No es venta',marcar:'Marcar abono'};
 function _mdCruceItem(id){
   var c=(_md.dia||{}).cruce||{},r=null;
   (c.grupos||[]).forEach(function(g){(g.items||[]).forEach(function(it){if(it.id===id)r=it;});});
@@ -33192,8 +33192,11 @@ function _mdCruceHtml(c){
       var m=M[it.id];
       var lin=(it.lineas||[]).map(function(l){return'<div class="md-s">'+esc(l)+'</div>';}).join('');
       var abierto=m&&m.accion==='cargar'?'<div class="md-s md-cz-ab">Abierto en Producción a las '+esc(_mdHora(m.ts))+'. Sale de esta lista cuando el pedido quede guardado y se arme el día siguiente.</div>':'';
-      var btns=(it.acciones||[]).map(function(a,i){
-        return'<button type="button" class="'+(i===0?'md-cz-p':'')+'" data-cz="'+esc(it.id)+'" data-cz-op="'+esc(a)+'">'+esc(_MD_CZ_BTN[a]||a)+'</button>';
+      var hecho=m&&m.accion==='marcar';
+      if(hecho)abierto='<div class="md-s md-cz-ab">Marcado a las '+esc(_mdHora(m.ts))+': abono '+esc(m.abono)+' del pedido '+esc(m.num)+'.</div>';
+      var btns=hecho?'':(it.acciones||[]).map(function(a,i){
+        var txt=(it.botones&&it.botones[a])||_MD_CZ_BTN[a]||a;
+        return'<button type="button" class="'+(i===0&&a!=='descartar'?'md-cz-p':'')+'" data-cz="'+esc(it.id)+'" data-cz-op="'+esc(a)+'">'+esc(txt)+'</button>';
       }).join('');
       return'<div class="md-cz-i md-cz-'+(it.tono==='rojo'?'rojo':'ambar')+'"><div class="md-t">'+esc(it.titulo)+(it.monto!=null?' · '+_mdPlata(it.monto):'')+'</div>'+lin+abierto+
         (btns?'<div class="md-btns">'+btns+'</div>':'')+'</div>';
@@ -33222,7 +33225,8 @@ function _mdCruceCargar(it){
     lineas:[{producto:c.producto||'',cantidad:1,madera:'',largo:0,ancho:0,canto:'TIPO 1',acabado:'VIT MATE',espesor:4,observaciones:obs}],
     fecha_venta:/^\d{4}-\d{2}-\d{2}$/.test(String(c.concretada||''))?c.concretada:'',
     // monto de cierre = precio ya conversado (con su descuento): va tal cual, sin descuento encima
-    _finanzas:{valor_producto:Number(c.monto)||0,valor_envio:0,valor_comision:0,medio_pago:'TRANSFERENCIA'},
+    // abono1 solo viene cuando el aviso nació de un pago que ya entró al banco (etapa 2)
+    _finanzas:{valor_producto:Number(c.monto)||0,valor_envio:0,valor_comision:0,medio_pago:'TRANSFERENCIA',abono1:c.abono1!=null?Number(c.abono1):null},
     _cliente:{phone:esCorreo?'':(c.contacto||''),email:esCorreo?c.contacto:'',direccion:'',ct:'',st:'',rut:'',fn:nom.fn,ln:nom.ln,country:'CL'},
     _factura:{doc_tipo:'BOLETA'}};
   pedidoData.fecha=todayStr;
@@ -33237,6 +33241,34 @@ function _mdCruceCargar(it){
   document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
   showToast('Venta del Cotizador en la vista previa: completa medidas, madera, envío y semana antes de confirmar');
   return true;
+}
+
+// Marca en Finanzas un pago que ya entró al banco. Es plata: un solo camino, y se
+// puede apretar dos veces sin duplicar. Relee el pedido del servidor, usa el primer
+// abono libre, escribe SOLO ese abono y su fecha (PATCH) y vuelve a leer para confirmar.
+async function _mdCruceMarcar(it){
+  var p=it.pago||{},num=String(p.num||''),monto=Math.round(Number(p.monto)||0);
+  if(!num||!(monto>0)){_mdToast('Este aviso no trae el pedido o el monto.');return null;}
+  var r=await _releerFinanzas(num);
+  if(!r||!r.num){_mdToast('No pude leer el pedido '+esc(num)+' desde la base. No se marcó nada.');return null;}
+  var ab=[1,2,3].map(function(k){return Number(r['abono'+k])||0;});
+  var ya=ab.indexOf(monto);
+  if(ya>=0)return{num:num,abono:ya+1,ya:true};   // ya estaba: no se escribe de nuevo
+  var libre=ab.indexOf(0);
+  if(libre<0){_mdToast('El pedido '+esc(num)+' ya tiene los tres abonos usados. Hay que revisarlo en Finanzas.');return null;}
+  var k=libre+1,saldo=(Number(r.total)||0)-ab[0]-ab[1]-ab[2];
+  var aviso=monto>saldo?'\n\nOjo: el saldo es '+_mdPlata(saldo)+'. Quedarían '+_mdPlata(monto-saldo)+' a favor del cliente.':'';
+  if(!confirm('¿Marcar abono '+k+' = '+_mdPlata(monto)+' en el pedido '+num+' ('+((r.nombre||'')+' '+(r.apellido||'')).trim()+')?'+aviso))return null;
+  var f=String(p.fecha||'').split('-'),cambio={};
+  cambio['abono'+k]=monto;
+  if(f.length===3)cambio['fecha_abono'+k]=parseInt(f[2],10)+'/'+parseInt(f[1],10)+'/'+f[0];
+  await api('finanzas/'+num,'PATCH',cambio);
+  var v=await _releerFinanzas(num);
+  if(!v||(Number(v['abono'+k])||0)!==monto){_mdToast('El pedido '+esc(num)+' no quedó con el abono. Revísalo en Finanzas.');return null;}
+  logHistorial(num,'Abono '+k+' marcado desde Mi día: '+_mdPlata(monto)+(p.banco?' ('+p.banco+(p.fecha?', '+p.fecha:'')+')':''));
+  var i=finRecords.findIndex(function(x){return String(x.num||'')===num;});
+  if(i>=0)finRecords[i]=Object.assign({},finRecords[i],v);
+  return{num:num,abono:k,ya:false};
 }
 
 function renderMiDia(){
@@ -33430,7 +33462,7 @@ function _mdEventos(){
       var zid=b.dataset.cz,zop=b.dataset.czOp,zit=_mdCruceItem(zid);if(!zit)return;
       var zts=new Date().toISOString();
       if(zop==='descartar'){
-        var mot=prompt('¿Por qué no es una venta por cargar? (por ejemplo: «ya está en el pedido 1610», «cotización repetida»). El aviso no vuelve a salir.');
+        var mot=prompt('¿Por qué descartas este aviso? (por ejemplo: «ya está en el pedido 1610», «cotización repetida», «es un préstamo»). No vuelve a salir.');
         if(mot===null)return;
         mot=String(mot).trim();
         if(!mot){_mdToast('Escribe el motivo para descartar el aviso.');return;}
@@ -33440,6 +33472,19 @@ function _mdEventos(){
         if(!_mdCruceCargar(zit))return;
         _mdCambio(function(m){m.cruce[zid]={accion:'cargar',ts:zts};});
         renderMiDia();
+      }else if(zop==='marcar'){
+        if(b.disabled)return;
+        b.disabled=true;
+        _mdCruceMarcar(zit).then(function(res){
+          b.disabled=false;
+          if(!res)return;
+          _mdCambio(function(m){m.cruce[zid]={accion:'marcar',num:res.num,abono:res.abono,ts:zts};});
+          renderMiDia();
+          _mdToast(res.ya?'Ese pago ya estaba marcado en el pedido '+esc(res.num)+'.':'<b>Abono marcado</b> en el pedido '+esc(res.num)+'. Falta emitir su documento desde Finanzas.');
+        }).catch(function(e){
+          b.disabled=false;console.error('Mi día: marcar abono',e);
+          _mdToast('No se pudo marcar el abono. Revisa la conexión y el pedido en Finanzas antes de reintentar.');
+        });
       }
     }else if(b.dataset.czDeshacer){
       _mdCambio(function(m){Object.keys(m.cruce).forEach(function(k){if(m.cruce[k]&&m.cruce[k].accion==='descartar')delete m.cruce[k];});});

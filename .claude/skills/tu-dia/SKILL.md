@@ -78,8 +78,27 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    la pestaña (`marcas.cruce[id].accion = "descartar"`) pasa a `Cerebro\cruce-descartes.csv` y no vuelve a
    salir. El script decide qué calza: no corregir su lista a mano. Si `sin_pedido` es mayor que cero, va en
    `foco` con el monto que imprime el script. Si una de las dos consultas falla, no se pasa `-Cruce` y
-   «Cruce de datos» va a `fuentes_fallidas`. Etapas 2 (pagos del banco) y 3 (chat de WhatsApp contra el
-   pedido) todavía no existen.
+   «Cruce de datos» va a `fuentes_fallidas`. La etapa 3 (chat de WhatsApp contra el pedido) todavía no existe.
+   **Etapa 2, pagos (desde el 16-11-2026).** Antes de correr `cruzar-dia.ps1`:
+   - **Avisos por correo.** Con el conector de Gmail (cuenta de la empresa), buscar los avisos de
+     transferencia de los últimos 3 días: `newer_than:3d {subject:transferencia subject:"Itaú informa"
+     "recibiste una transferencia"} -in:sent`. Los bancos mandan formatos distintos (BCI, Banco de Chile,
+     Santander, Itaú, BICE, Falabella, Estado…): leer cada mensaje (`get_thread`, texto plano; un hilo de BCI
+     junta varios) y quedarse **solo con la plata RECIBIDA** en las cuentas de la empresa. Fuera lo que la
+     empresa envió («la transferencia se realizó con éxito», «Firmaste con éxito»), aunque esté en el mismo hilo.
+     Escribir `<scratchpad>\pagos-nuevos.json`:
+     `[{"fecha":"AAAA-MM-DD","hora":"HH:MM","monto":123456,"pagador":"...","rut":"12345678-9","comentario":"...","banco":"..."}]`
+     (monto entero, sin puntos; `rut` y `comentario` vacíos si el aviso no los trae). Pasarlo con
+     `-PagosNuevos`, **también si quedó vacío `[]`**: así la fuente figura revisada hoy. Si Gmail no está
+     disponible, no pasar el parámetro: la sección muestra sola que los avisos están atrasados.
+   - **Cartola.** Si en Descargas hay una `*Movimientos_Detallado_Cuenta_7175*.xlsx` más nueva que
+     `cartola_leida` de `Cerebro\pagos-estado.json`, pasarla a CSV con
+     `.claude/skills/conciliacion/scripts/leer-cartola-bci.ps1 -Salida <scratchpad>\bci.csv` y agregar
+     `-Cartola <scratchpad>\bci.csv`. No pedirle la cartola al usuario: la sección ya avisa cuando tiene más de 7 días.
+   El script suma todo a `Cerebro\pagos.csv` (cada pago una vez) y cruza los últimos 21 días contra los
+   abonos: «Pagó y no hay pedido», «Pago sin marcar en Finanzas» y «Plata que entró y no sé de quién es».
+   No ve Mercado Pago, Flow ni Venti (no mandan aviso por correo): eso sigue saliendo de la conciliación
+   con cartola. Nunca marcar abonos desde la corrida: lo hace el usuario con el botón de la pestaña.
 4. **Barrido de olvidos** (solo lectura, rápido): logs de tareas programadas de las últimas 24 h, último
    respaldo (si pasa de 36 h es alarma), promesas nuevas en `promesas-pendientes.md` de la revisión de
    WhatsApp si existe. Lo que aparezca y no esté en `pendientes.csv`, se agrega (con respaldo previo).
