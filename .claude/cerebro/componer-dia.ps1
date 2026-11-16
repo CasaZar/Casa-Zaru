@@ -9,7 +9,9 @@ param(
   [Parameter(Mandatory=$true)][string]$Salida,
   [int]$MaxAlarmas = 12,
   # Última revisión de WhatsApp (skill revision-whatsapp, desde 12-11-2026): se copia tal cual en la sección «WhatsApp».
-  [string]$WhatsApp = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\mi-dia-whatsapp.json'
+  [string]$WhatsApp = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\mi-dia-whatsapp.json',
+  # Cruce de datos (cruzar-dia.ps1, desde 16-11-2026): se copia tal cual en la sección «Cruce de datos».
+  [string]$Cruce = ''
 )
 $ErrorActionPreference = 'Stop'
 $c = Get-Content -LiteralPath $Calc -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -47,6 +49,7 @@ $dia = [pscustomobject]@{
   fijo = $c.fijo
   salud = $c.salud
   whatsapp = $(if ($WhatsApp -and (Test-Path -LiteralPath $WhatsApp)) { Get-Content -LiteralPath $WhatsApp -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null })
+  cruce = $(if ($Cruce -and (Test-Path -LiteralPath $Cruce)) { Get-Content -LiteralPath $Cruce -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null })
   fuentes = $fuentes
   mostrados = @($mostrados | Select-Object -Unique)
 }

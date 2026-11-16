@@ -1357,6 +1357,19 @@ tr.fin-no-venta:hover td { opacity:1; }
 #page-midia textarea{width:100%;min-height:90px;font-family:'Poppins',sans-serif;font-size:.9rem;border:1px solid var(--md-line);border-radius:10px;padding:10px;background:var(--md-bg);color:var(--md-ink);resize:vertical}
 #page-midia .md-estado{font-size:.82rem;color:var(--md-muted);padding:10px;border-radius:10px;background:var(--md-card);border:1px solid var(--md-line)}
 #page-midia .md-vacio{color:var(--md-muted);font-size:.86rem}
+#page-midia .md-cz-g{display:flex;justify-content:space-between;gap:8px;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--md-terra)}
+#page-midia .md-cz-g span:last-child{color:var(--md-muted);font-weight:500}
+#page-midia .md-cz-i{background:var(--md-bg);border-radius:10px;padding:11px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+#page-midia .md-cz-rojo{box-shadow:inset 3px 0 0 var(--md-rojo)}
+#page-midia .md-cz-ambar{box-shadow:inset 3px 0 0 var(--md-ambar)}
+#page-midia .md-cz-ab{color:var(--md-verde)}
+#page-midia button.md-cz-p{background:var(--md-verde);border-color:var(--md-verde);color:#fff;font-weight:600}
+#page-midia button.md-cz-l{border:0;background:none;padding:0;color:var(--md-verde);text-decoration:underline;font-size:inherit}
+#page-midia .md-cz-ok{display:flex;gap:8px;align-items:center;font-size:.84rem;color:var(--md-verde);background:var(--md-verde-soft);border-radius:10px;padding:9px 12px}
+#page-midia .md-cz-ok svg{width:16px;height:16px;flex:none;stroke:var(--md-verde);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+#page-midia .md-cz-f{border-top:1px solid var(--md-line);padding-top:10px;display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:.8rem}
+#page-midia .md-cz-f i{font-style:normal;color:var(--md-muted);text-align:right}
+#page-midia .md-cz-f i.md-cz-v{color:var(--md-ambar);font-weight:600}
 #page-midia details summary{cursor:pointer;font-size:.84rem;color:var(--md-verde);font-weight:500}
 #page-midia .md-fuentes{font-size:.75rem;color:var(--md-muted)}
 #page-midia .md-fall{color:var(--md-rojo)}
@@ -33037,10 +33050,11 @@ var _MD_IC={
   cierre:'<path d="M4 12.5 9 17.5 20 6.5"/>',
   whatsapp:'<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>',
   cesar:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0M12 14v3"/>',
+  cruce:'<path d="M4 7h11M4 12h7M4 17h11"/><path d="M17 9l3 3-3 3"/>',
   claude:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.8 2.8M15.6 15.6l2.8 2.8M5.6 18.4l2.8-2.8M15.6 8.4l2.8-2.8"/>'
 };
-function _mdVacias(){return{hechos:{},decisiones:{},notas:'',encargos:{}};}
-function _mdNorm(d){d=d||{};return{hechos:d.hechos||{},decisiones:d.decisiones||{},notas:d.notas||'',encargos:d.encargos||{}};}
+function _mdVacias(){return{hechos:{},decisiones:{},notas:'',encargos:{},cruce:{}};}
+function _mdNorm(d){d=d||{};return{hechos:d.hechos||{},decisiones:d.decisiones||{},notas:d.notas||'',encargos:d.encargos||{},cruce:d.cruce||{}};}
 function _mdPlata(n){if(n==null||n==='')return'sin dato';var v=Number(n);if(!isFinite(v))return esc(n);return'$'+Math.round(v).toLocaleString('es-CL');}
 function _mdValor(k){if(k.valor==null)return'sin dato';if(k.fmt==='plata')return _mdPlata(k.valor);return Number(k.valor).toLocaleString('es-CL');}
 function _mdFechaLarga(f){try{return new Date(f+'T12:00:00').toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'});}catch(e){return f;}}
@@ -33155,6 +33169,76 @@ function _mdWhatsappHtml(w){
   return h+'</section>';
 }
 
+// ── Cruce de datos (16-11-2026) ─────────────────────────────────────────────
+// Lo arma .claude/cerebro/cruzar-dia.ps1 en la corrida de las 07:30 y llega en
+// dia.cruce: grupos de avisos donde dos fuentes no calzan. Nada se escribe solo:
+// «Cargar pedido» deja la venta en la vista previa de Producción para revisarla,
+// y descartar pide un motivo que la corrida siguiente guarda para no repetir el aviso.
+var _MD_CZ_BTN={cargar:'Cargar pedido',descartar:'No es venta'};
+function _mdCruceItem(id){
+  var c=(_md.dia||{}).cruce||{},r=null;
+  (c.grupos||[]).forEach(function(g){(g.items||[]).forEach(function(it){if(it.id===id)r=it;});});
+  return r;
+}
+function _mdCruceHtml(c){
+  if(!c||!Array.isArray(c.grupos))return'';
+  var M=_md.marcas.cruce||{},vivos=0,desc=0,cuerpo='';
+  c.grupos.forEach(function(g){
+    var its=(g.items||[]).filter(function(it){var m=M[it.id];if(m&&m.accion==='descartar'){desc++;return false;}return true;});
+    if(!its.length)return;
+    vivos+=its.length;
+    cuerpo+='<div class="md-cz-g"><span>'+esc(g.titulo)+'</span><span>'+its.length+'</span></div>';
+    cuerpo+=its.map(function(it){
+      var m=M[it.id];
+      var lin=(it.lineas||[]).map(function(l){return'<div class="md-s">'+esc(l)+'</div>';}).join('');
+      var abierto=m&&m.accion==='cargar'?'<div class="md-s md-cz-ab">Abierto en Producción a las '+esc(_mdHora(m.ts))+'. Sale de esta lista cuando el pedido quede guardado y se arme el día siguiente.</div>':'';
+      var btns=(it.acciones||[]).map(function(a,i){
+        return'<button type="button" class="'+(i===0?'md-cz-p':'')+'" data-cz="'+esc(it.id)+'" data-cz-op="'+esc(a)+'">'+esc(_MD_CZ_BTN[a]||a)+'</button>';
+      }).join('');
+      return'<div class="md-cz-i md-cz-'+(it.tono==='rojo'?'rojo':'ambar')+'"><div class="md-t">'+esc(it.titulo)+(it.monto!=null?' · '+_mdPlata(it.monto):'')+'</div>'+lin+abierto+
+        (btns?'<div class="md-btns">'+btns+'</div>':'')+'</div>';
+    }).join('');
+  });
+  var h='<section class="md-cz">'+_mdHead('cruce','Cruce de datos',vivos?(vivos+(vivos===1?' no calza':' no calzan')):'todo calza')+cuerpo;
+  if(c.calzan)h+='<div class="md-cz-ok"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg><span>'+esc(c.calzan)+'</span></div>';
+  if(desc)h+='<p class="md-meta" style="margin:0">'+desc+(desc===1?' aviso descartado hoy.':' avisos descartados hoy.')+' <button type="button" class="md-cz-l" data-cz-deshacer="1">Deshacer</button></p>';
+  if((c.fuentes||[]).length)h+='<div class="md-cz-f">'+c.fuentes.map(function(f){
+    var cu=f.cuando&&/^\d{4}-\d{2}-\d{2}T/.test(f.cuando)?new Date(f.cuando).toLocaleString('es-CL',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):(f.cuando||'');
+    return'<span>'+esc(f.nombre)+'</span><i'+(f.viejo?' class="md-cz-v"':'')+'>'+esc(cu)+'</i>';
+  }).join('')+'</div>';
+  return h+'</section>';
+}
+// Deja la venta en la vista previa de Producción, igual que la banda «Por cargar».
+// No guarda nada: el pedido se crea recién con «Confirmar y agregar a planilla».
+function _mdCruceCargar(it){
+  var c=it.cot||{};
+  if(prodPending&&!confirm('Hay un pedido a medio revisar en la vista previa. ¿Lo reemplazo por esta venta?'))return false;
+  var nom=_vpcPartirNombre(c.cliente);
+  var _nums=prodOrders.map(function(o){return Number(o.pedido)||0;}).concat(finRecords.map(function(r){return Number(r.num)||0;}),orders.map(function(o){return Number(o.num)||0;}));
+  var nextNum=_nums.length?Math.max.apply(null,_nums)+1:451;
+  var esCorreo=/@/.test(String(c.contacto||''));
+  var obs='Cotización '+(c.numero||'')+(c.link?' · '+c.link:'');
+  var pedidoData={pedido:nextNum,envio:'',comprador:nom.fn,apellido:nom.ln,
+    lineas:[{producto:c.producto||'',cantidad:1,madera:'',largo:0,ancho:0,canto:'TIPO 1',acabado:'VIT MATE',espesor:4,observaciones:obs}],
+    fecha_venta:/^\d{4}-\d{2}-\d{2}$/.test(String(c.concretada||''))?c.concretada:'',
+    // monto de cierre = precio ya conversado (con su descuento): va tal cual, sin descuento encima
+    _finanzas:{valor_producto:Number(c.monto)||0,valor_envio:0,valor_comision:0,medio_pago:'TRANSFERENCIA'},
+    _cliente:{phone:esCorreo?'':(c.contacto||''),email:esCorreo?c.contacto:'',direccion:'',ct:'',st:'',rut:'',fn:nom.fn,ln:nom.ln,country:'CL'},
+    _factura:{doc_tipo:'BOLETA'}};
+  pedidoData.fecha=todayStr;
+  prodPending=pedidoData;
+  document.getElementById('prev-img').src='';
+  renderPrevVendedor(VENDEDOR_DEFAULT);
+  renderPrevTipo('VENTA');
+  renderPrevCanal('Cotizador');
+  renderPrevProd(pedidoData);
+  showPage('prod',document.querySelector('.nav-tab[onclick*="showPage(\'prod\'"]'));
+  document.getElementById('prev').classList.add('on');
+  document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
+  showToast('Venta del Cotizador en la vista previa: completa medidas, madera, envío y semana antes de confirmar');
+  return true;
+}
+
 function renderMiDia(){
   var app=document.getElementById('md-app');if(!app)return;
   var dia=_md.dia;if(!dia){app.innerHTML='';return;}
@@ -33175,6 +33259,9 @@ function renderMiDia(){
   }).join('')+'</ul>':'<p class="md-vacio">Nada vence en los próximos 10 días.</p>';
   if(dia.alarmas_mas)h+='<p class="md-meta" style="margin:0">Y '+esc(dia.alarmas_mas)+' más con fecha en pendientes.csv.</p>';
   h+='</section>';
+
+  // Cruce de datos (desde 16-11-2026). Los días armados antes no lo traen.
+  h+=_mdCruceHtml(dia.cruce);
 
   // Pulso
   var p=dia.pulso||{};
@@ -33338,6 +33425,24 @@ function _mdEventos(){
     var b=ev.target.closest('button');if(!b)return;
     if(b.dataset.grupo){
       _md.grupo=(_md.grupo===b.dataset.grupo&&b.classList.contains('md-gh'))?'-':b.dataset.grupo;  // la cabecera abierta se cierra
+      renderMiDia();
+    }else if(b.dataset.cz){
+      var zid=b.dataset.cz,zop=b.dataset.czOp,zit=_mdCruceItem(zid);if(!zit)return;
+      var zts=new Date().toISOString();
+      if(zop==='descartar'){
+        var mot=prompt('¿Por qué no es una venta por cargar? (por ejemplo: «ya está en el pedido 1610», «cotización repetida»). El aviso no vuelve a salir.');
+        if(mot===null)return;
+        mot=String(mot).trim();
+        if(!mot){_mdToast('Escribe el motivo para descartar el aviso.');return;}
+        _mdCambio(function(m){m.cruce[zid]={accion:'descartar',motivo:mot.slice(0,200),ts:zts};});
+        renderMiDia();
+      }else if(zop==='cargar'){
+        if(!_mdCruceCargar(zit))return;
+        _mdCambio(function(m){m.cruce[zid]={accion:'cargar',ts:zts};});
+        renderMiDia();
+      }
+    }else if(b.dataset.czDeshacer){
+      _mdCambio(function(m){Object.keys(m.cruce).forEach(function(k){if(m.cruce[k]&&m.cruce[k].accion==='descartar')delete m.cruce[k];});});
       renderMiDia();
     }else if(b.dataset.dec){
       var id=b.dataset.dec,op=b.dataset.op,quitar=_md.marcas.decisiones[id]===op;

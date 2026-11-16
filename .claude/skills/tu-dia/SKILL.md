@@ -69,6 +69,17 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    es mayor que cero, va como `pulso.raro` cuando no haya algo más grave. Una de las `pulso.cifras`
    es «Proyectos vivos» (`vivos_30_dias`, con `vivos_30_dias_monto` en `comp`). Nunca nombres ni
    teléfonos: la lista con nombres vive en el panel.
+   **Cruce de datos (desde el 16-11-2026, etapa 1):** correr `sql/cotizador-cruce.sql` (MCP cotizador) y
+   `sql/gestion-cruce.sql` (MCP gestión) y guardar cada resultado **tal cual** en
+   `<scratchpad>\cruce-cotizador.json` y `<scratchpad>\cruce-gestion.json` (traen nombres y teléfonos:
+   nunca al repo). Después:
+   `cruzar-dia.ps1 -Fecha <hoy> -Cotizador ... -Gestion ... -Marcas <scratchpad>\marcas-<día anterior>.json -Salida <scratchpad>\cruce-<hoy>.json`.
+   Marca las ventas ganadas en el Cotizador que no tienen pedido en la Gestión; lo que el usuario descartó en
+   la pestaña (`marcas.cruce[id].accion = "descartar"`) pasa a `Cerebro\cruce-descartes.csv` y no vuelve a
+   salir. El script decide qué calza: no corregir su lista a mano. Si `sin_pedido` es mayor que cero, va en
+   `foco` con el monto que imprime el script. Si una de las dos consultas falla, no se pasa `-Cruce` y
+   «Cruce de datos» va a `fuentes_fallidas`. Etapas 2 (pagos del banco) y 3 (chat de WhatsApp contra el
+   pedido) todavía no existen.
 4. **Barrido de olvidos** (solo lectura, rápido): logs de tareas programadas de las últimas 24 h, último
    respaldo (si pasa de 36 h es alarma), promesas nuevas en `promesas-pendientes.md` de la revisión de
    WhatsApp si existe. Lo que aparezca y no esté en `pendientes.csv`, se agrega (con respaldo previo).
@@ -83,7 +94,7 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    - `crecer`: una sola idea **con evidencia en datos** (`id` de un pendiente existente o nuevo,
      `impacto` calculado). Si no hay una con respaldo, no inventar: `crecer` va `null`.
    - `fuentes_ok` / `fuentes_fallidas`.
-6. **Componer.** `componer-dia.ps1 -Calc ... -Narrativa ... -Salida "G:/Mi unidad/Casa Zaru/Cerebro/dias/<hoy>.json"`.
+6. **Componer.** `componer-dia.ps1 -Calc ... -Narrativa ... -Cruce <scratchpad>\cruce-<hoy>.json -Salida "G:/Mi unidad/Casa Zaru/Cerebro/dias/<hoy>.json"`.
    Ordena las alarmas (de hoy a 3 días, luego lo vencido, luego el resto), deja 12 y calcula `mostrados`,
    que es lo que el cierre de mañana usa para sumar saltos.
 7. **Publicar.** `publicar-dia.ps1 -Dia "G:/Mi unidad/Casa Zaru/Cerebro/dias/<hoy>.json"` → tiene que decir
