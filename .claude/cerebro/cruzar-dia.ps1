@@ -335,7 +335,8 @@ if ($Chat -and (Test-Path -LiteralPath $Chat)) {
       if ((Dice $dc.rut) -and (RutLimpio ([string]$dc.rut)) -ne (RutLimpio ([string]$p.rut))) { Nueva-Dif $difs $num $quien 'rut' 'RUT del documento' $p.rut ([string]$dc.rut) ([pscustomobject]@{ rut = [string]$dc.rut }) $true }
       if ((Dice $dc.razon) -and -not (Parecido $dc.razon $p.razon)) { Nueva-Dif $difs $num $quien 'razon' 'razón social' $p.razon ([string]$dc.razon) ([pscustomobject]@{ razon_social = [string]$dc.razon }) $true }
       if ((Dice $dc.giro) -and -not (Parecido $dc.giro $d.giro)) { Nueva-Dif $difs $num $quien 'giro' 'giro' $d.giro ([string]$dc.giro) ([pscustomobject]@{ giro = [string]$dc.giro }) $true }
-      if ((Dice $dc.direccion) -and -not (Parecido $dc.direccion $d.fact_direccion)) { Nueva-Dif $difs $num $quien 'fact_direccion' 'dirección de facturación' $d.fact_direccion ([string]$dc.direccion) ([pscustomobject]@{ fact_direccion = [string]$dc.direccion }) $true }
+      $dirFact = if (Dice $d.fact_direccion) { $d.fact_direccion } else { $d.direccion }   # sin dirección de facturación aparte, la factura sale con la del pedido
+      if ((Dice $dc.direccion) -and -not (Parecido $dc.direccion $dirFact)) { Nueva-Dif $difs $num $quien 'fact_direccion' 'dirección de facturación' $dirFact ([string]$dc.direccion) ([pscustomobject]@{ fact_direccion = [string]$dc.direccion }) $true }
     }
     $lin = @($d.lineas)
     if (Dice $fi.madera) {
@@ -347,7 +348,7 @@ if ($Chat -and (Test-Path -LiteralPath $Chat)) {
     foreach ($m in @($fi.medidas)) {
       if (-not $m -or -not (Dice $m.largo) -or -not (Dice $m.ancho)) { continue }
       $esta = $false
-      foreach ($l in $lin) { if ((Dice $l.largo) -and (Dice $l.ancho) -and [double]$l.largo -eq [double]$m.largo -and [double]$l.ancho -eq [double]$m.ancho) { $esta = $true } }
+      foreach ($l in $lin) { if ((Dice $l.largo) -and (Dice $l.ancho) -and (([double]$l.largo -eq [double]$m.largo -and [double]$l.ancho -eq [double]$m.ancho) -or ([double]$l.largo -eq [double]$m.ancho -and [double]$l.ancho -eq [double]$m.largo))) { $esta = $true } }   # 70 x 75 es lo mismo que 75 x 70
       if (-not $esta) { [void]$faltan.Add("$($m.largo)×$($m.ancho) cm") }
     }
     if ($faltan.Count) { Nueva-Dif $difs $num $quien 'medidas' 'medidas' ((@($lin | ForEach-Object { "$($_.largo)×$($_.ancho) cm" })) -join ', ') (($faltan -join ', ') + ' (no está en el pedido)') $null $false }
