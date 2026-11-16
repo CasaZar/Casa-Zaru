@@ -1,6 +1,7 @@
 ﻿# Cerebro Zaru - cruce de datos del dia (seccion «Cruce de datos» de Mi dia).
 # Etapa 1 (16-11-2026): cotizaciones GANADAS en el Cotizador que no tienen pedido en la Gestion.
 # Etapa 2 (16-11-2026): pagos que entraron al banco (avisos del correo + cartola) contra los abonos de Finanzas.
+# Etapa 3 (16-11-2026): lo conversado por WhatsApp (fichas de la skill revision-whatsapp) contra el pedido cargado.
 # Uso (desde Bash):
 #   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/cerebro/cruzar-dia.ps1 -Fecha 2026-11-16 `
 #     -Cotizador <scratchpad>/cruce-cotizador.json -Gestion <scratchpad>/cruce-gestion.json `
@@ -26,7 +27,17 @@ param(
   [string]$Pagos = 'G:\Mi unidad\Casa Zaru\Cerebro\pagos.csv',
   [string]$Estado = 'G:\Mi unidad\Casa Zaru\Cerebro\pagos-estado.json',
   [string]$Excluir = (Join-Path $env:USERPROFILE '.claude\conciliacion-excluir.txt'),
-  [int]$DiasPagos = 21
+  [int]$DiasPagos = 21,
+  # Etapa 3 (16-11-2026): lo conversado por WhatsApp contra el pedido cargado.
+  # -Chat: fichas de venta que deja la skill revision-whatsapp (una por venta cerrada en el chat):
+  #   [{ "telefono":"+569...", "cliente":"Nombre Apellido", "fecha":"AAAA-MM-DD", "producto":"", "madera":"",
+  #      "medidas":[{"largo":340,"ancho":120,"cantidad":1}], "total":null,
+  #      "envio":{"direccion":"","comuna":"","ciudad":"","monto":null},
+  #      "doc":{"tipo":"boleta|factura","rut":"","razon":"","giro":"","direccion":"","comuna":""} }]
+  #   Un campo vacio o null = el chat no lo dice = no se compara.
+  [string]$Chat = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\fichas-venta.json',
+  [string]$ChatRevision = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\ultima-revision.txt',
+  [int]$DiasChat = 14
 )
 $ErrorActionPreference = 'Stop'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -254,6 +265,97 @@ if ($hayPagos) {
   }
 }
 
+# 4. Chat contra pedido (etapa 3). Solo se compara lo que el chat dice; lo que no dice, no se toca.
+function Fichas($s) { if ($null -eq $s) { return @() }; return @((Sin-Tildes ([string]$s)) -split '[^a-z0-9]+' | Where-Object { $_ -and ($_ -match '^\d+$' -or $_.Length -ge 3) }) }
+function Parecido($a, $b) {
+  $x = @(Fichas $a); $y = @(Fichas $b)
+  if (-not $x.Count -or -not $y.Count) { return $false }
+  $n = 0; foreach ($t in $x) { if ($y -contains $t) { $n++ } }
+  return ($n / [math]::Min($x.Count, $y.Count)) -ge 0.6
+}
+function Dice($v) { return ($null -ne $v) -and ([string]$v).Trim() -ne '' }
+function Nueva-Dif($lista, $num, $quien, $campo, $titulo, $enPedido, $enChat, $cambio, $bloqueaDoc) {
+  $id = "chat:${num}:$campo"
+  if ($desc.ContainsKey($id)) { return }
+  $it = [ordered]@{ id = $id; tono = 'ambar'; titulo = "$quien · $titulo"; monto = $null
+    lineas = @("Pedido: $(if (Dice $enPedido) { $enPedido } else { 'sin dato' })", "Chat: $enChat")
+    botones = [pscustomobject]@{ descartar = 'Está bien así'; usar_chat = 'Usar lo del chat' } }
+  if ($cambio) { $it.acciones = @('usar_chat', 'descartar'); $it.fix = [pscustomobject]@{ num = $num; cambio = $cambio; bloquea_doc = [bool]$bloqueaDoc } }
+  else { $it.acciones = @('descartar') }
+  [void]$lista.Add([pscustomobject]$it)
+}
+$chatDif = New-Object System.Collections.ArrayList
+$chatSinPedido = New-Object System.Collections.ArrayList
+$chatOk = 0; $chatVistas = 0; $hayChat = $false
+if ($Chat -and (Test-Path -LiteralPath $Chat)) {
+  $hayChat = $true
+  $fj = Get-Content -LiteralPath $Chat -Raw -Encoding UTF8 | ConvertFrom-Json
+  $hoyC = Dia $Fecha
+  foreach ($fi in @($fj)) {
+    if (-not $fi -or -not $fi.fecha) { continue }
+    $ff = Dia ([string]$fi.fecha)
+    if ($hoyC -and $ff -and ($hoyC - $ff).TotalDays -gt $DiasChat) { continue }
+    $chatVistas++
+    $yo = [pscustomobject]@{ f8 = (Fono8 ([string]$fi.telefono)); pal = (Palabras ([string]$fi.cliente)) }
+    # El pedido de esa venta: mismo cliente, cargado desde 3 dias antes del cierre en el chat; el mas cercano.
+    $cand = @($Peds | Where-Object { (Mismo-Cliente $yo $_) -and ((-not $_.fecha) -or (-not $ff) -or ($_.fecha -ge $ff.AddDays(-3))) } | Sort-Object { if ($_.fecha -and $ff) { [math]::Abs(($_.fecha - $ff).TotalDays) } else { 999 } })
+    if (-not $cand.Count) {
+      $id = "chat:sinpedido:$($yo.f8):$($fi.fecha)"
+      # Si esa venta ya salio arriba por su cotizacion o por su pago, no se repite.
+      $yaEsta = @(@($pagoSinPedido) + @($sinPedido) | Where-Object { $_ -and $_.cot -and (($yo.f8 -and (Fono8 ([string]$_.cot.contacto)) -eq $yo.f8) -or (Mismo-Nombre (Palabras ([string]$_.cot.cliente)) $yo.pal)) }).Count -gt 0
+      if (-not $yaEsta -and -not $desc.ContainsKey($id)) {
+        $e0 = $fi.envio; $d0 = $fi.doc
+        [void]$chatSinPedido.Add([pscustomobject]@{
+          id = $id; tono = 'rojo'; titulo = [string]$fi.cliente; monto = $fi.total
+          lineas = @("Cerró la venta por WhatsApp el $(Corta ([string]$fi.fecha))" + $(if (Dice $fi.producto) { " · $($fi.producto)" } else { '' }), 'No encuentro su pedido en la Gestión.')
+          acciones = @('cargar', 'descartar')
+          cot = [pscustomobject]@{ numero = 'WhatsApp'; cliente = [string]$fi.cliente; contacto = [string]$fi.telefono; monto = $fi.total; producto = [string]$fi.producto; concretada = [string]$fi.fecha
+            direccion = [string]$e0.direccion; comuna = [string]$e0.comuna; ciudad = [string]$e0.ciudad; envio = $e0.monto
+            doc_tipo = [string]$d0.tipo; rut = [string]$d0.rut; razon = [string]$d0.razon; giro = [string]$d0.giro }
+        })
+      }
+      continue
+    }
+    $p = $cand[0].p; $d = $p.det
+    if (-not $d) { continue }   # pedido de mas de 30 dias: la consulta no trae su detalle
+    $num = [string]$p.num; $quien = "$num · $($p.nombre) $($p.apellido)".Trim()
+    $difs = New-Object System.Collections.ArrayList
+    $e = $fi.envio; $dc = $fi.doc
+    if ($e) {
+      if ((Dice $e.comuna) -and -not (Parecido $e.comuna $d.comuna)) { Nueva-Dif $difs $num $quien 'comuna' 'comuna de envío' $d.comuna ([string]$e.comuna) ([pscustomobject]@{ comuna = [string]$e.comuna }) $false }
+      if ((Dice $e.direccion) -and -not (Parecido $e.direccion $d.direccion)) { Nueva-Dif $difs $num $quien 'direccion' 'dirección de envío' $d.direccion ([string]$e.direccion) ([pscustomobject]@{ direccion = [string]$e.direccion }) $false }
+      if ((Dice $e.monto) -and [double]$e.monto -ne [double]$d.val_envio) { Nueva-Dif $difs $num $quien 'envio' 'valor del envío' (Plata $d.val_envio) (Plata $e.monto) $null $false }
+    }
+    if ($dc) {
+      if (Dice $dc.tipo) {
+        $tc = if (([string]$dc.tipo) -match 'fact') { 'FACTURA' } else { 'BOLETA' }
+        $tp = if (([string]$d.doc_tipo) -match 'FACT') { 'FACTURA' } else { 'BOLETA' }
+        if ($tc -ne $tp) { Nueva-Dif $difs $num $quien 'doc_tipo' 'boleta o factura' $tp $tc ([pscustomobject]@{ doc1_tipo = $tc }) $true }
+      }
+      if ((Dice $dc.rut) -and (RutLimpio ([string]$dc.rut)) -ne (RutLimpio ([string]$p.rut))) { Nueva-Dif $difs $num $quien 'rut' 'RUT del documento' $p.rut ([string]$dc.rut) ([pscustomobject]@{ rut = [string]$dc.rut }) $true }
+      if ((Dice $dc.razon) -and -not (Parecido $dc.razon $p.razon)) { Nueva-Dif $difs $num $quien 'razon' 'razón social' $p.razon ([string]$dc.razon) ([pscustomobject]@{ razon_social = [string]$dc.razon }) $true }
+      if ((Dice $dc.giro) -and -not (Parecido $dc.giro $d.giro)) { Nueva-Dif $difs $num $quien 'giro' 'giro' $d.giro ([string]$dc.giro) ([pscustomobject]@{ giro = [string]$dc.giro }) $true }
+      if ((Dice $dc.direccion) -and -not (Parecido $dc.direccion $d.fact_direccion)) { Nueva-Dif $difs $num $quien 'fact_direccion' 'dirección de facturación' $d.fact_direccion ([string]$dc.direccion) ([pscustomobject]@{ fact_direccion = [string]$dc.direccion }) $true }
+    }
+    $lin = @($d.lineas)
+    if (Dice $fi.madera) {
+      $mc = (@(Fichas $fi.madera)) -join ' '
+      $mp = @($lin | ForEach-Object { (@(Fichas $_.madera)) -join ' ' } | Where-Object { $_ } | Select-Object -Unique)
+      if (-not ($mp -contains $mc)) { Nueva-Dif $difs $num $quien 'madera' 'madera' ((@($lin | ForEach-Object { $_.madera } | Where-Object { $_ } | Select-Object -Unique)) -join ', ') ([string]$fi.madera) $null $false }
+    }
+    $faltan = New-Object System.Collections.ArrayList
+    foreach ($m in @($fi.medidas)) {
+      if (-not $m -or -not (Dice $m.largo) -or -not (Dice $m.ancho)) { continue }
+      $esta = $false
+      foreach ($l in $lin) { if ((Dice $l.largo) -and (Dice $l.ancho) -and [double]$l.largo -eq [double]$m.largo -and [double]$l.ancho -eq [double]$m.ancho) { $esta = $true } }
+      if (-not $esta) { [void]$faltan.Add("$($m.largo)×$($m.ancho) cm") }
+    }
+    if ($faltan.Count) { Nueva-Dif $difs $num $quien 'medidas' 'medidas' ((@($lin | ForEach-Object { "$($_.largo)×$($_.ancho) cm" })) -join ', ') (($faltan -join ', ') + ' (no está en el pedido)') $null $false }
+    if ((Dice $fi.total) -and [double]$fi.total -ne [double]$p.total) { Nueva-Dif $difs $num $quien 'total' 'total' (Plata $p.total) (Plata $fi.total) $null $false }
+    if ($difs.Count) { foreach ($x in $difs) { [void]$chatDif.Add($x) } } else { $chatOk++ }
+  }
+}
+
 $grupos = New-Object System.Collections.ArrayList
 if ($pagoSinPedido.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'pago_sin_pedido'; titulo = 'Pagó y no hay pedido'; items = $pagoSinPedido.ToArray() }) }
 # Una venta que ya salio arriba por su pago no se repite abajo.
@@ -262,6 +364,8 @@ $sp = @($sinPedido | Where-Object { $yaArriba -notcontains $_.id })
 if ($sp.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'sin_pedido'; titulo = 'Vendida en el Cotizador y sin pedido'; items = $sp }) }
 if ($sinMarcar.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'pago_sin_marcar'; titulo = 'Pago sin marcar en Finanzas'; items = $sinMarcar.ToArray() }) }
 if ($sinDueno.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'pago_sin_dueno'; titulo = 'Plata que entró y no sé de quién es'; items = $sinDueno.ToArray() }) }
+if ($chatSinPedido.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'chat_sin_pedido'; titulo = 'Cerró por WhatsApp y no hay pedido'; items = $chatSinPedido.ToArray() }) }
+if ($chatDif.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'chat'; titulo = 'El pedido no calza con el chat'; items = $chatDif.ToArray() }) }
 $total = 0; foreach ($i in $sp) { $total += [double]$i.monto }
 $txtCalzan = "Calzan: $calzan de $(@($cot).Count) ventas del Cotizador de los últimos 30 días tienen su pedido"
 if ($hayPagos) { $txtCalzan += " y $pagosOk de $pagosVistos pagos de los últimos $DiasPagos días tienen su abono marcado" }
@@ -273,6 +377,15 @@ if ($hayPagos) {
   $vk = $true; $ck = 'nunca'
   if ($est.cartola_hasta) { $ck = 'hasta el ' + (Corta ([string]$est.cartola_hasta)); $vk = ((Dia $Fecha) - (Dia ([string]$est.cartola_hasta))).TotalDays -gt 7 }
   [void]$fuentes.Add([pscustomobject]@{ nombre = 'Banco · cartola completa'; cuando = $ck; viejo = $vk })
+}
+if ($hayChat) {
+  $txtCalzan += " y $chatOk de $chatVistas ventas cerradas por WhatsApp calzan con su pedido"
+  $rv = 'sin fecha'; $vv = $true
+  if (Test-Path -LiteralPath $ChatRevision) {
+    $ur = [string](Get-Content -LiteralPath $ChatRevision -Encoding UTF8 | Select-Object -First 1)
+    if ($ur -match '^(\d{4})-(\d{2})-(\d{2}) (\d{2}:\d{2})') { $rv = "revisado el $($Matches[3])-$($Matches[2]), $($Matches[4])"; $vv = ((Dia $Fecha) - (Dia $ur)).TotalDays -gt 2 }
+  }
+  [void]$fuentes.Add([pscustomobject]@{ nombre = 'WhatsApp 5558'; cuando = $rv; viejo = $vv })
 }
 $res = [pscustomobject]@{
   generado = (Get-Date).ToString('o')

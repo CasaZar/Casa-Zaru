@@ -163,6 +163,29 @@ la revisión; el rato de hoy se cuenta en la revisión siguiente) en `RW\conteos
   hay datos). Si el día ya tiene línea, se reemplaza, no se duplica.
 Solo números: ningún nombre ni teléfono en este archivo. Es solo el 5558 (el 0141 no se revisa).
 
+## 6c · Fichas de venta para el cruce de datos (desde el 16-11-2026)
+Pedido del usuario: que lo conversado con el cliente no se pierda al cargar el pedido (dirección de envío
+distinta de la de facturación, RUT, madera, medidas, envío). Por cada chat que en el rango quedó en etapa
+**compró** (cerró la venta: mandó sus datos para ingresar el pedido o el comprobante), dejar una ficha en
+`RW\fichas-venta.json` (arreglo JSON, UTF-8 sin BOM). Si ya hay una ficha con el mismo `telefono` y `fecha`,
+se reemplaza; las de más de 30 días se sacan. Formato:
+```json
+{"telefono":"+56 9 ...","cliente":"Nombre Apellido","fecha":"AAAA-MM-DD","producto":"cubierta de cocina",
+ "madera":"Raulí","medidas":[{"largo":340,"ancho":120,"cantidad":1}],"total":1407858,
+ "envio":{"direccion":"","comuna":"","ciudad":"","monto":null},
+ "doc":{"tipo":"boleta|factura","rut":"","razon":"","giro":"","direccion":"","comuna":""}}
+```
+- `fecha` = el día en que cerró. Medidas en centímetros. `total` = lo acordado con envío incluido; `envio.monto`
+  = solo el envío.
+- **Solo lo que está escrito en el chat.** Lo que el chat no dice va vacío o `null`: un campo vacío no se
+  compara. Nunca completar con lo que diga la Gestión o el Cotizador (eso anula el cruce) ni deducir.
+- `doc.direccion` solo si el cliente dio una dirección de facturación distinta de la de envío.
+- Si el cliente corrigió un dato más abajo en el chat, vale el último.
+- Este archivo sí lleva dirección y RUT (es el dato que se cruza): vive solo en `RW\`, nunca en el repo, en
+  `mi-dia-whatsapp.json` ni en el panel del cotizador.
+La corrida de las 07:30 (`.claude/cerebro/cruzar-dia.ps1`) lo compara con el pedido de la Gestión y muestra
+las diferencias en Mi día → «Cruce de datos». Acá no se compara nada.
+
 ## 7 · Entregable: sección «WhatsApp» de Mi día (desde el 12-11-2026, YA NO hay PDF)
 El usuario lo quiere en línea y solo para él: va en la Gestión → **Mi día**, que desde la
 migración 0031 lee solo su cuenta dueña (ni hola@ ni César). Nada de PDF ni SendUserFile.

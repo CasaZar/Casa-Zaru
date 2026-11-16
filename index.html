@@ -33174,7 +33174,8 @@ function _mdWhatsappHtml(w){
 // dia.cruce: grupos de avisos donde dos fuentes no calzan. Nada se escribe solo:
 // «Cargar pedido» deja la venta en la vista previa de Producción para revisarla,
 // y descartar pide un motivo que la corrida siguiente guarda para no repetir el aviso.
-var _MD_CZ_BTN={cargar:'Cargar pedido',descartar:'No es venta',marcar:'Marcar abono'};
+var _MD_CZ_BTN={cargar:'Cargar pedido',descartar:'No es venta',marcar:'Marcar abono',usar_chat:'Usar lo del chat'};
+var _MD_CZ_CAMPO={direccion:'dirección de envío',comuna:'comuna',ciudad:'ciudad',rut:'RUT',razon_social:'razón social',giro:'giro',fact_direccion:'dirección de facturación',fact_comuna:'comuna de facturación',doc1_tipo:'tipo de documento'};
 function _mdCruceItem(id){
   var c=(_md.dia||{}).cruce||{},r=null;
   (c.grupos||[]).forEach(function(g){(g.items||[]).forEach(function(it){if(it.id===id)r=it;});});
@@ -33192,8 +33193,9 @@ function _mdCruceHtml(c){
       var m=M[it.id];
       var lin=(it.lineas||[]).map(function(l){return'<div class="md-s">'+esc(l)+'</div>';}).join('');
       var abierto=m&&m.accion==='cargar'?'<div class="md-s md-cz-ab">Abierto en Producción a las '+esc(_mdHora(m.ts))+'. Sale de esta lista cuando el pedido quede guardado y se arme el día siguiente.</div>':'';
-      var hecho=m&&m.accion==='marcar';
-      if(hecho)abierto='<div class="md-s md-cz-ab">Marcado a las '+esc(_mdHora(m.ts))+': abono '+esc(m.abono)+' del pedido '+esc(m.num)+'.</div>';
+      var hecho=m&&(m.accion==='marcar'||m.accion==='usar_chat');
+      if(m&&m.accion==='marcar')abierto='<div class="md-s md-cz-ab">Marcado a las '+esc(_mdHora(m.ts))+': abono '+esc(m.abono)+' del pedido '+esc(m.num)+'.</div>';
+      if(m&&m.accion==='usar_chat')abierto='<div class="md-s md-cz-ab">Corregido a las '+esc(_mdHora(m.ts))+' en el pedido '+esc(m.num)+'.</div>';
       var btns=hecho?'':(it.acciones||[]).map(function(a,i){
         var txt=(it.botones&&it.botones[a])||_MD_CZ_BTN[a]||a;
         return'<button type="button" class="'+(i===0&&a!=='descartar'?'md-cz-p':'')+'" data-cz="'+esc(it.id)+'" data-cz-op="'+esc(a)+'">'+esc(txt)+'</button>';
@@ -33219,16 +33221,18 @@ function _mdCruceCargar(it){
   var nom=_vpcPartirNombre(c.cliente);
   var _nums=prodOrders.map(function(o){return Number(o.pedido)||0;}).concat(finRecords.map(function(r){return Number(r.num)||0;}),orders.map(function(o){return Number(o.num)||0;}));
   var nextNum=_nums.length?Math.max.apply(null,_nums)+1:451;
-  var esCorreo=/@/.test(String(c.contacto||''));
-  var obs='Cotización '+(c.numero||'')+(c.link?' · '+c.link:'');
+  var esCorreo=/@/.test(String(c.contacto||'')),esFact=/fact/i.test(String(c.doc_tipo||''));
+  var obs=(c.numero==='WhatsApp'?'Venta cerrada por WhatsApp':'Cotización '+(c.numero||''))+(c.link?' · '+c.link:'');
   var pedidoData={pedido:nextNum,envio:'',comprador:nom.fn,apellido:nom.ln,
     lineas:[{producto:c.producto||'',cantidad:1,madera:'',largo:0,ancho:0,canto:'TIPO 1',acabado:'VIT MATE',espesor:4,observaciones:obs}],
     fecha_venta:/^\d{4}-\d{2}-\d{2}$/.test(String(c.concretada||''))?c.concretada:'',
     // monto de cierre = precio ya conversado (con su descuento): va tal cual, sin descuento encima
     // abono1 solo viene cuando el aviso nació de un pago que ya entró al banco (etapa 2)
     _finanzas:{valor_producto:Number(c.monto)||0,valor_envio:0,valor_comision:0,medio_pago:'TRANSFERENCIA',abono1:c.abono1!=null?Number(c.abono1):null},
-    _cliente:{phone:esCorreo?'':(c.contacto||''),email:esCorreo?c.contacto:'',direccion:'',ct:'',st:'',rut:'',fn:nom.fn,ln:nom.ln,country:'CL'},
-    _factura:{doc_tipo:'BOLETA'}};
+    // dirección y documento solo vienen cuando el aviso nació del chat de WhatsApp (etapa 3)
+    _cliente:{phone:esCorreo?'':(c.contacto||''),email:esCorreo?c.contacto:'',direccion:c.direccion||'',ct:c.comuna||'',st:c.ciudad||'',rut:esFact?'':(c.rut||''),fn:nom.fn,ln:nom.ln,country:'CL'},
+    _factura:{doc_tipo:esFact?'FACTURA':'BOLETA',razon_social:c.razon||'',giro:c.giro||'',rut_empresa:esFact?(c.rut||''):''}};
+  if(c.envio!=null&&Number(c.envio)>0)pedidoData._finanzas.valor_envio=Number(c.envio);
   pedidoData.fecha=todayStr;
   prodPending=pedidoData;
   document.getElementById('prev-img').src='';
@@ -33239,7 +33243,7 @@ function _mdCruceCargar(it){
   showPage('prod',document.querySelector('.nav-tab[onclick*="showPage(\'prod\'"]'));
   document.getElementById('prev').classList.add('on');
   document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});
-  showToast('Venta del Cotizador en la vista previa: completa medidas, madera, envío y semana antes de confirmar');
+  showToast('Venta en la vista previa: completa medidas, madera, envío y semana antes de confirmar');
   return true;
 }
 
@@ -33269,6 +33273,31 @@ async function _mdCruceMarcar(it){
   var i=finRecords.findIndex(function(x){return String(x.num||'')===num;});
   if(i>=0)finRecords[i]=Object.assign({},finRecords[i],v);
   return{num:num,abono:k,ya:false};
+}
+
+// Corrige en Finanzas un dato de texto del pedido con lo que dice el chat (dirección,
+// comuna, datos del documento). Nunca montos ni piezas. Relee del servidor, escribe SOLO
+// esos campos (PATCH) y confirma. Si el dato va impreso en una boleta o factura ya
+// emitida, no se toca desde acá: cambiarlo no cambia el documento.
+async function _mdCruceUsarChat(it){
+  var fx=it.fix||{},num=String(fx.num||''),cambio={};
+  Object.keys(fx.cambio||{}).forEach(function(k){if(_MD_CZ_CAMPO[k]&&typeof fx.cambio[k]==='string'&&fx.cambio[k].trim())cambio[k]=fx.cambio[k].trim();});
+  var ks=Object.keys(cambio);
+  if(!num||!ks.length){_mdToast('Este aviso no trae un dato que se pueda corregir desde acá.');return null;}
+  var r=await _releerFinanzas(num);
+  if(!r||!r.num){_mdToast('No pude leer el pedido '+esc(num)+' desde la base. No se cambió nada.');return null;}
+  if(fx.bloquea_doc&&[1,2,3].some(function(k){return r['doc'+k+'_emitida']||r['doc'+k+'_procesando'];})){
+    _mdToast('El pedido '+esc(num)+' ya tiene un documento emitido o en proceso: ese dato va impreso ahí. Revísalo en Finanzas (puede hacer falta una nota de crédito).');return null;
+  }
+  var txt=ks.map(function(k){return'• '+_MD_CZ_CAMPO[k]+': «'+(r[k]||'sin dato')+'» → «'+cambio[k]+'»';}).join('\n');
+  if(!confirm('¿Corregir el pedido '+num+' ('+((r.nombre||'')+' '+(r.apellido||'')).trim()+')?\n\n'+txt))return null;
+  await api('finanzas/'+num,'PATCH',cambio);
+  var v=await _releerFinanzas(num);
+  if(!v||ks.some(function(k){return String(v[k]||'')!==cambio[k];})){_mdToast('El pedido '+esc(num)+' no quedó corregido. Revísalo en Finanzas.');return null;}
+  logHistorial(num,'Corregido desde Mi día con lo conversado por WhatsApp: '+ks.map(function(k){return _MD_CZ_CAMPO[k]+' «'+(r[k]||'')+'» → «'+cambio[k]+'»';}).join('; '));
+  var i=finRecords.findIndex(function(x){return String(x.num||'')===num;});
+  if(i>=0)finRecords[i]=Object.assign({},finRecords[i],v);
+  return{num:num};
 }
 
 function renderMiDia(){
@@ -33472,6 +33501,19 @@ function _mdEventos(){
         if(!_mdCruceCargar(zit))return;
         _mdCambio(function(m){m.cruce[zid]={accion:'cargar',ts:zts};});
         renderMiDia();
+      }else if(zop==='usar_chat'){
+        if(b.disabled)return;
+        b.disabled=true;
+        _mdCruceUsarChat(zit).then(function(res){
+          b.disabled=false;
+          if(!res)return;
+          _mdCambio(function(m){m.cruce[zid]={accion:'usar_chat',num:res.num,ts:zts};});
+          renderMiDia();
+          _mdToast('<b>Pedido '+esc(res.num)+' corregido.</b> Quedó anotado en su historial.');
+        }).catch(function(e){
+          b.disabled=false;console.error('Mi día: corregir pedido',e);
+          _mdToast('No se pudo corregir el pedido. Revisa la conexión y míralo en Finanzas antes de reintentar.');
+        });
       }else if(zop==='marcar'){
         if(b.disabled)return;
         b.disabled=true;

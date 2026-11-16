@@ -78,7 +78,12 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    la pestaña (`marcas.cruce[id].accion = "descartar"`) pasa a `Cerebro\cruce-descartes.csv` y no vuelve a
    salir. El script decide qué calza: no corregir su lista a mano. Si `sin_pedido` es mayor que cero, va en
    `foco` con el monto que imprime el script. Si una de las dos consultas falla, no se pasa `-Cruce` y
-   «Cruce de datos» va a `fuentes_fallidas`. La etapa 3 (chat de WhatsApp contra el pedido) todavía no existe.
+   «Cruce de datos» va a `fuentes_fallidas`.
+   **Etapa 3, chat contra pedido (desde el 16-11-2026).** No hay que pasar nada: el script lee solo
+   `Revision WhatsApp\fichas-venta.json` (lo deja la skill `revision-whatsapp`, paso 6c) y lo compara con
+   el `det` que trae `gestion-cruce.sql`. Avisa de la venta cerrada por chat sin pedido y de las diferencias
+   de dirección, documento, madera, medidas, envío y total. **No abrir WhatsApp desde esta corrida**: si la
+   última revisión tiene más de 2 días, la sección lo muestra sola.
    **Etapa 2, pagos (desde el 16-11-2026).** Antes de correr `cruzar-dia.ps1`:
    - **Avisos por correo.** Con el conector de Gmail (cuenta de la empresa), buscar los avisos de
      transferencia de los últimos 3 días: `newer_than:3d {subject:transferencia subject:"Itaú informa"
