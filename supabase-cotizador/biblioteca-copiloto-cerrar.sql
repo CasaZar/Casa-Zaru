@@ -30,6 +30,8 @@ $candado$;
 -- Re-verificado el 17-11-2026: respaldo-cotizador-2026-11-16.zip trae las 24
 -- (mismos 24 id que la base). La auditoría del 16-11 la volvió a marcar en
 -- rojo: este archivo no se había corrido.
+-- APLICADO el 17-11-2026 en el SQL Editor del Cotizador: policies 0, anon_lee
+-- false, auth_lee false, force true, filas 24. La llave pública ahora da 401.
 -- Idempotente: se puede correr dos veces sin error.
 -- ══════════════════════════════════════════════════════════════════════════
 
