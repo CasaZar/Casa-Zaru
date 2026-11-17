@@ -11,7 +11,8 @@ nunca en el de Gestión. Lo de `../supabase/` es de Gestión (`padnttpgzuotxeipj
   etiqueta de cita propia, p. ej. `$m0002$`). La `0001_estado_actual` es la **línea base**: el esquema
   completo tal como estaba ese día. No se corre en producción (su candado aborta si ya existe
   `cotizaciones`); sirve para recrear el proyecto desde cero. Se registró con
-  `registro-migraciones.sql`. La siguiente libre es la `0002` (mirar antes `schema_migrations`).
+  `registro-migraciones.sql`. La `0002` (FORCE, permisos de más y `whoami`) está aplicada; la
+  siguiente libre es la `0003` (mirar antes `schema_migrations`).
 - Los `.sql` sueltos de esta carpeta son parches anteriores corridos a mano: quedan como historia, ya
   están contenidos en la `0001` y **no se vuelven a correr**.
 - Un archivo nuevo para este proyecto va acá y lleva el mismo candado (copiarlo de cualquier

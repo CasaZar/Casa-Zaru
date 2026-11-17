@@ -20,7 +20,8 @@
 --
 -- Los .sql sueltos de supabase-cotizador/ quedan como historia: lo que hicieron
 -- ya está contenido aquí. Fiel al estado vivo a propósito, incluidas cosas que
--- conviene corregir después en migraciones propias (no aquí):
+-- conviene corregir después en migraciones propias (no aquí; las tres
+-- primeras las corrigió la 0002 el mismo 17-11):
 --   · cotizacion_lineas y vendedores no tienen FORCE RLS.
 --   · anon/authenticated tienen TRUNCATE y otros permisos amplios en varias
 --     tablas (el default de Supabase; RLS no cubre TRUNCATE, aunque PostgREST

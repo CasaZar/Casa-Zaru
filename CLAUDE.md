@@ -99,7 +99,7 @@ Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de h
   inválido, la base lo rechaza.
 - El esquema cambia SOLO por migración numerada, idempotente, con su rollback escrito y registrada en
   `schema_migrations`. Cero `ALTER` a mano sin archivo. (El Cotizador cumple desde el 17-11-2026: línea base
-  `supabase-cotizador/migrations/0001_estado_actual.sql`, registrada; lo nuevo va de la `0002` en adelante.)
+  `supabase-cotizador/migrations/0001_estado_actual.sql`, registrada; la `0002` aplicada; lo nuevo va de la `0003` en adelante.)
 
 **Respaldo**
 - Respaldo diario automático de los dos proyectos a Drive, por tabla, en formato restaurable. Retención
