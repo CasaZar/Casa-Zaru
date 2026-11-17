@@ -71,10 +71,11 @@ Lo que ya se sabe que está en rojo o amarillo (22-10-2026) y no hay que redescu
 - 81 emisiones de mayo a agosto 2026 no tienen fila en `gestion_documentos` (la tabla nace en septiembre).
 - `saldo_monto` y `abono_monto` en finanzas se escriben al cargar la venta y nadie los lee: campos muertos.
 - 195 cotizaciones vivas comparten 17 números; `N° CL-0726-100` se repitió 142 veces (jul-ago 2026).
-- En Gestión, `anon` tiene grant de `select` sobre gastos, postventa, documentos y centros de costo
-  (RLS devuelve `[]`, pero el grant no debería existir). `quote_links` de Gestión (35 filas muertas) se lee en público.
-- En `quote_links` del Cotizador hay una fila de prueba `id 6885` (`__auditoria_rls__`) que ni la llave
-  secreta pudo borrar: hay un trigger o regla no versionado. Borrarla y traer la protección al repo.
+- Gestión desde la `0032` (17-11-2026): FORCE en todas las tablas, `anon` sin ningún permiso sobre tablas
+  ni vistas de `public` (solo ejecuta funciones), `authenticated` sin TRUNCATE. Los restos muertos
+  `cotizaciones`, `cotizacion_lineas` y `quote_links` (35 filas de junio) quedan sin policies ni permisos;
+  las filas siguen ahí. Si vuelve a aparecer un grant de `anon` en una tabla, es una tabla nueva creada
+  después: el default de Supabase se lo da, hay que revocarlo en su migración.
 
 ## 4. Prueba de restauración (mensual, punto 2 del semáforo)
 

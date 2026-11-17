@@ -45,7 +45,7 @@ El backend es **Supabase**, no Firebase (migrado). Tres proyectos:
 
 | Ref | Nombre en el panel | Qué tiene |
 |---|---|---|
-| `padnttpgzuotxeipjrry` | «ZARU · Gestión (pedidos, finanzas, costos)» | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, Recibidos, centros de costo. ⚠️ Tiene además `cotizaciones` / `cotizacion_lineas` (vacías) y `quote_links` (35 filas del 25-26 jun) que son **restos muertos** de antes de separar los proyectos: nada lee ni escribe ahí. Las cotizaciones reales están en el proyecto del Cotizador. |
+| `padnttpgzuotxeipjrry` | «ZARU · Gestión (pedidos, finanzas, costos)» | **Es el de la Gestión**: `gestion_*`, el módulo de gastos, Recibidos, centros de costo. ⚠️ Tiene además `cotizaciones` / `cotizacion_lineas` (vacías) y `quote_links` (35 filas del 25-26 jun) que son **restos muertos** de antes de separar los proyectos: nada lee ni escribe ahí. Desde la `0032` (17-11-2026) no tienen policies ni permisos para `anon`/`authenticated` (antes `quote_links` se leía con la llave pública). Las cotizaciones reales están en el proyecto del Cotizador. |
 | `cmxqorsyxoltrakxawro` | «ZARU · Cotizador (público y panel)» | El cotizador público y el panel de seguimiento (`cotizador_valores`, `toques`, `config_seguimiento`) |
 | `rmktkhjteghbheyrkfxs` | — | No es Casa Zaru. No tocar. |
 
