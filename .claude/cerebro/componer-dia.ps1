@@ -55,8 +55,13 @@ foreach ($e in @($c.equipo)) {
       elseif ($x.vence) { $det = 'vence ' + $x.vence }
       $its += [pscustomobject]@{ id=$x.id; titulo=$x.titulo; detalle=$det }
     }
+    # Su nota y las fotos que pidió al taller (18-11-2026): solo para que lo veas; no son pendientes.
+    if ($ay -and $ay.nota) { $its = @([pscustomobject]@{ id=('nota:' + $e.quien + ':' + $ay.fecha); titulo=('Nota de ' + $e.quien + ': «' + $ay.nota + '»'); detalle=('escrita el ' + $ay.fecha.Substring(8,2) + '-' + $ay.fecha.Substring(5,2)) }) + $its }
+    if ($ay -and $ay.fotos) { foreach ($fo in @($ay.fotos)) { $its += [pscustomobject]@{ id=('fotos:' + $fo.num); titulo=('Fotos pedidas al taller: ' + $fo.num + $(if ($fo.titulo) { ' · ' + $fo.titulo } else { '' })); detalle=('antes de despachar' + $(if ($fo.detalle) { ' · ' + $fo.detalle } else { '' })) } } }
     $res = 'Hoy en su «Mi día»: ' + @($pd.data.misiones).Count + ' misiones, ' + @($pd.data.cola).Count + ' en cola' + $(if (@($pd.data.bloqueadas).Count) { ', ' + @($pd.data.bloqueadas).Count + $(if (@($pd.data.bloqueadas).Count -eq 1) { ' bloqueada' } else { ' bloqueadas' }) } else { '' }) + '.'
-    if ($ay) { $res = 'Ayer (' + $ay.fecha.Substring(8,2) + '-' + $ay.fecha.Substring(5,2) + '): ' + $ay.listas + ' de ' + $ay.total + ' listas · rutina ' + $ay.rutina + '. ' + $res }
+    $sm = $pd.data.semana
+    if ($sm) { $res += ' Su semana: ' + $sm.listas + ' de ' + $sm.misiones + ' misiones · rutina ' + $sm.rutina + '/' + $sm.rutina_total + $(if ($sm.reels_meta) { ' · reels ' + $sm.reels + '/' + $sm.reels_meta } else { '' }) + '.' }
+    if ($ay) { $res = 'Ayer ('+ $ay.fecha.Substring(8,2) + '-' + $ay.fecha.Substring(5,2) + '): ' + $ay.listas + ' de ' + $ay.total + ' listas · rutina ' + $ay.rutina + '. ' + $res }
     $equipo += [pscustomobject]@{ quien=$e.quien; resumen=$res; items=$its; mensaje=$msg }
     continue
   }
@@ -90,7 +95,7 @@ $dia = [pscustomobject]@{
   whatsapp = $(if ($WhatsApp -and (Test-Path -LiteralPath $WhatsApp)) { Get-Content -LiteralPath $WhatsApp -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null })
   cruce = $(if ($Cruce -and (Test-Path -LiteralPath $Cruce)) { Get-Content -LiteralPath $Cruce -Raw -Encoding UTF8 | ConvertFrom-Json } else { $null })
   fuentes = $fuentes
-  mostrados = @($mostrados | Where-Object { -not $ajenos.ContainsKey($_) } | Select-Object -Unique)
+  mostrados = @($mostrados | Where-Object { -not $ajenos.ContainsKey($_) -and $_ -notmatch '^(nota|fotos):' } | Select-Object -Unique)
 }
 $dir = Split-Path -Parent $Salida; if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
 [System.IO.File]::WriteAllText($Salida, ($dia | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding($false)))

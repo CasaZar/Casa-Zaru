@@ -2,7 +2,8 @@
 # Uso (desde Bash):
 #   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/cerebro/cerrar-equipo.ps1 -Fecha 2026-11-17 -Dueno Cote -Marcas <marcas.json>
 # marcas.json = el «data» de equipo_marcas de ese día y esa persona, leído TAL CUAL por el MCP del Cotizador
-#   ({} si no marcó nada). Forma: { misiones: { <id>: { estado: listo|bloqueada|manana, link, por, ts } }, rutina: { <k>: true } }
+#   ({} si no marcó nada). Forma: { misiones: { <id>: { estado: listo|bloqueada|manana, link, por, ts } }, rutina: { <k>: true },
+#   fotos: { <num pedido>: <ts> }, nota: { texto, ts } }   (fotos y nota desde el 18-11-2026)
 # Qué hace con cada misión mostrada ese día:
 #   Listo      -> hecho (o vuelve al dueño, si listo-cuando.csv dice al_terminar=vuelve), con el link en «evidencia»
 #   Bloqueada  -> esperando hasta fecha + dias_bloqueo, con «Bloqueada dd-mm: <por>» en «evidencia»
@@ -85,20 +86,39 @@ foreach ($id in @($dia.mostrados)) {
 $filas | Export-Csv -LiteralPath $pendRuta -NoTypeInformation -Encoding UTF8
 
 # Rutina del día
-$rut = @($dia.data.rutina); $hechas = 0
-if ($m -and $m.rutina) { foreach ($r in $rut) { if ($m.rutina.($r.k)) { $hechas++ } } }
+$rut = @($dia.data.rutina); $hechas = 0; $reels = 0
+if ($m -and $m.rutina) { foreach ($r in $rut) { if ($m.rutina.($r.k)) { $hechas++; if ($r.k -match 'reel') { $reels++ } } } }
+
+# Fotos pedidas y nota para el dueño (18-11-2026). Las fotos se describen con lo que ese día mostró «Para contenido».
+$fotos = @()
+if ($m -and $m.fotos) {
+  $cont = @{}; foreach ($x in @($dia.data.contenido)) { if ($x) { $cont[[string]$x.num] = $x } }
+  foreach ($pr in $m.fotos.PSObject.Properties) { if ($pr.Value) { $x = $cont[$pr.Name]; $fotos += [pscustomobject]@{ num=$pr.Name; titulo=$(if ($x) { $x.titulo } else { '' }); detalle=$(if ($x) { $x.detalle } else { '' }) } } }
+}
+$nota = $null
+if ($m -and $m.nota -and $m.nota.texto -and ([string]$m.nota.texto).Trim()) {
+  $txt = ([string]$m.nota.texto).Trim(); if ($txt.Length -gt 500) { $txt = $txt.Substring(0,500) }
+  $nota = $txt
+  # Sube a «Decidir» si pide algo que decide el dueño (personas.json: nota_decidir) o lo nombra (bloqueo_dueno).
+  $rx = $(if ($per.nota_decidir) { [string]$per.nota_decidir } else { 'decid|aprob|aprueb|autoriz|\bok\b|\?' })
+  if ($txt -match $rx -or ($per.bloqueo_dueno -and $txt -match $per.bloqueo_dueno)) {
+    $escalar += [pscustomobject]@{ id="nota:${Dueno}:$Fecha"; dueno=$Dueno; titulo="Nota de ${Dueno}: «$txt»"; porque="$Dueno te dejó una nota que espera tu respuesta." }
+  }
+}
 $rr = Join-Path $Cerebro "equipo\$Dueno\rutina.csv"
-if (-not (Test-Path -LiteralPath $rr)) { [IO.File]::WriteAllText($rr, "fecha,hechas,total,misiones_listas,misiones`r`n", (New-Object System.Text.UTF8Encoding($false))) }
-[IO.File]::AppendAllText($rr, ("{0},{1},{2},{3},{4}`r`n" -f $Fecha, $hechas, $rut.Count, $listas, @($dia.mostrados).Count), (New-Object System.Text.UTF8Encoding($false)))
+if (-not (Test-Path -LiteralPath $rr)) { [IO.File]::WriteAllText($rr, "fecha,hechas,total,misiones_listas,misiones,reels`r`n", (New-Object System.Text.UTF8Encoding($false))) }
+[IO.File]::AppendAllText($rr, ("{0},{1},{2},{3},{4},{5}`r`n" -f $Fecha, $hechas, $rut.Count, $listas, @($dia.mostrados).Count, $reels), (New-Object System.Text.UTF8Encoding($false)))
 
 $ayer = [pscustomobject]@{
   fecha = $Fecha; listas = $listas; total = @($dia.mostrados).Count; rutina = "$hechas/$($rut.Count)"
-  items = [pscustomobject]$items; escalar = $escalar
+  items = [pscustomobject]$items; escalar = $escalar; reels = $reels; fotos = @($fotos); nota = $nota
 }
 [IO.File]::WriteAllText((Join-Path $Cerebro "equipo\$Dueno\ayer.json"), ($ayer | ConvertTo-Json -Depth 6), (New-Object System.Text.UTF8Encoding($false)))
 
 $enc = New-Object System.Text.UTF8Encoding($true)
 $lin = "`r`n## $Fecha · día de $Dueno`r`n- " + $(if ($cambios.Count) { $cambios -join '; ' } else { 'Sin misiones.' }) + "`r`n- Rutina $hechas/$($rut.Count)." +
+  $(if ($fotos.Count) { "`r`n- Fotos pedidas: " + (($fotos | ForEach-Object { $_.num }) -join ', ') } else { '' }) +
+  $(if ($nota) { "`r`n- Nota: «$nota»" } else { '' }) +
   $(if ($escalar.Count) { "`r`n- Sube a Decidir: " + (($escalar | ForEach-Object { $_.id }) -join ', ') } else { '' }) + "`r`n"
 [IO.File]::AppendAllText((Join-Path $Cerebro 'bitacora.md'), $lin, $enc)
 [IO.File]::AppendAllText($cierres, "$clave`r`n", (New-Object System.Text.UTF8Encoding($false)))

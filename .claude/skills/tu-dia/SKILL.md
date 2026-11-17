@@ -138,10 +138,19 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
      `cerrar-equipo.ps1 -Fecha <ayer> -Dueno <dueño> -Marcas <json>`. Listo → hecho (o vuelve al dueño si
      `listo-cuando.csv` dice `vuelve`); Bloqueada → esperando 3 días; Mañana o sin marcar → un salto. Lo que
      junta 3 saltos, queda bloqueado por el dueño o vuelve para decidir, componer lo pone solo en «Decidir».
-   - **Armar hoy** (entre los pasos 2 y 6): correr `sql/cotizador-marketing.sql` con el MCP del cotizador,
-     guardar el resultado TAL CUAL en `<scratchpad>\marketing-<hoy>.json` y correr
-     `armar-equipo.ps1 -Fecha <hoy> -Calc <calc> -Pulso <marketing.json>`. Elige 3 misiones (lo fijo de hoy o
-     mañana primero, después lo que vence antes), la cola, la rutina del día, el pulso y las ideas de WhatsApp.
+     Desde el 18-11 las marcas traen además `fotos` (pedidos a los que pidió fotos) y `nota` (su nota para ti):
+     van a `ayer.json` y componer las muestra en Equipo; una nota que pide una decisión o pregunta sube a «Decidir».
+   - **Anuncios** (los lunes, o si `Cerebro\equipo\anuncios.json` no existe o tiene más de 7 días): Meta MCP
+     `ads_get_ad_entities` sobre la cuenta 1393145254729847, `level=ad`, `date_preset=last_7d`, filtro
+     `effective_status IN [ACTIVE]`, `sort=amount_spent_descending`, campos `id,name,adset_name,amount_spent,results,
+     cost_per_result,frequency`. Guardar la respuesta TAL CUAL en `<scratchpad>\meta-ads-<hoy>.json` y correr
+     `anuncios-equipo.ps1 -Fecha <hoy> -Entrada <json>`. Los colores los pone el script, nunca a mano.
+   - **Armar hoy** (entre los pasos 2 y 6): correr `sql/cotizador-marketing.sql` con el MCP del cotizador y
+     `sql/gestion-contenido-semana.sql` con el MCP de la **Gestión**, guardar cada resultado TAL CUAL en
+     `<scratchpad>\marketing-<hoy>.json` y `<scratchpad>\contenido-<hoy>.json`, y correr
+     `armar-equipo.ps1 -Fecha <hoy> -Calc <calc> -Pulso <marketing.json> -Contenido <contenido.json>`. Elige 3 misiones (lo fijo de hoy o
+     mañana primero, después lo que vence antes), la cola, la rutina del día, el pulso, las ideas de WhatsApp,
+     «Para contenido» (sin nombres ni montos), los anuncios y «su semana» (de `rutina.csv`).
      Corre ANTES de `componer-dia.ps1`: así tu «Equipo» muestra sus misiones con lo que hizo ayer, y sus
      pendientes no te suman saltos a ti.
    - **Publicar** (después del paso 7): `publicar-equipo.ps1 -Fecha <hoy>` → `OK <dueño> 200`. Usa la llave de

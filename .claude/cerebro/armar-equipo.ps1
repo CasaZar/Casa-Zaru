@@ -1,6 +1,8 @@
 ﻿# Cerebro Zaru - arma el «Mi día» de cada persona del equipo que tiene día propio (17-11-2026).
 # Uso (desde Bash), DESPUÉS de armar-dia.ps1 y ANTES de componer-dia.ps1:
-#   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/cerebro/armar-equipo.ps1 -Fecha 2026-11-17 -Calc <calc.json> [-Pulso <marketing.json>]
+#   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/cerebro/armar-equipo.ps1 -Fecha 2026-11-17 -Calc <calc.json> [-Pulso <marketing.json>] [-Contenido <contenido.json>]
+# Además (18-11-2026): «Para contenido» (sql/gestion-contenido-semana.sql), anuncios activos (Cerebro\equipo\anuncios.json,
+# de anuncios-equipo.ps1) y «su semana» (rutina.csv). Contenido y anuncios solo si personas.json los activa para esa persona.
 # Personas: Cerebro\equipo\personas.json (Drive). Definición de «listo»: Cerebro\equipo\listo-cuando.csv.
 # Escribe Cerebro\equipo\<dueño>\<fecha>.json = { correo, fecha, mostrados, data } (lo que se publica va en data).
 # Solo lee pendientes.csv: no escribe nada fuera de Cerebro\equipo\. Este archivo no lleva datos: el repo es público.
@@ -10,6 +12,8 @@ param(
   # Resultado TAL CUAL de sql/cotizador-marketing.sql: [{o, ayer, semana}]
   [string]$Pulso = '',
   [string]$WhatsApp = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\mi-dia-whatsapp.json',
+  # Resultado TAL CUAL de sql/gestion-contenido-semana.sql (18-11-2026): lo que sale del taller esta semana.
+  [string]$Contenido = '',
   [string]$Cerebro = 'G:\Mi unidad\Casa Zaru\Cerebro'
 )
 $ErrorActionPreference = 'Stop'
@@ -26,6 +30,28 @@ if (Test-Path -LiteralPath $lcRuta) { Import-Csv -LiteralPath $lcRuta -Encoding 
 $c = $null; if ($Calc -and (Test-Path -LiteralPath $Calc)) { $c = Leer $Calc }
 $wa = $null; if ($WhatsApp -and (Test-Path -LiteralPath $WhatsApp)) { $wa = Leer $WhatsApp }
 $pu = $null; if ($Pulso -and (Test-Path -LiteralPath $Pulso)) { $pu = @(Leer $Pulso | ForEach-Object { $_ }) }  # en PS 5.1 un arreglo JSON llega como un solo objeto
+
+# «Para contenido» (18-11-2026): una fila por pedido, solo producto, medidas, madera y comuna.
+$ti = [Globalization.CultureInfo]::GetCultureInfo('es-CL').TextInfo
+function Lindo($s) { $t = ([string]$s).Trim(); if (-not $t) { return '' }; $ti.ToTitleCase($t.ToLower()) }
+$paraCont = @()
+if ($Contenido -and (Test-Path -LiteralPath $Contenido)) {
+  $lin = @(Leer $Contenido | ForEach-Object { $_ })
+  foreach ($g in ($lin | Group-Object num)) {
+    $ls = @($g.Group)
+    $prods = foreach ($pg in ($ls | Group-Object { (([string]$_.producto) -split ' — ')[0].Trim() })) {
+      $cant = ($pg.Group | ForEach-Object { Num $_.cantidad } | Measure-Object -Sum).Sum
+      $med = ''; if ($pg.Count -eq 1 -and $pg.Group[0].largo -and $pg.Group[0].ancho) { $med = ' ' + $pg.Group[0].largo + ' × ' + $pg.Group[0].ancho }
+      $pg.Name + $med + $(if ($cant -gt 1) { ' (' + $cant.ToString([Globalization.CultureInfo]::GetCultureInfo('es-CL')) + ')' } else { '' })
+    }
+    $mad = (@($ls | ForEach-Object { Lindo $_.madera } | Where-Object { $_ } | Select-Object -Unique)) -join ' y '
+    $com = @($ls | ForEach-Object { [string]$_.comuna } | Where-Object { $_ } | Select-Object -First 1)
+    $paraCont += [pscustomobject]@{ num=[string]$g.Name; titulo=(@($prods) -join ' + '); detalle=((@($mad) + $com | Where-Object { $_ }) -join ' · ') }
+  }
+}
+# Anuncios activos (anuncios-equipo.ps1, los lunes): se muestran si tienen 7 días o menos.
+$anuncios = $null; $anRuta = Join-Path $Cerebro 'equipo\anuncios.json'
+if (Test-Path -LiteralPath $anRuta) { $an = Leer $anRuta; $da = Dias $an.fecha; if ($da -ne $null -and $da -le 0 -and $da -ge -7) { $anuncios = $an } }
 
 foreach ($p in @($cfg.personas)) {
   $max = [int]$p.max_misiones; if ($max -le 0) { $max = 3 }
@@ -96,14 +122,33 @@ foreach ($p in @($cfg.personas)) {
   }
   $fijo = @($fijoP | Where-Object { (Dias $_.fecha) -ge 0 } | Select-Object -First 6 | ForEach-Object { [pscustomobject]@{ fecha=$_.fecha; obligacion=$_.obligacion } })
 
+  # Su semana (18-11-2026): de lunes a ayer, desde rutina.csv (lo escribe cerrar-equipo.ps1). Nada se estima.
+  $semana = $null
+  $lunes = $hoy.AddDays(-(([int]$hoy.DayOfWeek + 6) % 7)).ToString('yyyy-MM-dd')
+  $rr = Join-Path $Cerebro ('equipo\' + $p.dueno + '\rutina.csv')
+  if (Test-Path -LiteralPath $rr) {
+    $sem = @(Import-Csv -LiteralPath $rr -Encoding UTF8 | Where-Object { $_.fecha -ge $lunes -and $_.fecha -lt $Fecha })
+    if ($sem.Count) {
+      $metaReels = 0; foreach ($r in @($p.rutina | Where-Object { $_.k -match 'reel' })) { $metaReels += $(if ($r.dias) { @($r.dias).Count } else { 6 }) }
+      $semana = [pscustomobject]@{ desde = $lunes; dias = $sem.Count
+        listas = [int]($sem | ForEach-Object { Num $_.misiones_listas } | Measure-Object -Sum).Sum
+        misiones = [int]($sem | ForEach-Object { Num $_.misiones } | Measure-Object -Sum).Sum
+        rutina = [int]($sem | ForEach-Object { Num $_.hechas } | Measure-Object -Sum).Sum
+        rutina_total = [int]($sem | ForEach-Object { Num $_.total } | Measure-Object -Sum).Sum
+        reels = [int]($sem | ForEach-Object { Num $_.reels } | Measure-Object -Sum).Sum; reels_meta = $metaReels }
+    }
+  }
+
   $data = [pscustomobject]@{
     fecha = $Fecha; nombre = $p.nombre; generado = (Get-Date).ToString('o')
     misiones = @($misiones); cola = $cola; bloqueadas = $bloq; rutina = $rutina
-    pulso = $pulsoDia; ideas = $ideas; fijo = $fijo
+    pulso = $pulsoDia; ideas = $ideas; fijo = $fijo; semana = $semana
+    contenido = $(if ($p.contenido) { @($paraCont) } else { @() })
+    anuncios = $(if ($p.anuncios) { $anuncios } else { $null })
   }
   $dir = Join-Path $Cerebro ('equipo\' + $p.dueno); if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
   $sal = Join-Path $dir "$Fecha.json"
   $obj = [pscustomobject]@{ correo = ([string]$p.correo).ToLower(); fecha = $Fecha; mostrados = $ids; data = $data }
   [System.IO.File]::WriteAllText($sal, ($obj | ConvertTo-Json -Depth 8), (New-Object System.Text.UTF8Encoding($false)))
-  Write-Output ("OK {0} misiones={1} cola={2} bloqueadas={3} rutina={4} pulso={5}" -f $p.dueno, $misiones.Count, $cola.Count, $bloq.Count, $rutina.Count, [bool]$pulsoDia)
+  Write-Output ("OK {0} misiones={1} cola={2} bloqueadas={3} rutina={4} pulso={5} contenido={6} anuncios={7} semana={8}" -f $p.dueno, $misiones.Count, $cola.Count, $bloq.Count, $rutina.Count, [bool]$pulsoDia, @($data.contenido).Count, $(if ($data.anuncios) { @($data.anuncios.items).Count } else { 0 }), [bool]$semana)
 }
