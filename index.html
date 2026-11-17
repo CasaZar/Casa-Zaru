@@ -27,6 +27,9 @@
   --brand:     #8B5E3C;
   --brand-dim: rgba(139,94,60,0.1);
   --brand-hi:  #C4936A;
+  /* --wood se usaba en 27 lugares (botón elegido de vendedor, tipo y canal) y no
+     estaba definida: el elegido salía blanco sobre blanco (17-11-2026). */
+  --wood:      var(--brand);
 
   /* Semantic */
   --green:     #2D7D32;
@@ -1075,6 +1078,12 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .vend-btn { padding:9px 16px;min-height:42px;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:14px;font-weight:600;cursor:pointer;transition:all .15s; }
 .vend-btn:hover { border-color:var(--wood); }
 .vend-btn.on { background:var(--wood);color:#fff;border-color:var(--wood); }
+/* «¿Cómo nos conoció?»: dos grupos y la sub-pregunta de Google anuncio (17-11-2026) */
+.como-grupo { width:100%;font-size:10.5px;font-weight:700;color:var(--text-3);letter-spacing:.04em;text-transform:uppercase;margin:4px 0 -2px; }
+.como-cod { display:none;width:100%;padding:10px;background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius); }
+.como-cod-lbl { font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px; }
+.como-chip { padding:7px 12px;min-height:36px;margin:0 6px 6px 0;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer; }
+.como-chip.on { background:var(--green);color:#fff;border-color:var(--green); }
 /* ── Contactos pendientes del tablero ──
    La fila entera abre WhatsApp: en el teléfono apuntarle a un botón de 11px
    era incómodo, y esta lista existe para escribirle al cliente. */
@@ -26663,6 +26672,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin:10px 0 2px">📣 ¿Cómo nos conoció?</div>
       <div id="pp-canal-btns" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       <input type="hidden" id="pp-como" value="">
+      <input type="hidden" id="pp-como-cod" value="">
+      <div style="font-size:11px;color:var(--text-3);width:100%;margin-top:2px">El mensaje termina en (G), (GB) o (GS) → Google anuncio. Trae (M) o el chat muestra el anuncio arriba → Meta anuncio. «Los vi en Google / Maps» sin código → Google orgánico.</div>
+      <div id="pp-como-falta" style="display:none;width:100%;background:var(--red-dim);color:var(--red-text);border-radius:var(--radius);padding:8px 10px;font-size:12.5px;font-weight:600">Falta «¿Cómo nos conoció?». Sin eso no se puede medir qué anuncio vende.</div>
     </div>
 
     <!-- Finanzas editable antes de confirmar -->
@@ -27505,7 +27517,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     </div>
     <div class="form-grid">
       <div class="form-group"><label>Producto</label><input id="fn-producto" type="text"></div>
-      <div class="form-group"><label>¿Cómo nos conoció?</label><input id="fn-como" type="text" placeholder="Instagram, referido..."></div>
+      <div class="form-group"><label>¿Cómo nos conoció?</label><select id="fn-como"></select></div>
     </div>
     <div class="section-label">Valores — el valor producto es el precio publicado (con tarjeta)</div>
     <div class="form-grid tri">
@@ -29345,6 +29357,8 @@ async function analyzeImage(dataUrl,file,apiKey){
     // Un pedido de Shopify llegó por la web: se propone y se puede cambiar.
     // El resto arranca sin marcar, a propósito, para que sea una decisión y no
     // un valor por defecto que nadie mira.
+    var _faltaComo=document.getElementById('pp-como-falta');if(_faltaComo)_faltaComo.style.display='none';
+    document.getElementById('pp-como-cod').value='';
     renderPrevCanal(pedidoData.canal==='web'?'Web':'');
     renderPrevProd(pedidoData);
     // Cupón de Shopify (el 5 % de primera compra): el cliente pagó con descuento,
@@ -29534,6 +29548,18 @@ async function confirmOrder(){
   // igual a Finanzas y al Pixel y nadie lo notaba hasta subirlo a Meta.
   var _cel=document.getElementById('pp-cel');
   if(_cel){_cel.value=fmtPhone(_cel.value);if(!telValido(_cel.value)){_cel.style.borderColor='var(--red)';_cel.focus();showToast('❌ El celular «'+_cel.value+'» no es un número chileno de 9 dígitos: corrígelo o déjalo vacío',true);return;}}
+  // Cómo llegó el cliente, obligatorio en las ventas (17-11-2026): sin eso no se
+  // puede medir qué anuncio vende. Muestrarios y post venta pasan como antes, y
+  // un pedido que ya lo tenía en Finanzas lo conserva.
+  var _tipoSel=(document.getElementById('pp-tipo')||{}).value||'VENTA';
+  var _comoSel=(document.getElementById('pp-como')||{}).value||'';
+  var _finPrev=finRecords.find(r=>String(r.num||'')===numStr);
+  if(_tipoSel==='VENTA'&&!_comoSel&&!(_finPrev&&String(_finPrev.como||'').trim())){
+    var _fa=document.getElementById('pp-como-falta');
+    if(_fa){_fa.style.display='block';_fa.scrollIntoView({behavior:'smooth',block:'center'});}
+    showToast('❌ Falta «¿Cómo nos conoció?»',true);
+    return;
+  }
   const yaExiste=prodOrders.some(p=>String(p.pedido||'')===numStr)||finRecords.some(r=>String(r.num||'')===numStr);
   if(yaExiste){if(!confirm('⚠️ Ya existe un pedido con el N° '+numStr+' en el sistema.\n\n¿Seguro que quieres sobreescribirlo? Si es un pedido nuevo, cambia el número arriba antes de continuar.'))return;}
   var _h=new Date(),_hoyISO=_h.getFullYear()+'-'+String(_h.getMonth()+1).padStart(2,'0')+'-'+String(_h.getDate()).padStart(2,'0');
@@ -29617,7 +29643,7 @@ async function confirmOrder(){
     fact_ciudad:document.getElementById('pp-fact-ciudad').value.trim()
   };
   const existFin=finRecords.find(r=>String(r.num||'')===numStr);
-  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:(((document.getElementById('pp-como')||{}).value)||(existFin?(existFin.como||''):'')),fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:(((document.getElementById('pp-como')||{}).value)||(existFin?(existFin.como||''):'')),como_codigo:((document.getElementById('pp-como')||{}).value?((document.getElementById('pp-como-cod')||{}).value||''):(existFin?(existFin.como_codigo||''):'')),fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
   Object.assign(finData,datosDoc);
   // Volver a guardar desde Producción no borra nada de los documentos (folio,
   // PDF, monto facturado, «en proceso», doc 3).
@@ -29822,7 +29848,19 @@ const VENDEDOR_DEFAULT='César';
 // canales: "WHATSAPP ANTIGUO", "Whatsapp antiguo", "WHATAPP ANTGUO" y
 // "Whatsap antiguo" eran el mismo. Así no se puede sacar CAC ni margen por
 // canal, que es justo para lo que sirve este dato. Lista fija.
-const CANALES=['Landing','Landing B2B','Many Chat','Cotizador','Web','Instagram','Google','WhatsApp antiguo','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
+// 17-11-2026: «Google» se partió en anuncio y orgánico, y se sumó «Meta anuncio».
+// Google Ads y Meta no ven las ventas que se cierran por WhatsApp; el mensaje que
+// sale de casazaru.cl trae un código cuando la visita vino de un anuncio (snippet
+// cz-origen del tema): (GB) Búsqueda, (GS) Shopping, (G) Google sin saber cuál,
+// (M) Meta. «Instagram» queda para lo orgánico. Dos grupos en pantalla.
+const CANALES_ANUNCIO=['Google anuncio','Meta anuncio','Landing','Landing B2B','Many Chat'];
+const CANALES_SIN_ANUNCIO=['Google orgánico / Maps','Instagram','Web','Cotizador','WhatsApp antiguo','Correo','Referido','Cliente antiguo','Canje influencer','Otro'];
+const CANALES=CANALES_ANUNCIO.concat(CANALES_SIN_ANUNCIO);
+// Lo que se guardó antes del 17-11 como «Google» a secas no dice si fue anuncio
+// u orgánico: se muestra así hasta que alguien lo corrija a mano.
+const CANAL_GOOGLE_VIEJO='Google (sin separar)';
+// Código que traía el mensaje de un «Google anuncio» (finanzas.como_codigo).
+const CODIGOS_GOOGLE=[{k:'GB',label:'(GB) Búsqueda'},{k:'GS',label:'(GS) Shopping'},{k:'G',label:'(G) o no se ve'}];
 // Normaliza lo que ya está escrito a mano hacia la lista de arriba. Se usa
 // para leer los registros viejos sin tener que migrarlos.
 function canalCanonico(txt){
@@ -29845,12 +29883,18 @@ function canalCanonico(txt){
   if(/^W?HAT?S?A?PP?$/.test(s))return 'Many Chat';
   if(/MANY\s*CHAT/.test(s))return s.indexOf('COTIZADOR')>=0?'Cotizador':'Many Chat';
   if(/COTIZADOR/.test(s))return 'Cotizador';
+  // Anuncio de Meta: lo nuevo («Meta anuncio») y lo viejo escrito a mano que dice
+  // anuncio ("iNTAGRAM, DIRECTO ANUNCIO"). Instagram a secas es orgánico.
+  if(/^META ANUNCIO$/.test(s)||(/INSTAGRAM|INTAGRAM|FACEBOOK|META/.test(s)&&/ANUNCIO|ADS\b|PAGAD/.test(s)))return 'Meta anuncio';
   if(/INSTAGRAM|INTAGRAM/.test(s))return 'Instagram';
   // Google entra escrito de muchas formas: "GOOGLE", "GOOGLE ADS", "ADWORDS",
   // "BUSCADOR", o "MAPS" cuando llegan por la ficha del negocio. Va ANTES de la
   // regla de WEB porque "GOOGLE SHOPPING" contiene "SHOPPING", no "SHOPIFY",
   // pero conviene no depender de esa diferencia de una letra.
-  if(/GOOGLE|ADWORDS|BUSCADOR|MAPS/.test(s))return 'Google';
+  // Desde el 17-11 se separa anuncio de orgánico; "GOOGLE" a secas es lo viejo.
+  if(/GOOGLE ANUNCIO|GOOGLE ADS|ADWORDS|SHOPPING/.test(s))return 'Google anuncio';
+  if(/ORGANICO|BUSCADOR|MAPS/.test(s))return 'Google orgánico / Maps';
+  if(/GOOGLE/.test(s))return CANAL_GOOGLE_VIEJO;
   if(/CANJE|INFLUENCER/.test(s))return 'Canje influencer';
   if(/CORREO|MAIL/.test(s))return 'Correo';
   if(/AMIGO|REFERID|RECOMEND/.test(s))return 'Referido';
@@ -29916,17 +29960,57 @@ function renderPrevVendedor(sel){
 function _opcionesCanal(actual){
   var canon=canalCanonico(actual);
   var op='<option value=""'+(canon?'':' selected')+'>— sin definir —</option>';
-  op+=CANALES.map(function(c){
-    return '<option'+(c===canon?' selected':'')+'>'+esc(c)+'</option>';
-  }).join('');
-  return op;
+  // «Google» viejo: se muestra tal cual (su valor guardado no cambia) hasta que
+  // alguien elija anuncio u orgánico.
+  if(canon===CANAL_GOOGLE_VIEJO)op+='<option value="'+esc(actual)+'" selected>'+esc(CANAL_GOOGLE_VIEJO)+'</option>';
+  var grupo=function(titulo,lista){
+    return '<optgroup label="'+titulo+'">'+lista.map(function(c){
+      return '<option'+(c===canon?' selected':'')+'>'+esc(c)+'</option>';
+    }).join('')+'</optgroup>';
+  };
+  return op+grupo('Anuncios',CANALES_ANUNCIO)+grupo('Sin anuncio',CANALES_SIN_ANUNCIO);
 }
 function renderPrevCanal(sel){
   var cont=document.getElementById('pp-canal-btns');if(!cont)return;
   var v=sel||'';
   document.getElementById('pp-como').value=v;
-  cont.innerHTML=CANALES.map(function(n){
+  var btn=function(n){
     return '<button type="button" class="vend-btn'+(n===v?' on':'')+'" onclick="renderPrevCanal(\''+n.replace(/'/g,"\\'")+'\')">'+esc(n)+'</button>';
+  };
+  var titulo=function(t){return '<div class="como-grupo">'+t+'</div>';};
+  cont.innerHTML=titulo('Anuncios')+CANALES_ANUNCIO.map(btn).join('')+
+    '<div id="pp-como-cod-box" class="como-cod"></div>'+
+    titulo('Sin anuncio')+CANALES_SIN_ANUNCIO.map(btn).join('');
+  // Elegir canal quita el aviso de «falta» si estaba puesto.
+  if(v){var av=document.getElementById('pp-como-falta');if(av)av.style.display='none';}
+  var codEl=document.getElementById('pp-como-cod');
+  if(v!=='Google anuncio'){if(codEl)codEl.value='';}
+  renderPrevCodigo(codEl?codEl.value:'');
+}
+// Modal de Finanzas (editar / nuevo registro). Era texto libre y por ahí entraron
+// ventas con «TRANSFERENCIA» (1611, 1613-1615; nov 2026): ahora es la misma lista.
+// Si nadie toca la opción, al guardar se conserva el texto que ya estaba (no se
+// reescriben datos viejos por guardar otro campo del mismo registro).
+function _llenarComoModalFin(actual){
+  var el=document.getElementById('fn-como');if(!el)return;
+  el.innerHTML=_opcionesCanal(actual);
+  el.dataset.orig=actual||'';
+  el.dataset.ini=el.value;
+}
+function _comoModalFin(){
+  var el=document.getElementById('fn-como');if(!el)return '';
+  return el.value===el.dataset.ini?(el.dataset.orig||''):el.value;
+}
+// Sub-pregunta de «Google anuncio»: qué código traía el mensaje de WhatsApp.
+// Es lo que separa la campaña de Búsqueda de la de Shopping.
+function renderPrevCodigo(k){
+  var box=document.getElementById('pp-como-cod-box'),codEl=document.getElementById('pp-como-cod');
+  if(!box||!codEl)return;
+  if(document.getElementById('pp-como').value!=='Google anuncio'){box.innerHTML='';box.style.display='none';codEl.value='';return;}
+  codEl.value=k||'';
+  box.style.display='block';
+  box.innerHTML='<div class="como-cod-lbl">¿Qué código traía el mensaje?</div>'+CODIGOS_GOOGLE.map(function(c){
+    return '<button type="button" class="como-chip'+(c.k===k?' on':'')+'" onclick="renderPrevCodigo(\''+c.k+'\')">'+esc(c.label)+'</button>';
   }).join('');
 }
 function renderPrevTipo(sel){
@@ -31998,7 +32082,8 @@ function openFinModal(idx){
   document.getElementById('fin-modal-title').textContent=editingFinIdx!==null?'Editar registro':'Nuevo registro financiero';
   document.getElementById('fin-btn-del').style.display=editingFinIdx!==null?'block':'none';
   document.getElementById('fin-calc-preview').style.display='none';
-  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-como').value=r.como||'';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-instalacion').value=r.val_instalacion||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-canal').value=r.canal_pago||'TRANSFERENCIA';document.getElementById('fn-desc-pct').value=r.descuento_pct||'';document.getElementById('fn-pasarela').value=r.pasarela||'';document.getElementById('fn-costo-mp').value=r.costo_mp||'';document.getElementById('fn-costo-shopify').value=r.costo_shopify||'';document.getElementById('fn-bloque-costos').style.display=(r.canal_pago==='LINK_MP'||r.canal_pago==='WEB_SHOPIFY')?'':'none';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
+  _llenarComoModalFin(editingFinIdx!==null?(finRecords[editingFinIdx].como||''):'');
+  if(editingFinIdx!==null){const r=finRecords[editingFinIdx];document.getElementById('fn-num').value=r.num||'';document.getElementById('fn-semana').value=r.semana||'';var _fc=r.fecha_creacion||r.fecha||'';if(_fc&&_fc.indexOf('/')!==-1){var _fp=_fc.split('/');document.getElementById('fn-fecha-creacion').value=_fp[2]+'-'+_fp[1].padStart(2,'0')+'-'+_fp[0].padStart(2,'0');}else{document.getElementById('fn-fecha-creacion').value=_fc||'';};document.getElementById('fn-nombre').value=r.nombre||'';document.getElementById('fn-apellido').value=r.apellido||'';document.getElementById('fn-email').value=r.email||'';document.getElementById('fn-celular').value=r.celular||'';document.getElementById('fn-rut').value=r.rut||'';document.getElementById('fn-razon-social').value=r.razon_social||'';document.getElementById('fn-giro').value=r.giro||'';document.getElementById('fn-direccion').value=r.direccion||'';document.getElementById('fn-comuna').value=r.comuna||'';document.getElementById('fn-ciudad').value=r.ciudad||'';document.getElementById('fn-producto').value=r.producto||'';document.getElementById('fn-medio').value=r.medio_pago||'BCI';document.getElementById('fn-val-prod').value=r.val_prod||'';document.getElementById('fn-envio').value=r.val_envio||'';document.getElementById('fn-instalacion').value=r.val_instalacion||'';document.getElementById('fn-comision').value=r.val_comision||'';document.getElementById('fn-canal').value=r.canal_pago||'TRANSFERENCIA';document.getElementById('fn-desc-pct').value=r.descuento_pct||'';document.getElementById('fn-pasarela').value=r.pasarela||'';document.getElementById('fn-costo-mp').value=r.costo_mp||'';document.getElementById('fn-costo-shopify').value=r.costo_shopify||'';document.getElementById('fn-bloque-costos').style.display=(r.canal_pago==='LINK_MP'||r.canal_pago==='WEB_SHOPIFY')?'':'none';document.getElementById('fn-fact-direccion').value=r.fact_direccion||'';document.getElementById('fn-fact-comuna').value=r.fact_comuna||'';document.getElementById('fn-fact-ciudad').value=r.fact_ciudad||'';document.getElementById('fn-doc-tipo').value=(r.doc1_tipo==='FACTURA'||r.doc2_tipo==='FACTURA')?'FACTURA':'BOLETA';toggleCamposFactura();calcFinPreview();}
   else{['fn-num','fn-semana','fn-fecha-creacion','fn-nombre','fn-apellido','fn-email','fn-celular','fn-rut','fn-razon-social','fn-giro','fn-direccion','fn-comuna','fn-ciudad','fn-fact-direccion','fn-fact-comuna','fn-fact-ciudad','fn-producto','fn-como','fn-val-prod','fn-envio','fn-instalacion','fn-comision','fn-desc-pct','fn-costo-mp','fn-costo-shopify'].forEach(id=>document.getElementById(id).value='');document.getElementById('fn-medio').value='BCI';document.getElementById('fn-doc-tipo').value='BOLETA';document.getElementById('fn-canal').value='TRANSFERENCIA';document.getElementById('fn-pasarela').value='';aplicarCanalPago();toggleCamposFactura();}
   b2bAvisoRut(document.getElementById('fn-rut').value,'fn-rut');
   document.getElementById('modal-fin-bg').classList.add('open');
@@ -32015,7 +32100,7 @@ async function saveFinRecord(){
   const prev=editingFinIdx!==null?finRecords[editingFinIdx]:{};
   const numStr=document.getElementById('fn-num').value.trim();if(!numStr){alert('El número de pedido es requerido.');return;}
   var _fnFechaISO=document.getElementById('fn-fecha-creacion').value;var _fnFecha=_fnFechaISO?(function(){var p=_fnFechaISO.split('-');return parseInt(p[2],10)+'/'+parseInt(p[1],10)+'/'+p[0];})():'';
-  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:document.getElementById('fn-como').value.trim(),val_prod:vp,val_envio:env,val_instalacion:inst,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,pasarela:(['LINK_MP','WEB_SHOPIFY'].indexOf(document.getElementById('fn-canal').value)>=0)?document.getElementById('fn-pasarela').value:'',descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||0,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
+  const record={num:numStr,semana:document.getElementById('fn-semana').value.trim(),nombre:document.getElementById('fn-nombre').value.trim(),apellido:document.getElementById('fn-apellido').value.trim(),email:document.getElementById('fn-email').value.trim(),celular:document.getElementById('fn-celular').value.trim(),rut:document.getElementById('fn-rut').value.trim(),razon_social:document.getElementById('fn-razon-social').value.trim(),giro:document.getElementById('fn-giro').value.trim(),direccion:document.getElementById('fn-direccion').value.trim(),comuna:document.getElementById('fn-comuna').value.trim(),ciudad:document.getElementById('fn-ciudad').value.trim(),fact_direccion:document.getElementById('fn-fact-direccion').value.trim(),fact_comuna:document.getElementById('fn-fact-comuna').value.trim(),fact_ciudad:document.getElementById('fn-fact-ciudad').value.trim(),producto:document.getElementById('fn-producto').value.trim(),medio_pago:document.getElementById('fn-medio').value,como:_comoModalFin(),val_prod:vp,val_envio:env,val_instalacion:inst,val_comision:com,canal_pago:document.getElementById('fn-canal').value,descuento_pct:descPct,pasarela:(['LINK_MP','WEB_SHOPIFY'].indexOf(document.getElementById('fn-canal').value)>=0)?document.getElementById('fn-pasarela').value:'',descuento_monto:_c.descMonto,costo_mp:costoMp,costo_shopify:costoShop,costo_plataformas:_c.costos,neto_recibido:_c.neto,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:prev.abono1||0,abono2:prev.abono2||0,abono3:prev.abono3||0,doc1_tipo:document.getElementById('fn-doc-tipo').value,doc2_tipo:document.getElementById('fn-doc-tipo').value,doc1_num:prev.doc1_num||'',doc2_num:prev.doc2_num||'',doc1_emitida:prev.doc1_emitida||false,doc2_emitida:prev.doc2_emitida||false,fecha:_fnFecha||prev.fecha||todayStr,fecha_creacion:_fnFecha||prev.fecha_creacion||todayStr};
   if(!record.nombre&&!record.num){alert('Ingresa al menos nombre o número.');return;}
   if(editingFinIdx!==null)finRecords[editingFinIdx]=record;else finRecords.push(record);
   if(DB_URL)await api('finanzas/'+numStr,'PUT',record);
