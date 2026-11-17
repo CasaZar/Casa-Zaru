@@ -128,6 +128,27 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
 7. **Publicar.** `publicar-dia.ps1 -Dia "G:/Mi unidad/Casa Zaru/Cerebro/dias/<hoy>.json"` → tiene que decir
    `OK 200`. Confirmar con el MCP: `select fecha, updated_at from public.cerebro_dias order by fecha desc limit 1`.
    Si dice `SIN_TOKEN` o `ERROR`, no publicar en otro lado: decirlo en el resumen (el día queda en Drive).
+7b. **«Mi día» del equipo (desde el 17-11-2026).** Quien tiene día propio está en
+   `Cerebro\equipo\personas.json` (hoy: marketing). Su pantalla es `mi-dia.html` del sitio del Cotizador
+   (repo Cotizador), tablas `equipo_dias` / `equipo_marcas` del proyecto **Cotizador** (migración 0003).
+   Solo lleva lo suyo: nunca plata, impuestos, RR. HH. ni alarmas de ventas.
+   - **Cerrar ayer** (junto con el paso 1): por cada persona, leer sus marcas con el MCP del cotizador
+     (`select data from public.equipo_marcas where correo = '<correo>' and fecha = '<ayer>'`; sin fila → `{}`),
+     guardarlas en `<scratchpad>\marcas-equipo-<dueño>-<ayer>.json` y correr
+     `cerrar-equipo.ps1 -Fecha <ayer> -Dueno <dueño> -Marcas <json>`. Listo → hecho (o vuelve al dueño si
+     `listo-cuando.csv` dice `vuelve`); Bloqueada → esperando 3 días; Mañana o sin marcar → un salto. Lo que
+     junta 3 saltos, queda bloqueado por el dueño o vuelve para decidir, componer lo pone solo en «Decidir».
+   - **Armar hoy** (entre los pasos 2 y 6): correr `sql/cotizador-marketing.sql` con el MCP del cotizador,
+     guardar el resultado TAL CUAL en `<scratchpad>\marketing-<hoy>.json` y correr
+     `armar-equipo.ps1 -Fecha <hoy> -Calc <calc> -Pulso <marketing.json>`. Elige 3 misiones (lo fijo de hoy o
+     mañana primero, después lo que vence antes), la cola, la rutina del día, el pulso y las ideas de WhatsApp.
+     Corre ANTES de `componer-dia.ps1`: así tu «Equipo» muestra sus misiones con lo que hizo ayer, y sus
+     pendientes no te suman saltos a ti.
+   - **Publicar** (después del paso 7): `publicar-equipo.ps1 -Fecha <hoy>` → `OK <dueño> 200`. Usa la llave de
+     `%USERPROFILE%\.casazaru\equipo-token.txt` (nunca imprimirla). Si falla, el día queda en
+     `Cerebro\equipo\<dueño>\` y se dice en el resumen.
+   - Pendiente nuevo de marketing: dueño la persona y, si se puede, su «Listo cuando» en
+     `Cerebro\equipo\listo-cuando.csv` (y `al_terminar=vuelve` si al final decide el dueño).
 8. **Resumen** en el chat (corto, en español): lo que vence hoy y mañana, la cifra rara, cuántos se
    cerraron ayer, fuentes que fallaron, los encargos «en manos de Claude» y que se ve en Gestión → «Mi día».
 

@@ -33442,7 +33442,8 @@ function renderMiDia(){
       return'<li class="md-item'+(d?' md-done':'')+'" style="background:var(--md-card)">'+_mdChk(id)+'<div class="md-txt"><div class="md-t">'+esc(it.titulo)+'</div>'+(it.detalle?'<div class="md-s">'+esc(it.detalle)+'</div>':'')+'</div></li>';
     }).join('')+'</ul>':'';
     var msg=e.mensaje?'<div class="md-msg" id="md-msg'+i+'">'+esc(e.mensaje)+'</div><div class="md-btns"><button type="button" data-copiar="md-msg'+i+'">Copiar mensaje</button></div>':'';
-    return'<div class="md-persona"><span class="md-n">'+esc(e.quien)+'</span>'+items+msg+'</div>';
+    var res=e.resumen?'<div class="md-s" style="margin:2px 0 6px">'+esc(e.resumen)+'</div>':'';  // «Mi día» del equipo (17-11-2026): cómo le fue ayer en su propio día
+    return'<div class="md-persona"><span class="md-n">'+esc(e.quien)+'</span>'+res+items+msg+'</div>';
   }).join(''):'<p class="md-vacio">Sin encargos para el equipo hoy.</p>';
   h+='</section>';
 
