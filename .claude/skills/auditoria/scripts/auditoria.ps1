@@ -50,6 +50,18 @@ Write-Output "Auditoría de confiabilidad · $($hoy.ToString('dd-MM-yyyy HH:mm')
 
 # ── 1. Respaldos ──────────────────────────────────────────────────────────────
 Write-Output '1/8 respaldos…'
+# Mensuales (respaldo-mensual.ps1, desde 17-11-2026): verde si el mes en curso ya tiene el suyo y no
+# falta ningún mes entre el primero y hoy. El contrato pide 12; se llega solo con el tiempo.
+function Mensuales($sub,$patron){
+  $d="$drive\Respaldos Mensuales\$sub"
+  $ms=@(Get-ChildItem $d -Filter $patron -File -ErrorAction SilentlyContinue | % { if($_.Name -match '(\d{4}-\d{2})-\d{2}\.'){ $Matches[1] } } | sort -Unique)
+  if(-not $ms.Count){ return @{ok=$false; txt='sin mensuales (correr .claude\informes\respaldo-mensual.ps1)'} }
+  $hoy=(Get-Date).ToString('yyyy-MM'); $falta=@(); $m=[datetime]::ParseExact($ms[0]+'-01','yyyy-MM-dd',$null)
+  while($m.ToString('yyyy-MM') -le $hoy){ if($ms -notcontains $m.ToString('yyyy-MM')){ $falta+=$m.ToString('yyyy-MM') }; $m=$m.AddMonths(1) }
+  $txt="$($ms.Count) mensuales ($($ms[0]) a $($ms[-1]))" + $(if($falta.Count){"; faltan $($falta -join ', ')"}else{''})
+  if($falta.Count){ Prop "Respaldo mensual de $sub sin: $($falta -join ', '). Correr .claude\informes\respaldo-mensual.ps1 (si el diario del día 1 ya se podó, se toma el primero que quede)." }
+  return @{ok=(-not $falta.Count); txt=$txt}
+}
 $JG=$null; $JC=$null; $sG="$SEM_B sin acceso a Drive"; $sC="$SEM_B sin acceso a Drive"; $rG="$SEM_B"; $rC="$SEM_B"
 if(Test-Path $dirG){
   $fs=@(Get-ChildItem "$dirG\respaldo-gestion-*.json" | sort LastWriteTime -desc)
@@ -57,7 +69,8 @@ if(Test-Path $dirG){
     $JG=([string](Get-Content -Raw -Encoding UTF8 "$tmp\gestion.json") | ConvertFrom-Json)
     $h=Horas $f; $kb=[math]::Round($f.Length/1KB); $nt=(Tablas $JG.tablas).Count
     $sG = $(if($h -le 36){$SEM_V}else{$SEM_R}) + " $($f.LastWriteTime.ToString('dd-MM HH:mm')), $kb KB, $nt tablas; generado $($JG.generado)"
-    $rG = $(if($fs.Count -ge 28){$SEM_A}else{$SEM_R}) + " $($fs.Count) diarios, sin mensuales"
+    $mG = Mensuales 'Gestion' 'respaldo-gestion-*.json'
+    $rG = $(if($fs.Count -ge 28 -and $mG.ok){$SEM_V}elseif($fs.Count -ge 28){$SEM_A}else{$SEM_R}) + " $($fs.Count) diarios; $($mG.txt)"
     if($h -gt 36){ Prop "Respaldo de Gestión con $h h: revisar cron gestion-respaldo-diario / gestion-respaldo-tarde y net._http_response." }
   } else { $sG="$SEM_R no hay archivos"; Prop 'No hay respaldos de Gestión en Drive.' } }
 if(Test-Path $dirC){
@@ -67,7 +80,8 @@ if(Test-Path $dirC){
       $JC=([string](Get-Content -Raw -Encoding UTF8 $j.FullName) | ConvertFrom-Json); $zipOk=$true } catch { $zipOk=$false }
     $h=Horas $f; $kb=[math]::Round($f.Length/1KB)
     $sC = $(if($h -le 36 -and $zipOk){$SEM_V}else{$SEM_R}) + " $($f.LastWriteTime.ToString('dd-MM HH:mm')), $kb KB, zip " + $(if($zipOk){'íntegro'}else{'CORRUPTO'})
-    $rC = "$SEM_A $($fs.Count) zips desde $($fs[-1].LastWriteTime.ToString('dd-MM-yyyy')), sin regla de retención"
+    $mC = Mensuales 'Cotizador' 'respaldo-cotizador-*.zip'
+    $rC = $(if($mC.ok){$SEM_V}else{$SEM_A}) + " $($fs.Count) zips diarios desde $($fs[-1].LastWriteTime.ToString('dd-MM-yyyy')) (no se podan); $($mC.txt)"
     if($h -gt 36){ Prop "Respaldo del Cotizador con $h h: la tarea 'CasaZaru - Respaldo Cotizador' (13:30) no corrió; ver respaldo-cotizador.log." }
   } else { $sC="$SEM_R no hay archivos"; Prop 'No hay respaldos del Cotizador en Drive.' } }
 Sem '1 Respaldo: frescura' $sG $sC

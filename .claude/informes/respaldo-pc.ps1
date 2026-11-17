@@ -82,6 +82,10 @@ Get-ScheduledTask -TaskName 'CasaZaru*' | ForEach-Object {
 }
 $resumen += "{0,-24} <- {1} tareas CasaZaru*" -f 'tareas-windows', @(Get-ChildItem $dt -Filter *.xml).Count
 
+# Retención mensual de los respaldos de Supabase (primer respaldo de cada mes, sin podar).
+try { $resumen += & (Join-Path $PSScriptRoot 'respaldo-mensual.ps1') }
+catch { $fallas += "respaldo mensual: $($_.Exception.Message)" }
+
 $estado = if ($fallas.Count) { 'CON FALLAS: ' + ($fallas -join '; ') } else { 'OK' }
 $marca  = @(
   "Respaldo PC $(Get-Date -Format 'yyyy-MM-dd HH:mm') - $estado"

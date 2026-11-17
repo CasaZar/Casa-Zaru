@@ -103,7 +103,9 @@ Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de h
 
 **Respaldo**
 - Respaldo diario automático de los dos proyectos a Drive, por tabla, en formato restaurable. Retención
-  objetivo: 30 diarios + 12 mensuales.
+  objetivo: 30 diarios + 12 mensuales. Los mensuales (desde el 17-11-2026) son el primer respaldo de cada
+  mes copiado a `Drive\Casa Zaru\Respaldos Mensuales\{Gestion,Cotizador}` por `.claude/informes/respaldo-mensual.ps1`,
+  que corre dentro de la tarea «Respaldo PC»; nunca borra ni pisa.
 - Prueba de restauración mensual comparando conteos y sumas. Un respaldo que nunca se restauró no existe.
   Cada prueba se anota en `Auditoria/restauraciones.csv` (Drive): `fecha,proyecto,resultado,notas`.
 - Si el último respaldo tiene más de 36 horas, avisar al abrir la sesión.
