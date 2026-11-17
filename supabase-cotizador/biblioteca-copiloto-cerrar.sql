@@ -27,6 +27,9 @@ $candado$;
 -- Queda legible para el respaldo diario (llave secreta) y por SQL.
 --
 -- Respaldo previo verificado: respaldo-cotizador-2026-11-03.zip trae las 24.
+-- Re-verificado el 17-11-2026: respaldo-cotizador-2026-11-16.zip trae las 24
+-- (mismos 24 id que la base). La auditoría del 16-11 la volvió a marcar en
+-- rojo: este archivo no se había corrido.
 -- Idempotente: se puede correr dos veces sin error.
 -- ══════════════════════════════════════════════════════════════════════════
 
