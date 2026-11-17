@@ -100,7 +100,8 @@ foreach($t in ($creadas.Keys | sort)){ if($borradas.ContainsKey($t)){ continue }
   $r=Http 'GET' "$urlG/rest/v1/${t}?select=*&limit=1" $hG $null; if($r.code -eq 404){ $faltan+="$t ($($creadas[$t]))" } }
 $mG=$(if($faltan.Count){ "$SEM_R tablas sin aplicar: $($faltan -join ', ')" }else{ "$SEM_A repo hasta $ult; schema_migrations solo por SQL Editor" })
 if($faltan.Count){ Prop "Migraciones Gestión: aplicar en el SQL Editor la(s) migración(es) de $($faltan -join ', ') e insertar su fila en supabase_migrations.schema_migrations." }
-$mC=$(if(Test-Path "$repo\supabase-cotizador\migrations"){ "$SEM_A hay carpeta migrations; comparar con schema_migrations" }else{ "$SEM_R sin migraciones numeradas (solo .sql sueltos)" })
+$migsC=@(Get-ChildItem "$repo\supabase-cotizador\migrations" -Filter '*.sql' -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d{4}_' } | Sort-Object Name)
+$mC=$(if($migsC.Count){ "$SEM_A repo hasta $($migsC[-1].Name) ($($migsC.Count)); schema_migrations solo por SQL Editor o MCP" }else{ "$SEM_R sin migraciones numeradas (solo .sql sueltos)" })
 if($mC -like "$SEM_R*"){ Prop 'Migraciones Cotizador: crear supabase-cotizador/migrations/0001_estado_actual.sql con el esquema vigente y numerar todo lo que venga.' }
 Sem '3 Migraciones' $mG $mC
 

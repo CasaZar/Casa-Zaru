@@ -61,7 +61,9 @@ Si algo no se pudo verificar, va en ⚪ con el motivo, no en verde.
 
 Lo que ya se sabe que está en rojo o amarillo (22-10-2026) y no hay que redescubrir:
 - Restauración ensayada por primera vez el 22-10-2026 en los dos proyectos (OK). Toca repetirla cada mes.
-- El Cotizador no tiene migraciones numeradas: todo `supabase-cotizador/*.sql` es parche suelto.
+- Desde el 17-11-2026 el Cotizador tiene migraciones numeradas: `supabase-cotizador/migrations/0001_estado_actual.sql`
+  (línea base, registrada sin ejecutar) y `supabase_migrations.schema_migrations` creada con `registro-migraciones.sql`.
+  Los `.sql` sueltos de antes quedan como historia. Ese día también se cerró `biblioteca_copiloto` (allow_all).
 - Registro de errores construido el 23-10-2026 (0021 y errores-cliente.sql aplicados; capturas en las dos apps).
   Las filas de prueba se borraron el 23-10. `cuenta.html` (B2B) no registra: usa
   la llave pública de Gestión, que a propósito no escribe nada.
