@@ -210,8 +210,10 @@ if ($hayPagos) {
     $pg = Palabras $g.pagador
     if ($rl -and ($propios | Where-Object { $rl.StartsWith($_) })) { continue }
     if (@($nomPropios | Where-Object { $_.Count -and (Comparten $_ $pg) -ge [math]::Min(2, $_.Count) }).Count) { continue }
+    # Depositos de pasarelas (juntan varios pagos y vienen netos de comision): no se cruzan aca, van en la conciliacion.
+    if ((Sin-Tildes $g.pagador) -match 'flow|venti|mercado ?pago|getnet|transbank|khipu') { continue }
     $pagosVistos++
-    $suyos = @($PF | Where-Object { ($rl -and $_.rut -and $_.rut -eq $rl) -or ((Comparten $pg $_.pal) -ge 2) -or ($_.razon.Count -ge 2 -and (Comparten $pg $_.razon) -ge 2) })
+    $suyos =@($PF | Where-Object { ($rl -and $_.rut -and $_.rut -eq $rl) -or ((Comparten $pg $_.pal) -ge 2) -or ($_.razon.Count -ge 2 -and (Comparten $pg $_.razon) -ge 2) })
     [void]$porVer.Add([pscustomobject]@{ g = $g; rl = $rl; pal = $pg; suyos = $suyos; ok = $false })
   }
   # a) el pago es un abono ya marcado (mismo monto) en un pedido de ese cliente
@@ -222,6 +224,33 @@ if ($hayPagos) {
   foreach ($grp in ($porVer | Where-Object { -not $_.ok -and $_.suyos.Count } | Group-Object { if ($_.rl) { $_.rl } else { $_.g.pagador } })) {
     $suma = 0; foreach ($v in $grp.Group) { $suma += [double]$v.g.monto }
     foreach ($s in $grp.Group[0].suyos) { $i = $s.libres.IndexOf([double]$suma); if ($i -ge 0 -and $grp.Count -gt 1) { $s.libres.RemoveAt($i); foreach ($v in $grp.Group) { $v.ok = $true; $pagosOk++ }; break } }
+  }
+  # c0) un solo pago que cubre dos o tres abonos marcados del mismo pedido (pago los dos de una vez)
+  foreach ($v in ($porVer | Where-Object { -not $_.ok })) {
+    foreach ($s in $v.suyos) {
+      $n = $s.libres.Count; $hecho = $false
+      for ($mask = 3; $mask -lt [math]::Pow(2, $n) -and -not $hecho; $mask++) {
+        $idx = @(0..($n - 1) | Where-Object { ($mask -shr $_) -band 1 })
+        if ($idx.Count -lt 2) { continue }
+        $suma = 0; foreach ($i in $idx) { $suma += $s.libres[$i] }
+        if ($suma -eq [double]$v.g.monto) { foreach ($i in ($idx | Sort-Object -Descending)) { $s.libres.RemoveAt($i) }; $hecho = $true }
+      }
+      if ($hecho) { $v.ok = $true; $pagosOk++; break }
+    }
+  }
+  # c1) paga un tercero (empresa, familiar): el monto calza EXACTO con un abono marcado de un unico pedido,
+  #     solo o sumando los pagos de ese mismo pagador. Montos redondos (miles cerrados) no cuentan: se repiten.
+  foreach ($grp in ($porVer | Where-Object { -not $_.ok } | Group-Object { if ($_.rl) { $_.rl } else { $_.g.pagador } })) {
+    $cands = New-Object System.Collections.ArrayList
+    foreach ($v in $grp.Group) { [void]$cands.Add(@($v)) }
+    if ($grp.Count -gt 1) { [void]$cands.Add(@($grp.Group)) }
+    foreach ($cj in $cands) {
+      if (@($cj | Where-Object { $_.ok }).Count) { continue }
+      $suma = 0; foreach ($v in $cj) { $suma += [double]$v.g.monto }
+      if (($suma % 10000) -eq 0) { continue }
+      $donde = @($PF | Where-Object { $_.libres.Contains([double]$suma) })
+      if ($donde.Count -eq 1) { [void]$donde[0].libres.Remove([double]$suma); foreach ($v in $cj) { $v.ok = $true; $pagosOk++ } }
+    }
   }
   foreach ($v in ($porVer | Where-Object { -not $_.ok })) {
     $g = $v.g
