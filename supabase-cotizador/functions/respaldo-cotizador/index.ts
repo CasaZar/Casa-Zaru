@@ -44,7 +44,16 @@
 import { strToU8, zipSync } from "npm:fflate@0.8.2";
 
 const SB_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// Llave de servicio: la nueva (sb_secret_, 17-11-2026) si Supabase la inyecta; la
+// service_role antigua de formato JWT solo mientras siga encendida.
+function llaveServicio(): string {
+  try {
+    const k = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
+    if (typeof k.default === "string" && k.default) return k.default;
+  } catch { /* sigue con la antigua */ }
+  return Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+}
+const SB_KEY = llaveServicio();
 
 // Si alguna viene vacía algo está muy mal (una migración que borró datos, una
 // llave sin permisos). Se aborta en vez de guardar.

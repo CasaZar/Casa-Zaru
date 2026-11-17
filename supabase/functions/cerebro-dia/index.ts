@@ -22,6 +22,16 @@ function json(cuerpo: unknown, status = 200) {
   return new Response(JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
+// Llave de servicio: la nueva (sb_secret_, P069, 17-11-2026) si Supabase la inyecta;
+// la service_role antigua de formato JWT solo mientras siga encendida.
+function llaveServicio(): string {
+  try {
+    const k = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') ?? '{}');
+    if (typeof k.default === 'string' && k.default) return k.default;
+  } catch (_e) { /* sigue con la antigua */ }
+  return Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+}
+
 // Comparación en tiempo constante, para no regalar el secreto letra por letra.
 function iguales(a: string, b: string) {
   if (!a || !b || a.length !== b.length) return false;
@@ -48,7 +58,7 @@ Deno.serve(async (req) => {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return json({ error: 'data debe ser un objeto' }, 400);
 
   const url = Deno.env.get('SUPABASE_URL');
-  const llave = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const llave = llaveServicio();
   if (!url || !llave) return json({ error: 'faltan variables de Supabase' }, 500);
 
   const r = await fetch(url + '/rest/v1/cerebro_dias?on_conflict=fecha', {

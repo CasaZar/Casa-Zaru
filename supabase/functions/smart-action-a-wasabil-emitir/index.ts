@@ -125,10 +125,20 @@ async function pollStatus(uuid: string, token: string, maxTries = 8): Promise<an
 // rama. Se comprueba leyendo gestion_finanzas con el token del usuario, que
 // por RLS solo devuelve filas a un admin. Ante cualquier duda (sin token, la
 // base no contesta) responde false.
+// Llave pública para el header `apikey`: la nueva (sb_publishable_, P069, 17-11-2026)
+// si Supabase la inyecta; la antigua de formato JWT solo mientras siga encendida.
+function llavePublica(): string {
+  try {
+    const k = JSON.parse(Deno.env.get("SUPABASE_PUBLISHABLE_KEYS") ?? "{}");
+    if (typeof k.default === "string" && k.default) return k.default;
+  } catch { /* sigue con la antigua */ }
+  return Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+}
+
 async function esAdmin(req: Request): Promise<boolean> {
   const auth = req.headers.get("Authorization") || "";
   const url = Deno.env.get("SUPABASE_URL");
-  const anon = Deno.env.get("SUPABASE_ANON_KEY");
+  const anon = llavePublica();
   if (!auth.startsWith("Bearer ") || !url || !anon) return false;
   try {
     const r = await fetch(`${url}/rest/v1/gestion_finanzas?select=num&limit=1`, {

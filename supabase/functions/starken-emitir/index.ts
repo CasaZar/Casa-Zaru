@@ -90,8 +90,18 @@ function cors(req: Request) {
 }
 
 // ── Base de datos con el token del usuario: la RLS (es_admin) decide ────────
+// Llave pública para el header `apikey`: la nueva (sb_publishable_, P069, 17-11-2026)
+// si Supabase la inyecta; la antigua de formato JWT solo mientras siga encendida.
+function llavePublica(): string {
+  try {
+    const k = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') ?? '{}');
+    if (typeof k.default === 'string' && k.default) return k.default;
+  } catch (_e) { /* sigue con la antigua */ }
+  return Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+}
+
 function db(req: Request) {
-  const url = Deno.env.get('SUPABASE_URL')!, anon = Deno.env.get('SUPABASE_ANON_KEY')!;
+  const url = Deno.env.get('SUPABASE_URL')!, anon = llavePublica();
   const auth = req.headers.get('Authorization') || '';
   return async (ruta: string, init: RequestInit = {}) => {
     const r = await fetch(url + '/rest/v1/' + ruta, {

@@ -27991,7 +27991,10 @@ function dlCSV(rows,fn){const blob=new Blob(['\ufeff'+rows.join('\n')],{type:'te
 // ── WASABIL (facturación electrónica) — puente vía Edge Function de Supabase ──
 // La function no guarda nada; solo reenvía a Wasabil y devuelve folio/PDF. El token real de Wasabil vive como secreto en Supabase, nunca acá.
 const WASABIL_FN_URL='https://padnttpgzuotxeipjrry.supabase.co/functions/v1/smart-action-a-wasabil-emitir';
-const WASABIL_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhZG50dHBnenVvdHhlaXBqcnJ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4Nzg3MDMsImV4cCI6MjA5NzQ1NDcwM30.AKtkpG1W-J6sB_QNtyYdh3n_85U1TvTxtKyPjwJwDEs';
+// Llave PÚBLICA nueva de Gestión (sb_publishable_, 17-11-2026). Reemplaza a la anon de
+// formato JWT para poder apagar las llaves antiguas (P069: la service_role se filtró
+// por chat el 09-08). Va siempre en `apikey`; el Authorization lleva la sesión.
+const WASABIL_ANON_KEY='sb_publishable_XeCtx06OFHQ3LsYxYk5NTA_kkWHlJHG';
 
 // DB_URL es la bandera de "hay backend conectado": la consultan 25 puntos
 // del archivo. Arranca vacia y arrancarApp() la pone en 'supabase' una vez
@@ -29803,7 +29806,9 @@ function vpcAbrir(id){
   // Cómo paga: transferencia con su descuento, o link de pago. Va DESPUÉS de
   // renderPrevProd, que deja el formulario en transferencia sin descuento.
   if(f.pago==='link'){document.getElementById('pp-canal').value='LINK_MP';}
-  else{document.getElementById('pp-desc').value=Math.round((Number(c.pct_transf)||0.05)*1000)/10;}
+  // pct_transf 0 es real (la presentó un profesional: paga lista y el 5 % es su comisión); solo falta en fichas viejas
+  else{var _pt=(c.pct_transf===undefined||c.pct_transf===null||c.pct_transf==='')?0.05:Number(c.pct_transf)||0;
+       document.getElementById('pp-desc').value=Math.round(_pt*1000)/10;}
   aplicarCanalPrev();
   vpcNotaFicha(v);
   document.getElementById('prev').classList.add('on');
@@ -29822,6 +29827,8 @@ function vpcNotaFicha(v){
   el.innerHTML='<b>Ficha del Cotizador'+(v.cotizacion_num?' · '+esc(v.cotizacion_num):'')+'</b><br>'+
     esc(String(f.items||'')).replace(/\n/g,'<br>')+(f.madera?'<br>Madera: '+esc(f.madera):'')+
     '<br>Total '+fmtCLP(c.total||0)+' · '+abono+
+    (f.prof?'<br><b>La presentó '+esc(f.prof.nombre||'un profesional')+'</b>'+(f.prof.rut?' (RUT '+esc(f.prof.rut)+')':'')+
+      ': precio lista, sin descuento por transferencia · comisión '+(Number(c.comision_pct)||0)+' % del neto = '+fmtCLP(Number(c.comision)||0)+' bruta, a fin de mes contra boleta de honorarios':'')+
     '<br><span style="color:var(--text-muted)">El abono se marca en Finanzas cuando llegue la plata.</span>';
   el.style.display='';
 }
