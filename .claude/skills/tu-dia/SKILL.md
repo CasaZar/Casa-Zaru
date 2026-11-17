@@ -69,6 +69,10 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    es mayor que cero, va como `pulso.raro` cuando no haya algo más grave. Una de las `pulso.cifras`
    es «Proyectos vivos» (`vivos_30_dias`, con `vivos_30_dias_monto` en `comp`). Nunca nombres ni
    teléfonos: la lista con nombres vive en el panel.
+   **Proyectos de la semana (desde el 17-11-2026):** correr también `sql/cotizador-proyectos-semana.sql`
+   (MCP cotizador). Es el número 4 de los lunes: `contactados` (llamadas + «Lo contacté»), `propuestas` y
+   `ganados` de la semana que empezó el lunes; es la misma cuenta que el panel (Proyectos y Actividad).
+   Los lunes, correrlo también con la semana anterior (desfase −7 en la CTE `sem`) y mostrar las dos.
    **Cruce de datos (desde el 16-11-2026, etapa 1):** correr `sql/cotizador-cruce.sql` (MCP cotizador) y
    `sql/gestion-cruce.sql` (MCP gestión) y guardar cada resultado **tal cual** en
    `<scratchpad>\cruce-cotizador.json` y `<scratchpad>\cruce-gestion.json` (traen nombres y teléfonos:
