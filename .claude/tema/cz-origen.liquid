@@ -7,6 +7,20 @@
   Si la visita no trae marca en la URL, usa la cookie de la etiqueta de Google (_gcl_aw / _gcl_gb).
   No muestra nada. Se renderiza una vez en layout/theme.liquid, antes de </body>.
   Las llaves son las mismas que lee origenCapturar() en el cotizador (ORIGEN_ANUNCIO).
+
+  WhatsApp de la tienda (17-11-2026). Google Ads y Meta no ven las ventas que se cierran por
+  WhatsApp, así que la campaña de Búsqueda parecía no vender. Si la visita vino de un anuncio
+  (últimos 90 días), el mensaje prellenado de los links al 5558 termina con un código que César
+  marca en la Gestión («¿Cómo nos conoció?»):
+    (GB) Google Búsqueda · (GS) Google Shopping · (G) Google sin saber cuál · (M) Meta pagado.
+  La campaña se reconoce por gad_campaignid. Meta exige utm_medium de pago: el fbclid solo no
+  basta, porque Instagram y Facebook también lo ponen en lo orgánico (misma regla que waNumero()
+  del cotizador). Sin anuncio, el link queda igual que siempre.
+  Cada clic a ese WhatsApp queda además en embudo_eventos del Cotizador (paso 'wa_tienda', sin
+  datos personales), por si el cliente borra el código: el cruce de «Mi día» lo empareja por hora.
+  Requiere supabase-cotizador/embudo-wa-tienda.sql; sin eso la base rechaza el insert en
+  silencio y solo se pierde el registro, nunca el link.
+  NO toca el 0141 (anuncios al cotizador) ni los links al cotizador.
 {%- endcomment -%}
 <script>
 (function () {
@@ -14,8 +28,10 @@
     var LLAVES = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'gclid', 'gbraid', 'wbraid', 'fbclid'];
     var LS = 'cz_origen', DIAS = 90, HOST = 'cotizador.casazaru.cl';
 
+    // gad_campaignid se guarda para el código de WhatsApp, pero no se pasa al cotizador.
+    var GUARDAR = LLAVES.concat(['gad_campaignid']);
     var q = new URLSearchParams(location.search), nuevo = {}, hay = false;
-    LLAVES.forEach(function (k) {
+    GUARDAR.forEach(function (k) {
       var v = q.get(k);
       if (v) { nuevo[k] = String(v).slice(0, 300); hay = true; }
     });
@@ -56,15 +72,93 @@
       if (cambio) a.href = u.toString();
     }
 
+    // ── WhatsApp de la tienda (5558): código de origen + registro del clic ──
+    var WA = '56956375558';
+    var CAMPANAS = { '23374012785': 'GB', '24179981440': 'GS' };  // Search, Shopping
+    var PAGADO = /^(paid|cpc|ppc|cpm|paid_social|paidsocial|ads?)$/i;
+    var SB = 'https://cmxqorsyxoltrakxawro.supabase.co/rest/v1/embudo_eventos';
+    var SB_KEY = 'sb_publishable_Z4Bu9BnRkjiKmuCUzUGz0Q_hwxOc-Go';  // pública: solo inserta en el embudo
+    var CODIGO_FIN = /\s*\((?:G|GB|GS|M)\)\s*$/;
+
+    // Último anuncio guardado (sin mirar la cookie) y, si no hay, la cookie de Google.
+    function guardado() {
+      var g = null;
+      try { g = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) {}
+      return (g && g._t && Date.now() - g._t <= DIAS * 864e5) ? g : {};
+    }
+    function codigoOrigen() {
+      var g = guardado(), src = String(g.utm_source || '').toLowerCase(), med = String(g.utm_medium || '');
+      var google = g.gclid || g.gbraid || g.wbraid || (/google/.test(src) && PAGADO.test(med));
+      var meta = /^(facebook|fb|instagram|ig|meta)$/.test(src) && PAGADO.test(med);
+      // Gana el último anuncio por el que entró: es el que quedó guardado.
+      if (meta && !google) return 'M';
+      if (google) return CAMPANAS[String(g.gad_campaignid || '')] || 'G';
+      if (cookieGcl('_gcl_aw') || cookieGcl('_gcl_gb')) return 'G';
+      return '';
+    }
+    function urlWa(href) {
+      var u;
+      try { u = new URL(href, location.href); } catch (e) { return null; }
+      var tel = '';
+      if (u.hostname === 'wa.me') tel = u.pathname.replace(/\D/g, '');
+      else if (/(^|\.)whatsapp\.com$/.test(u.hostname) || u.protocol === 'whatsapp:') tel = String(u.searchParams.get('phone') || '').replace(/\D/g, '');
+      return tel === WA ? u : null;   // el 0141 y cualquier otro número quedan como están
+    }
+    function conCodigo(u, cod) {
+      var t = String(u.searchParams.get('text') || '').replace(CODIGO_FIN, '');
+      if (!t.trim()) t = 'Hola Casa Zaru, quiero hacer una consulta';
+      // Solo se reescribe el text= (con %20, no «+»); phone= y lo demás quedan tal cual.
+      var resto = u.search.replace(/^\?/, '').split('&').filter(function (p) { return p && !/^text=/.test(p); });
+      resto.push('text=' + encodeURIComponent(t + ' (' + cod + ')'));
+      u.search = '?' + resto.join('&');
+      return u.toString();
+    }
+    function marcarWa(a) {
+      var u = urlWa(a.href), cod = u && codigoOrigen();
+      if (cod) { var n = conCodigo(u, cod); if (n !== a.href) a.href = n; }
+      return !!u;
+    }
+    var ultimoRegistro = 0;
+    function registrarClic() {
+      // Nunca desde el editor de temas ni dos veces por el mismo toque (click + window.open).
+      if ((window.Shopify && Shopify.designMode) || Date.now() - ultimoRegistro < 1500) return;
+      ultimoRegistro = Date.now();
+      try {
+        var ses = sessionStorage.getItem('cz_wa_ses');
+        if (!ses) { ses = Math.random().toString(36).slice(2, 10) + Date.now().toString(36); sessionStorage.setItem('cz_wa_ses', ses); }
+        var g = guardado(), cod = codigoOrigen(), corta = function (v, n) { return v ? String(v).slice(0, n) : null; };
+        var fuente = g.utm_source ? String(g.utm_source).toLowerCase()
+          : (cod && cod !== 'M') ? 'google_ads' : g.fbclid ? 'meta' : null;
+        var ev = { sesion: ses, paso: 'wa_tienda', canal: 'tienda', producto: corta(location.pathname, 120),
+                   fuente: corta(fuente, 100), medio: corta(g.utm_medium || (cod ? 'codigo ' + cod : ''), 100),
+                   campana: corta(g.utm_campaign || g.gad_campaignid, 300), anuncio: corta(g.utm_content, 300) };
+        fetch(SB, { method: 'POST', keepalive: true,
+          headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify(ev) }).catch(function () {});
+      } catch (e) {}
+    }
+    // Botones que abren WhatsApp con window.open en vez de un link.
+    var abrir = window.open;
+    window.open = function (url) {
+      try {
+        var u = url && urlWa(String(url));
+        if (u) { registrarClic(); var cod = codigoOrigen(); if (cod) arguments[0] = conCodigo(u, cod); }
+      } catch (e) {}
+      return abrir.apply(window, arguments);
+    };
+
     function marcarTodos() {
       document.querySelectorAll('a[href*="cotizador"]').forEach(marcar);
+      document.querySelectorAll('a[href*="wa.me"], a[href*="whatsapp"]').forEach(marcarWa);
     }
 
     // Al hacer clic (también links que el tema dibuja después de cargar).
     ['click', 'auxclick', 'contextmenu'].forEach(function (ev) {
       document.addEventListener(ev, function (e) {
         var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
-        if (a) marcar(a);
+        if (!a) return;
+        marcar(a);
+        if (marcarWa(a) && ev !== 'contextmenu') registrarClic();
       }, true);
     });
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', marcarTodos);
