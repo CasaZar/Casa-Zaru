@@ -497,9 +497,16 @@ $cobrar = @($ventasTodas | Where-Object { $_.saldo -gt 1000 -and -not $_.web -an
 foreach ($v in $cobrar) {
   $tok = @(("$($v.apellido) $($v.cliente)".ToUpper() -replace '[^A-ZÁÉÍÓÚÑ ]', ' ').Split(' ') | Where-Object { $_.Length -ge 4 } | Select-Object -Unique)
   # de más antiguo a más nuevo: los primeros pagos son los abonos que ya están registrados
-  $p = @($bciIngresos | Where-Object { $n = $_.nombre.ToUpper(); [math]::Abs($_.ing - $v.saldo) -le 1000 -and @($tok | Where-Object { $n -match [regex]::Escape($_) }).Count -ge 1 } | Sort-Object fecha, hora)
-  foreach ($x in @($v.ab | Where-Object { $_ -gt 0 })) { $i = -1; for ($k = 0; $k -lt $p.Count; $k++) { if ([math]::Abs($p[$k].ing - $x) -le 1000) { $i = $k; break } }; if ($i -ge 0) { $quitar = $p[$i]; $p = @($p | Where-Object { $_ -ne $quitar }) } }
-  $p = @($p | Sort-Object fecha -Descending)
+  # Todos los pagos de esa persona (de cualquier monto): un abono puede venir en dos transferencias (#1609: 300.000 + 225.800
+  # = abono 1 de 525.800, y los 225.800 se confundían con el saldo de 225.341). Se descuentan los abonos ya registrados,
+  # de a un pago o de a dos que sumen el abono, y recién después se buscan los que calzan con el saldo.
+  $p = @($bciIngresos | Where-Object { $n = $_.nombre.ToUpper(); $_.ing -gt 0 -and @($tok | Where-Object { $n -match [regex]::Escape($_) }).Count -ge 1 } | Sort-Object fecha, hora)
+  foreach ($x in @($v.ab | Where-Object { $_ -gt 0 })) {
+    $quitar = @(); for ($k = 0; $k -lt $p.Count; $k++) { if ([math]::Abs($p[$k].ing - $x) -le 1000) { $quitar = @($p[$k]); break } }
+    if (-not $quitar.Count) { for ($a = 0; $a -lt $p.Count -and -not $quitar.Count; $a++) { for ($b = $a + 1; $b -lt $p.Count; $b++) { if ([math]::Abs($p[$a].ing + $p[$b].ing - $x) -le 1000) { $quitar = @($p[$a], $p[$b]); break } } } }
+    if ($quitar.Count) { $p = @($p | Where-Object { $quitar -notcontains $_ }) }
+  }
+  $p = @($p | Where-Object { [math]::Abs($_.ing - $v.saldo) -le 1000 } | Sort-Object fecha -Descending)
   if ($p.Count) { $v | Add-Member -NotePropertyName pagadoBanco -NotePropertyValue $p[0].fecha -Force
     Aviso "Venta #$($v.num) ($($v.cliente)): el saldo de $(Plata $v.saldo) parece pagado el $($p[0].fecha.ToString('dd-MM')) en BCI ($($p[0].nombre)), pero Gestión lo sigue mostrando como deuda." }
 }
