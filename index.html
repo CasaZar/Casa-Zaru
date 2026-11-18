@@ -35405,7 +35405,7 @@ function buildEtiquetaChildren(oi,li,pageBreak){
   var canal=o.canal==='web'?'WEB':'WHATSAPP';
   var producto=String(l.producto||''),largo=Number(l.largo)||0,ancho=Number(l.ancho)||0;
   var espesor=Number(l.espesor)||0,madera=String(l.madera||''),canto=String(l.canto||'');
-  var acabado=String(l.acabado||''),tenido=String(l.tenido||'NO'),obs=String(l.observaciones||'');
+  var acabado=String(l.acabado||''),tenido=String(l.tenido||'NO'),obs=_obsSinPrecios(l.observaciones);
   var dimStr=largo+' X '+ancho+' CMS';
   var espStr=String(espesor).replace('.',',')+' CMS';
   // Cuántas piezas hay que fabricar. Va del mismo tamaño que la medida y la
@@ -35497,6 +35497,13 @@ function generarEtiquetasBatch(){if(!_docxListo())return;
 // que ya están. La URL no es secreta: el script valida el JWT de la sesión.
 var COMANDAS_URL='https://script.google.com/macros/s/AKfycbxDDkilr9raUKL9wvWHUF2KCbHa_bPil30NmZgklx1TvytZJtdWga53GGJSTTQgMndXrw/exec';
 var comandasEnDoc=null,_cmdLeyendo=false,_cmdPend=null;
+// Las comandas NUNCA llevan precios (pedido del usuario, 18-11-2026): las observaciones de
+// Producción a veces traen el monto de la cotización y el taller no debe verlo.
+function _obsSinPrecios(s){
+  return String(s==null?'':s)
+    .replace(/\s*(?:de\s+|por\s+|juego\s+|total\s+|valor\s+|precio\s+)?\$\s?\d[\d.]*(?:,\d+)?(?:\s*\+\s*IVA)?(?:\s*(?:c\/u|cada una?|las dos|los dos|el par|neto|con IVA|sin IVA))?\.?/gi,'')
+    .replace(/\s+([.,;])/g,'$1').replace(/\s{2,}/g,' ').trim();
+}
 function _cmdTxt(s){return String(s==null?'':s).replace(/[\r\n\u000b]+/g,' ').trim();}
 // Misma normalización que norm_ del Apps Script: si cambia una, cambiar la otra.
 function _cmdNorm(s){return String(s==null?'':s).toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/,/g,'.').replace(/\s+/g,' ').trim();}
@@ -35506,7 +35513,7 @@ function _cmdPieza(o,l,conImagen){
     nombre:_cmdTxt((o.comprador||'')+' '+(o.apellido||'')),canal:o.canal==='web'?'WEB':'WHATSAPP',
     producto:_cmdTxt(l.producto),cant:cant+(cant===1?' unidad':' unidades'),dims:largo||ancho?largo+' X '+ancho+' CMS':'',
     madera:_cmdTxt(l.madera),espesor:String(espesor).replace('.',',')+' CMS',borde:_cmdTxt(l.canto),
-    acabado:_cmdTxt(l.acabado),tenido:_cmdTxt(l.tenido||'NO'),obs:_cmdTxt(l.observaciones)};
+    acabado:_cmdTxt(l.acabado),tenido:_cmdTxt(l.tenido||'NO'),obs:_cmdTxt(_obsSinPrecios(l.observaciones))};
   if(conImagen){try{p.png=generarImagenTablaCanvas(largo,ancho,espesor,l).split(',')[1];}catch(e){console.warn('canvas:',e);}}
   return p;
 }
