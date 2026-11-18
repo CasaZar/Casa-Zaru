@@ -68,7 +68,7 @@ $ventasTodas = @(@($j.tablas.gestion_finanzas) | ForEach-Object {
     fecha = Fecha $(if ($d.fecha_creacion) { $d.fecha_creacion } else { $d.fecha })
     total = $tot; vp = (N $d.val_prod); envio = (N $d.val_envio); inst = (N $d.val_instalacion); abonado = $a; saldo = $tot - $a; semana = "$($d.semana)"
     vendedor = $(if ("$($d.vendedor)") { "$($d.vendedor)" } else { '(sin asignar)' })
-    producto = "$($d.producto)"; web = ("$($d.canal_pago)" -match 'SHOPIFY')
+    producto = "$($d.producto)"; web = ("$($d.canal_pago)" -match 'SHOPIFY'); sinDoc = [bool]$d.sin_documento
     d1 = [bool]$d.doc1_emitida; d2 = [bool]$d.doc2_emitida; d3 = [bool]$d.doc3_emitida; a2 = (N $d.abono2); a3 = (N $d.abono3); m2 = (N $d.doc2_monto); ab =@((N $d.abono1), (N $d.abono2), (N $d.abono3)); a1 = (N $d.abono1); a23 = (N $d.abono2) + (N $d.abono3); tipoDoc = $d.doc1_tipo
     # Hoja Pasarelas: costo_mp es lo que la pasarela descontó del depósito (con IVA), costo_shopify el 2 % de Shopify
     pasarela = "$($d.pasarela)"; ordenWeb = "$($d.orden_web)"; cPas = (N $d.costo_mp); cShop = (N $d.costo_shopify)
@@ -594,7 +594,7 @@ $maderaTot = Suma @($todo | Where-Object { $_.categoria -eq 'Madera (proveedores
 $pctMB = if ($ventaNeta) { $margenBruto / $ventaNeta } else { 0 }
 # Documentos pendientes de emitir según Gestión (pago marcado sin su boleta o factura)
 $pend = @()
-foreach ($r in ($ventasTodas | Where-Object { -not $_.web -and $_.fecha -and $_.fecha -le $finMes })) {
+foreach ($r in ($ventasTodas | Where-Object { -not $_.web -and -not $_.sinDoc -and $_.fecha -and $_.fecha -le $finMes })) {
   if ($r.a1 -gt 0 -and -not $r.d1) { $pend += ,@("#$($r.num)", $r.cliente, 'Doc 1', $r.tipoDoc, $r.a1) }
   # Un documento por abono desde el 09-11-2026 (migración 0028): doc 2 = abono 2 y doc 3 = abono 3.
   # El doc 3 no se pide si el doc 2 ya salió por abono 2 + abono 3 (o sin monto guardado), como se hacía antes.
