@@ -244,7 +244,7 @@ Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
   confirmar que la revisión aparece y que no hay aviso rojo de hueco.
 - Una fila por chat:
   `chat_id` (id del hilo en Meta, estable entre revisiones) · `cliente` (nombre de pila y
-  apellido como aparece) · `telefono` (solo dígitos con 56, o null) · `tipo` · `prioridad` ·
+  apellido como aparece) · `telefono` (solo dígitos con 56; obligatorio, ver abajo) · `tipo` · `prioridad` ·
   `espera_desde` (hora del último mensaje del cliente, ISO) · `contexto` (una línea: qué pasó)
   · `cita` (lo último que dijo, ≤ 400) · `mensaje` (el sugerido: párrafos separados por
   `\n\n`; todo dato que no sepamos va entre corchetes, `$[total]`, y el panel no deja
@@ -258,8 +258,14 @@ Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
     llegó (sin `mensaje`).
 - **No se suben**: chats con NO CONTACTAR, los que ya tienen 2 mensajes nuestros sin
   respuesta (tope), chats internos ni proveedores.
-- Teléfono: si Meta no lo muestra en el hilo, cruzarlo con `cotizaciones.contacto` o con la
-  Gestión por nombre. Si no aparece, `null` (el panel ofrece «Copiar mensaje»).
+- **Teléfono: obligatorio en toda fila** (regla del usuario, 18-11-2026: «siempre debe tener
+  el celu»). Cada hilo del 5558 es un número de WhatsApp, así que siempre existe: sacarlo del
+  panel de contacto de Meta (columna derecha del hilo, «Detalles del contacto» / número bajo el
+  nombre) al abrir cada chat, no al final. Solo dígitos con 56 (`56912345678`). Con él el panel
+  arma «Responder» y «Abrir chat» (`whatsapp://send?phone=…`, abre la app del PC). Si Meta no
+  lo muestra, cruzarlo con `cotizaciones.contacto` o con la Gestión por N° de pedido; un `null`
+  es un error de la revisión: antes de cargar, contar las filas sin teléfono y, si hay alguna,
+  volver a abrir esos chats. Nunca inventarlo ni sacarlo de un nombre parecido.
 - Nunca se suben datos bancarios, RUT ni direcciones.
 
 ## Los lunes, además
