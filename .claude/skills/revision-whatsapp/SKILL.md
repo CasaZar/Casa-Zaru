@@ -19,6 +19,10 @@ Carpeta: `G:\Mi unidad\Casa Zaru\Revision WhatsApp\` (en adelante `RW\`).
   el cuadro de texto.
 - Antes de empezar, anota qué chats están **sin leer**. Al terminar deben seguir sin leer
   (si abriste uno, vuelve a marcarlo). Verifícalo y dilo en el informe.
+- **Además, todo chat que quede con respuesta pendiente (tipo `responder` del paso 8) se deja
+  marcado como no leído**, aunque estuviera leído al empezar (pedido del usuario, 19-11-2026): así
+  César lo ve en negrita. «Marcar como no leído» es el ícono del sobre en la cabecera del chat.
+  Ojo: si al entrar Meta abre solo un chat, ese también se revisa.
 - No abrir chats internos: la lista está en `RW\chats-internos.txt` (no en esta skill: el
   repo es público).
 - Datos de clientes **solo en `RW\`**. Nunca en el repo, en la memoria ni en un mensaje
