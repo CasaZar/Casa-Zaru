@@ -71,8 +71,24 @@ PARA COTIZAR
 - No preguntes qué madera quiere ni cuántas sillas por lado.
 - Pide la medida (si falta), la comuna de destino y «mándame un plano o boceto si tienes» (en peldaños: «foto, plano o dibujo»). En Instagram pide además un WhatsApp o correo.
 
+FOTOS Y CATÁLOGOS
+- Solo puedes escribir texto: NO puedes enviar fotos, videos ni archivos. Nunca escribas «te mando fotos», «te adjunto» ni nada parecido.
+- Si piden fotos, modelos o ver trabajos, manda el link del catálogo del producto del que hablan (uno solo, copiado EXACTO) y una pregunta corta, por ejemplo «Cuál te gusta más?»:
+  Cubiertas: https://drive.google.com/file/d/1MO2UjPyVznGopW-iQjYr82K4-2DBtRSe/view
+  Mesas: https://drive.google.com/file/d/1J8OTrc7x1f-qe7x91AliN0M_611RE3z8/view
+  Puertas: https://drive.google.com/file/d/1kuLm7o4kbcF2I1CXPRxiDbPA7bJlneM2/view
+  Maderas (para comparar maderas y tonos): https://drive.google.com/file/d/1trcyDr1xTwxTOhd9zSTGtDr422o32VrK/view
+- Para un producto sin catálogo (peldaños, repisas, muebles especiales) no prometas fotos: marca "necesita_humano": true con el motivo «pide fotos».
+
 PRECIOS
-- NUNCA inventes un monto. Si la respuesta necesita un precio, escribe exactamente [PRECIO: <qué producto y medida>] y el humano lo completa desde el Manual.
+- NUNCA escribas un monto ni un rango de precios, ni aunque aparezca en los ejemplos.
+- Si preguntan cuánto vale una cubierta, repisa, peldaño, puerta, mesa o revestimiento, manda el link del cotizador en línea ya abierto en ese producto, copiado EXACTO:
+  https://www.casazaru.cl/cotizador?prod=cubierta&src=asistente
+  (cambia solo la palabra después de prod= por una de estas: cubierta, repisa, peldano, puertas, mesa, revestimiento)
+  y explica en una frase que ahí pone su medida, ve el valor al instante y su cotización queda guardada. Si ya dijo la medida, menciónala («para tu cubierta de 200 × 60 cm»).
+- En el mismo mensaje puedes ofrecer que se la preparas tú si te manda la comuna y un plano o boceto.
+- Si es un mueble o proyecto especial que no está en esa lista, no hay link: pide medidas, comuna y plano, y marca "necesita_humano": true con el motivo «cotización especial».
+- No uses ningún otro link que los de estas instrucciones. Máximo dos links por mensaje (catálogo y cotizador).
 
 CUÁNDO NO RESPONDER SOLO
 - Reclamos, problemas con un pedido ya comprado, pagos, cambios de un pedido, insultos, o algo que no entiendas: marca "necesita_humano": true y deja un borrador corto y amable que solo acuse recibo.
@@ -222,6 +238,16 @@ async function guardar(x: Entrada): Promise<{ chat: number; id: number } | null>
 }
 
 // ── Borrador ──────────────────────────────────────────────────────────────
+// Los únicos links que el asistente puede usar (los mismos que están en las instrucciones de arriba).
+// Las cotizaciones que nacen de ese link quedan en la tabla cotizaciones con origen.src = 'asistente'.
+const LINKS_DE_LA_CASA = [
+  'https://drive.google.com/file/d/1MO2UjPyVznGopW-iQjYr82K4-2DBtRSe/view',
+  'https://drive.google.com/file/d/1J8OTrc7x1f-qe7x91AliN0M_611RE3z8/view',
+  'https://drive.google.com/file/d/1kuLm7o4kbcF2I1CXPRxiDbPA7bJlneM2/view',
+  'https://drive.google.com/file/d/1trcyDr1xTwxTOhd9zSTGtDr422o32VrK/view',
+].concat(['cubierta', 'repisa', 'peldano', 'puertas', 'mesa', 'revestimiento']
+  .map((p) => 'https://www.casazaru.cl/cotizador?prod=' + p + '&src=asistente'));
+
 // «nativa» como palabra entera: «alternativa» no cuenta. Signos de apertura en cualquier parte.
 const PROHIBIDO = [/(^|[^a-záéíóúüñ])nativ[ao]s?(?![a-záéíóúüñ])/i, /(^|[^a-záéíóúüñ])al tiro(?![a-záéíóúüñ])/i, /[¡¿]/];
 
@@ -274,14 +300,18 @@ async function redactar(chat: number, mensajeId: number) {
   if (!texto) return;
 
   // Las reglas se revisan en código, no se le cree al modelo.
+  // Links: solo los de la casa (catálogos y cotizador). Uno inventado o mal copiado no sale solo.
+  const links = texto.split(/\s+/).filter((p) => p.indexOf('http') !== -1).map((p) => p.replace(/^[(«"]+/, '').replace(/[).,;:!?»"]+$/, ''));
+  const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1);
   const revision = {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
     toques_ok: c.toques_sin_respuesta < 2,
     sin_palabras_prohibidas: !PROHIBIDO.some((re) => re.test(texto)),
     falta_precio: /\[PRECIO:/.test(texto),
-    necesita_humano: !!res.necesita_humano,
-    motivo: res.motivo ?? '',
+    links_ok: linksOk,
+    necesita_humano: !!res.necesita_humano || !linksOk,
+    motivo: !linksOk ? 'trae un link que no es de la casa' : (res.motivo ?? ''),
   };
 
   // Si el cliente mandó varios mensajes seguidos, solo vale el borrador del último.
@@ -342,7 +372,7 @@ async function autoResponder(chatId: number, mensajeId: number, borradorId: numb
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messaging_product: 'whatsapp', recipient_type: 'individual', to: chat.contacto_id,
-        type: 'text', text: { preview_url: false, body: texto },
+        type: 'text', text: { preview_url: texto.indexOf('http') !== -1, body: texto },
       }),
     });
     status = r.status;
@@ -566,7 +596,7 @@ async function enviar(req: Request) {
       headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messaging_product: 'whatsapp', recipient_type: 'individual', to: chat.contacto_id,
-        type: 'text', text: { preview_url: false, body: texto },
+        type: 'text', text: { preview_url: texto.indexOf('http') !== -1, body: texto },
       }),
     });
     status = r.status;
