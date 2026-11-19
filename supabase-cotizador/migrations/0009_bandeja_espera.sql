@@ -40,6 +40,9 @@ $candado$;
 --
 -- Para apagarlo sin tocar la función:  select cron.unschedule('bandeja-despachar');
 -- Idempotente. Rollback al final.
+--
+-- APLICADA el 19-11-2026 en el SQL Editor del Cotizador (con ok del dueño).
+-- Verificación: columna 1, trg_borr 4, extensiones 2, tarea bandeja-despachar activa, última 0009.
 -- ══════════════════════════════════════════════════════════════════════════
 
 alter table public.mensajes_borradores add column if not exists auto_desde timestamptz;

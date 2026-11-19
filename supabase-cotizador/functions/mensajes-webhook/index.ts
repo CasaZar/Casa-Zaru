@@ -82,14 +82,20 @@ FOTOS Y CATÁLOGOS
 
 PRECIOS
 - NUNCA escribas un monto ni un rango de precios, ni aunque aparezca en los ejemplos.
-- COTIZACIÓN CON SUS MEDIDAS (cubierta, repisa, peldaños, puertas, mesa). Si el cliente pregunta el precio y todavía no dio las medidas, pídelas en una sola pregunta: largo y ancho (en puertas, alto y ancho, y si la quiere con vidrio, sin vidrio o corredera tipo granero). No preguntes la madera: la cotización muestra el precio en cada una.
+- COTIZACIÓN CON SUS MEDIDAS (cubierta, repisa, peldaños, puertas, mesa). Si el cliente pregunta el precio y todavía no dio las medidas, pídelas en una sola pregunta junto con la comuna: largo, ancho y a qué comuna va (en puertas, alto y ancho, y si la quiere con vidrio, sin vidrio o corredera tipo granero). No preguntes la madera: la cotización muestra el precio en cada una.
+- Usa SOLO medidas que el cliente escribió en esta conversación para ese mismo producto. Nunca las supongas, no uses medidas «típicas» ni las de otro producto u otro día: si no las dio, o tienes dudas de cuáles son, pregúntalas.
 - Cuando ya tengas las medidas, arma su cotización así: en el texto escribe la marca [LINK_COTIZACION] sola en una línea (el sistema la cambia por el link con sus medidas ya puestas; tú NUNCA escribas ese link) y agrega al JSON el campo "cotizar". Medidas SIEMPRE en centímetros (2,40 m = 240; 62 cm = 62) y "cant" = cuántas piezas iguales. Ejemplos:
-  "cotizar": {"prod":"cubierta","uso":"cocina","piezas":[{"largo":240,"ancho":62,"cant":1}]}      (uso, si lo dijo: cocina, bano, comedor, escritorio, exterior, quincho)
+  "cotizar": {"prod":"cubierta","uso":"cocina","comuna":"Vitacura","piezas":[{"largo":240,"ancho":62,"cant":1}]}
+  (uso: solo si lo dijo, uno de cocina, bano, comedor, escritorio, exterior, quincho; si no, no lo pongas. comuna: solo si la dijo; sirve en todos los productos)
   "cotizar": {"prod":"repisa","piezas":[{"largo":120,"ancho":25,"cant":3}]}
   "cotizar": {"prod":"peldano","piezas":[{"largo":100,"ancho":30,"cant":14}]}
   "cotizar": {"prod":"puertas","tipo":"sin_vidrio","piezas":[{"alto":200,"ancho":80,"cant":1}]}    (tipo: sin_vidrio, con_vidrio o granero)
   "cotizar": {"prod":"mesa","piezas":[{"largo":180,"ancho":90,"cant":1}]}
-- Qué decir junto a la marca: en cubierta, repisa y peldaños, que ahí ve al instante el precio en cada madera. En puertas y mesas, que ahí elige el modelo con fotos y ve su precio. Menciona la medida («tu cubierta de 240 × 62 cm»). Puedes cerrar preguntando a qué comuna va, para ver el envío.
+- Qué decir junto a la marca: en cubierta, repisa y peldaños, que ahí ve al instante el precio en cada madera. En puertas y mesas, que ahí elige el modelo con fotos y ve su precio. Menciona la medida («tu cubierta de 240 × 62 cm»).
+- ENVÍO: el envío a domicilio también se cotiza ahí mismo. Si pusiste la comuna en "cotizar", dile que la cotización trae además el valor del envío a su comuna. Si todavía no la sabes, cierra preguntando a qué comuna va para agregarle el envío. Nunca digas que el envío se cotiza aparte ni después, y nunca escribas su valor.
+- Si el cliente dice su comuna DESPUÉS de haber recibido su cotización, no comentes la comuna: responde «Súper, actualizo la cotización.» y manda de nuevo la marca [LINK_COTIZACION] con el mismo "cotizar" de antes más la comuna, diciendo que ahora incluye el envío a domicilio.
+- Para cotizar el envío basta la comuna. NUNCA pidas que elija la madera, el modelo ni nada más para poder cotizar el envío, y no digas «te lo confirmo después»: con la comuna va en la cotización.
+- EXTRAS (reborde, respaldo, perforaciones, teñido): no van en el link; los suma una persona del equipo. Manda igual la cotización de la pieza con sus medidas, di en una frase que el reborde (o el extra que pidió) se suma aparte y que se lo agregamos a su cotización, y pregunta solo el dato que falte para calcularlo (en el reborde: en qué lados lo quiere). No pidas la madera para eso. Cuando el cliente ya dio ese dato, marca "necesita_humano": true con el motivo «agregar reborde a la cotización» (o el extra que sea) y deja un borrador que diga que se lo agregamos y le escribimos con el valor.
 - Si el cliente solo quiere mirar precios y no quiere dar medidas, manda el link general del cotizador, copiado EXACTO (cambia solo la palabra después de prod= por: cubierta, repisa, peldano, puertas, mesa, revestimiento):
   https://www.casazaru.cl/cotizador?prod=cubierta&src=asistente
 - NO se cotiza con link, se ve aparte: piezas que no son un rectángulo simple (en L, con curvas, redondas), una pieza cuya altura o ancho varía, medidas en duda, revestimientos a medida, muebles y proyectos, o más de 8 piezas distintas. Ahí no pongas la marca ni "cotizar": pide medidas, comuna y plano o boceto, y marca "necesita_humano": true con el motivo «cotización especial».
@@ -281,13 +287,16 @@ function armarCotizar(c: any): { producto: string; datos: Record<string, unknown
     if (!Number.isInteger(ca) || ca < 1 || ca > 60) return null;
     rows.push({ lg, an, ca });
   }
+  // comuna de entrega (opcional): solo el nombre; el cotizador la busca en la lista de Starken
+  const com = String(c.comuna ?? '').trim().replace(/\s+/g, ' ');
+  const comuna = /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ' .-]{3,40}$/.test(com) ? { com } : {};
   if (producto === 'puertas') {
     const p = TIPO_PUERTA[String(c.tipo ?? '')];
     if (!p) return null;
-    return { producto, datos: { p, rows }, listo: false };       // falta que elija el modelo
+    return { producto, datos: { p, rows, ...comuna }, listo: false };       // falta que elija el modelo
   }
-  if (producto === 'mesa') return { producto, datos: { p: 'mesa', rows }, listo: false };   // ídem
-  const datos: Record<string, unknown> = { p: producto, rows };
+  if (producto === 'mesa') return { producto, datos: { p: 'mesa', rows, ...comuna }, listo: false };   // ídem
+  const datos: Record<string, unknown> = { p: producto, rows, ...comuna };
   if (producto === 'cubierta' && USOS_COT.includes(String(c.uso ?? ''))) datos.uso = String(c.uso);
   return { producto, datos, listo: true };
 }
@@ -416,8 +425,16 @@ async function redactar(chat: number, mensajeId: number) {
     });
   }
   if (!borradorId) return;                        // ya existía un borrador para ese mensaje: no se repite nada
-  try { await autoResponder(chat, mensajeId, borradorId, texto, revision); }
-  catch (e) { console.error('auto', chat, String(e)); }
+  // Respuesta automática (solo chats de prueba): no sale de inmediato. Queda agendada y la saca /despachar
+  // cuando se cumple la espera. Si antes entra otro mensaje, este borrador caduca y no sale.
+  try {
+    if (autoPermitido(chat) && autoPasa(revision)) {
+      const seg = esperaSeg(revision.cotiza ? 'AUTO_ESPERA_COTIZA_SEG' : 'AUTO_ESPERA_SEG', revision.cotiza ? 300 : 120);
+      await db(`mensajes_borradores?id=eq.${borradorId}&estado=eq.pendiente`, {
+        method: 'PATCH', body: JSON.stringify({ auto_desde: new Date(Date.now() + seg * 1000).toISOString() }),
+      });
+    }
+  } catch (e) { console.error('auto agenda', chat, String(e)); }
 }
 
 // ── Respuesta automática: SOLO en los chats de prueba de AUTO_SOLO_CHATS ──────────────────
@@ -426,35 +443,63 @@ async function redactar(chat: number, mensajeId: number) {
 const AUTO_POR = 'automatico@bandeja';
 const AUTO_TOPE_HORA = 30;
 
+// Espera antes de responder solo, en segundos: 120 normal y 300 si el mensaje lleva una cotización
+// (se pueden cambiar con AUTO_ESPERA_SEG y AUTO_ESPERA_COTIZA_SEG; entre 0 y 1800).
+function esperaSeg(nombre: string, porDefecto: number): number {
+  const n = Number((Deno.env.get(nombre) ?? '').trim() || porDefecto);
+  return Number.isFinite(n) && n >= 0 && n <= 1800 ? Math.round(n) : porDefecto;
+}
+// Lo que pide una persona, lo que tiene un precio sin completar o una palabra prohibida, queda como borrador.
+function autoPasa(rev: any): boolean {
+  return !!rev && !rev.necesita_humano && !rev.falta_precio && rev.sin_palabras_prohibidas !== false
+    && rev.toques_ok !== false && rev.cesar_no_entro !== false;
+}
+
+// POST /despachar: saca las respuestas automáticas cuya espera ya se cumplió. La llama la base cada
+// minuto (pg_cron, migración 0009). No recibe datos y no lleva llave: solo puede enviar lo que ya
+// estaba agendado, con las mismas reglas de siempre, y cada borrador sale a lo más una vez
+// (la clave de su reserva es fija, y la base no acepta dos reservas con la misma clave).
+async function despachar(): Promise<Response> {
+  const ahora = encodeURIComponent(new Date().toISOString());
+  const listos = (await db('mensajes_borradores?select=id,chat_id,mensaje_id,texto,revision'
+    + `&estado=eq.pendiente&auto_desde=lte.${ahora}&order=auto_desde.asc&limit=10`)) ?? [];
+  let enviados = 0;
+  for (const b of listos) {
+    // se desagenda ANTES de intentar: pase lo que pase no se reintenta solo
+    await db(`mensajes_borradores?id=eq.${b.id}`, { method: 'PATCH', body: JSON.stringify({ auto_desde: null }) });
+    try { if (await autoResponder(b.chat_id, b.mensaje_id, b.id, b.texto, b.revision)) enviados++; }
+    catch (e) { console.error('auto', b.chat_id, String(e)); }
+  }
+  return json({ ok: true, listos: listos.length, enviados });
+}
+
 function autoPermitido(chatId: number): boolean {
   const solo = (Deno.env.get('AUTO_SOLO_CHATS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   return solo.includes(String(chatId)) && sePuedeEnviarA(chatId);
 }
 
-async function autoResponder(chatId: number, mensajeId: number, borradorId: number, texto: string, rev: any) {
-  if (!autoPermitido(chatId)) return;
-  // Lo que pide una persona, lo que tiene un precio sin completar o una palabra prohibida, queda como borrador.
-  if (rev.necesita_humano || rev.falta_precio || !rev.sin_palabras_prohibidas || !rev.toques_ok || !rev.cesar_no_entro) return;
+async function autoResponder(chatId: number, mensajeId: number, borradorId: number, texto: string, rev: any): Promise<boolean> {
+  if (!autoPermitido(chatId) || !autoPasa(rev)) return false;
   const token = (Deno.env.get('WA_TOKEN') ?? '').trim();
   const phone = (Deno.env.get('WA_PHONE_NUMBER_ID') ?? '').trim();
-  if (!token || !/^\d{6,20}$/.test(phone)) return;
+  if (!token || !/^\d{6,20}$/.test(phone)) return false;
 
   const [chat] = await db(`mensajes_chats?select=canal,contacto_id,tomado_por,deleted_at&id=eq.${chatId}`);
-  if (!chat || chat.deleted_at || chat.tomado_por || chat.canal !== 'whatsapp') return;
+  if (!chat || chat.deleted_at || chat.tomado_por || chat.canal !== 'whatsapp') return false;
   // Si el cliente escribió varios mensajes seguidos, solo se contesta el último (su borrador ya leyó los anteriores).
   const [ult] = await db(`mensajes?select=id&chat_id=eq.${chatId}&autor=eq.cliente&order=enviado_at.desc,id.desc&limit=1`);
-  if (!ult || ult.id !== mensajeId) return;
+  if (!ult || ult.id !== mensajeId) return false;
   // Tope por hora: un freno por si del otro lado también hay algo automático.
   const desde = encodeURIComponent(new Date(Date.now() - 3600000).toISOString());
   const autos = await db(`mensajes?select=id&chat_id=eq.${chatId}&autor=eq.automatico&enviado_at=gte.${desde}&limit=${AUTO_TOPE_HORA}`);
-  if ((autos ?? []).length >= AUTO_TOPE_HORA) { console.error('auto: tope por hora', chatId); return; }
+  if ((autos ?? []).length >= AUTO_TOPE_HORA) { console.error('auto: tope por hora', chatId); return false; }
 
   const res = await dbCrudo('mensajes_envios', {
     method: 'POST', prefer: 'return=representation',
-    body: JSON.stringify({ clave: 'auto-' + crypto.randomUUID(), chat_id: chatId, borrador_id: borradorId, texto, por: AUTO_POR }),
+    body: JSON.stringify({ clave: 'auto-borrador-' + String(borradorId).padStart(12, '0'), chat_id: chatId, borrador_id: borradorId, texto, por: AUTO_POR }),
   });
   const reserva = res.cuerpo?.[0];
-  if (!res.ok || !reserva?.id) { console.error('auto: la base no acepto', chatId, String(res.cuerpo?.message ?? res.status).slice(0, 200)); return; }
+  if (!res.ok || !reserva?.id) { console.error('auto: la base no acepto', chatId, String(res.cuerpo?.message ?? res.status).slice(0, 200)); return false; }
 
   let cuerpo: any = null;
   let status = 0;
@@ -477,7 +522,7 @@ async function autoResponder(chatId: number, mensajeId: number, borradorId: numb
     const err = String(cuerpo?.error?.message ?? ('HTTP ' + status)).slice(0, 600);
     await dbCrudo(`mensajes_envios?id=eq.${reserva.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'fallo', error: err }) });
     console.error('auto: Meta no acepto', chatId, err);
-    return;
+    return false;
   }
   // La base marca el borrador como enviado al pasar la reserva a «enviado» (0007).
   await dbCrudo(`mensajes_envios?id=eq.${reserva.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'enviado', meta_id: wamid }) });
@@ -488,6 +533,7 @@ async function autoResponder(chatId: number, mensajeId: number, borradorId: numb
       payload: cuerpo, enviado_at: new Date().toISOString(),
     }),
   });
+  return true;
 }
 
 // ── /conocimiento: la revisión del 5558 sube corpus y guía ────────────────
@@ -773,6 +819,10 @@ Deno.serve(async (req) => {
     return ok ? new Response(url.searchParams.get('hub.challenge') ?? '', { status: 200 }) : json({ error: 'no' }, 403);
   }
   if (req.method !== 'POST') return json({ error: 'solo GET/POST' }, 405);
+  if (url.pathname.endsWith('/despachar')) {
+    try { return await despachar(); }
+    catch (e) { console.error('despachar', String(e)); return json({ error: 'falló; ver registros de la función' }, 500); }
+  }
   if (url.pathname.endsWith('/conocimiento') || url.pathname.endsWith('/suscribir')) {
     try {
       return await (url.pathname.endsWith('/suscribir') ? suscribir(req) : conocimiento(req));
