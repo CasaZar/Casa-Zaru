@@ -97,6 +97,22 @@ Agrega a `RW\corpus-respuestas.jsonl` una línea por intercambio que enseñe alg
 - `dato_vivo`: si depende de precio, cupo o stock, el bot no lo inventa, lo consulta.
 - En cada revisión, reevaluar las líneas con 7 días o más que siguen en `pendiente`.
 
+### Subir lo aprendido a la bandeja de mensajes (desde el 19-11-2026)
+El corpus ya no es solo «para el futuro bot»: los borradores de la bandeja (WhatsApp +56 9 9305 1122,
+`cotizador.casazaru.cl/mensajes.html`) usan las respuestas `modelo` y `evitar` como ejemplo. **Al
+terminar de actualizar el corpus, en cada revisión**, correr:
+
+`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .claude/skills/revision-whatsapp/subir-conocimiento.ps1`
+
+- Sube las líneas `modelo` y `evitar` (las `ok` no) y `guia-respuestas.md`. Repetirlo no duplica; una
+  línea reevaluada se actualiza. Con `-Simular` solo cuenta.
+- El script **no sube** una línea con algo que parezca teléfono, correo, RUT o link: si avisa «Con
+  posible dato personal: N», anonimizar esas líneas en el corpus y volver a correr.
+- Quita los signos de apertura (¡ ¿) al subir, porque en la bandeja están prohibidos; el corpus de
+  Drive no se toca. Por eso al marcar una línea como `modelo` no importa que César los haya usado.
+- Si falla, no frena la revisión: anotarlo en la sección de WhatsApp de «Mi día» y seguir.
+- Detalle del sistema: `.claude/bandeja-mensajes.md`.
+
 ## 4 · Frases que cierran
 Mantén `RW\frases.tsv`: `frase	situacion	usos	compro_7d	silencio_7d	fechas`.
 - Suma cuando una respuesta nuestra calce con una frase (aunque cambie la redacción).
@@ -278,6 +294,8 @@ Cómo se sube (una sola llamada, después de escribir los archivos de Drive):
   respuesta `modelo` en el corpus (huecos del bot).
 - Actualizar `RW\guia-respuestas.md`, que después será el prompt del bot: por intención, la
   respuesta modelo, los datos vivos que hay que consultar y cuándo se pasa a una persona.
+  Desde el 19-11-2026 esa guía YA va dentro de las instrucciones de los borradores de la bandeja:
+  después de actualizarla, correr `subir-conocimiento.ps1` (ver §3).
 
 ### Para Klaviyo, contenido y anuncios de Meta (desde el 09-11-2026)
 Lo que se aprende en WhatsApp se convierte en campañas. Cada lunes, en `RW\temas-marketing.md`:
