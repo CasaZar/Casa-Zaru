@@ -37,7 +37,16 @@ param(
   #   Un campo vacio o null = el chat no lo dice = no se compara.
   [string]$Chat = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\fichas-venta.json',
   [string]$ChatRevision = 'G:\Mi unidad\Casa Zaru\Revision WhatsApp\ultima-revision.txt',
-  [int]$DiasChat = 14
+  [int]$DiasChat = 14,
+  # Starken (18-11-2026): lo que Starken cobra hoy por cada OF contra el precio al emitir.
+  # -Starken: JSON que deja la skill revision-starken (se corre con Starken PRO abierto, una vez por semana):
+  #   { "revisado":"<ISO>", "desde":"AAAA-MM-DD",
+  #     "items":[{ "of":"282024446", "emision":"16-11-2026", "cuenta":"777979", "destinatario":"...", "pedido":"1599",
+  #                "tipo":"remidio|perdido|volumen", "antes":37670, "ahora":110740, "peso":42, "vol":186.55, "estado":"EN TRANSITO" }] }
+  #   remidio = Starken cobra mas que lo cotizado al emitir; perdido = estado con problema; volumen = OF sin precio
+  #   al emitir (web o Starken PRO) que se cobra por volumen. Pasados -DiasStarken dias el aviso sale como viejo.
+  [string]$Starken = 'G:\Mi unidad\Casa Zaru\Cerebro\starken-revision.json',
+  [int]$DiasStarken = 8
 )
 $ErrorActionPreference = 'Stop'
 $utf8 = New-Object System.Text.UTF8Encoding($false)
@@ -396,6 +405,41 @@ if ($sinMarcar.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'pago_sin_marca
 if ($sinDueno.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'pago_sin_dueno'; titulo = 'Plata que entró y no sé de quién es'; items = $sinDueno.ToArray() }) }
 if ($chatSinPedido.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'chat_sin_pedido'; titulo = 'Cerró por WhatsApp y no hay pedido'; items = $chatSinPedido.ToArray() }) }
 if ($chatDif.Count) { [void]$grupos.Add([pscustomobject]@{ k = 'chat'; titulo = 'El pedido no calza con el chat'; items = $chatDif.ToArray() }) }
+
+# Starken: cada aviso lleva el texto del reclamo listo para copiar. El id incluye el monto de hoy: si Starken
+# vuelve a cambiar el cobro, el aviso reaparece aunque se haya marcado «Ya lo vi».
+$hayStarken = $false; $stkRev = $null; $stkItems = New-Object System.Collections.ArrayList; $stkTotal = 0
+if ($Starken -and (Test-Path -LiteralPath $Starken)) {
+  $stkRev = Get-Content -LiteralPath $Starken -Raw -Encoding UTF8 | ConvertFrom-Json
+  $hayStarken = $true
+  foreach ($s in @($stkRev.items)) {
+    if (-not $s -or -not $s.of) { continue }
+    $id = "stk:$($s.of):$([math]::Round([double]$s.ahora))"
+    if ($desc.ContainsKey($id)) { continue }
+    $quien = (@([string]$s.destinatario, $(if ($s.pedido) { "pedido $($s.pedido)" } else { '' })) | Where-Object { $_ }) -join ' · '
+    $kg = "$(([double]$s.peso).ToString('0.##', [Globalization.CultureInfo]::GetCultureInfo('es-CL'))) kg reales, $(([double]$s.vol).ToString('0.##', [Globalization.CultureInfo]::GetCultureInfo('es-CL'))) kg de volumen"
+    if ($s.tipo -eq 'perdido') {
+      $monto = [double]$s.ahora; $tono = 'rojo'; $chip = 'Perdido'
+      $lin = @("Starken la dejó «$(([string]$s.estado).Trim())» y la cobra igual: $(Plata $s.ahora). Emitida el $($s.emision).")
+      $rec = "OF $($s.of) (emitida el $($s.emision), cuenta $($s.cuenta)): quedó en estado «$(([string]$s.estado).Trim())» y no figura entregada al destinatario. Está cobrada en $(Plata $s.ahora). Solicito la nota de crédito por ese monto."
+    } elseif ($s.tipo -eq 'remidio') {
+      $monto = [double]$s.ahora - [double]$s.antes; $tono = 'ambar'; $chip = 'Re-midió'
+      $lin = @("Emitida a $(Plata $s.antes) · ahora $(Plata $s.ahora) ($kg).")
+      $rec = "OF $($s.of) (emitida el $($s.emision), cuenta $($s.cuenta)): se emitió por $(Plata $s.antes) y hoy aparece en $(Plata $s.ahora) ($kg). Solicito revisar la medición del bulto antes de facturar la diferencia de $(Plata $monto)."
+    } else {
+      $monto = $null; $tono = 'ambar'; $chip = 'Por volumen'
+      $lin = @("Se cobra por volumen: $(Plata $s.ahora) ($kg). No hay precio al emitir para comparar: revisar si el bulto iba así.")
+      $rec = "OF $($s.of) (emitida el $($s.emision), cuenta $($s.cuenta)): se cobró por volumen, $(Plata $s.ahora) ($kg). Solicito revisar la medición del bulto."
+    }
+    if ($monto) { $stkTotal += $monto }
+    [void]$stkItems.Add([pscustomobject]@{ id = $id; tono = $tono; titulo = "$chip · OF $($s.of) · $quien"; monto = $monto; lineas = $lin
+      acciones = @('reclamo', 'descartar'); botones = [pscustomobject]@{ descartar = 'Ya lo vi' }; reclamo = $rec })
+  }
+}
+if ($stkItems.Count) {
+  $tt = 'Starken cobró distinto'; if ($stkTotal -gt 0) { $tt += " · por reclamar $(Plata $stkTotal)" }
+  [void]$grupos.Add([pscustomobject]@{ k = 'starken'; titulo = $tt; items = $stkItems.ToArray() })
+}
 $total = 0; foreach ($i in $sp) { $total += [double]$i.monto }
 $txtCalzan = "Calzan: $calzan de $(@($cot).Count) ventas del Cotizador de los últimos 30 días tienen su pedido"
 if ($hayPagos) { $txtCalzan += " y $pagosOk de $pagosVistos pagos de los últimos $DiasPagos días tienen su abono marcado" }
@@ -417,6 +461,11 @@ if ($hayChat) {
   }
   [void]$fuentes.Add([pscustomobject]@{ nombre = 'WhatsApp 5558'; cuando = $rv; viejo = $vv })
 }
+if ($hayStarken) {
+  $sc = 'sin fecha'; $sv = $true
+  if ($stkRev.revisado) { $sc = [string]$stkRev.revisado; $sv = ((Get-Date) - [datetime]$stkRev.revisado).TotalDays -gt $DiasStarken }
+  [void]$fuentes.Add([pscustomobject]@{ nombre = 'Starken PRO'; cuando = $sc; viejo = $sv })
+}
 $res = [pscustomobject]@{
   generado = (Get-Date).ToString('o')
   etapa = $(if ($hayPagos) { 2 } else { 1 })
@@ -428,4 +477,4 @@ $dir = Split-Path -Parent $Salida; if ($dir -and -not (Test-Path -LiteralPath $d
 [System.IO.File]::WriteAllText($Salida, ($res | ConvertTo-Json -Depth 10), $utf8)
 $tp = 0; foreach ($i in $pagoSinPedido) { $tp += [double]$i.monto }
 $tm = 0; foreach ($i in $sinMarcar) { $tm += [double]$i.monto }
-Write-Output "OK $Salida sin_pedido=$(@($sp).Count) por=$(Plata $total) calzan=$calzan de=$(@($cot).Count) descartes_nuevos=$nuevos | pagos: vistos=$pagosVistos ok=$pagosOk pago_sin_pedido=$($pagoSinPedido.Count) por=$(Plata $tp) sin_marcar=$($sinMarcar.Count) por=$(Plata $tm) sin_dueno=$($sinDueno.Count) nuevos_en_libro=$pagosNuevosN"
+Write-Output "OK $Salida sin_pedido=$(@($sp).Count) por=$(Plata $total) calzan=$calzan de=$(@($cot).Count) descartes_nuevos=$nuevos | pagos: vistos=$pagosVistos ok=$pagosOk pago_sin_pedido=$($pagoSinPedido.Count) por=$(Plata $tp) sin_marcar=$($sinMarcar.Count) por=$(Plata $tm) sin_dueno=$($sinDueno.Count) nuevos_en_libro=$pagosNuevosN | starken: avisos=$($stkItems.Count) por=$(Plata $stkTotal)"
