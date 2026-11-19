@@ -1084,6 +1084,38 @@ table.pixel tbody td { padding:8px 12px;vertical-align:middle; }
 .como-cod-lbl { font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px; }
 .como-chip { padding:7px 12px;min-height:36px;margin:0 6px 6px 0;border-radius:999px;border:1px solid var(--border-md);background:var(--surface);color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer; }
 .como-chip.on { background:var(--green);color:#fff;border-color:var(--green); }
+/* Origen propuesto por teléfono (0035, 18-11-2026) */
+.como-sug { display:none;width:100%;font-size:12.5px;line-height:1.4;border-radius:var(--radius);padding:9px 11px; }
+.como-sug.ok { display:block;background:var(--green-dim,#E6EBE1);color:var(--green-text,#2F3D27); }
+.como-sug.gris { display:block;background:var(--surface);color:var(--text-2);border:1px dashed var(--border-md); }
+.como-sug b { font-weight:600; }
+.como-sug .como-sug-s { display:block;font-size:11.5px;opacity:.85;margin-top:2px; }
+/* Pestaña «Origen» */
+.org-head { display:flex;flex-direction:column;gap:8px;margin-bottom:12px; }
+.org-tit { font-size:18px;font-weight:700;margin:0;color:var(--text); }
+.org-meses { display:flex;flex-wrap:wrap; }
+.org-kpis { margin-bottom:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px; }
+@media (min-width:900px){ .org-kpis { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+.org-kpis .stat-val { font-size:22px; }
+.org-ks { font-size:11.5px;color:var(--text-3);margin-top:6px;line-height:1.35; }
+.org-tabla-wrap { background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius-lg);padding:4px 12px;overflow-x:auto; }
+.org-tabla { width:100%;border-collapse:collapse;font-size:13px; }
+.org-tabla th { font-size:10.5px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;text-align:left;padding:8px 0 6px; }
+.org-tabla td { padding:9px 0;border-top:1px solid var(--border-lt);color:var(--text); }
+.org-tabla th + th, .org-tabla td + td { padding-left:10px; }
+.org-aviso { background:var(--amber-dim,#FBF0D3);color:var(--amber-text,#8A5A00);border-radius:var(--radius);padding:9px 12px;font-size:12.5px;margin-bottom:12px; }
+.org-tabla td:not(:first-child), .org-tabla th:not(:first-child) { text-align:right;white-space:nowrap; }
+.org-sub { font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin:18px 0 6px; }
+.org-ans { background:var(--surface);border:1px solid var(--border-md);border-radius:var(--radius-lg);padding:4px 14px; }
+.org-an { display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--border-lt); }
+.org-an:first-child { border-top:0; }
+.org-an-c { flex:1;min-width:0; }
+.org-an-t { font-size:13.5px;font-weight:600;color:var(--text);overflow-wrap:anywhere; }
+.org-an-s { font-size:11.5px;color:var(--text-3); }
+.org-an-r { text-align:right;font-size:12px;color:var(--text-2);white-space:nowrap; }
+.org-an-r b { display:block;font-size:13.5px;color:var(--text); }
+.org-vacio { font-size:13px;color:var(--text-3);padding:10px 0; }
+.org-pie { font-size:11.5px;color:var(--text-3);margin-top:14px;line-height:1.45; }
 /* ── Contactos pendientes del tablero ──
    La fila entera abre WhatsApp: en el teléfono apuntarle a un botón de 11px
    era incómodo, y esta lista existe para escribirle al cliente. */
@@ -26566,6 +26598,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <button class="nav-tab" onclick="showPage('madera',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="7" cy="16" r="3"/><circle cx="17" cy="16" r="3"/><circle cx="12" cy="8" r="3"/></svg></span> Madera</button>
     <button class="nav-tab" onclick="showPage('cost',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M4 19h16M7 16V9M12 16V5M17 16v-4"/></svg></span> Costos</button>
     <button class="nav-tab" onclick="showPage('pixel',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 12h.01"/></svg></span> Pixel Meta</button>
+    <button class="nav-tab" onclick="showPage('origen',this)"><span class="tab-icon"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.5-6-10a6 6 0 0 1 12 0c0 4.5-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg></span> Origen</button>
   </div>
   <!-- Pie del PC: estado de la conexión, sesión, Excel y versión. En el celular
        esto vive en la hoja «Más». -->
@@ -26670,9 +26703,13 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <input type="hidden" id="pp-tipo" value="VENTA">
       <div id="pp-tipo-nota" style="font-size:11px;color:var(--text-3);width:100%;margin-top:4px"></div>
       <div style="font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;width:100%;margin:10px 0 2px">📣 ¿Cómo nos conoció?</div>
+      <div id="pp-como-sug" class="como-sug"></div>
       <div id="pp-canal-btns" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       <input type="hidden" id="pp-como" value="">
       <input type="hidden" id="pp-como-cod" value="">
+      <input type="hidden" id="pp-como-ubi" value="">
+      <input type="hidden" id="pp-como-camp" value="">
+      <input type="hidden" id="pp-como-anun" value="">
       <div style="font-size:11px;color:var(--text-3);width:100%;margin-top:2px">El mensaje termina en (G), (GB) o (GS) → Google anuncio. Trae (M) o el chat muestra el anuncio arriba → Meta anuncio. «Los vi en Google / Maps» sin código → Google orgánico.</div>
       <div id="pp-como-falta" style="display:none;width:100%;background:var(--red-dim);color:var(--red-text);border-radius:var(--radius);padding:8px 10px;font-size:12.5px;font-weight:600">Falta «¿Cómo nos conoció?». Sin eso no se puede medir qué anuncio vende.</div>
     </div>
@@ -26769,7 +26806,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       </div>
       <div style="display:flex;flex-direction:column;gap:3px">
         <label style="font-size:11px;color:var(--text-3)">Celular</label>
-        <input type="tel" id="pp-cel" placeholder="9 1234 5678" onchange="this.value=fmtPhone(this.value);this.style.borderColor=telValido(this.value)?'':'var(--red)'" style="width:150px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
+        <input type="tel" id="pp-cel" placeholder="9 1234 5678" onchange="this.value=fmtPhone(this.value);this.style.borderColor=telValido(this.value)?'':'var(--red)';origenProponer()" style="width:150px;padding:6px 10px;border:1px solid var(--border-md);border-radius:var(--radius);font-size:13px;background:var(--surface)">
       </div>
       <div id="pp-bloque-factura" style="display:none;flex-wrap:wrap;gap:10px;align-items:flex-end;width:100%;margin-top:6px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:220px">
@@ -27234,6 +27271,13 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <button class="btn-pri" id="emp-c-guardar" onclick="guardarCompraEmp()">Guardar</button>
     </div>
   </div>
+</div>
+
+<!-- ORIGEN (18-11-2026, boceto .claude/boceto-origen-clientes.html): de dónde
+     llegan los leads y qué canal vende. Solo admin. Leads del Cotizador (0035),
+     ventas de Finanzas. -->
+<div class="page" id="page-origen">
+<div class="main" id="origen-main"></div>
 </div>
 
 <div class="page" id="page-cli">
@@ -27881,6 +27925,7 @@ function showPage(p,btn){
   if(p==='madera'){loadMadera();}
   if(p==='emp'){loadEmpresas();}
   if(p==='midia'){loadMiDia();}
+  if(p==='origen'){loadOrigen();}
   if(p==='dash'){
     if(DB_URL){
       Promise.all([loadFin(),loadProd()]).then(function(){renderDash();});
@@ -28290,7 +28335,7 @@ async function cargarPermisos(){
 }
 // Oculta lo que el usuario no puede usar. Es solo cosmético: la protección real
 // está en el servidor (RLS), así que aunque alguien fuerce la pantalla no ve datos.
-var SECCIONES_ADMIN=['fin','cost','pixel','gastos','madera','midia'];
+var SECCIONES_ADMIN=['fin','cost','pixel','gastos','madera','midia','origen'];
 // El taller entra a Gastos, pero solo a la bodega: recibe la mercadería y
 // hace la toma física. No ve facturas, ni el libro mayor, ni precios de venta.
 function aplicarPermisos(){
@@ -28304,7 +28349,7 @@ function aplicarPermisos(){
   if(usuarioRol==='taller'){
     document.body.classList.add('rol-taller');
     // Al taller se le esconde todo lo que NO sea suyo, en vez de solo lo de admin.
-    ['fin','cost','pixel','seg','cli','emp','dash','midia'].forEach(function(p){
+    ['fin','cost','pixel','seg','cli','emp','dash','midia','origen'].forEach(function(p){
       document.querySelectorAll('[onclick*="showPage(\''+p+'\'"]').forEach(function(b){b.style.display='none';});
       var pg=document.getElementById('page-'+p);if(pg)pg.classList.remove('active');
     });
@@ -29364,6 +29409,7 @@ async function analyzeImage(dataUrl,file,apiKey){
     document.getElementById('pp-como-cod').value='';
     renderPrevCanal(pedidoData.canal==='web'?'Web':'');
     renderPrevProd(pedidoData);
+    origenProponer();
     // Cupón de Shopify (el 5 % de primera compra): el cliente pagó con descuento,
     // pero sin anotarlo el total quedaba con el precio lleno y el 5 % aparecía como
     // saldo "Ya debió entrar" (1550, 1560, 1571 y 1575; 26-10-2026). Se pasa a % sobre
@@ -29646,7 +29692,7 @@ async function confirmOrder(){
     fact_ciudad:document.getElementById('pp-fact-ciudad').value.trim()
   };
   const existFin=finRecords.find(r=>String(r.num||'')===numStr);
-  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:(((document.getElementById('pp-como')||{}).value)||(existFin?(existFin.como||''):'')),como_codigo:((document.getElementById('pp-como')||{}).value?((document.getElementById('pp-como-cod')||{}).value||''):(existFin?(existFin.como_codigo||''):'')),fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
+  const finData={num:numStr,fecha_creacion:o.fecha_creacion||fechaFromSemana(o.envio||''),semana:o.envio||'',nombre:o.comprador||'',apellido:o.apellido||'',email:fmtEmail(cli.email),celular:fmtPhone(cli.phone),rut:(document.getElementById('pp-rut').value.trim()||cli.rut||''),producto:(o.lineas&&o.lineas[0])?o.lineas[0].producto:'',medio_pago:fin.medio_pago||'TRANSFERENCIA',val_prod:vp,val_envio:ve,val_comision:vc,total,abono_monto:abono,saldo_monto:saldo,sin_com:sincom,sin_iva:siniva,abono1:existFin?(existFin.abono1||0):(abono||0),abono2:existFin?(existFin.abono2||0):0,abono3:existFin?(existFin.abono3||0):0,doc1_tipo:docTipo,doc2_tipo:docTipo,doc1_num:existFin?(existFin.doc1_num||''):'',doc2_num:existFin?(existFin.doc2_num||''):'',doc1_emitida:existFin?(existFin.doc1_emitida||false):false,doc2_emitida:existFin?(existFin.doc2_emitida||false):false,como:(((document.getElementById('pp-como')||{}).value)||(existFin?(existFin.como||''):'')),como_codigo:((document.getElementById('pp-como')||{}).value?((document.getElementById('pp-como-cod')||{}).value||''):(existFin?(existFin.como_codigo||''):'')),como_ubicacion:_comoExtra('pp-como-ubi','como_ubicacion',existFin),como_campana:_comoExtra('pp-como-camp','como_campana',existFin),como_anuncio:_comoExtra('pp-como-anun','como_anuncio',existFin),como_propuesto:_comoPropuesto(existFin),fecha:o.fecha_creacion||fechaFromSemana(o.envio||'')};
   Object.assign(finData,datosDoc);
   // Volver a guardar desde Producción no borra nada de los documentos (folio,
   // PDF, monto facturado, «en proceso», doc 3).
@@ -29803,6 +29849,7 @@ function vpcAbrir(id){
   renderPrevTipo('VENTA');
   renderPrevCanal('Cotizador');
   renderPrevProd(pedidoData);
+  origenProponer();
   // Cómo paga: transferencia con su descuento, o link de pago. Va DESPUÉS de
   // renderPrevProd, que deja el formulario en transferencia sin descuento.
   if(f.pago==='link'){document.getElementById('pp-canal').value='LINK_MP';}
@@ -29990,6 +30037,11 @@ function renderPrevCanal(sel){
     titulo('Sin anuncio')+CANALES_SIN_ANUNCIO.map(btn).join('');
   // Elegir canal quita el aviso de «falta» si estaba puesto.
   if(v){var av=document.getElementById('pp-como-falta');if(av)av.style.display='none';}
+  // El detalle (ubicación, campaña, anuncio) es del canal propuesto: si se
+  // elige otro, deja de valer y no se guarda.
+  var sug=document.getElementById('pp-como-sug');
+  if(sug&&sug.dataset.canal&&v!==sug.dataset.canal)_origenDetalle(null);
+  else if(sug&&sug.dataset.canal&&v===sug.dataset.canal&&sug._det)_origenDetalle(sug._det);
   var codEl=document.getElementById('pp-como-cod');
   if(v!=='Google anuncio'){if(codEl)codEl.value='';}
   renderPrevCodigo(codEl?codEl.value:'');
@@ -30007,6 +30059,160 @@ function _llenarComoModalFin(actual){
 function _comoModalFin(){
   var el=document.getElementById('fn-como');if(!el)return '';
   return el.value===el.dataset.ini?(el.dataset.orig||''):el.value;
+}
+// ── Origen propuesto por teléfono (18-11-2026, migración 0035) ─────────────
+// La Gestión trae del Cotizador, cada 10 minutos, una fila por cotización con el
+// canal ya clasificado en SQL (origen_clasificar). Al cargar una venta se busca
+// el celular y se propone el canal del PRIMER contacto con rastro; quien carga
+// confirma o cambia. Si ya había comprado antes, se propone «Cliente antiguo».
+// Nada se elige solo si no hay rastro: ahí sigue siendo una decisión a mano.
+function _origenDetalle(d){
+  var set=function(id,v){var el=document.getElementById(id);if(el)el.value=v||'';};
+  set('pp-como-ubi',d&&d.ubicacion);set('pp-como-camp',d&&d.campana);set('pp-como-anun',d&&d.anuncio);
+}
+function _origenFecha(iso){
+  if(!iso)return'';var d=new Date(iso);if(isNaN(d))return'';
+  return String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear();
+}
+function _origenTexto(e){
+  var p=[e.ubicacion,e.anuncio?'«'+e.anuncio+'»':'',e.campana&&!e.anuncio?e.campana:''].filter(Boolean);
+  return p.join(' · ');
+}
+// Al guardar: el detalle solo vale si se eligió canal en esta carga; si no, se
+// conserva lo que ya tenía Finanzas. «como_propuesto» = el canal que propuso la
+// Gestión (vacío si no hubo propuesta): sirve para medir cuánto se corrige.
+function _comoExtra(id,campo,existFin){
+  if((document.getElementById('pp-como')||{}).value)return(document.getElementById(id)||{}).value||'';
+  return existFin?(existFin[campo]||''):'';
+}
+function _comoPropuesto(existFin){
+  if((document.getElementById('pp-como')||{}).value)return(document.getElementById('pp-como-sug')||{dataset:{}}).dataset.canal||'';
+  return existFin?(existFin.como_propuesto||''):'';
+}
+function _origenQuien(v){return v?String(v).charAt(0).toUpperCase()+String(v).slice(1):'la web';}
+var _origenPide=0;
+async function origenProponer(){
+  var box=document.getElementById('pp-como-sug');if(!box)return;
+  var pide=++_origenPide;
+  box.className='como-sug';box.innerHTML='';box.dataset.canal='';box._det=null;
+  var cel=fmtPhone((document.getElementById('pp-cel')||{}).value||'');
+  if(!/^\d{9}$/.test(cel))return;
+  var t8=cel.slice(-8);
+  var numActual=String((document.getElementById('pp-num')||{}).value||(prodPending&&prodPending.pedido)||'');
+  // ¿Ya compró antes? Se mira Finanzas (ya cargado en memoria).
+  var previa=(finRecords||[]).filter(function(r){
+    return esVenta(r)&&String(r.num||'')!==numActual&&fmtPhone(r.celular||'').slice(-8)===t8;
+  }).sort(function(a,b){return Number(a.num)-Number(b.num);})[0];
+  var fila=null;
+  var sinTabla=false;
+  try{var rs=await sbGet('v_origen_contacto','tel8=eq.'+t8+'&select=*');fila=rs&&rs[0];}catch(e){fila=null;sinTabla=true;}
+  if(pide!==_origenPide)return;
+  // Sin la 0035 aplicada (o sin permiso) no se afirma nada: queda como antes.
+  if(sinTabla&&!previa)return;
+  var actual=(document.getElementById('pp-como')||{}).value||'';
+  var libre=!actual||actual==='Cotizador'||actual==='Web';
+  if(previa){
+    box.className='como-sug ok';box.dataset.canal='Cliente antiguo';
+    box.innerHTML='Ya compró antes: <b>pedido '+esc(previa.num)+'</b>'+(previa.fecha?' ('+esc(previa.fecha)+')':'')+'. Se propone «Cliente antiguo».'+
+      (fila&&fila.primero_con_canal?'<span class="como-sug-s">Su primer contacto fue por '+esc(fila.primero_con_canal.canal)+(_origenTexto(fila.primero_con_canal)?' · '+esc(_origenTexto(fila.primero_con_canal)):'')+'.</span>':'');
+    if(libre)renderPrevCanal('Cliente antiguo');
+    return;
+  }
+  if(!fila){
+    box.className='como-sug gris';
+    box.innerHTML='No encontré este celular en el Cotizador: elige el canal a mano.';
+    return;
+  }
+  var p=fila.primero||{},pc=fila.primero_con_canal;
+  if(!pc){
+    box.className='como-sug gris';
+    box.innerHTML='Lo cotizó '+esc(_origenQuien(p.vendedor))+' el '+esc(_origenFecha(p.fecha))+(p.cotizacion_num?' ('+esc(p.cotizacion_num)+')':'')+', pero sin rastro de cómo llegó: pregúntale o revisa el chat.';
+    return;
+  }
+  var det={ubicacion:pc.ubicacion||'',campana:pc.campana||'',anuncio:pc.anuncio||''};
+  box.className='como-sug ok';box.dataset.canal=pc.canal;box._det=det;
+  var antes=(p.fecha&&p.fecha!==pc.fecha)?'<span class="como-sug-s">Antes, el '+esc(_origenFecha(p.fecha))+', lo había cotizado '+esc(_origenQuien(p.vendedor))+' sin rastro.</span>':'';
+  box.innerHTML='Llegó el <b>'+esc(_origenFecha(pc.fecha))+'</b> por <b>'+esc(pc.canal)+'</b>'+(_origenTexto(pc)?' · '+esc(_origenTexto(pc)):'')+
+    (pc.cotizacion_num?' ('+esc(pc.cotizacion_num)+')':'')+'. Revisa y confirma.'+antes;
+  if(libre||actual===pc.canal){
+    renderPrevCanal(pc.canal);
+    if(pc.canal==='Google anuncio'&&pc.codigo)renderPrevCodigo(pc.codigo);
+    _origenDetalle(det);
+  }
+}
+// ── Pestaña «Origen» (18-11-2026): qué canal trae leads y cuál vende ────────
+// Leads = personas (por teléfono) cuyo PRIMER contacto cae en el mes, según el
+// canal de ese contacto (v_origen_leads_mes, calculado en SQL). Ventas = las de
+// Finanzas del mes por su «¿Cómo nos conoció?» confirmado al cargar. Los dos
+// lados se cuentan distinto a propósito: un lead de octubre puede comprar en
+// noviembre. El gasto y el costo por venta llegan en la etapa 2.
+var origenMes=null;
+function _origenMesActual(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function _origenMesDe(r){var iso=_isoDeFecha(r.fecha_creacion||r.fecha);return iso?iso.slice(0,7):'';}
+function _origenMesNombre(m){var p=m.split('-');return MESES_ES[parseInt(p[1],10)-1].charAt(0)+MESES_ES[parseInt(p[1],10)-1].slice(1).toLowerCase()+' '+p[0];}
+function setOrigenMes(m){origenMes=m;loadOrigen();}
+async function loadOrigen(){
+  var cont=document.getElementById('origen-main');if(!cont)return;
+  if(!origenMes)origenMes=_origenMesActual();
+  var mes=origenMes;
+  cont.innerHTML='<div class="org-vacio">Cargando…</div>';
+  var leads=[],sync=null,falta=false;
+  try{
+    var rs=await Promise.all([sbGet('v_origen_leads_mes','mes=eq.'+mes+'&select=canal,ubicacion,anuncio,leads'),
+                              sbGet('origen_sync','select=ultimo_ok_at,ultimo_error,filas_ultima')]);
+    leads=rs[0]||[];sync=(rs[1]||[])[0]||null;
+  }catch(e){falta=true;}
+  if(mes!==origenMes)return;
+  // Meses: los últimos 6.
+  var d=new Date(),meses=[];
+  for(var i=0;i<6;i++){var x=new Date(d.getFullYear(),d.getMonth()-i,1);meses.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0'));}
+  var h='<div class="org-head"><h2 class="org-tit">De dónde llegan los clientes</h2>'+
+    '<div class="org-meses">'+meses.map(function(m){return'<button type="button" class="como-chip'+(m===mes?' on':'')+'" onclick="setOrigenMes(\''+m+'\')">'+esc(_origenMesNombre(m))+'</button>';}).join('')+'</div></div>';
+  // Ventas del mes por canal confirmado.
+  var ventas=soloVentas(finRecords).filter(function(r){return _origenMesDe(r)===mes;});
+  var porCanal={};
+  function fila(c){return porCanal[c]||(porCanal[c]={canal:c,leads:0,ventas:0,vendido:0});}
+  ventas.forEach(function(r){var c=canalCanonico(r.como)||'Sin definir';var f=fila(c);f.ventas++;f.vendido+=Number(r.total)||0;});
+  leads.forEach(function(l){fila(l.canal==='Sin rastro'?'Sin rastro':l.canal).leads+=Number(l.leads)||0;});
+  var filas=Object.keys(porCanal).map(function(k){return porCanal[k];})
+    .sort(function(a,b){return(b.vendido-a.vendido)||(b.leads-a.leads);});
+  var totV=ventas.length,totM=ventas.reduce(function(s,r){return s+(Number(r.total)||0);},0);
+  var totL=leads.reduce(function(s,l){return s+(Number(l.leads)||0);},0);
+  var sinCanal=ventas.filter(function(r){var c=canalCanonico(r.como);return!c||c==='Otro';}).length;
+  var auto=ventas.filter(function(r){return r.como_propuesto;}).length;
+  h+='<div class="org-kpis">'+
+    '<div class="stat-card"><div class="stat-label">Ventas</div><div class="stat-val">'+totV+'</div><div class="org-ks">'+fmtCLP(totM)+'</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Leads nuevos</div><div class="stat-val">'+(falta?'—':totL)+'</div><div class="org-ks">primer contacto en el mes</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Ventas sin canal</div><div class="stat-val">'+sinCanal+'</div><div class="org-ks">'+(totV?Math.round(sinCanal*100/totV):0)+' % · meta menos de 10 %</div></div>'+
+    '<div class="stat-card"><div class="stat-label">Con origen propuesto</div><div class="stat-val">'+auto+'</div><div class="org-ks">la Gestión lo encontró por teléfono</div></div>'+
+  '</div>';
+  if(falta)h+='<div class="org-aviso">Falta aplicar la migración 0035 (Gestión) y la 0005 (Cotizador): por ahora solo se ven las ventas.</div>';
+  h+='<div class="org-tabla-wrap"><table class="org-tabla"><thead><tr><th>Canal</th><th>Leads</th><th>Ventas</th><th>Vendido</th><th>Ticket</th></tr></thead><tbody>'+
+    (filas.length?filas.map(function(f){
+      return'<tr><td>'+esc(f.canal)+'</td><td>'+(falta?'—':f.leads)+'</td><td>'+f.ventas+'</td><td>'+(f.vendido?fmtCLP(f.vendido):'—')+'</td><td>'+(f.ventas?fmtCLP(Math.round(f.vendido/f.ventas)):'—')+'</td></tr>';
+    }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">Sin datos este mes</td></tr>')+
+  '</tbody></table></div>';
+  // Anuncios y ubicaciones: los que trajeron leads o ventas.
+  var porAn={};
+  function claveAn(c,u,a){return[c||'',u||'',a||''].join('|');}
+  function an(c,u,a){var k=claveAn(c,u,a);return porAn[k]||(porAn[k]={canal:c,ubicacion:u||'',anuncio:a||'',leads:0,ventas:0,vendido:0});}
+  leads.forEach(function(l){if(l.ubicacion||l.anuncio)an(l.canal,l.ubicacion,l.anuncio).leads+=Number(l.leads)||0;});
+  ventas.forEach(function(r){if(r.como_ubicacion||r.como_anuncio){var x=an(canalCanonico(r.como),r.como_ubicacion,r.como_anuncio);x.ventas++;x.vendido+=Number(r.total)||0;}});
+  var ans=Object.keys(porAn).map(function(k){return porAn[k];}).sort(function(a,b){return(b.vendido-a.vendido)||(b.leads-a.leads);}).slice(0,15);
+  h+='<div class="org-sub">Anuncios y ubicaciones</div>';
+  h+=ans.length?'<div class="org-ans">'+ans.map(function(a){
+      return'<div class="org-an"><div class="org-an-c"><div class="org-an-t">'+esc(a.anuncio||a.ubicacion)+'</div>'+
+        '<div class="org-an-s">'+esc([a.canal,a.anuncio?a.ubicacion:''].filter(Boolean).join(' · '))+' · '+a.leads+' leads</div></div>'+
+        '<div class="org-an-r"><b>'+a.ventas+' venta'+(a.ventas===1?'':'s')+'</b>'+(a.vendido?fmtCLP(a.vendido):'—')+'</div></div>';
+    }).join('')+'</div>'
+    :'<div class="org-vacio">Todavía no hay leads ni ventas con anuncio este mes.</div>';
+  // Estado de la conexión con el Cotizador.
+  var est='';
+  if(sync&&sync.ultimo_ok_at){var min=Math.round((Date.now()-new Date(sync.ultimo_ok_at))/60000);est='Cotizador al día: hace '+(min<60?min+' min':Math.round(min/60)+' h')+'.';}
+  if(sync&&sync.ultimo_error)est+=' Último error: '+sync.ultimo_error;
+  if(!falta&&!est)est='Esperando la primera sincronización con el Cotizador (cada 10 minutos).';
+  h+='<div class="org-pie">'+esc(est)+(est?' ':'')+'Las cotizaciones que hace un vendedor no traen rastro: ese origen llega cuando la bandeja de mensajes guarde el anuncio de cada chat. Gasto y costo por venta: etapa 2.</div>';
+  cont.innerHTML=h;
 }
 // Sub-pregunta de «Google anuncio»: qué código traía el mensaje de WhatsApp.
 // Es lo que separa la campaña de Búsqueda de la de Shopping.
@@ -33454,6 +33660,7 @@ function _mdCruceCargar(it){
   renderPrevTipo('VENTA');
   renderPrevCanal('Cotizador');
   renderPrevProd(pedidoData);
+  origenProponer();
   showPage('prod',document.querySelector('.nav-tab[onclick*="showPage(\'prod\'"]'));
   document.getElementById('prev').classList.add('on');
   document.getElementById('prev').scrollIntoView({behavior:'smooth',block:'start'});

@@ -159,6 +159,15 @@ cambiarlo en el Manual.
   su propio mapa en `WASABIL-SII.md`.
 - **Apps Script** — recordatorio de seguimiento + planilla de gastos Wasabil.
 - **Tarea diaria 8:03** — reporte de gastos Wasabil por correo.
+- **Origen de clientes** (18-11-2026) — la Gestión trae del Cotizador cada 10 min
+  (cron `origen-cotizador`, pg_net) una fila por cotización a `origen_eventos`, con el
+  canal clasificado en SQL (`origen_clasificar`, la única fuente de esa regla). El
+  secreto vive en el vault de Gestión (`cotizador_origen`); el Cotizador guarda solo su
+  huella (`privado.llaves_externas`, función `origenes_para_gestion`). Al cargar una
+  venta, `origenProponer()` busca el celular en `v_origen_contacto` y propone el canal;
+  la pestaña «Origen» (admin) cruza `v_origen_leads_mes` con las ventas de Finanzas.
+  Migraciones: Gestión `0035`, Cotizador `0005`. Finanzas guarda además
+  `como_ubicacion`, `como_campana`, `como_anuncio` y `como_propuesto`.
 
 ---
 

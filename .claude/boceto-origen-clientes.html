@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boceto · Origen de clientes</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#F6F4EF; --card:#fff; --ink:#22251F; --muted:#6B6F63; --line:#E2DED3; --verde:#485B3D; --verde-soft:#E6EBE1;
+         --terra:#B5652E; --terra-soft:#F5E6DA; --ambar:#8A5A00; --ambar-soft:#FBF0D3; --rojo:#9B2C2C; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--ink); font:15px/1.45 Poppins,system-ui,sans-serif; }
+  .wrap{ max-width:420px; margin:0 auto; padding:16px 16px 48px; display:flex; flex-direction:column; gap:16px; }
+  .boc{ font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--terra); font-weight:600; }
+  h1{ font:700 24px/1.15 'Playfair Display',Georgia,serif; margin:4px 0; }
+  .intro{ color:var(--muted); font-size:13.5px; margin:0; }
+  section{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .paso{ font-size:11.5px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--terra); }
+  .head{ display:flex; align-items:center; gap:10px; }
+  .ico{ width:22px; height:22px; flex:none; stroke:var(--terra); fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+  h2{ font:700 20px 'Playfair Display',Georgia,serif; margin:0; }
+  .donde{ font-size:12.5px; color:var(--muted); margin:-4px 0 0; }
+  .s{ font-size:12.5px; color:var(--muted); }
+  .s b{ color:var(--ink); font-weight:500; }
+  .ejemplo{ font-size:11px; color:var(--ambar); background:var(--ambar-soft); border-radius:6px; padding:2px 7px; align-self:flex-start; }
+
+  /* ficha persona */
+  .persona{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
+  .persona .n{ font-weight:600; font-size:15.5px; }
+  .chip{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; border-radius:999px; padding:3px 9px; white-space:nowrap; }
+  .chip.meta{ background:var(--terra-soft); color:var(--terra); }
+  .chip.google{ background:var(--verde-soft); color:var(--verde); }
+  .chip.gris{ background:#EEECE6; color:var(--muted); }
+  .origen2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .caja{ background:var(--bg); border-radius:10px; padding:10px 11px; display:flex; flex-direction:column; gap:3px; }
+  .caja .k{ font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+  .caja .v{ font-size:13.5px; font-weight:500; }
+  .caja .d{ font-size:11.5px; color:var(--muted); }
+  .linea{ position:relative; padding-left:20px; display:flex; flex-direction:column; gap:12px; }
+  .linea:before{ content:""; position:absolute; left:6px; top:6px; bottom:6px; width:2px; background:var(--line); }
+  .ev{ position:relative; }
+  .ev:before{ content:""; position:absolute; left:-18px; top:5px; width:10px; height:10px; border-radius:50%; background:#fff; border:2px solid var(--muted); }
+  .ev.clic:before{ border-color:var(--terra); background:var(--terra); }
+  .ev.venta:before{ border-color:var(--verde); background:var(--verde); }
+  .ev .f{ font-size:11.5px; color:var(--muted); }
+  .ev .t{ font-size:13.5px; font-weight:500; }
+  .ev .x{ font-size:12px; color:var(--muted); }
+
+  /* propuesta en carga */
+  .modal{ border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:10px; background:#FCFBF8; }
+  .campo{ display:flex; flex-direction:column; gap:4px; }
+  .campo label{ font-size:12px; font-weight:600; color:var(--muted); }
+  .sel{ border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:13.5px; background:#fff; display:flex; justify-content:space-between; }
+  .sel.auto{ border-color:var(--verde); box-shadow:0 0 0 2px var(--verde-soft); }
+  .sel svg{ width:14px; height:14px; stroke:var(--muted); fill:none; stroke-width:2; }
+  .auto-nota{ display:flex; gap:7px; align-items:flex-start; font-size:12px; color:var(--verde); background:var(--verde-soft); border-radius:8px; padding:8px 10px; }
+  .auto-nota svg{ width:15px; height:15px; stroke:var(--verde); fill:none; stroke-width:2; flex:none; margin-top:1px; }
+  .btns{ display:flex; flex-wrap:wrap; gap:6px; }
+  .b{ border:1px solid var(--verde); background:var(--verde); color:#fff; border-radius:8px; padding:7px 11px; font:600 12.5px Poppins,sans-serif; }
+  .b.sec{ background:#fff; color:var(--verde); }
+
+  /* taxonomía */
+  .tax{ display:flex; flex-direction:column; gap:8px; }
+  .tax .g{ display:flex; flex-direction:column; gap:5px; }
+  .tax .gt{ font-size:12px; font-weight:600; }
+  .tax .ops{ display:flex; flex-wrap:wrap; gap:5px; }
+  .tax .ops span{ font-size:12px; border:1px solid var(--line); border-radius:999px; padding:3px 9px; background:#fff; }
+  .tax .ops span.auto{ border-color:var(--terra); color:var(--terra); }
+
+  /* informe */
+  .kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .kpi{ background:var(--bg); border-radius:10px; padding:10px; }
+  .kpi .k{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+  .kpi .v{ font:700 18px 'Playfair Display',Georgia,serif; margin-top:2px; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th{ text-align:right; font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; padding:0 0 6px; }
+  th + th, td + td{ padding-left:8px; }
+  th:first-child, td:first-child{ text-align:left; }
+  td{ text-align:right; padding:7px 0; border-top:1px solid var(--line); white-space:nowrap; }
+  td:first-child{ white-space:normal; }
+  td .sub{ display:block; font-size:11px; color:var(--muted); }
+  .bien{ color:var(--verde); font-weight:600; }
+  .mal{ color:var(--rojo); font-weight:600; }
+  .barra{ height:6px; border-radius:3px; background:var(--line); overflow:hidden; margin-top:4px; }
+  .barra i{ display:block; height:100%; background:var(--terra); }
+  .anuncio{ display:flex; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); }
+  .anuncio:first-of-type{ border-top:0; }
+  .mini{ width:44px; height:56px; border-radius:6px; background:linear-gradient(160deg,#C9B79C,#8C6E4E); flex:none; position:relative; }
+  .mini.feed{ height:44px; }
+  .mini span{ position:absolute; bottom:3px; left:3px; font-size:8.5px; background:rgba(0,0,0,.55); color:#fff; border-radius:3px; padding:1px 4px; }
+  .anuncio .c{ flex:1; min-width:0; }
+  .anuncio .t{ font-size:13px; font-weight:500; }
+  .anuncio .r{ text-align:right; font-size:12px; }
+  .anuncio .r b{ display:block; font-size:13.5px; }
+
+  .nota{ background:#fff; border:1px dashed #D9CFC1; border-radius:10px; padding:10px 12px; font-size:12.5px; color:var(--muted); }
+  .nota strong{ color:var(--ink); }
+  .nota ul{ margin:6px 0 0; padding-left:18px; }
+  .nota li{ margin:3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div>
+    <div class="boc">Boceto · para conversar</div>
+    <h1>De dónde llegan los clientes</h1>
+    <p class="intro">Una ficha por persona que junta todo por teléfono, el origen que se propone solo al cargar la venta y un informe mensual de qué anuncio vende de verdad.</p>
+  </div>
+
+  <!-- 1. FICHA DE LA PERSONA -->
+  <section>
+    <div class="paso">1 · Ficha de la persona</div>
+    <div class="head">
+      <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+      <h2>Recorrido de cada cliente</h2>
+    </div>
+    <p class="donde">Se abre desde Finanzas, Producción o el panel del Cotizador al tocar el nombre.</p>
+    <span class="ejemplo">Persona y datos de ejemplo</span>
+
+    <div class="persona">
+      <div>
+        <div class="n">Carolina M.</div>
+        <div class="s">+56 9 •••• 4821 · Puerto Varas</div>
+      </div>
+      <span class="chip meta">Compró · $890.000</span>
+    </div>
+
+    <div class="origen2">
+      <div class="caja">
+        <span class="k">Lo que medimos</span>
+        <span class="v">Meta anuncio</span>
+        <span class="d">Historia de Instagram · «Mesa Río Maullín»</span>
+      </div>
+      <div class="caja">
+        <span class="k">Lo que nos dijo</span>
+        <span class="v">Instagram</span>
+        <span class="d">«Los sigo hace tiempo»</span>
+      </div>
+    </div>
+
+    <div class="linea">
+      <div class="ev clic">
+        <div class="f">02-11 · 21:14</div>
+        <div class="t">Tocó un anuncio en una historia de Instagram</div>
+        <div class="x">«Mesa Río Maullín» → WhatsApp 0141. Primer contacto.</div>
+      </div>
+      <div class="ev">
+        <div class="f">03-11 · 10:20</div>
+        <div class="t">César le cotizó una mesa de 2,2 m</div>
+        <div class="x">CL-1126-031 · $936.842</div>
+      </div>
+      <div class="ev">
+        <div class="f">04-11 · 18:02</div>
+        <div class="t">Volvió por Google (búsqueda «casa zaru»)</div>
+        <div class="x">Visitó la tienda y escribió al 5558 (G)</div>
+      </div>
+      <div class="ev venta">
+        <div class="f">05-11</div>
+        <div class="t">Compró · pedido 1490</div>
+        <div class="x">$890.000 por transferencia · 3 días desde el primer contacto</div>
+      </div>
+    </div>
+
+    <div class="nota"><strong>Regla del crédito:</strong> la venta se le anota al <strong>primer contacto</strong> (el anuncio que la trajo). Los toques que vienen después quedan a la vista en el recorrido, pero no se cuentan dos veces. Si la persona ya era cliente, cuenta como «cliente antiguo».</div>
+  </section>
+
+  <!-- 2. AL CARGAR LA VENTA -->
+  <section>
+    <div class="paso">2 · Al cargar la venta</div>
+    <div class="head">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13 7l4 4"/></svg>
+      <h2>El origen viene puesto</h2>
+    </div>
+    <p class="donde">Dentro del formulario de venta que ya existe (Producción → pantallazo), en vez del campo «¿cómo llegó?» escrito a mano.</p>
+
+    <div class="modal">
+      <div class="auto-nota">
+        <svg viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"/></svg>
+        <span>Encontramos a esta persona por su teléfono: llegó el <b>02-11</b> desde un anuncio de Meta. Revisa y confirma.</span>
+      </div>
+      <div class="campo">
+        <label>Canal</label>
+        <div class="sel auto">Meta anuncio <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <div class="campo">
+        <label>Detalle</label>
+        <div class="sel auto">Historia IG · Mesa Río Maullín <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <div class="campo">
+        <label>¿Qué dijo el cliente? (opcional)</label>
+        <div class="sel">Instagram <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+      </div>
+      <div class="btns"><span class="b">Confirmar</span><span class="b sec">Cambiar</span></div>
+    </div>
+    <p class="s">Si no se encuentra rastro, el canal queda <b>obligatorio</b> y solo con opciones de la lista. Nada de texto libre: así no vuelve a aparecer «TRANSFERENCIA» como origen.</p>
+  </section>
+
+  <!-- 3. LISTA FIJA -->
+  <section>
+    <div class="paso">3 · Una sola lista</div>
+    <div class="head">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
+      <h2>Los canales</h2>
+    </div>
+    <p class="donde">Los mismos en la Gestión, el Cotizador y los informes. En terracota, los que se pueden detectar solos.</p>
+    <div class="tax">
+      <div class="g"><span class="gt">Pagado</span>
+        <div class="ops"><span class="auto">Meta anuncio</span><span class="auto">Google Search</span><span class="auto">Google Shopping</span><span class="auto">Google otro</span></div></div>
+      <div class="g"><span class="gt">Orgánico</span>
+        <div class="ops"><span class="auto">Google orgánico / Maps</span><span>Instagram orgánico</span><span class="auto">Tienda directo</span><span>Mercado Libre</span></div></div>
+      <div class="g"><span class="gt">Relación</span>
+        <div class="ops"><span class="auto">Cliente antiguo</span><span>Referido</span><span>Profesional / B2B</span><span class="auto">Correo (Klaviyo)</span></div></div>
+      <div class="g"><span class="gt">Presencial</span>
+        <div class="ops"><span>Feria</span><span>Taller / Villarrica</span><span>Canje / influencer</span></div></div>
+    </div>
+    <p class="s"><b>Detalle</b> según el canal: campaña y anuncio, y además historia, feed o reel. Para un referido, quién lo recomendó; para una feria, cuál.</p>
+  </section>
+
+  <!-- 4. INFORME -->
+  <section>
+    <div class="paso">4 · Informe mensual</div>
+    <div class="head">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      <h2>Qué canal vende</h2>
+    </div>
+    <p class="donde">Pestaña nueva en la Gestión (solo admin). También en el cierre mensual y en «Mi día» de Cote.</p>
+    <span class="ejemplo">Cifras inventadas solo para el dibujo</span>
+
+    <div class="kpis">
+      <div class="kpi"><div class="k">Ventas</div><div class="v">28</div></div>
+      <div class="kpi"><div class="k">Costo x venta</div><div class="v">$62 mil</div></div>
+      <div class="kpi"><div class="k">Retorno</div><div class="v">9,4×</div></div>
+    </div>
+
+    <table>
+      <thead><tr><th>Canal</th><th>Leads</th><th>Ventas</th><th>Vendido</th><th>Costo x venta</th></tr></thead>
+      <tbody>
+        <tr><td>Meta anuncio<span class="sub">gasto $820 mil</span></td><td>96</td><td>9</td><td>$6,1M</td><td class="bien">$91 mil</td></tr>
+        <tr><td>Google Search<span class="sub">gasto $640 mil</span></td><td>41</td><td>3</td><td>$2,4M</td><td class="mal">$213 mil</td></tr>
+        <tr><td>Google Shopping<span class="sub">gasto $280 mil</span></td><td>22</td><td>4</td><td>$3,0M</td><td class="bien">$70 mil</td></tr>
+        <tr><td>Google orgánico</td><td>38</td><td>5</td><td>$3,9M</td><td>—</td></tr>
+        <tr><td>Cliente antiguo / referido</td><td>12</td><td>5</td><td>$4,6M</td><td>—</td></tr>
+        <tr><td>Sin rastro<span class="sub">meta: menos de 10 %</span></td><td>15</td><td>2</td><td>$1,0M</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <div class="paso" style="margin-top:6px">Anuncios que trajeron ventas</div>
+    <div>
+      <div class="anuncio">
+        <div class="mini"><span>Historia</span></div>
+        <div class="c"><div class="t">Mesa Río Maullín</div><div class="s">Meta · 31 leads</div></div>
+        <div class="r"><b>4 ventas</b>$3,2M</div>
+      </div>
+      <div class="anuncio">
+        <div class="mini feed"><span>Feed</span></div>
+        <div class="c"><div class="t">Cubierta de raulí</div><div class="s">Meta · 44 leads</div></div>
+        <div class="r"><b>3 ventas</b>$1,7M</div>
+      </div>
+      <div class="anuncio">
+        <div class="mini"><span>Reel</span></div>
+        <div class="c"><div class="t">Puerta granero</div><div class="s">Meta · 21 leads</div></div>
+        <div class="r"><b>0 ventas</b>—</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="nota">
+    <strong>Qué haría falta para construirlo</strong>
+    <ul>
+      <li><strong>Guardar la referencia del anuncio del 0141 y de Instagram.</strong> Es la bandeja de mensajes (Cotizador 0004), que ya está escrita y sin aplicar.</li>
+      <li><strong>Una tabla de personas y contactos en el Cotizador</strong> unida por teléfono, con su migración y su historial, como pide el contrato.</li>
+      <li><strong>Cambiar el campo de origen en la Gestión</strong> por la lista fija, que se propone solo. Las ventas viejas se re-etiquetan una vez, contigo.</li>
+      <li><strong>Gasto por campaña:</strong> lectura de Meta (ya conectado) y export de Google.</li>
+      <li><strong>Más adelante:</strong> devolverle las ventas a Meta y Google para que aprendan quién compra.</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>
