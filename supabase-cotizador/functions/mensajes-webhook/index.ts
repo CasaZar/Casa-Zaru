@@ -92,6 +92,7 @@ PRECIOS
   "cotizar": {"prod":"puertas","tipo":"sin_vidrio","piezas":[{"alto":200,"ancho":80,"cant":1}]}    (tipo: sin_vidrio, con_vidrio o granero)
   "cotizar": {"prod":"mesa","piezas":[{"largo":180,"ancho":90,"cant":1}]}
 - Qué decir junto a la marca: en cubierta, repisa y peldaños, que ahí ve al instante el precio en cada madera. En puertas y mesas, que ahí elige el modelo con fotos y ve su precio. Menciona la medida («tu cubierta de 240 × 62 cm»).
+- Antes de tu mensaje con la cotización el cliente ya recibió un aviso de que se la estás preparando y de que se la mandas en unos minutos. Por eso ese mensaje parte entregándola («Listo, acá está tu cotización…»): no saludes de nuevo, no digas que la vas a preparar y no comentes lo que eligió.
 - ENVÍO: el envío a domicilio también se cotiza ahí mismo. Si pusiste la comuna en "cotizar", dile que la cotización trae además el valor del envío a su comuna. Si todavía no la sabes, cierra preguntando a qué comuna va para agregarle el envío. Nunca digas que el envío se cotiza aparte ni después, y nunca escribas su valor.
 - Si el cliente dice su comuna DESPUÉS de haber recibido su cotización, no comentes la comuna: responde «Súper, actualizo la cotización.» y manda de nuevo la marca [LINK_COTIZACION] con el mismo "cotizar" de antes más la comuna, diciendo que ahora incluye el envío a domicilio.
 - Para cotizar el envío basta la comuna. NUNCA pidas que elija la madera, el modelo ni nada más para poder cotizar el envío, y no digas «te lo confirmo después»: con la comuna va en la cotización.
@@ -429,10 +430,18 @@ async function redactar(chat: number, mensajeId: number) {
   // cuando se cumple la espera. Si antes entra otro mensaje, este borrador caduca y no sale.
   try {
     if (autoPermitido(chat) && autoPasa(revision)) {
-      const seg = esperaSeg(revision.cotiza ? 'AUTO_ESPERA_COTIZA_SEG' : 'AUTO_ESPERA_SEG', revision.cotiza ? 300 : 120);
+      const seg = esperaSeg(revision.cotiza ? 'AUTO_ESPERA_COTIZA_SEG' : 'AUTO_ESPERA_SEG', revision.cotiza ? 240 : 120);
       await db(`mensajes_borradores?id=eq.${borradorId}&estado=eq.pendiente`, {
         method: 'PATCH', body: JSON.stringify({ auto_desde: new Date(Date.now() + seg * 1000).toISOString() }),
       });
+      // Si lleva cotización, primero avisa que la está preparando (sale ahora) y la cotización llega
+      // cuando se cumple la espera. Un solo aviso cada 15 minutos por chat: si el cliente agrega un
+      // dato mientras espera, no se le repite.
+      if (revision.cotiza && seg >= 60) {
+        const hace = encodeURIComponent(new Date(Date.now() - 15 * 60000).toISOString());
+        const avisos = await db(`mensajes_envios?select=id&chat_id=eq.${chat}&clave=like.auto-aviso-*&estado=eq.enviado&created_at=gte.${hace}&limit=1`);
+        if (!(avisos ?? []).length) await autoResponder(chat, mensajeId, borradorId, AVISO_COTIZA, revision, true);
+      }
     }
   } catch (e) { console.error('auto agenda', chat, String(e)); }
 }
@@ -442,8 +451,10 @@ async function redactar(chat: number, mensajeId: number) {
 // las mismas reglas que para una persona: ventana de 24 h, tope de 2 sin respuesta, texto limpio.
 const AUTO_POR = 'automatico@bandeja';
 const AUTO_TOPE_HORA = 30;
+// Lo que dice apenas el cliente da sus medidas, mientras «prepara» la cotización (texto del dueño, 19-11-2026).
+const AVISO_COTIZA = 'Listo, voy a preparar tu cotización. Dame unos minutos y te la envío.';
 
-// Espera antes de responder solo, en segundos: 120 normal y 300 si el mensaje lleva una cotización
+// Espera antes de responder solo, en segundos: 120 normal y 240 si el mensaje lleva una cotización
 // (se pueden cambiar con AUTO_ESPERA_SEG y AUTO_ESPERA_COTIZA_SEG; entre 0 y 1800).
 function esperaSeg(nombre: string, porDefecto: number): number {
   const n = Number((Deno.env.get(nombre) ?? '').trim() || porDefecto);
@@ -478,7 +489,9 @@ function autoPermitido(chatId: number): boolean {
   return solo.includes(String(chatId)) && sePuedeEnviarA(chatId);
 }
 
-async function autoResponder(chatId: number, mensajeId: number, borradorId: number, texto: string, rev: any): Promise<boolean> {
+// aviso = true: es el «voy a preparar tu cotización». Sale sin amarrarse al borrador (que sigue
+// pendiente y agendado) y con su propia clave, así el aviso y la cotización salen una vez cada uno.
+async function autoResponder(chatId: number, mensajeId: number, borradorId: number, texto: string, rev: any, aviso = false): Promise<boolean> {
   if (!autoPermitido(chatId) || !autoPasa(rev)) return false;
   const token = (Deno.env.get('WA_TOKEN') ?? '').trim();
   const phone = (Deno.env.get('WA_PHONE_NUMBER_ID') ?? '').trim();
@@ -496,7 +509,10 @@ async function autoResponder(chatId: number, mensajeId: number, borradorId: numb
 
   const res = await dbCrudo('mensajes_envios', {
     method: 'POST', prefer: 'return=representation',
-    body: JSON.stringify({ clave: 'auto-borrador-' + String(borradorId).padStart(12, '0'), chat_id: chatId, borrador_id: borradorId, texto, por: AUTO_POR }),
+    body: JSON.stringify({
+      clave: (aviso ? 'auto-aviso-' : 'auto-borrador-') + String(borradorId).padStart(12, '0'),
+      chat_id: chatId, borrador_id: aviso ? null : borradorId, texto, por: AUTO_POR,
+    }),
   });
   const reserva = res.cuerpo?.[0];
   if (!res.ok || !reserva?.id) { console.error('auto: la base no acepto', chatId, String(res.cuerpo?.message ?? res.status).slice(0, 200)); return false; }
