@@ -1,9 +1,11 @@
-// Bandeja de mensajes — proyecto COTIZADOR (cmxqorsyxoltrakxawro). Migración supabase-cotizador 0004.
+// Bandeja de mensajes — proyecto COTIZADOR (cmxqorsyxoltrakxawro). Migraciones supabase-cotizador 0004 y 0006.
 //
 // Recibe los mensajes del WhatsApp de la bandeja (+56 9 9305 1122, el número que dejó ManyChat) y de
 // Instagram por las APIs OFICIALES de Meta (webhook) y los guarda en mensajes_chats / mensajes. Por
 // cada mensaje entrante de texto le pide a Claude un borrador y lo deja en mensajes_borradores.
-// ETAPA 1: esta función NO ENVÍA NADA a ningún cliente.
+// ETAPA 2: ENVÍA SOLO cuando una persona con sesión del panel aprieta Enviar (ruta /enviar).
+// Nada sale automático. Antes de hablar con Meta se reserva el envío en mensajes_envios, y es la
+// BASE la que acepta o rechaza (ventana de 24 h, tope de 2 sin respuesta, chat tomado, texto).
 // App de Meta: «Casa Zaru Bandeja» (1678367953790415), negocio Casa Zaru. Ver .claude/bandeja-mensajes.md.
 //
 // Rutas:
@@ -12,11 +14,20 @@
 //   POST /mensajes-webhook/conocimiento   la revisión del 5558 sube ejemplos y la guía
 //   POST /mensajes-webhook/suscribir      engancha la app a la cuenta de WhatsApp (se corre una vez)
 //                                         y devuelve qué apps reciben sus mensajes
-//   (las dos últimas piden el encabezado x-conocimiento-token)
+//     (esas dos piden el encabezado x-conocimiento-token)
+//   POST /mensajes-webhook/enviar         { chat_id, texto, clave, borrador_id? }  manda UN mensaje
+//   POST /mensajes-webhook/tomar          { chat_id }  el chat queda a nombre de quien lo toma
+//     (esas dos piden la sesión del panel: Authorization: Bearer <token del usuario>; solo el dueño
+//      y los vendedores activos; se llaman desde cotizador.casazaru.cl/mensajes.html)
 //
 // Despliegue: panel del Cotizador → Edge Functions → Via Editor, nombre `mensajes-webhook`,
 // un solo archivo (index.ts). «Verify JWT» APAGADO: Meta no trae sesión;
-// la puerta es la firma de Meta y, en las rutas propias, el secreto propio.
+// la puerta es la firma de Meta, el secreto propio o la sesión del panel, según la ruta.
+//
+// Candado de envío (variables, no son secretos):
+//   ENVIO_SOLO_CHATS       ids de chat separados por coma. Mientras ENVIO_ABIERTO no sea «si», SOLO a
+//                          esos chats se les puede enviar (prueba contra el número del dueño).
+//   ENVIO_ABIERTO          «si» = se puede enviar a cualquier chat. Sin ninguna de las dos, no se envía.
 //
 // Secretos (los carga el administrador en el panel; NUNCA van al repo):
 //   META_APP_SECRET        «Clave secreta de la app» de Meta, para validar la firma
@@ -24,7 +35,7 @@
 //   WA_PHONE_NUMBER_ID     1190938267435299 (el 1122; solo ese número entra). No es secreto.
 //   WA_BUSINESS_ACCOUNT_ID 1323717016492821 (cuenta «Casa Zaru - Manychat»). No es secreto.
 //   WA_TOKEN               token permanente de un usuario del sistema con whatsapp_business_messaging
-//                          y whatsapp_business_management sobre esa cuenta. Hoy solo lo usa /suscribir.
+//                          y whatsapp_business_management sobre esa cuenta. Lo usan /suscribir y /enviar.
 //   IG_ACCOUNT_ID          id de la cuenta de Instagram de Casa Zaru (cuando se conecte Instagram)
 //   CONOCIMIENTO_TOKEN     texto largo al azar; la copia del PC vive en %USERPROFILE%\.casazaru\
 //   ANTHROPIC_API_KEY      opcional: sin ella se guardan los mensajes pero no hay borradores
@@ -204,7 +215,8 @@ async function guardar(x: Entrada): Promise<{ chat: number; id: number } | null>
 }
 
 // ── Borrador ──────────────────────────────────────────────────────────────
-const PROHIBIDO = [/nativ[ao]s?\b/i, /al tiro/i, /^[\s]*[¡¿]/m];
+// «nativa» como palabra entera: «alternativa» no cuenta. Signos de apertura en cualquier parte.
+const PROHIBIDO = [/(^|[^a-záéíóúüñ])nativ[ao]s?(?![a-záéíóúüñ])/i, /(^|[^a-záéíóúüñ])al tiro(?![a-záéíóúüñ])/i, /[¡¿]/];
 
 async function contexto(): Promise<string> {
   const [guia] = await db('mensajes_guia?select=texto&order=id.desc&limit=1');
@@ -349,9 +361,207 @@ async function conocimiento(req: Request) {
   return json({ ok: true, ejemplos: filas.length, guia_nueva: guia });
 }
 
+// ── Rutas del panel: /enviar y /tomar (con la sesión de un usuario del panel) ──────────────
+const DUENO = 'hola@casazaru.cl';
+const ORIGEN_PANEL = 'https://cotizador.casazaru.cl';
+
+function cors(): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': ORIGEN_PANEL,
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '600',
+    'Vary': 'Origin',
+  };
+}
+function jsonP(cuerpo: unknown, status = 200) {
+  return new Response(JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json', ...cors() } });
+}
+
+// Como db(), pero devuelve el estado y el cuerpo en vez de botar: aquí importa POR QUÉ rechazó la base.
+async function dbCrudo(ruta: string, init: RequestInit & { prefer?: string } = {}) {
+  const llave = llaveServicio();
+  const r = await fetch(BASE + ruta, {
+    ...init,
+    headers: {
+      apikey: llave, Authorization: 'Bearer ' + llave, 'Content-Type': 'application/json',
+      ...(init.prefer ? { Prefer: init.prefer } : {}),
+    },
+  });
+  const t = await r.text();
+  let cuerpo: any = null;
+  try { cuerpo = t ? JSON.parse(t) : null; } catch (_e) { cuerpo = null; }
+  return { ok: r.ok, status: r.status, cuerpo };
+}
+
+// Quién llama: el token del usuario se valida contra Supabase Auth, y tiene que ser el dueño o un
+// vendedor activo (lo mismo que mensajes_puede_leer() en la base).
+async function quienEs(req: Request): Promise<{ email: string } | null> {
+  const tok = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  if (tok.length < 20) return null;
+  let u: any = null;
+  for (const k of [llaveServicio(), Deno.env.get('SUPABASE_ANON_KEY') ?? ''].filter(Boolean)) {
+    const r = await fetch((Deno.env.get('SUPABASE_URL') ?? '') + '/auth/v1/user', {
+      headers: { apikey: k, Authorization: 'Bearer ' + tok },
+    });
+    if (r.ok) { u = await r.json().catch(() => null); break; }
+    await r.text().catch(() => '');
+  }
+  const email = String(u?.email ?? '').trim().toLowerCase();
+  if (!email) return null;
+  if (email === DUENO) return { email };
+  const v = await db('vendedores?select=email&activo=is.true');
+  return (v ?? []).some((x: any) => String(x.email ?? '').trim().toLowerCase() === email) ? { email } : null;
+}
+
+// Candado de envío: cerrado por defecto. Ver el encabezado (ENVIO_SOLO_CHATS / ENVIO_ABIERTO).
+function sePuedeEnviarA(chatId: number): boolean {
+  if ((Deno.env.get('ENVIO_ABIERTO') ?? '').trim().toLowerCase() === 'si') return true;
+  const solo = (Deno.env.get('ENVIO_SOLO_CHATS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return solo.includes(String(chatId));
+}
+
+async function enviar(req: Request) {
+  const yo = await quienEs(req);
+  if (!yo) return jsonP({ error: 'Tu sesión venció o tu cuenta no tiene acceso. Vuelve a entrar.' }, 401);
+  const token = (Deno.env.get('WA_TOKEN') ?? '').trim();
+  const phone = (Deno.env.get('WA_PHONE_NUMBER_ID') ?? '').trim();
+  if (!token || !/^\d{6,20}$/.test(phone)) return jsonP({ error: 'El envío no está configurado.' }, 500);
+
+  const t = await req.text();
+  if (t.length > 20000) return jsonP({ error: 'El mensaje es demasiado largo.' }, 413);
+  let b: any;
+  try { b = JSON.parse(t); } catch { return jsonP({ error: 'JSON inválido' }, 400); }
+  const chatId = Number(b?.chat_id);
+  const clave = String(b?.clave ?? '');
+  const texto = String(b?.texto ?? '').replace(/\r\n/g, '\n').trim();
+  const borradorId = b?.borrador_id == null ? null : Number(b.borrador_id);
+  if (!Number.isInteger(chatId) || chatId <= 0) return jsonP({ error: 'Falta el chat.' }, 400);
+  if (!/^[A-Za-z0-9-]{16,80}$/.test(clave)) return jsonP({ error: 'Falta la clave del envío.' }, 400);
+  if (!texto) return jsonP({ error: 'El mensaje está vacío.' }, 400);
+  if (texto.length > 4000) return jsonP({ error: 'El mensaje es demasiado largo.' }, 400);
+  if (borradorId !== null && (!Number.isInteger(borradorId) || borradorId <= 0)) return jsonP({ error: 'Borrador inválido.' }, 400);
+  if (!sePuedeEnviarA(chatId)) {
+    return jsonP({ error: 'El envío está en modo de prueba y todavía no está habilitado para este chat.', definitivo: true }, 403);
+  }
+
+  const [chat] = await db(`mensajes_chats?select=id,canal,contacto_id,deleted_at&id=eq.${chatId}`);
+  if (!chat || chat.deleted_at) return jsonP({ error: 'Ese chat no existe.', definitivo: true }, 404);
+
+  // 1) Reserva. Las reglas las aplica la base (0006): si la reserva no entra, no se envía nada.
+  const res = await dbCrudo('mensajes_envios', {
+    method: 'POST', prefer: 'return=representation',
+    body: JSON.stringify({ clave, chat_id: chatId, borrador_id: borradorId, texto, por: yo.email }),
+  });
+  if (!res.ok) {
+    if (res.cuerpo?.code === '23505') {          // misma clave: ese envío ya se procesó (doble clic o reintento)
+      const [prev] = await db(`mensajes_envios?select=id,estado,error,created_at&clave=eq.${clave}`);
+      if (prev?.estado === 'enviado') return jsonP({ ok: true, repetido: true });
+      if (prev?.estado === 'enviando') {
+        if (Date.now() - new Date(prev.created_at).getTime() < 120000) {
+          return jsonP({ error: 'Ese mensaje se está enviando. Espera unos segundos y actualiza.', repetido: true }, 409);
+        }
+        await dbCrudo(`mensajes_envios?id=eq.${prev.id}&estado=eq.enviando`, {
+          method: 'PATCH', body: JSON.stringify({ estado: 'fallo', error: 'quedó a medias: no se sabe si salió' }),
+        });
+        return jsonP({ error: 'Ese envío quedó a medias. Mira en el chat si el mensaje salió antes de volver a enviarlo.', repetido: true, definitivo: true }, 409);
+      }
+      return jsonP({ error: 'Ese envío ya había fallado: ' + (prev?.error ?? 'sin detalle'), repetido: true, definitivo: true }, 409);
+    }
+    const m = String(res.cuerpo?.message ?? '');
+    if (m.indexOf('ENVIO RECHAZADO: ') === 0) return jsonP({ error: m.slice('ENVIO RECHAZADO: '.length), definitivo: true }, 422);
+    console.error('reserva', res.status, JSON.stringify(res.cuerpo ?? null).slice(0, 300));
+    return jsonP({ error: 'La base no aceptó el envío.', definitivo: true }, 422);
+  }
+  const reserva = res.cuerpo?.[0];
+  if (!reserva?.id) return jsonP({ error: 'La base no confirmó la reserva del envío.', definitivo: true }, 500);
+
+  // 2) Meta: un solo mensaje de texto, dentro de la ventana de 24 horas.
+  let cuerpo: any = null;
+  let status = 0;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v25.0/${phone}/messages`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp', recipient_type: 'individual', to: chat.contacto_id,
+        type: 'text', text: { preview_url: false, body: texto },
+      }),
+    });
+    status = r.status;
+    cuerpo = await r.json().catch(() => null);
+  } catch (e) {
+    cuerpo = { error: { message: 'no se pudo conectar con Meta (' + String(e).slice(0, 120) + ')' } };
+  }
+  const wamid = cuerpo?.messages?.[0]?.id;
+  if (!wamid) {
+    const err = String(cuerpo?.error?.message ?? ('HTTP ' + status)).slice(0, 600);
+    await dbCrudo(`mensajes_envios?id=eq.${reserva.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'fallo', error: err }) });
+    return jsonP({ error: 'Meta no aceptó el mensaje: ' + err, definitivo: true }, 502);
+  }
+
+  // 3) Registro: primero la reserva (el mensaje ya salió), después el mensaje y el borrador.
+  await dbCrudo(`mensajes_envios?id=eq.${reserva.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'enviado', meta_id: wamid }) });
+  let aviso = '';
+  try {
+    await db('mensajes?on_conflict=meta_id', {
+      method: 'POST', prefer: 'resolution=ignore-duplicates,return=minimal',
+      body: JSON.stringify({
+        chat_id: chatId, meta_id: wamid, direccion: 'saliente', autor: 'bandeja', tipo: 'text', texto,
+        payload: cuerpo, enviado_at: new Date().toISOString(), enviado_por: yo.email,
+      }),
+    });
+    if (borradorId !== null) {
+      const [bo] = await db(`mensajes_borradores?select=id,texto&id=eq.${borradorId}&chat_id=eq.${chatId}`);
+      if (bo) {
+        await db(`mensajes_borradores?id=eq.${borradorId}&estado=eq.pendiente`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            estado: String(bo.texto).trim() === texto ? 'enviado' : 'editado_enviado', texto_final: texto, aprobado_por: yo.email,
+          }),
+        });
+      }
+    }
+    await db(`mensajes_borradores?chat_id=eq.${chatId}&estado=eq.pendiente`, { method: 'PATCH', body: JSON.stringify({ estado: 'caducado' }) });
+  } catch (e) {
+    console.error('registro tras envio', chatId, String(e));
+    aviso = 'El mensaje salió, pero no quedó completo en el historial.';
+  }
+  return jsonP(aviso ? { ok: true, aviso } : { ok: true });
+}
+
+async function tomar(req: Request) {
+  const yo = await quienEs(req);
+  if (!yo) return jsonP({ error: 'Tu sesión venció o tu cuenta no tiene acceso. Vuelve a entrar.' }, 401);
+  let b: any;
+  try { b = JSON.parse(await req.text()); } catch { return jsonP({ error: 'JSON inválido' }, 400); }
+  const chatId = Number(b?.chat_id);
+  if (!Number.isInteger(chatId) || chatId <= 0) return jsonP({ error: 'Falta el chat.' }, 400);
+  const r = await dbCrudo(`mensajes_chats?id=eq.${chatId}&tomado_por=is.null&deleted_at=is.null`, {
+    method: 'PATCH', prefer: 'return=representation',
+    body: JSON.stringify({ estado: 'de_cesar', tomado_por: yo.email, tomado_at: new Date().toISOString() }),
+  });
+  if (r.ok && Array.isArray(r.cuerpo) && r.cuerpo.length) return jsonP({ ok: true });
+  const [c] = await db(`mensajes_chats?select=tomado_por&id=eq.${chatId}`);
+  if (!c) return jsonP({ error: 'Ese chat no existe.' }, 404);
+  if (c.tomado_por) return jsonP({ error: String(c.tomado_por).toLowerCase() === yo.email ? 'Ya lo tenías tomado.' : 'Ese chat ya lo tomó otra persona.' }, 409);
+  return jsonP({ error: 'No se pudo tomar el chat.' }, 500);
+}
+
 // ── Entrada ───────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const url = new URL(req.url);
+
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });
+  if (url.pathname.endsWith('/enviar') || url.pathname.endsWith('/tomar')) {
+    if (req.method !== 'POST') return jsonP({ error: 'solo POST' }, 405);
+    try {
+      return await (url.pathname.endsWith('/enviar') ? enviar(req) : tomar(req));
+    } catch (e) {
+      console.error('ruta del panel', url.pathname, String(e));
+      return jsonP({ error: 'Falló el servidor. Actualiza y mira si el mensaje salió antes de reintentar.' }, 500);
+    }
+  }
 
   if (req.method === 'GET') {
     const ok = url.searchParams.get('hub.mode') === 'subscribe'
