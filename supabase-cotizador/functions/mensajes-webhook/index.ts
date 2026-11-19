@@ -28,6 +28,13 @@
 //   ENVIO_SOLO_CHATS       ids de chat separados por coma. Mientras ENVIO_ABIERTO no sea «si», SOLO a
 //                          esos chats se les puede enviar (prueba contra el número del dueño).
 //   ENVIO_ABIERTO          «si» = se puede enviar a cualquier chat. Sin ninguna de las dos, no se envía.
+//   AUTO_SOLO_CHATS        ids de chats DE PRUEBA en los que el borrador sale solo, sin que nadie lo apruebe
+//                          (pedido del dueño el 19-11 para conversar con el asistente desde su celular).
+//                          No existe un modo «automático para todos»: fuera de esta lista nada sale solo.
+//                          Igual pasa por la reserva en la base (ventana, tope de 2, texto), no sale si el
+//                          borrador pide una persona o le falta un precio, y tiene un tope por hora.
+//                          Antes de abrir lo automático a clientes falta la regla «si una persona ya
+//                          escribió en el chat, el asistente no responde más ahí».
 //
 // Secretos (los carga el administrador en el panel; NUNCA van al repo):
 //   META_APP_SECRET        «Clave secreta de la app» de Meta, para validar la firma
@@ -220,10 +227,10 @@ const PROHIBIDO = [/(^|[^a-záéíóúüñ])nativ[ao]s?(?![a-záéíóúüñ])/i
 
 async function contexto(): Promise<string> {
   const [guia] = await db('mensajes_guia?select=texto&order=id.desc&limit=1');
-  const ej = await db('mensajes_ejemplos?select=intencion,cliente,respuesta,propuesta,calidad,por_que,fuente'
-    + '&activo=is.true&calidad=in.(modelo,evitar)&order=fecha.desc&limit=40');
-  const modelos = ej.filter((e: any) => e.calidad === 'modelo').slice(0, 25);
-  const evitar = ej.filter((e: any) => e.calidad === 'evitar').slice(0, 8);
+  // Las dos listas se piden por separado: así nunca faltan los «evitar» aunque lo más nuevo sea todo «modelo».
+  const campos = 'mensajes_ejemplos?select=intencion,cliente,respuesta,por_que&activo=is.true&order=fecha.desc,id.desc';
+  const modelos = (await db(campos + '&calidad=eq.modelo&limit=25')) ?? [];
+  const evitar = (await db(campos + '&calidad=eq.evitar&limit=8')) ?? [];
   let s = '';
   if (guia?.texto) s += '\n\nGUÍA DE RESPUESTAS (aprendida de los chats reales del 5558):\n' + guia.texto;
   if (modelos.length) s += '\n\nRESPUESTAS MODELO (copia el tono y el siguiente paso, no los datos del cliente):\n'
@@ -281,9 +288,83 @@ async function redactar(chat: number, mensajeId: number) {
   await db(`mensajes_borradores?chat_id=eq.${chat}&estado=eq.pendiente`, {
     method: 'PATCH', body: JSON.stringify({ estado: 'caducado' }),
   });
-  await db('mensajes_borradores?on_conflict=mensaje_id', {
-    method: 'POST', prefer: 'resolution=ignore-duplicates,return=minimal',
+  const creado = await db('mensajes_borradores?on_conflict=mensaje_id', {
+    method: 'POST', prefer: 'resolution=ignore-duplicates,return=representation',
     body: JSON.stringify({ chat_id: chat, mensaje_id: mensajeId, texto, revision, modelo }),
+  });
+  const borradorId = creado?.[0]?.id;
+  if (!borradorId) return;                        // ya existía un borrador para ese mensaje: no se repite nada
+  try { await autoResponder(chat, mensajeId, borradorId, texto, revision); }
+  catch (e) { console.error('auto', chat, String(e)); }
+}
+
+// ── Respuesta automática: SOLO en los chats de prueba de AUTO_SOLO_CHATS ──────────────────
+// El borrador recién hecho sale solo. Sigue pasando por la reserva en la base (0006), así que valen
+// las mismas reglas que para una persona: ventana de 24 h, tope de 2 sin respuesta, texto limpio.
+const AUTO_POR = 'automatico@bandeja';
+const AUTO_TOPE_HORA = 30;
+
+function autoPermitido(chatId: number): boolean {
+  const solo = (Deno.env.get('AUTO_SOLO_CHATS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  return solo.includes(String(chatId)) && sePuedeEnviarA(chatId);
+}
+
+async function autoResponder(chatId: number, mensajeId: number, borradorId: number, texto: string, rev: any) {
+  if (!autoPermitido(chatId)) return;
+  // Lo que pide una persona, lo que tiene un precio sin completar o una palabra prohibida, queda como borrador.
+  if (rev.necesita_humano || rev.falta_precio || !rev.sin_palabras_prohibidas || !rev.toques_ok || !rev.cesar_no_entro) return;
+  const token = (Deno.env.get('WA_TOKEN') ?? '').trim();
+  const phone = (Deno.env.get('WA_PHONE_NUMBER_ID') ?? '').trim();
+  if (!token || !/^\d{6,20}$/.test(phone)) return;
+
+  const [chat] = await db(`mensajes_chats?select=canal,contacto_id,tomado_por,deleted_at&id=eq.${chatId}`);
+  if (!chat || chat.deleted_at || chat.tomado_por || chat.canal !== 'whatsapp') return;
+  // Si el cliente escribió varios mensajes seguidos, solo se contesta el último (su borrador ya leyó los anteriores).
+  const [ult] = await db(`mensajes?select=id&chat_id=eq.${chatId}&autor=eq.cliente&order=enviado_at.desc,id.desc&limit=1`);
+  if (!ult || ult.id !== mensajeId) return;
+  // Tope por hora: un freno por si del otro lado también hay algo automático.
+  const desde = encodeURIComponent(new Date(Date.now() - 3600000).toISOString());
+  const autos = await db(`mensajes?select=id&chat_id=eq.${chatId}&autor=eq.automatico&enviado_at=gte.${desde}&limit=${AUTO_TOPE_HORA}`);
+  if ((autos ?? []).length >= AUTO_TOPE_HORA) { console.error('auto: tope por hora', chatId); return; }
+
+  const res = await dbCrudo('mensajes_envios', {
+    method: 'POST', prefer: 'return=representation',
+    body: JSON.stringify({ clave: 'auto-' + crypto.randomUUID(), chat_id: chatId, borrador_id: borradorId, texto, por: AUTO_POR }),
+  });
+  const reserva = res.cuerpo?.[0];
+  if (!res.ok || !reserva?.id) { console.error('auto: la base no acepto', chatId, String(res.cuerpo?.message ?? res.status).slice(0, 200)); return; }
+
+  let cuerpo: any = null;
+  let status = 0;
+  try {
+    const r = await fetch(`https://graph.facebook.com/v25.0/${phone}/messages`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp', recipient_type: 'individual', to: chat.contacto_id,
+        type: 'text', text: { preview_url: false, body: texto },
+      }),
+    });
+    status = r.status;
+    cuerpo = await r.json().catch(() => null);
+  } catch (e) {
+    cuerpo = { error: { message: 'no se pudo conectar con Meta (' + String(e).slice(0, 120) + ')' } };
+  }
+  const wamid = cuerpo?.messages?.[0]?.id;
+  if (!wamid) {
+    const err = String(cuerpo?.error?.message ?? ('HTTP ' + status)).slice(0, 600);
+    await dbCrudo(`mensajes_envios?id=eq.${reserva.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'fallo', error: err }) });
+    console.error('auto: Meta no acepto', chatId, err);
+    return;
+  }
+  // La base marca el borrador como enviado al pasar la reserva a «enviado» (0007).
+  await dbCrudo(`mensajes_envios?id=eq.${reserva.id}`, { method: 'PATCH', body: JSON.stringify({ estado: 'enviado', meta_id: wamid }) });
+  await db('mensajes?on_conflict=meta_id', {
+    method: 'POST', prefer: 'resolution=ignore-duplicates,return=minimal',
+    body: JSON.stringify({
+      chat_id: chatId, meta_id: wamid, direccion: 'saliente', autor: 'automatico', tipo: 'text', texto,
+      payload: cuerpo, enviado_at: new Date().toISOString(),
+    }),
   });
 }
 
