@@ -38,6 +38,10 @@ $candado$;
 --   asistente_resumen(dias)       los números para la pantalla de mensajes.
 --
 -- Idempotente. Rollback al final.
+--
+-- APLICADA el 19-11-2026 en el SQL Editor del Cotizador (con ok del dueño).
+-- Verificación: tabla 1, rls_force true, funciones 4, trg_envios 5, trg_cotiz 1, anon_abre true,
+-- anon_tabla false, última 0008. Reglas probadas con supabase-cotizador/prueba-0008-reglas.sql: 9 de 9.
 -- ══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.mensajes_links (

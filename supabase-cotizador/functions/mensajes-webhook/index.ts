@@ -82,13 +82,18 @@ FOTOS Y CATÁLOGOS
 
 PRECIOS
 - NUNCA escribas un monto ni un rango de precios, ni aunque aparezca en los ejemplos.
-- Si preguntan cuánto vale una cubierta, repisa, peldaño, puerta, mesa o revestimiento, manda el link del cotizador en línea ya abierto en ese producto, copiado EXACTO:
+- COTIZACIÓN CON SUS MEDIDAS (cubierta, repisa, peldaños, puertas, mesa). Si el cliente pregunta el precio y todavía no dio las medidas, pídelas en una sola pregunta: largo y ancho (en puertas, alto y ancho, y si la quiere con vidrio, sin vidrio o corredera tipo granero). No preguntes la madera: la cotización muestra el precio en cada una.
+- Cuando ya tengas las medidas, arma su cotización así: en el texto escribe la marca [LINK_COTIZACION] sola en una línea (el sistema la cambia por el link con sus medidas ya puestas; tú NUNCA escribas ese link) y agrega al JSON el campo "cotizar". Medidas SIEMPRE en centímetros (2,40 m = 240; 62 cm = 62) y "cant" = cuántas piezas iguales. Ejemplos:
+  "cotizar": {"prod":"cubierta","uso":"cocina","piezas":[{"largo":240,"ancho":62,"cant":1}]}      (uso, si lo dijo: cocina, bano, comedor, escritorio, exterior, quincho)
+  "cotizar": {"prod":"repisa","piezas":[{"largo":120,"ancho":25,"cant":3}]}
+  "cotizar": {"prod":"peldano","piezas":[{"largo":100,"ancho":30,"cant":14}]}
+  "cotizar": {"prod":"puertas","tipo":"sin_vidrio","piezas":[{"alto":200,"ancho":80,"cant":1}]}    (tipo: sin_vidrio, con_vidrio o granero)
+  "cotizar": {"prod":"mesa","piezas":[{"largo":180,"ancho":90,"cant":1}]}
+- Qué decir junto a la marca: en cubierta, repisa y peldaños, que ahí ve al instante el precio en cada madera. En puertas y mesas, que ahí elige el modelo con fotos y ve su precio. Menciona la medida («tu cubierta de 240 × 62 cm»). Puedes cerrar preguntando a qué comuna va, para ver el envío.
+- Si el cliente solo quiere mirar precios y no quiere dar medidas, manda el link general del cotizador, copiado EXACTO (cambia solo la palabra después de prod= por: cubierta, repisa, peldano, puertas, mesa, revestimiento):
   https://www.casazaru.cl/cotizador?prod=cubierta&src=asistente
-  (cambia solo la palabra después de prod= por una de estas: cubierta, repisa, peldano, puertas, mesa, revestimiento)
-  y explica en una frase que ahí pone su medida, ve el valor al instante y su cotización queda guardada. Si ya dijo la medida, menciónala («para tu cubierta de 200 × 60 cm»).
-- En el mismo mensaje puedes ofrecer que se la preparas tú si te manda la comuna y un plano o boceto.
-- Si es un mueble o proyecto especial que no está en esa lista, no hay link: pide medidas, comuna y plano, y marca "necesita_humano": true con el motivo «cotización especial».
-- No uses ningún otro link que los de estas instrucciones. Máximo dos links por mensaje (catálogo y cotizador).
+- NO se cotiza con link, se ve aparte: piezas que no son un rectángulo simple (en L, con curvas, redondas), una pieza cuya altura o ancho varía, medidas en duda, revestimientos a medida, muebles y proyectos, o más de 8 piezas distintas. Ahí no pongas la marca ni "cotizar": pide medidas, comuna y plano o boceto, y marca "necesita_humano": true con el motivo «cotización especial».
+- No uses ningún otro link que los de estas instrucciones. Máximo dos links por mensaje.
 
 CUÁNDO NO RESPONDER SOLO
 - Reclamos, problemas con un pedido ya comprado, pagos, cambios de un pedido, insultos, o algo que no entiendas: marca "necesita_humano": true y deja un borrador corto y amable que solo acuse recibo.
@@ -96,7 +101,8 @@ CUÁNDO NO RESPONDER SOLO
 
 FORMATO DE SALIDA
 Responde SOLO un objeto JSON, sin texto alrededor:
-{"texto": "<el mensaje>", "necesita_humano": <true|false>, "motivo": "<una línea: por qué necesita humano, o vacío>"}`;
+{"texto": "<el mensaje>", "necesita_humano": <true|false>, "motivo": "<una línea: por qué necesita humano, o vacío>"}
+Solo cuando armas una cotización con medidas, el mismo objeto lleva además "cotizar": {...} como en los ejemplos.`;
 
 const MAX_BYTES = 1_000_000;
 
@@ -248,6 +254,56 @@ const LINKS_DE_LA_CASA = [
 ].concat(['cubierta', 'repisa', 'peldano', 'puertas', 'mesa', 'revestimiento']
   .map((p) => 'https://www.casazaru.cl/cotizador?prod=' + p + '&src=asistente'));
 
+// ── Link de cotización con las medidas del chat (migración 0008) ─────────────────────────
+// El modelo NO escribe el link: deja la marca y un objeto "cotizar". Acá se revisan las medidas, se
+// guarda una fila en mensajes_links y la marca se cambia por el link con su código. El precio lo
+// calcula el cotizador público al abrirlo; esta función no sabe precios.
+const MARCA_COT = '[LINK_COTIZACION]';
+const USOS_COT = ['cocina', 'bano', 'comedor', 'escritorio', 'exterior', 'quincho'];
+// tope en cm por producto: [largo o alto mín, máx, ancho mín, máx]. Fuera de eso lo ve una persona.
+const TOPES_COT: Record<string, number[]> = {
+  cubierta: [20, 600, 10, 150], repisa: [20, 400, 8, 80], peldano: [40, 300, 15, 60],
+  puertas: [100, 300, 40, 200], mesa: [40, 400, 40, 160],
+};
+const TIPO_PUERTA: Record<string, string> = { sin_vidrio: 'maciza', con_vidrio: 'vidrios', granero: 'granero' };
+
+function armarCotizar(c: any): { producto: string; datos: Record<string, unknown>; listo: boolean } | null {
+  if (!c || typeof c !== 'object') return null;
+  const producto = String(c.prod ?? '');
+  const tope = TOPES_COT[producto];
+  if (!tope || !Array.isArray(c.piezas) || c.piezas.length < 1 || c.piezas.length > 8) return null;
+  const rows: { lg: number; an: number; ca: number }[] = [];
+  for (const p of c.piezas) {
+    const lg = Math.round(Number(producto === 'puertas' ? p?.alto : p?.largo) * 10) / 10;
+    const an = Math.round(Number(p?.ancho) * 10) / 10;
+    const ca = p?.cant == null ? 1 : Number(p.cant);
+    if (!(lg >= tope[0] && lg <= tope[1] && an >= tope[2] && an <= tope[3])) return null;
+    if (!Number.isInteger(ca) || ca < 1 || ca > 60) return null;
+    rows.push({ lg, an, ca });
+  }
+  if (producto === 'puertas') {
+    const p = TIPO_PUERTA[String(c.tipo ?? '')];
+    if (!p) return null;
+    return { producto, datos: { p, rows }, listo: false };       // falta que elija el modelo
+  }
+  if (producto === 'mesa') return { producto, datos: { p: 'mesa', rows }, listo: false };   // ídem
+  const datos: Record<string, unknown> = { p: producto, rows };
+  if (producto === 'cubierta' && USOS_COT.includes(String(c.uso ?? ''))) datos.uso = String(c.uso);
+  return { producto, datos, listo: true };
+}
+
+function nuevoCodigo(): string {
+  const abc = 'abcdefghijkmnpqrstuvwxyz23456789';      // sin 0/o ni 1/l: se lee bien si alguien lo dicta
+  const b = crypto.getRandomValues(new Uint8Array(12));
+  let s = '';
+  for (const x of b) s += abc[x % abc.length];
+  return s;
+}
+
+function linkCotizacion(producto: string, codigo: string): string {
+  return 'https://www.casazaru.cl/cotizador?prod=' + producto + '&c=' + codigo + '&src=asistente';
+}
+
 // «nativa» como palabra entera: «alternativa» no cuenta. Signos de apertura en cualquier parte.
 const PROHIBIDO = [/(^|[^a-záéíóúüñ])nativ[ao]s?(?![a-záéíóúüñ])/i, /(^|[^a-záéíóúüñ])al tiro(?![a-záéíóúüñ])/i, /[¡¿]/];
 
@@ -293,16 +349,44 @@ async function redactar(chat: number, mensajeId: number) {
   if (!r.ok) throw new Error('anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
   const out = await r.json();
   const crudo = (out.content ?? []).map((b: any) => b.text ?? '').join('').trim();
-  let res: { texto?: string; necesita_humano?: boolean; motivo?: string };
+  let res: { texto?: string; necesita_humano?: boolean; motivo?: string; cotizar?: unknown };
   try { res = JSON.parse(crudo.slice(crudo.indexOf('{'), crudo.lastIndexOf('}') + 1)); }
   catch { res = { texto: crudo, necesita_humano: true, motivo: 'la respuesta no vino en JSON' }; }
-  const texto = String(res.texto ?? '').trim();
+  let texto = String(res.texto ?? '').trim();
   if (!texto) return;
 
+  // Cotización con las medidas del chat: la marca se cambia por un link con código propio (0008).
+  // Si algo no calza (medidas fuera de rango, falta la marca, no es WhatsApp, la base no la aceptó),
+  // la marca se saca y el borrador queda para una persona.
+  let linkCot: { codigo: string; producto: string; url: string } | null = null;
+  let cotMal = '';
+  if (texto.indexOf(MARCA_COT) !== -1 || res.cotizar != null) {
+    const a = armarCotizar(res.cotizar);
+    if (!a) cotMal = 'pidió cotizar pero las medidas no se pudieron leer o salen de lo normal';
+    else if (texto.split(MARCA_COT).length !== 2) cotMal = 'la cotización venía sin su marca de link, o con más de una';
+    else if (c.canal !== 'whatsapp') cotMal = 'el link de cotización con medidas solo sale por WhatsApp';
+    else {
+      const codigo = nuevoCodigo();
+      const ins = await dbCrudo('mensajes_links', {
+        method: 'POST', prefer: 'return=representation',
+        body: JSON.stringify({ codigo, chat_id: chat, producto: a.producto, datos: a.datos, listo: a.listo }),
+      });
+      if (ins.ok && ins.cuerpo?.[0]?.id) {
+        linkCot = { codigo, producto: a.producto, url: linkCotizacion(a.producto, codigo) };
+        texto = texto.replace(MARCA_COT, linkCot.url);
+      } else {
+        cotMal = 'no se pudo guardar el link de cotización';
+        console.error('link cotizacion', chat, String(ins.cuerpo?.message ?? ins.status).slice(0, 200));
+      }
+    }
+    if (!linkCot) texto = texto.split(MARCA_COT).join('').replace(/\n{3,}/g, '\n\n').trim();
+    if (!texto) return;
+  }
+
   // Las reglas se revisan en código, no se le cree al modelo.
-  // Links: solo los de la casa (catálogos y cotizador). Uno inventado o mal copiado no sale solo.
+  // Links: solo los de la casa (catálogos, cotizador y el link con código recién armado). Otro no sale solo.
   const links = texto.split(/\s+/).filter((p) => p.indexOf('http') !== -1).map((p) => p.replace(/^[(«"]+/, '').replace(/[).,;:!?»"]+$/, ''));
-  const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1);
+  const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1 || (linkCot !== null && l === linkCot.url));
   const revision = {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
@@ -310,8 +394,9 @@ async function redactar(chat: number, mensajeId: number) {
     sin_palabras_prohibidas: !PROHIBIDO.some((re) => re.test(texto)),
     falta_precio: /\[PRECIO:/.test(texto),
     links_ok: linksOk,
-    necesita_humano: !!res.necesita_humano || !linksOk,
-    motivo: !linksOk ? 'trae un link que no es de la casa' : (res.motivo ?? ''),
+    cotiza: linkCot ? linkCot.producto : null,
+    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal,
+    motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (res.motivo ?? '')),
   };
 
   // Si el cliente mandó varios mensajes seguidos, solo vale el borrador del último.
@@ -323,6 +408,13 @@ async function redactar(chat: number, mensajeId: number) {
     body: JSON.stringify({ chat_id: chat, mensaje_id: mensajeId, texto, revision, modelo }),
   });
   const borradorId = creado?.[0]?.id;
+  // El link queda amarrado a su borrador; si el borrador no se creó (ya había uno), ese link no cuenta.
+  if (linkCot) {
+    await db(`mensajes_links?codigo=eq.${linkCot.codigo}`, {
+      method: 'PATCH',
+      body: JSON.stringify(borradorId ? { borrador_id: borradorId } : { deleted_at: new Date().toISOString() }),
+    });
+  }
   if (!borradorId) return;                        // ya existía un borrador para ese mensaje: no se repite nada
   try { await autoResponder(chat, mensajeId, borradorId, texto, revision); }
   catch (e) { console.error('auto', chat, String(e)); }
@@ -551,6 +643,7 @@ async function enviar(req: Request) {
   if (!/^[A-Za-z0-9-]{16,80}$/.test(clave)) return jsonP({ error: 'Falta la clave del envío.' }, 400);
   if (!texto) return jsonP({ error: 'El mensaje está vacío.' }, 400);
   if (texto.length > 4000) return jsonP({ error: 'El mensaje es demasiado largo.' }, 400);
+  if (texto.indexOf('[LINK_') !== -1) return jsonP({ error: 'El mensaje trae una marca de link sin completar. Bórrala o pega el link.' }, 400);
   if (borradorId !== null && (!Number.isInteger(borradorId) || borradorId <= 0)) return jsonP({ error: 'Borrador inválido.' }, 400);
   if (!sePuedeEnviarA(chatId)) {
     return jsonP({ error: 'El envío está en modo de prueba y todavía no está habilitado para este chat.', definitivo: true }, 403);

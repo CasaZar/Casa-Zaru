@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boceto · El asistente cotiza</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --papel:#F7F4EE; --tinta:#1F1D24; --sec:#57524B; --linea:#E4DDD2; --verde:#485B3D; --terra:#A85D2A;
+         --ok:#3E6B35; --cafe:#6B4A2E; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--papel); color:var(--tinta); font:15px/1.4 Poppins,system-ui,sans-serif; }
+  .wrap{ max-width:420px; margin:0 auto; padding:16px 16px 60px; }
+  .boc{ font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--terra); font-weight:600; }
+  h1{ font-size:22px; margin:4px 0 2px; }
+  .intro{ color:var(--sec); font-size:13.5px; margin:0 0 18px; }
+  h2{ font-size:16px; margin:30px 0 8px; display:flex; gap:8px; align-items:baseline; }
+  h2 b{ background:var(--terra); color:#fff; border-radius:50%; width:22px; height:22px; display:inline-grid; place-items:center; font-size:12px; flex:none; }
+  .nota{ font-size:13px; color:var(--sec); margin:0 0 10px; }
+  .nota strong{ color:var(--tinta); }
+  svg.i{ width:18px; height:18px; stroke:var(--cafe); fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; flex:none; }
+
+  .cel{ background:#fff; border:1px solid var(--linea); border-radius:14px; overflow:hidden; }
+  .top{ background:var(--verde); color:#fff; padding:10px 14px; font-weight:600; font-size:15px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .top span{ font-weight:400; opacity:.85; font-size:12.5px; }
+
+  .chat{ background:#F3EFE8; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  .msg{ max-width:84%; padding:8px 10px; border-radius:10px; font-size:13.5px; background:#fff; overflow-wrap:anywhere; }
+  .msg.yo{ align-self:flex-end; background:#E5EDE1; }
+  .msg p{ margin:0 0 6px; } .msg p:last-of-type{ margin-bottom:0; }
+  .msg small{ display:block; font-size:11px; color:var(--sec); margin-top:3px; }
+  .msg a{ color:#1F5FA8; text-decoration:underline; }
+  .previa{ border:1px solid var(--linea); border-radius:8px; margin-top:6px; background:#FBF9F5; padding:7px 9px; font-size:12px; }
+  .previa b{ display:block; font-size:12.5px; }
+
+  .aviso{ display:flex; gap:8px; align-items:flex-start; background:#EEF3EA; border-bottom:1px solid #D9E3D2; padding:10px 14px; font-size:13px; }
+  .aviso svg.i{ stroke:var(--verde); margin-top:1px; }
+  .form{ padding:14px; }
+  .lab{ font-size:12px; font-weight:600; color:var(--sec); margin:0 0 4px; }
+  .campos{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .campo{ border:1.5px solid var(--verde); border-radius:9px; padding:8px 10px; font-size:15px; font-weight:600; display:flex; justify-content:space-between; align-items:baseline; background:#FBFDF9; }
+  .campo span{ font-size:12px; font-weight:400; color:var(--sec); }
+  .btn{ display:block; text-align:center; background:var(--verde); color:#fff; font-weight:600; border-radius:10px; padding:12px; font-size:15px; }
+  .precio{ border:1px dashed var(--linea); border-radius:10px; padding:10px 12px; margin-top:12px; font-size:13px; color:var(--sec); }
+  .precio b{ color:var(--tinta); }
+
+  .fila{ display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid #F1EADF; }
+  .ini{ width:34px; height:34px; border-radius:8px; display:grid; place-items:center; font-size:12px; font-weight:600; background:#EFE7DC; color:var(--sec); flex:none; }
+  .txt{ flex:1; min-width:0; }
+  .l1{ display:flex; justify-content:space-between; gap:6px; }
+  .nom{ font-weight:600; font-size:14.5px; }
+  .hora{ font-size:12px; color:var(--sec); }
+  .ult{ font-size:13px; margin-top:2px; }
+  .chip{ display:inline-block; font-size:11px; font-weight:600; padding:1px 8px; border-radius:999px; margin:4px 4px 0 0; background:#EFE7DC; color:var(--sec); }
+  .chip.as{ background:#F4E4D8; color:var(--terra); }
+  .chip.ok{ background:#E5EDE1; color:var(--verde); }
+
+  .kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:12px 14px; }
+  .kpi{ border:1px solid var(--linea); border-radius:10px; padding:8px; text-align:center; }
+  .kpi b{ display:block; font-size:18px; }
+  .kpi span{ font-size:11.5px; color:var(--sec); }
+
+  .dec{ background:#fff; border:1px solid var(--linea); border-radius:10px; padding:10px 12px; margin-bottom:8px; font-size:13.5px; }
+  .dec .q{ font-weight:600; }
+  .dec .r{ font-size:12.5px; color:var(--sec); margin-top:4px; }
+  .dec .r strong{ color:var(--verde); }
+  ul.lim{ margin:0; padding-left:18px; font-size:13px; color:var(--sec); }
+  ul.lim li{ margin-bottom:5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="boc">Boceto · nada de esto está construido</div>
+  <h1>El asistente cotiza</h1>
+  <p class="intro">El asistente pide las medidas en el chat y manda el cotizador con ellas ya puestas. El precio lo calcula el cotizador de siempre y la cotización queda guardada a nombre del asistente.</p>
+
+  <h2><b>1</b> Lo que pasa en WhatsApp</h2>
+  <p class="nota">El asistente <strong>nunca escribe un monto</strong>. Pide solo largo y ancho, no la madera.</p>
+  <div class="cel">
+    <div class="top">Casa Zaru <span>WhatsApp 1122</span></div>
+    <div class="chat">
+      <div class="msg">Hola, cuánto sale una cubierta para mi cocina?<small>10:02</small></div>
+      <div class="msg yo">
+        <p>Hola, te escribe César de Casa Zaru.</p>
+        <p>Te la cotizo ahora mismo. Me dices el largo y el ancho de la cubierta?</p>
+        <small>10:02 · asistente</small>
+      </div>
+      <div class="msg">2,40 de largo por 62 cm<small>10:05</small></div>
+      <div class="msg yo">
+        <p>Perfecto. Acá tienes tu cotización con esas medidas, con el precio en cada madera:</p>
+        <p><a>casazaru.cl/cotizador?c=7k2m9</a></p>
+        <div class="previa"><b>Tu cubierta de 240 × 62 cm</b>Cotizador en línea · Casa Zaru</div>
+        <p>Si quieres, me cuentas a qué comuna va y veo el envío.</p>
+        <small>10:05 · asistente</small>
+      </div>
+    </div>
+  </div>
+
+  <h2><b>2</b> Lo que ve el cliente al abrir</h2>
+  <p class="nota">El mismo cotizador de hoy, pero <strong>con las medidas ya escritas</strong>. Puede cambiarlas.</p>
+  <div class="cel">
+    <div class="top">Cotiza tu cubierta <span>casazaru.cl</span></div>
+    <div class="aviso">
+      <svg class="i" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      <div>Pusimos las medidas que nos diste por WhatsApp. Si cambiaron, corrígelas acá.</div>
+    </div>
+    <div class="form">
+      <div class="campos">
+        <div><div class="lab">Largo</div><div class="campo">240 <span>cm</span></div></div>
+        <div><div class="lab">Ancho</div><div class="campo">62 <span>cm</span></div></div>
+      </div>
+      <div class="btn">Ver mi precio</div>
+      <div class="precio"><b>Precio por madera</b><br>Lo calcula el cotizador con los valores del día, igual que para cualquier cliente. Este boceto no inventa montos.</div>
+    </div>
+  </div>
+
+  <h2><b>3</b> Lo que queda registrado</h2>
+  <p class="nota">La cotización se guarda <strong>una sola vez</strong>, con origen «Asistente» y amarrada al chat del que salió.</p>
+  <div class="cel">
+    <div class="top">Seguimiento <span>panel de César</span></div>
+    <div class="fila">
+      <div class="ini">CL</div>
+      <div class="txt">
+        <div class="l1"><span class="nom">Cliente del 1122</span><span class="hora">10:06</span></div>
+        <div class="ult">Cubierta 240 × 62 cm</div>
+        <span class="chip as">Asistente</span><span class="chip">WhatsApp 1122</span>
+      </div>
+    </div>
+    <div class="top" style="margin-top:0">Mensajes <span>bandeja</span></div>
+    <div class="fila">
+      <div class="ini">CL</div>
+      <div class="txt">
+        <div class="l1"><span class="nom">Cliente del 1122</span><span class="hora">10:06</span></div>
+        <div class="ult">Abrió su cotización y vio el precio</div>
+        <span class="chip ok">Cotizó</span><span class="chip">ver cotización</span>
+      </div>
+    </div>
+  </div>
+
+  <h2><b>4</b> Los números que podrás mirar</h2>
+  <p class="nota">Cada semana, del asistente (acá sin cifras: se llenan con datos reales).</p>
+  <div class="cel">
+    <div class="kpis">
+      <div class="kpi"><b>—</b><span>links enviados</span></div>
+      <div class="kpi"><b>—</b><span>los abrieron</span></div>
+      <div class="kpi"><b>—</b><span>terminaron en venta</span></div>
+    </div>
+  </div>
+
+  <h2><b>5</b> Lo que necesito que decidas</h2>
+  <div class="dec">
+    <div class="q">A · Cuándo queda guardada la cotización</div>
+    <div class="r"><strong>Recomiendo: cuando el cliente abre el link.</strong> Así queda registrado aunque no toque nada más. La otra opción es guardarla al mandar el link, pero llenaría el seguimiento de cotizaciones que nadie miró.</div>
+  </div>
+  <div class="dec">
+    <div class="q">B · Con qué productos parte</div>
+    <div class="r"><strong>Recomiendo: solo cubiertas.</strong> Es lo que más preguntan y basta con largo y ancho. Repisas, peldaños y puertas después; mesas y muebles especiales siguen yendo a una persona.</div>
+  </div>
+  <div class="dec">
+    <div class="q">C · Quién le hace seguimiento</div>
+    <div class="r"><strong>Recomiendo: aparece en el panel de César como una más</strong>, con la marca «Asistente», y sigue la cadencia normal.</div>
+  </div>
+
+  <h2><b>6</b> Lo que no cambia</h2>
+  <ul class="lim">
+    <li>Un solo cálculo de precios: el del cotizador. El asistente no sabe precios.</li>
+    <li>El envío a clientes sigue cerrado hasta que tú lo abras. Esto se prueba solo en tu chat.</li>
+    <li>Si César o tú entran al chat, el asistente deja de responder ahí.</li>
+    <li>Pide dos cambios: uno en el cotizador público y una migración chica en la base. Cada uno con tu sí.</li>
+  </ul>
+</div>
+</body>
+</html>
