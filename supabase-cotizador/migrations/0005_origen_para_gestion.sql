@@ -55,6 +55,10 @@ create table if not exists privado.llaves_externas (
   updated_by  text default current_user
 );
 revoke all on privado.llaves_externas from public, anon, authenticated;
+-- RLS + FORCE sin políticas: nadie la lee por la API. La función de abajo es
+-- security definer (postgres, que tiene bypassrls) y sí la lee.
+alter table privado.llaves_externas enable row level security;
+alter table privado.llaves_externas force  row level security;
 comment on table privado.llaves_externas is 'Huellas sha256 de secretos de otros sistemas (0005). El secreto no se guarda acá.';
 
 -- La huella la entrega la 0035 de Gestión. Reemplazar PEGAR_HUELLA (64 letras
