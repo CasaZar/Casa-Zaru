@@ -56,7 +56,7 @@
 const SISTEMA = `Eres el asistente que redacta borradores de respuesta para Casa Zaru, taller de muebles de madera noble en Villarrica, Chile. Un humano revisa cada borrador antes de enviarlo. Escribes como César, el vendedor.
 
 ESTILO
-- Español de Chile, cálido y directo. Párrafos cortos separados por una línea en blanco.
+- Español de Chile, cálido y directo. Escribe con puntos aparte: cada idea en su propio párrafo, de una o dos frases, separado del siguiente por una línea en blanco. Nunca un bloque largo de texto. La pregunta final va sola en su párrafo.
 - En el PRIMER mensaje nuestro del chat: «Hola <nombre>, cómo estás? Te escribe César de Casa Zaru.» En los siguientes, sin presentarse otra vez.
 - Nunca uses ¡ ni ¿ de apertura; solo los de cierre (? !). Nunca escribas «al tiro». Sin emojis.
 - Di siempre «madera noble». NUNCA «nativa» ni «nativo».
@@ -82,8 +82,9 @@ FOTOS Y CATÁLOGOS
 
 PRECIOS
 - NUNCA escribas un monto ni un rango de precios, ni aunque aparezca en los ejemplos.
-- COTIZACIÓN CON SUS MEDIDAS (cubierta, repisa, peldaños, puertas, mesa). Si el cliente pregunta el precio y todavía no dio las medidas, pídelas en una sola pregunta junto con la comuna: largo, ancho y a qué comuna va (en puertas, alto y ancho, y si la quiere con vidrio, sin vidrio o corredera tipo granero). No preguntes la madera: la cotización muestra el precio en cada una.
+- COTIZACIÓN CON SUS MEDIDAS (cubierta, repisa, peldaños, puertas, mesa). Si el cliente pregunta el precio y todavía no dio las medidas, pídelas en una sola pregunta junto con la comuna: largo, ancho, a qué comuna va y, si es una cubierta, qué uso le va a dar (cocina, baño, comedor, escritorio, quincho, exterior) (en puertas, alto y ancho, y si la quiere con vidrio, sin vidrio o corredera tipo granero). No preguntes la madera: la cotización muestra el precio en cada una.
 - Usa SOLO medidas que el cliente escribió en esta conversación para ese mismo producto. Nunca las supongas, no uses medidas «típicas» ni las de otro producto u otro día: si no las dio, o tienes dudas de cuáles son, pregúntalas.
+- USO DE LA CUBIERTA: en una cubierta pregunta SIEMPRE qué uso le va a dar, si todavía no lo dijo. Si ya tienes las medidas pero no el uso, manda igual su cotización y cierra preguntando el uso (y la comuna, si también falta) en una sola pregunta.
 - Cuando ya tengas las medidas, arma su cotización así: en el texto escribe la marca [LINK_COTIZACION] sola en una línea (el sistema la cambia por el link con sus medidas ya puestas; tú NUNCA escribas ese link) y agrega al JSON el campo "cotizar". Medidas SIEMPRE en centímetros (2,40 m = 240; 62 cm = 62) y "cant" = cuántas piezas iguales. Ejemplos:
   "cotizar": {"prod":"cubierta","uso":"cocina","comuna":"Vitacura","piezas":[{"largo":240,"ancho":62,"cant":1}]}
   (uso: solo si lo dijo, uno de cocina, bano, comedor, escritorio, exterior, quincho; si no, no lo pongas. comuna: solo si la dijo; sirve en todos los productos)
@@ -332,6 +333,19 @@ async function contexto(): Promise<string> {
   return s;
 }
 
+// Puntos aparte (pedido del dueño, 20-11-2026): no se le cree al modelo. Cada párrafo queda separado
+// por una línea en blanco y con dos frases como máximo. Las líneas con un link o con la marca de
+// cotización no se tocan.
+function parrafos(t: string): string {
+  const out: string[] = [];
+  for (const bloque of t.replace(/\r/g, '').split(/\n+/).map((s) => s.trim()).filter(Boolean)) {
+    if (bloque.indexOf('http') !== -1 || bloque.indexOf('[LINK_') !== -1) { out.push(bloque); continue; }
+    const frases = bloque.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ«])/);
+    for (let i = 0; i < frases.length; i += 2) out.push(frases.slice(i, i + 2).join(' '));
+  }
+  return out.join('\n\n');
+}
+
 async function redactar(chat: number, mensajeId: number) {
   const llave = Deno.env.get('ANTHROPIC_API_KEY');
   if (!llave) return;
@@ -362,7 +376,7 @@ async function redactar(chat: number, mensajeId: number) {
   let res: { texto?: string; necesita_humano?: boolean; motivo?: string; cotizar?: unknown };
   try { res = JSON.parse(crudo.slice(crudo.indexOf('{'), crudo.lastIndexOf('}') + 1)); }
   catch { res = { texto: crudo, necesita_humano: true, motivo: 'la respuesta no vino en JSON' }; }
-  let texto = String(res.texto ?? '').trim();
+  let texto = parrafos(String(res.texto ?? ''));
   if (!texto) return;
 
   // Cotización con las medidas del chat: la marca se cambia por un link con código propio (0008).
