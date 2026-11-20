@@ -30646,7 +30646,7 @@ function stkPintar(){
     body.innerHTML=stkBanner()+
       '<div style="text-align:center;padding:8px 0 14px"><div style="display:inline-block;background:#DCFCE7;color:#166534;border-radius:20px;padding:3px 10px;font-size:12px;font-weight:700">✓ Orden emitida</div>'+
       '<div style="font-size:28px;font-weight:800;letter-spacing:1px;margin-top:6px">'+esc(e.of_numero)+'</div>'+
-      '<div style="font-size:12px;color:var(--text-3)">N° de orden de flete · '+esc(String(e.kilos).replace('.',','))+' kg'+(e.precio_cotizado?' · cotizado '+fmtCLP(e.precio_cotizado):'')+'</div>'+
+      '<div style="font-size:12px;color:var(--text-3)">N° de orden de flete · '+esc(String(e.kilos).replace('.',','))+' kg'+(e.precio_cotizado?' · cotizado '+fmtCLP(e.precio_cotizado):'')+(e.medidas&&e.medidas.modo==='web'?' · solo por kilos':'')+'</div>'+
       (function(){var o=prodOrders[_prodIdx(stk.num)]||{},sd=o.stk_diferencia;
         return sd&&String(sd.of)===String(e.of_numero)?'<div style="font-size:12px;color:#B42318;margin-top:4px">Starken '+_stkCLP(sd.starken)+' · el cliente pagó '+_stkCLP(sd.cliente)+' · '+esc(STK_DECISION[sd.decision]||'sin decisión')+'</div>':'';})()+'</div>'+
       '<button class="btn-pri" style="width:100%" id="stk-btn-etq" onclick="stkEtiqueta()">Imprimir etiqueta (PDF 10 × 10)</button>'+
@@ -30667,6 +30667,7 @@ function stkPintar(){
   stk.docs=_stkDocs(f);
   stk.cobrado=Math.round(Number(f.val_envio)||0);   // lo que pagó el cliente de envío (Finanzas)
   if(!stk.bultos)stk.bultos=[{largo:med.largo,ancho:med.ancho,alto:med.alto,kilos:_stkKilos(o)}];
+  if(!stk.pag)stk.pag={bultos:1,kilos:_stkKilos(o)};
   function campo(id,lbl,val,extra){return'<div class="form-group"><label>'+lbl+'</label><input id="'+id+'" type="text" value="'+esc(val==null?'':String(val))+'" '+(extra||'')+' oninput="stkCambio(\''+id+'\')"></div>';}
   body.innerHTML=stkBanner()+
     '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:2px 0 6px">Destinatario</div>'+
@@ -30679,8 +30680,9 @@ function stkPintar(){
       '<label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text-2);cursor:pointer"><input type="checkbox" id="stk-sn" style="width:auto;margin:0"'+(dir.numero==='S/N'?' checked':'')+' onchange="stkSinNumero(this.checked)">Sin número</label></div></div>'+
     '<div class="form-grid">'+campo('stk-depto','Depto / casa (máx. 10, ej. D-202)',_stkDeptoCorto(dir.depto),'maxlength="10"')+
       '<div class="form-group" style="position:relative"><label>Comuna</label><input id="stk-comuna" type="text" value="'+esc(f.comuna||'')+'" autocomplete="off" oninput="stkBuscarComuna(this.value)" onblur="setTimeout(stkComunaSalir,200)"><div id="stk-com-lista" style="display:none;position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--border-md);border-radius:8px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.12)"></div></div></div>'+
-    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Bultos · medidas ya embalado</div>'+
-    '<div id="stk-bultos">'+_stkBultosHtml()+'</div>'+
+    '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--text-3);margin:10px 0 6px">Cómo se emite</div>'+
+    '<div id="stk-via">'+_stkViaHtml()+'</div>'+
+    '<div id="stk-bultos">'+(stk.via==='pagado'?_stkPagadoHtml():_stkBultosHtml())+'</div>'+
     '<div class="form-grid">'+campo('stk-valor','Valor declarado ($)',Math.round(Number(f.total)||Number(f.val_prod)||0),'inputmode="numeric"')+campo('stk-contenido','Contenido',prod)+'</div>'+
     '<div style="font-size:12px;color:var(--text-3);margin:-4px 0 8px">'+(stk.docs.length?'Se adjuntan: '+esc(stk.docs.map(function(d){return _stkTit(d.tipo)+' '+d.numero;}).join(', ')):'Sin boleta ni factura emitida en Finanzas')+'</div>'+
     '<div id="stk-precio" style="background:var(--surface2,#F5F1EA);border-radius:12px;padding:12px 14px;margin:12px 0"><span style="color:var(--text-3);font-size:13px">Elige la comuna para ver el precio</span></div>'+
@@ -30760,6 +30762,39 @@ function stkBulto(i,k,v){
 function _stkRepintarBultos(){var el=document.getElementById('stk-bultos');if(el)el.innerHTML=_stkBultosHtml();stk.confirmar=false;stkCotizar();}
 function stkAgregarBulto(){stk.bultos.push({largo:0,ancho:0,alto:0,kilos:0});_stkRepintarBultos();var n=stk.bultos.length-1,el=document.getElementById('stk-b'+n+'-largo');if(el)el.focus();}
 function stkQuitarBulto(i){if(stk.bultos.length<2)return;stk.bultos.splice(i,1);_stkRepintarBultos();}
+// ── Al precio que pagó el cliente (20-11-2026) ──────────────────────────────
+// Pedido del dueño: poder emitir como antes, solo por kilos (el cubo de la web), para que la
+// OF salga al precio que el cliente ya pagó. Va con medidas.modo 'web' (starken-emitir arma el
+// cubo). Riesgo: Starken re-mide y cobra la diferencia después; la revisión semanal lo detecta.
+function _stkViaHtml(){
+  var via=stk.via==='pagado'?'pagado':'reales';
+  return'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">'+
+    [['reales','Con medidas reales','se cotiza con el bulto ya embalado'],['pagado','Al precio que pagó el cliente','solo por kilos, como la web']].map(function(o){
+      var on=via===o[0];
+      return'<label style="display:flex;gap:8px;align-items:flex-start;border:1px solid '+(on?'#485B3D':'var(--border-md)')+';background:'+(on?'#F6F8F3':'#fff')+';border-radius:10px;padding:8px 10px;font-size:12.5px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;color:var(--text,#2A2A26);margin:0">'+
+        '<input type="radio" name="stk-via" style="width:auto;margin:2px 0 0" '+(on?'checked ':'')+'onchange="stkVia(\''+o[0]+'\')"><span><b>'+o[1]+'</b> · '+o[2]+'</span></label>';
+    }).join('')+'</div>';
+}
+function _stkPagadoHtml(){
+  var p=stk.pag||{bultos:1,kilos:0};
+  function c(k,lbl,v,im){return'<div class="form-group" style="margin:0"><label>'+lbl+'</label><input id="stk-p-'+k+'" type="text" inputmode="'+im+'" value="'+esc(v?String(v).replace('.',','):'')+'" oninput="stkPagado(\''+k+'\',this.value)"></div>';}
+  return'<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:8px">'+c('bultos','Bultos',p.bultos,'numeric')+c('kilos','Kilos en total',p.kilos,'decimal')+'</div>'+
+    '<div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;line-height:1.45;margin-bottom:8px;padding:7px 9px;border-radius:8px;background:#FFFBEB;color:#92400E;border:1px solid #FDE68A">'+_STK_ICO_AV+
+    '<span>Se emite como la web: un cubo por kilos, sin las medidas reales. Si Starken mide el bulto y sale por volumen, cobra la diferencia después (la revisión semanal de Starken la muestra en Mi día).</span></div>';
+}
+function stkVia(v){
+  stk.via=v==='pagado'?'pagado':'reales';stk.confirmar=false;stk.decision=null;
+  var w=document.getElementById('stk-via');if(w)w.innerHTML=_stkViaHtml();
+  var el=document.getElementById('stk-bultos');if(el)el.innerHTML=stk.via==='pagado'?_stkPagadoHtml():_stkBultosHtml();
+  stkCotizar();
+}
+function stkPagado(k,v){
+  if(!stk.pag)stk.pag={bultos:1,kilos:0};
+  stk.pag[k]=k==='bultos'?Math.round(_stkDec(v)):_stkDec(v);   // bultos es un conteo; los kilos van con decimales
+  stk.confirmar=false;
+  clearTimeout(stk.tCot);stk.tCot=setTimeout(stkCotizar,600);
+  stkValidar();
+}
 // Lo que cobra Starken contra lo que pagó el cliente (val_envio de Finanzas). Si Starken
 // cuesta más (sobre STK_TOL), no se emite hasta elegir qué hacer; la elección queda en el pedido.
 var STK_DECISION={embalaje:'Cambiar el embalaje',cobrar:'Cobrar la diferencia',asumir:'La asumimos'};
@@ -30768,7 +30803,7 @@ function _stkDifHtml(){
   if(!stk.precio)return'';
   var falta=_stkFalta();
   if(falta>STK_TOL){
-    var opc=[['embalaje','desarmar y separar la base; se recalcula solo'],['cobrar','copia el mensaje para el cliente'],['asumir','queda anotado en el pedido']].map(function(o){
+    var opc=[['embalaje','desarmar y separar la base; se recalcula solo'],['cobrar','copia el mensaje para el cliente'],['asumir','queda anotado en el pedido']].filter(function(o){return!(stk.via==='pagado'&&o[0]==='embalaje');}).map(function(o){
       var on=stk.decision===o[0];
       return'<label style="display:flex;gap:8px;align-items:flex-start;background:#fff;border:1px solid '+(on?'#485B3D':'#FECDCA')+';border-radius:9px;padding:8px 9px;color:var(--text,#2A2A26);font-size:12.5px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;margin:0">'+
         '<input type="radio" name="stk-dec" style="width:auto;margin:2px 0 0" '+(on?'checked ':'')+'onchange="stkDecidir(\''+o[0]+'\')"><span><b>'+STK_DECISION[o[0]]+'</b> · '+o[1]+'</span></label>';
@@ -30806,7 +30841,10 @@ function stkValidar(){
   if(!_stkVal('stk-calle'))faltan.push('calle');
   if(!_stkVal('stk-numero'))faltan.push('número');
   if(!stk.comuna)faltan.push('comuna (elígela de la lista)');
-  if(!(stk.bultos||[]).every(_stkBultoOk))faltan.push('medidas y kilos de cada bulto');
+  if(stk.via==='pagado'){
+    if(!(stk.pag&&stk.pag.bultos>=1&&stk.pag.bultos<=30))faltan.push('bultos (1 a 30)');
+    if(!(stk.pag&&stk.pag.kilos>0))faltan.push('kilos');
+  }else if(!(stk.bultos||[]).every(_stkBultoOk))faltan.push('medidas y kilos de cada bulto');
   if(!(_stkNum('stk-valor')>0))faltan.push('valor declarado (Starken lo exige)');
   if(_stkNum('stk-valor')>50000&&!(stk.docs&&stk.docs.length))faltan.push('boleta o factura emitida (Starken la exige sobre $50.000)');
   if(!stk.precio)faltan.push('precio de Starken');
@@ -30858,9 +30896,11 @@ async function stkCotizar(){
   var antes=stk.precio;
   stk.precio=null;_stkPintarDif();stkValidar();
   var p=document.getElementById('stk-precio');if(!p||!stk.comuna)return;
-  if(!(stk.bultos||[]).every(_stkBultoOk)){p.innerHTML='<span style="color:var(--text-3);font-size:13px">Escribe las medidas y los kilos de cada bulto</span>';return;}
-  var n=++stk.pedidoN,body={accion:'cotizar',destino:stk.comuna.cod,
-    bultos:stk.bultos.map(function(b){return{largo:b.largo,ancho:b.ancho,alto:b.alto,kilos:b.kilos};})};
+  var pag=stk.via==='pagado';
+  if(pag?!(stk.pag&&stk.pag.kilos>0):!(stk.bultos||[]).every(_stkBultoOk)){p.innerHTML='<span style="color:var(--text-3);font-size:13px">'+(pag?'Escribe los kilos':'Escribe las medidas y los kilos de cada bulto')+'</span>';return;}
+  var n=++stk.pedidoN,body={accion:'cotizar',destino:stk.comuna.cod};
+  if(pag)body.kilos=stk.pag.kilos;   // starken-tarifa arma el cubo por kilos, como la web
+  else body.bultos=stk.bultos.map(function(b){return{largo:b.largo,ancho:b.ancho,alto:b.alto,kilos:b.kilos};});
   p.innerHTML='<span style="color:var(--text-3);font-size:13px">Consultando a Starken…</span>';
   try{
     var d=await stkLlamar(body);if(n!==stk.pedidoN)return;
@@ -30870,7 +30910,7 @@ async function stkCotizar(){
     if(stk.precio!==antes)stk.decision=null;   // otro precio, otra diferencia: se vuelve a elegir
     var cob=stk.cobrado||0,dif=cob-t.total,colDif=dif<-STK_TOL?'#B42318':(dif<0?'var(--text-2,#55524B)':'#166534');
     p.innerHTML='<div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13.5px">Starken cobra</span><span style="font-size:24px;font-weight:700">'+fmtCLP(t.total)+'</span></div>'+
-      '<div style="font-size:12px;color:var(--text-3)">Con medidas reales · IVA incluido · '+(t.dias?t.dias+' días · ':'')+(d.conCuentaCorriente?'tarifa de tu cuenta corriente':'tarifa general')+'</div>'+
+      '<div style="font-size:12px;color:var(--text-3)">'+(pag?'Solo por kilos, como la web':'Con medidas reales')+' · IVA incluido · '+(t.dias?t.dias+' días · ':'')+(d.conCuentaCorriente?'tarifa de tu cuenta corriente':'tarifa general')+'</div>'+
       '<div style="border-top:1px solid var(--border-md);margin:8px 0 4px"></div>'+
       '<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;padding:2px 0"><span>El cliente pagó de envío</span><b>'+_stkCLP(cob)+'</b></div>'+
       (cob?'':'<div style="font-size:11.5px;color:var(--text-3)">Finanzas no tiene envío cobrado en este pedido</div>')+
@@ -30884,14 +30924,16 @@ async function stkEmitir(){
   b.disabled=true;b.textContent='Emitiendo en Starken…';
   // Varios bultos van en UNA OF con las medidas juntadas como las junta Starken (_stkJuntar),
   // que son las mismas con que se cotizó el precio de arriba.
-  var j=_stkJuntar();
-  if(!j){showToast('Faltan medidas o kilos de algún bulto',true);stk.confirmar=false;stkValidar();return;}
+  // «Al precio que pagó el cliente»: kilos y N° de bultos, medidas.modo 'web' (cubo por kilos).
+  var pag=stk.via==='pagado',j=pag?null:_stkJuntar();
+  if(!pag&&!j){showToast('Faltan medidas o kilos de algún bulto',true);stk.confirmar=false;stkValidar();return;}
+  var env=pag?{bultos:stk.pag.bultos,kilos:Math.round(stk.pag.kilos*100)/100,medidas:{modo:'web'}}
+    :{bultos:stk.bultos.length,kilos:Math.round(j.kilos*100)/100,medidas:{modo:'reales',largo:j.largo,ancho:j.ancho,alto:j.alto}};
   try{
     var d=await stkLlamar({accion:'emitir',pedido:stk.num,
       destinatario:{nombre:_stkVal('stk-nombre'),apellidos:_stkVal('stk-apellidos'),rut:_stkVal('stk-rut'),telefono:_stkVal('stk-tel'),email:_stkVal('stk-email'),
         calle:_stkVal('stk-calle'),numero:_stkVal('stk-numero'),depto:_stkVal('stk-depto'),comuna:stk.comuna.c},
-      bultos:stk.bultos.length,kilos:Math.round(j.kilos*100)/100,
-      medidas:{modo:'reales',largo:j.largo,ancho:j.ancho,alto:j.alto},
+      bultos:env.bultos,kilos:env.kilos,medidas:env.medidas,
       valorDeclarado:Math.round(_stkNum('stk-valor')),contenido:_stkVal('stk-contenido'),precioCotizado:stk.precio,documentos:stk.docs||[]});
     stk.envio=d.envio;
     // El N° de OF también queda en el pedido (PATCH: mezcla, no pisa el resto)
