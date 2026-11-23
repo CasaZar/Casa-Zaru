@@ -24,6 +24,8 @@ $candado$;
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- 0012 · COTIZADOR · «WhatsApp al día» por canal: 5558, 0141 e Instagram (23-11-2026)
+-- APLICADA el 23-11-2026 (SQL Editor, desde el Chrome del usuario, a su pedido). Verificada por MCP:
+-- 4 columnas, 99 filas quedaron en 5558, wa_cargar de 5 argumentos, unique (canal, chat_id).
 --
 -- Pedido del dueño: lo que la revisión encuentra sin responder en el 0141 (número de
 -- los anuncios) y en Instagram le aparece a César en el panel con el mensaje sugerido
