@@ -46,6 +46,12 @@ $candado$;
 -- tienen sus 72 clientes («Campaña peldaños»): no toca ninguna cotización.
 --
 -- Idempotente. Rollback al final.
+--
+-- APLICADA el 23-11-2026 en el SQL Editor del Cotizador (desde el Chrome del
+-- dueño, con su ok; después de la 0011, que otra sesión aplicó antes).
+-- Verificación: tabla 1, rls_force true, policies 3, triggers 2, anon_algo 0,
+-- auth_borra false, filas 1; confirmado aparte por el MCP (versiones 0009,0010,0011).
+-- Panel en vivo: 72 escritos · 11 respondieron · 7 recotizados · 4 compraron · $5.184.929.
 -- ══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.campanas (
