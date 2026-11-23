@@ -27238,6 +27238,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
       <div class="form-group"><label>Comuna</label><input id="emp-comuna" type="text"></div>
     </div>
     <div class="form-grid full"><div class="form-group"><label>Notas</label><textarea id="emp-notas" rows="2" style="width:100%;box-sizing:border-box;font-family:'Inter',sans-serif"></textarea></div></div>
+    <div id="emp-prof-wrap" style="display:none;margin-bottom:10px"><label style="font-size:13px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="emp-prof"> Profesional (arquitecto, diseñador): parte en el tramo 2 % (7 % con transferencia) desde la primera compra</label></div>
     <div id="emp-activa-wrap" style="display:none;margin-bottom:10px"><label style="font-size:13px;display:flex;align-items:center;gap:6px"><input type="checkbox" id="emp-activa"> Cuenta activa (si se desmarca, deja de sumar y el link del cliente se apaga)</label></div>
     <div class="modal-footer">
       <button class="btn-sec" onclick="cerrarEmpresa()">Cancelar</button>
@@ -36149,6 +36150,8 @@ async function initAllModules(){
 var EMP_LINK_BASE='https://www.casazaru.cl/cuentaempresa?t=';
 var empCuentas=[],empCompras=[],empCargado=false,empEditando=null,empFichaId=null,empCompraEmpId=null;
 var empAvisos=[],empAvisosOk=false;   /* aviso del programa (0026); sin la tabla, la sección no aparece */
+/* 0036: cuentas de profesionales (parten en tramo 2 %). Sin la columna en la vista, la casilla no aparece y no se manda */
+function _empProfOk(){return empCuentas.length>0&&('profesional' in empCuentas[0]);}
 function _empNormRut(r){var s=String(r||'').toUpperCase().replace(/[^0-9K]/g,'');if(s.length<7)return '';return s.slice(0,-1)+'-'+s.slice(-1);}
 function _empFmtRut(r){var n=_empNormRut(r);if(!n)return r||'';var c=n.split('-');return c[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+'-'+c[1];}
 function _empFecha(d){if(!d)return '—';return new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'2-digit'});}
@@ -36215,7 +36218,7 @@ function renderEmpresas(){
     var s=_empEstado(e);
     var who=[e.contacto?esc(e.contacto):'',e.celular?esc(e.celular):'<span class="sin">sin celular</span>'].filter(Boolean).join(' · ');
     return '<div class="emp-row'+(e.activa?'':' inactiva')+(empAbierta===e.id?' abierta':'')+'" onclick="toggleEmp('+e.id+')">'+
-      '<div class="emp-who-c" style="min-width:0"><div class="emp-nm">'+esc(e.razon_social)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+_empTagAviso(e)+'</div><div class="emp-who">'+who+'</div></div>'+
+      '<div class="emp-who-c" style="min-width:0"><div class="emp-nm">'+esc(e.razon_social)+(e.activa?'':'<span class="emp-pill p0">inactiva</span>')+(e.profesional?'<span class="emp-pill p2">profesional</span>':'')+_empTagAviso(e)+'</div><div class="emp-who">'+who+'</div></div>'+
       '<div class="emp-barc">'+_empBarra2(e)+'<div class="emp-escm"><span class="emp-st '+s.c+'" style="margin:0">'+s.x+'</span><span style="color:var(--text-3)">'+(Number(e.n_facturas)||0)+' fact.</span></div></div>'+
       '<div class="emp-amt"><div class="m">'+fmtCLP(e.acumulado)+'</div><div class="emp-st '+s.c+'">'+s.x+'</div></div>'+
       (empAbierta===e.id?_empDetalle(e):'')+
@@ -36267,6 +36270,8 @@ function abrirEmpresa(id){
   document.getElementById('emp-giro').value=e?(e.giro||''):'';
   document.getElementById('emp-comuna').value=e?(e.comuna||''):'';
   document.getElementById('emp-notas').value=e?(e.notas||''):'';
+  document.getElementById('emp-prof-wrap').style.display=_empProfOk()?'block':'none';
+  document.getElementById('emp-prof').checked=!!(e&&e.profesional);
   document.getElementById('emp-activa-wrap').style.display=e?'block':'none';
   document.getElementById('emp-activa').checked=e?!!e.activa:true;
   document.getElementById('modal-emp-bg').classList.add('open');
@@ -36302,6 +36307,7 @@ async function guardarEmpresa(){
   };
   if(!d.razon_social){alert('Falta la razón social.');return;}
   if(!d.rut){alert('El RUT no es válido.');return;}
+  if(_empProfOk())d.profesional=document.getElementById('emp-prof').checked;
   if(empEditando!==null)d.activa=document.getElementById('emp-activa').checked;
   else if(empCuentas.some(function(e){return e.rut===d.rut;})){alert('Ya existe una cuenta con ese RUT.');return;}
   var btn=document.getElementById('emp-guardar');btn.disabled=true;
@@ -36402,7 +36408,8 @@ function _empMsgPrograma(e){
   if(nom)nom=nom.charAt(0).toUpperCase()+nom.slice(1).toLowerCase();
   var p=[nom?'Hola '+nom+', ¿cómo estás?':'Hola, ¿cómo están?',
     'Te escribe César de Casa Zaru. Abrimos la Cuenta Casa Zaru para empresas: suma lo que tu empresa nos compró en los últimos 12 meses y, según el monto, te da un descuento fijo en las compras siguientes. Además, los muestrarios para tus proyectos van sin costo.'];
-  if(t===5)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el tramo más alto: 10 % de descuento pagando con transferencia (5 % con otros medios).');
+  if(e.profesional&&t===2)p.push('Como profesional, tu cuenta parte directo en el primer tramo: 7 % de descuento pagando con transferencia (2 % con otros medios), desde la primera compra. Sobre $3.000.000 en 12 meses pasas al 10 %.');
+  else if(t===5)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el tramo más alto: 10 % de descuento pagando con transferencia (5 % con otros medios).');
   else if(t===2)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el primer tramo: 7 % de descuento pagando con transferencia (2 % con otros medios). Le faltan '+fmtCLP(e.falta_5)+' para pasar al 10 %.');
   else p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras. Con '+fmtCLP(e.falta_2)+' más pasa al primer tramo: 7 % de descuento pagando con transferencia en las compras siguientes, y 10 % desde los $3.000.000.');
   if(_empVencePronto(e))p.push('Como las compras cuentan por 12 meses, el '+new Date(String(e.salida_fecha).slice(0,10)+'T12:00:00').toLocaleDateString('es-CL',{day:'numeric',month:'long'})+' sale de la cuenta una compra de '+fmtCLP(e.salida_monto)+'; si tienen algo en carpeta, conviene hacerlo antes.');
