@@ -28917,7 +28917,10 @@ async function marcarSalio(numStr,si){
   var antes=p.estado;p.estado=si?'Entregado':'Listo';
   renderSaleSemana();
   try{
-    await api('produccion/'+numStr,'PUT',p);
+    // Solo el estado, con PATCH (mezcla). Con PUT de la copia local se borraron el N° de OF
+    // y la decisión de Starken de 1603, 1609 y 1610 el 20-11-2026.
+    var guardado=await api('produccion/'+numStr,'PATCH',{estado:p.estado});
+    if(guardado)Object.assign(p,guardado);
     logHistorial(numStr,si?'🚚 Salió (tachado en "Sale esta semana")':'🚚 Desmarcado: no salió');
     renderProd();
   }catch(e){
@@ -29287,7 +29290,8 @@ async function loadProd(){
 async function saveProdOrder(order){
   if(!DB_URL)return;
   const numStr=String(order.pedido||'');if(!numStr)return;
-  try{await api('produccion/'+numStr,'PUT',order);}catch(e){console.error(e);}
+  // PATCH: lo que otro guardó y esta copia no tiene (of_starken, stk_diferencia…) se conserva.
+  try{var g=await api('produccion/'+numStr,'PATCH',order);if(g)Object.assign(order,g);}catch(e){console.error(e);}
 }
 function loadApiKey(){const k=localStorage.getItem('zaru_api_key');if(k){document.getElementById('api-key-input').value=k;document.getElementById('api-banner').classList.add('hidden');document.getElementById('api-ok').classList.add('on');}}
 function saveApiKey(){const k=document.getElementById('api-key-input').value.trim();if(!k.startsWith('sk-')){alert('La API key debe comenzar con sk-');return;}localStorage.setItem('zaru_api_key',k);document.getElementById('api-banner').classList.add('hidden');document.getElementById('api-ok').classList.add('on');showToast('✓ API Key guardada');}
@@ -30297,7 +30301,8 @@ function _prodIdx(numStr){return prodOrders.findIndex(function(o){return String(
 async function _guardarPiezasProd(o){
   var nStr=String(o.pedido||'');
   if(!DB_URL||!nStr)return;
-  await api('produccion/'+nStr,'PUT',o).catch(_falloGuardado('Producción del pedido '+nStr));
+  var g=await api('produccion/'+nStr,'PATCH',o).catch(_falloGuardado('Producción del pedido '+nStr));   // PATCH: no borra lo que esta copia no tiene
+  if(g)Object.assign(o,g);
   var piezas=(o.lineas||[]).reduce(function(s,l){return s+(Number(l.cantidad)||1);},0);
   if(orders.find(function(x){return String(x.num||'')===nStr;}))
     // Por la ruta de campo, que relee el registro y cambia solo 'piezas'.
