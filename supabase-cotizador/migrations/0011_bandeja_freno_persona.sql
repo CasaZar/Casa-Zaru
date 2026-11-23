@@ -37,6 +37,9 @@ $candado$;
 -- (La 0010 es del panel de campañas y no tiene relación; esta no depende de ella.)
 --
 -- Idempotente. Rollback al final.
+--
+-- APLICADA el 23-11-2026 en el SQL Editor del Cotizador (con ok del dueño).
+-- Verificación: toma_bandeja true, 0 chats tomados (no cambió ninguno), registrada. Prueba: 5 de 5.
 -- ══════════════════════════════════════════════════════════════════════════
 
 create or replace function public.mensajes_tomar_chat()
