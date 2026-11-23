@@ -29702,6 +29702,10 @@ async function confirmOrder(){
   // Volver a guardar desde Producción no borra nada de los documentos (folio,
   // PDF, monto facturado, «en proceso», doc 3).
   if(existFin)Object.keys(existFin).forEach(function(k){if(/^doc[123]_/.test(k)&&!(k in finData))finData[k]=existFin[k];});
+  // Profesional que presentó la venta (ficha del Cotizador): la base (0037) suma
+  // cada documento de este pedido a su Cuenta Casa Zaru y de acá sale su comisión.
+  if(fin.prof&&fin.prof.rut)finData.prof=fin.prof;
+  else if(existFin&&existFin.prof)finData.prof=existFin.prof;
   // Y desde el 11-11-2026 un registro que ya existía se guarda con PATCH: el PUT
   // lo reemplazaba entero y se perdía todo lo que no estuviera en finData
   // (fechas de abono, notas, lo que Finanzas anotó después). Las boletas
@@ -29844,9 +29848,11 @@ function vpcAbrir(id){
     _vpc_id:Number(v.id),
     // f.lista puede venir escrito con puntos («463.546»): solo los dígitos
     _finanzas:{valor_producto:Number(String(f.lista==null?'':f.lista).replace(/\D/g,''))||0,valor_envio:Number(c.envio)||0,valor_comision:0,
-               medio_pago:f.pago==='link'?'MERCADO PAGO':'TRANSFERENCIA'},
+               medio_pago:(f.pago==='link'||f.pago==='link3')?'MERCADO PAGO':'TRANSFERENCIA'},
     _cliente:{phone:v.contacto||'',direccion:f.direccion||'',ct:env.comuna||'',st:'',rut:esFactura?'':(doc.rut||''),fn:nom.fn,ln:nom.ln,country:'CL'},
     _factura:{doc_tipo:esFactura?'FACTURA':'BOLETA',razon_social:doc.razon||'',rut_empresa:esFactura?(doc.rut||''):''}};
+  if(f.prof&&f.prof.rut)pedidoData._finanzas.prof={rut:String(f.prof.rut),nombre:String(f.prof.nombre||''),
+    pago:f.pago||'',comision_pct:Number(c.comision_pct)||0,comision:Number(c.comision)||0,cotizacion:v.cotizacion_num||''};
   pedidoData.fecha=todayStr;
   prodPending=pedidoData;
   document.getElementById('prev-img').src='';
@@ -29857,7 +29863,7 @@ function vpcAbrir(id){
   origenProponer();
   // Cómo paga: transferencia con su descuento, o link de pago. Va DESPUÉS de
   // renderPrevProd, que deja el formulario en transferencia sin descuento.
-  if(f.pago==='link'){document.getElementById('pp-canal').value='LINK_MP';}
+  if(f.pago==='link'||f.pago==='link3'){document.getElementById('pp-canal').value='LINK_MP';}
   // pct_transf 0 es real (la presentó un profesional: paga lista y el 5 % es su comisión); solo falta en fichas viejas
   else{var _pt=(c.pct_transf===undefined||c.pct_transf===null||c.pct_transf==='')?0.05:Number(c.pct_transf)||0;
        document.getElementById('pp-desc').value=Math.round(_pt*1000)/10;}
@@ -36248,7 +36254,7 @@ function _empDetalle(e){
   return '<div class="emp-open" onclick="event.stopPropagation()">'+
     '<div><div class="k">Contacto</div><div class="vv">'+cont+'</div></div>'+
     '<div><div class="k">Próxima baja</div><div class="vv">'+_empSalidaTxt(e)+'</div></div>'+
-    '<div><div class="k">Últimos 12 meses · '+compras.length+'</div><div class="vv">'+(compras.length?compras.slice(0,4).map(function(k){return _empFecha(k.fecha)+' · '+(k.tipo==='NC'?'NC':'Factura')+(k.folio?' '+esc(k.folio):'')+' · <b>'+fmtCLP(k.monto)+'</b>';}).join('<br>')+(compras.length>4?'<br><span style="color:var(--text-3)">y '+(compras.length-4)+' más en la ficha</span>':''):'Sin compras en los últimos 12 meses.')+'</div></div>'+
+    '<div><div class="k">Últimos 12 meses · '+compras.length+'</div><div class="vv">'+(compras.length?compras.slice(0,4).map(function(k){return _empFecha(k.fecha)+' · '+(k.tipo==='NC'?'NC':k.tipo==='REFERIDA'?esc(k.detalle||'Referida'):'Factura')+(k.folio?' '+esc(k.folio):'')+' · <b>'+fmtCLP(k.monto)+'</b>';}).join('<br>')+(compras.length>4?'<br><span style="color:var(--text-3)">y '+(compras.length-4)+' más en la ficha</span>':''):'Sin compras en los últimos 12 meses.')+'</div></div>'+
     _empBloqueAviso(e)+
     '<div class="emp-acciones">'+
       '<button class="btn-emp verde" onclick="copiarLinkEmp('+e.id+')">Copiar link de su cuenta</button>'+
@@ -36329,7 +36335,7 @@ function renderFichaEmp(){
   var antes=compras.filter(function(k){return k.fecha<e.ciclo_inicio&&!k.anulada;});
   var t=Number(e.tramo_pct)||0;
   var fila=function(k){
-    var src=[k.tipo==='NC'?'Nota de crédito':'Factura',k.folio?k.folio:'',k.pedido?'pedido '+k.pedido:'',k.origen==='app'?'automática':(k.origen==='wasabil'?'historial':'a mano')].filter(Boolean).join(' · ');
+    var src=[k.tipo==='NC'?'Nota de crédito':(k.tipo==='REFERIDA'?'Venta referida':'Factura'),k.folio?k.folio:'',k.pedido?'pedido '+k.pedido:'',k.origen==='app'?'automática':(k.origen==='wasabil'?'historial':(k.origen==='referido'?'automática':'a mano'))].filter(Boolean).join(' · ');
     var anular=(!k.anulada&&k.origen!=='app')?' <a href="#" onclick="anularCompraEmp('+k.id+');return false" style="font-size:10px;color:var(--text-3)">anular</a>':'';
     return '<tr'+(k.anulada?' class="anulada"':'')+'><td>'+_empFecha(k.fecha)+'<br><span class="emp-src">'+esc(src)+(k.anulada?' · anulada':'')+'</span>'+anular+'</td><td>'+esc(k.detalle||'')+'</td><td class="r">'+fmtCLP(k.monto)+'</td></tr>';
   };
