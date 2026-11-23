@@ -105,4 +105,4 @@ grant execute on function public.b2b_estado(text) to anon, authenticated;
 
 -- Registrar en el panel (Database → Migrations), pegándolo junto con este archivo:
 -- insert into supabase_migrations.schema_migrations (version, name, statements)
--- values ('0036', 'b2b_profesionales', array[$m0036$ <este archivo> $m0036$]);
+-- values ('0036', 'b2b_profesionales', array[<etiqueta m0036 entre signos $> <este archivo> <la misma etiqueta>]);
