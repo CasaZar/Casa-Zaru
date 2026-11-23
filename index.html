@@ -748,6 +748,26 @@ body > .app-body:not(:has(> .page.active)) { flex: 0 0 0px; min-width: 0; overfl
 .emp-av b { color:var(--ev); } .emp-av .bar { height:8px;background:var(--ec2);border-radius:99px;margin:8px 0 4px;overflow:hidden; } .emp-av .bar i { display:block;height:100%;background:var(--ev); }
 .emp-av .mini,.emp-avm { font-size:11.5px;color:var(--text-3); }
 .emp-chip.av { border-color:var(--et);color:var(--et); } .emp-chip.av.on { background:var(--et);color:#fff; }
+/* Comisiones de profesionales (23-11-2026, boceto aprobado) */
+.com-sub { color:var(--text-3);font-size:13px;margin:2px 0 12px; }
+.com-kpis { display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px; }
+.com-kpi { background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px; }
+.com-kpi small { display:block;color:var(--text-3);font-size:11px; } .com-kpi b { font-size:17px; }
+.com-card { background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px; }
+.com-card h2 { font-size:15px;margin:0;display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'Inter',sans-serif; }
+.com-est { font-size:11px;font-weight:600;border-radius:20px;padding:2px 10px;white-space:nowrap; }
+.com-est.ok { background:#e7efe2;color:var(--ev); } .com-est.esp { background:#fbeee4;color:var(--et); } .com-est.pag { background:var(--ec2);color:var(--text-3); }
+.com-rut { color:var(--text-3);font-size:12px;margin:2px 0 8px; }
+.com-v { display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid var(--border);font-size:13px; }
+.com-v .d { color:var(--text-3);font-size:12px; } .com-v .m { text-align:right;font-weight:600; } .com-v.fuera { opacity:.55; }
+.com-v .q { background:none;border:0;color:var(--text-3);font-size:11px;text-decoration:underline;cursor:pointer;padding:0;margin-left:6px; }
+.com-tot { border-top:2px solid var(--text);margin-top:6px;padding-top:8px;display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:13px; }
+.com-tot .r { text-align:right; } .com-tot .liq { font-weight:700;font-size:15px; }
+.com-acc { display:flex;gap:8px;flex-wrap:wrap;margin-top:12px; }
+.com-asig { background:var(--ec);border-radius:10px;padding:12px;margin:14px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;font-size:12px; }
+.com-asig label { display:flex;flex-direction:column;gap:3px;color:var(--text-3); }
+.com-asig input,.com-asig select { padding:8px;border:1px solid var(--border-md);border-radius:6px;font-size:14px;font-family:inherit;background:var(--surface); }
+@media(max-width:560px){ .com-kpis { grid-template-columns:1fr 1fr; } .com-kpis .com-kpi:last-child { grid-column:1/-1; } .com-asig label { flex:1 1 40%; } }
 .emp-tag { display:inline-block;font-size:10.5px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:middle;white-space:nowrap; }
 .emp-tag.pend { background:#F6E6D8;color:var(--et); } .emp-tag.ok { background:#E5ECDF;color:var(--ev); }
 .emp-msg { grid-column:1/-1;border-top:1px solid var(--border);padding-top:12px; }
@@ -27206,6 +27226,9 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
 
 <div class="page" id="page-emp">
 <div class="main">
+  <div class="emp-chips com-vistas" style="margin-bottom:12px"><button class="emp-chip on" id="emp-vb-cuentas" onclick="empVista('cuentas')">Cuentas</button><button class="emp-chip" id="emp-vb-com" onclick="empVista('com')">Comisiones de profesionales</button></div>
+  <div id="emp-v-com" style="display:none"></div>
+  <div id="emp-v-cuentas">
   <div class="emp-hd"><div><h1>Cuentas empresa</h1><div class="emp-res" id="emp-stats"></div></div><button class="btn-emp verde" onclick="abrirEmpresa()">+ Empresa</button></div>
   <div id="emp-aviso"></div>
   <div class="emp-tools">
@@ -27217,6 +27240,7 @@ if(typeof window !== 'undefined' && !window.XLSX) try { window.XLSX = XLSX; } ca
     <label style="font-size:12px;color:var(--text-3);display:flex;align-items:center;gap:4px"><input type="checkbox" id="emp-inactivas" onchange="renderEmpresas()"> ver inactivas</label>
   </div>
   <div id="emp-lista"></div>
+  </div>
 </div></div>
 
 <div class="modal-bg" id="modal-emp-bg">
@@ -29705,7 +29729,7 @@ async function confirmOrder(){
   // Profesional que presentó la venta (ficha del Cotizador): la base (0037) suma
   // cada documento de este pedido a su Cuenta Casa Zaru y de acá sale su comisión.
   if(fin.prof&&fin.prof.rut)finData.prof=fin.prof;
-  else if(existFin&&existFin.prof)finData.prof=existFin.prof;
+  else if(existFin&&('prof' in existFin))finData.prof=existFin.prof;   /* null = se le quitó: que no vuelva desde la ficha */
   // Y desde el 11-11-2026 un registro que ya existía se guarda con PATCH: el PUT
   // lo reemplazaba entero y se perdía todo lo que no estuviera en finData
   // (fechas de abono, notas, lo que Finanzas anotó después). Las boletas
@@ -36178,6 +36202,7 @@ async function loadEmpresas(){
     empAvisosOk=true;
   }catch(e){console.warn('b2b_avisos (¿falta la migración 0026?)',e);empAvisos=[];empAvisosOk=false;}
   renderEmpresas();
+  if(empVistaAct==='com')renderComisiones();
   if(empFichaId&&document.getElementById('modal-emp-ficha-bg').classList.contains('open'))renderFichaEmp();
 }
 function renderEmpresas(){
@@ -36242,6 +36267,196 @@ function _empBarra2(e){
   return '<div class="emp-bar2"><div class="z2"></div><i class="f'+t+'" style="width:'+p.toFixed(1)+'%"></i><div class="mk"></div>'+over+'</div>';
 }
 function toggleEmp(id){empAbierta=empAbierta===id?null:id;renderEmpresas();}
+
+/* ── COMISIONES DE PROFESIONALES (23-11-2026, boceto aprobado) ──
+   Sale de Finanzas: cada pedido con `prof` (lo deja la ficha del Cotizador al
+   cargar la venta, o «Asignar» de acá). Una comisión entra al mes en que el
+   pedido queda pagado completo (último abono); las de meses anteriores sin
+   pagar siguen apareciendo en el mes actual. Bruta = % sobre el neto de
+   productos (total − envío − instalación, ÷ 1,19). Se paga contra boleta de
+   honorarios con retención del receptor: la retención la pagamos nosotros.
+   «Marcar pagada» deja prof.pagada en el pedido y no se puede pagar dos veces.
+   Escribe con PATCH (solo la clave prof): nunca pisa el resto de Finanzas. */
+var empVistaAct='cuentas',comMes='';
+var COM_RET={2025:14.5,2026:15.25,2027:16,2028:17};   /* % de retención de boletas de honorarios por año (Ley 21.133) */
+var COM_EMISOR='Muvale Diseño SpA (Casa Zaru), RUT 77.157.082-8';
+var COM_PAGO_TXT={transferencia:'Transferencia',link:'Link 1 cuota',link3:'Link 3 cuotas'};
+var COM_PAGO_BASE={transferencia:5,link:3,link3:1};   /* + tramo de la cuenta (2 o 5): 7/5/3 o 10/8/6 */
+function empVista(v){
+  empVistaAct=v;
+  document.getElementById('emp-v-cuentas').style.display=v==='cuentas'?'':'none';
+  document.getElementById('emp-v-com').style.display=v==='com'?'':'none';
+  document.getElementById('emp-vb-cuentas').classList.toggle('on',v==='cuentas');
+  document.getElementById('emp-vb-com').classList.toggle('on',v==='com');
+  if(v==='com')renderComisiones();
+}
+function _comHoyMes(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function _comHoyIso(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function _comMesTxt(m){var p=String(m).split('-');return new Date(+p[0],+p[1]-1,15).toLocaleDateString('es-CL',{month:'long',year:'numeric'});}
+function comMesMover(n){var p=comMes.split('-');var d=new Date(+p[0],+p[1]-1+n,15);comMes=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');renderComisiones();}
+function _comRetPct(m){return COM_RET[Number(String(m).slice(0,4))]||15.25;}
+function _comFechaPago(r){
+  var f='';
+  [1,2,3].forEach(function(k){if((Number(r['abono'+k])||0)>0){var i=_isoDeFecha(r['fecha_abono'+k]);if(i&&i>f)f=i;}});
+  return f||_isoDeFecha(r.fecha)||'';
+}
+function _comItem(r){
+  var p=r.prof||{};
+  var neto=Math.round(((Number(r.total)||0)-(Number(r.val_envio)||0)-(Number(r.val_instalacion)||0))/1.19);
+  var pct=Number(p.comision_pct)||0;
+  var pagado=(Number(r.total)||0)>0&&saldoFin(r)<=0;
+  var fp=pagado?_comFechaPago(r):'';
+  return {r:r,p:p,rut:_empNormRut(p.rut),neto:neto,pct:pct,
+    bruto:p.pagada?(Number(p.pagada.bruto)||0):Math.round(neto*pct/100),
+    pagado:pagado,fecha:fp,mes:p.pagada&&p.pagada.mes?p.pagada.mes:(fp?fp.slice(0,7):'')};
+}
+// Por profesional, lo que corresponde al mes elegido.
+function _comGrupos(){
+  var hoy=_comHoyMes(),g={},orden=[];
+  finRecords.filter(function(r){return r&&r.prof&&r.prof.rut;}).map(_comItem).forEach(function(it){
+    var pagadaAca=!!it.p.pagada&&it.mes===comMes;
+    var lista=!it.p.pagada&&it.pagado&&(it.mes===comMes||(comMes===hoy&&it.mes<hoy));
+    var espera=!it.p.pagada&&!it.pagado&&comMes===hoy;
+    if(!pagadaAca&&!lista&&!espera)return;
+    it.est=pagadaAca?'pagada':(lista?'lista':'espera');
+    var k=it.rut||String(it.p.rut);
+    if(!g[k]){var c=_empPorRut(it.rut);g[k]={rut:it.rut,nombre:(c&&c.razon_social)||it.p.nombre||'Profesional',cuenta:c,items:[]};orden.push(k);}
+    g[k].items.push(it);
+  });
+  return orden.map(function(k){
+    var x=g[k];
+    x.lista=x.items.filter(function(i){return i.est==='lista';});
+    x.pagadas=x.items.filter(function(i){return i.est==='pagada';});
+    var base=x.lista.length?x.lista:x.pagadas;
+    x.bruto=base.reduce(function(s,i){return s+i.bruto;},0);
+    x.ret=Math.round(x.bruto*_comRetPct(comMes)/100);
+    x.liq=x.bruto-x.ret;
+    x.boleta=x.lista.length>0&&x.lista.every(function(i){return !!i.p.boleta;});
+    return x;
+  });
+}
+function _comNombre1(g){
+  var n=String((g.cuenta&&g.cuenta.contacto)||g.nombre||'').trim().split(/\s+/)[0]||'';
+  if(/^(estudio|taller|oficina|arquitect|dise[ñn]o|constructora|inmobiliaria|interiorismo)/i.test(n)||!/^[A-Za-zÁÉÍÓÚÑÜáéíóúñü]{2,}$/.test(n))return '';
+  return n.charAt(0).toUpperCase()+n.slice(1).toLowerCase();
+}
+function _comMensaje(g){
+  var n=_comNombre1(g);
+  var peds=g.lista.map(function(i){return i.r.num;});
+  var detalle=peds.length===1?'pedido '+peds[0]+', '+g.lista[0].pct+' % del neto':'pedidos '+peds.slice(0,-1).join(', ')+' y '+peds[peds.length-1];
+  return (n?'Hola '+n:'Hola')+', te escribe César de Casa Zaru.\n\n'+
+    'Tu comisión de '+_comMesTxt(comMes).split(' ')[0]+' es de '+fmtCLP(g.bruto)+' ('+detalle+').\n\n'+
+    'Para pagártela, emite una boleta de honorarios electrónica a '+COM_EMISOR+', por '+fmtCLP(g.bruto)+
+    ', marcando «retención del receptor». Nosotros pagamos la retención al SII y te transferimos '+fmtCLP(g.liq)+'.';
+}
+function renderComisiones(){
+  var el=document.getElementById('emp-v-com');if(!el)return;
+  if(!comMes)comMes=_comHoyMes();
+  var gs=_comGrupos(),retP=_comRetPct(comMes);
+  var tb=0,tr=0,tl=0;gs.forEach(function(g){if(g.lista.length){tb+=g.bruto;tr+=g.ret;tl+=g.liq;}});
+  var pagadoMes=gs.reduce(function(s,g){return s+(g.lista.length?0:g.liq);},0);
+  var profs=empCuentas.filter(function(e){return e.activa&&e.profesional;});
+  var h='<div class="emp-hd"><div><h1>Comisiones de profesionales</h1>'+
+    '<div class="com-sub">Se paga a fin de mes lo de los pedidos <b>pagados completos</b>, contra boleta de honorarios con retención del receptor ('+String(retP).replace('.',',')+' %).</div></div></div>'+
+    '<div class="emp-chips" style="margin-bottom:12px;align-items:center"><button class="emp-chip" onclick="comMesMover(-1)">←</button><b style="font-size:14px;padding:0 6px">'+_comMesTxt(comMes).replace(/^./,function(c){return c.toUpperCase();})+'</b><button class="emp-chip" onclick="comMesMover(1)">→</button></div>'+
+    '<div class="com-kpis"><div class="com-kpi"><small>Por pagar · bruta</small><b>'+fmtCLP(tb)+'</b></div>'+
+    '<div class="com-kpi"><small>Retención (la pagamos al SII)</small><b>'+fmtCLP(tr)+'</b></div>'+
+    '<div class="com-kpi"><small>A transferir</small><b>'+fmtCLP(tl)+'</b>'+(pagadoMes?'<small>ya pagado este mes: '+fmtCLP(pagadoMes)+'</small>':'')+'</div></div>';
+  if(!gs.length)h+='<div class="empty-state"><span class="empty-icon">🤝</span>Ninguna comisión en '+_comMesTxt(comMes)+'. Las ventas que trae un profesional aparecen acá cuando se cargan desde «Por cargar» (o asignándolas abajo).</div>';
+  gs.forEach(function(g){
+    var est=g.lista.length?(g.boleta?['ok','Boleta recibida']:['ok','Lista para pagar']):(g.pagadas.length?['pag','Pagada']:['esp','Esperando saldo']);
+    var q=JSON.stringify(g.rut).replace(/"/g,'&quot;');
+    h+='<div class="com-card"><h2>'+esc(g.nombre)+'<span class="com-est '+est[0]+'">'+est[1]+'</span></h2>'+
+      '<div class="com-rut">RUT '+esc(_empFmtRut(g.rut))+(g.cuenta?' · tramo '+(Number(g.cuenta.tramo_pct)||0)+' %'+(g.cuenta.profesional?' · cuenta de profesional':''):' · sin cuenta')+'</div>';
+    g.items.forEach(function(it){
+      var r=it.r,propia=_empNormRut(r.rut)&&_empNormRut(r.rut)===it.rut;
+      var cli=[r.nombre,r.apellido].filter(Boolean).join(' ');
+      var pago=COM_PAGO_TXT[it.p.pago]||r.medio_pago||'';
+      var nota=it.est==='espera'?'falta el saldo ('+fmtCLP(saldoFin(r))+'): entra el mes en que quede pagado'
+        :(it.est==='pagada'?'comisión pagada el '+_empFecha(it.p.pagada.fecha):'pagado completo el '+_empFecha(it.fecha)+(it.mes<comMes?' (de '+_comMesTxt(it.mes)+')':''));
+      var nq=JSON.stringify(String(r.num)).replace(/"/g,'&quot;');
+      h+='<div class="com-v'+(it.est==='espera'?' fuera':'')+'"><div>Pedido '+esc(r.num)+' · '+esc(r.producto||'')+' · '+(propia?'compra propia':esc(cli||'cliente referido'))+
+        (it.p.pagada?'':'<button class="q" onclick="comQuitar('+nq+')">quitar</button>')+
+        '<div class="d">'+esc(pago)+' · '+it.pct+' % de '+fmtCLP(it.neto)+' neto · '+nota+'</div></div><div class="m">'+fmtCLP(it.bruto)+'</div></div>';
+    });
+    if(g.lista.length||g.pagadas.length){
+      h+='<div class="com-tot"><div>Bruta'+(g.items.some(function(i){return i.est==='espera';})?' (solo lo pagado)':'')+'</div><div class="r">'+fmtCLP(g.bruto)+'</div>'+
+        '<div>Retención '+String(retP).replace('.',',')+' %</div><div class="r">− '+fmtCLP(g.ret)+'</div>'+
+        '<div class="liq">'+(g.lista.length?'A transferir':'Transferido')+'</div><div class="r liq">'+fmtCLP(g.liq)+'</div></div>';
+    }
+    if(g.lista.length){
+      h+='<div class="com-acc"><button class="btn-emp verde" onclick="comCopiar('+q+')">Copiar mensaje</button>'+
+        (g.boleta?'':'<button class="btn-emp ghost" onclick="comBoleta('+q+')">Ya recibí su boleta</button>')+
+        '<button class="btn-emp ghost" onclick="comPagar('+q+')">Marcar pagada</button></div>';
+    }
+    h+='</div>';
+  });
+  h+='<div class="com-asig"><b style="flex-basis:100%;color:var(--text)">Asignar un pedido a un profesional</b>'+
+    '<label>Pedido N°<input id="com-a-num" inputmode="numeric" placeholder="1630" style="width:90px"></label>'+
+    '<label>Profesional<select id="com-a-rut">'+(profs.length?profs.map(function(e){return '<option value="'+esc(e.rut)+'">'+esc(e.razon_social)+'</option>';}).join(''):'<option value="">(no hay cuentas de profesional)</option>')+'</select></label>'+
+    '<label>Cómo pagó el cliente<select id="com-a-pago"><option value="transferencia">Transferencia</option><option value="link">Link 1 cuota</option><option value="link3">Link 3 cuotas</option></select></label>'+
+    '<button class="btn-emp verde" onclick="comAsignar()"'+(profs.length?'':' disabled')+'>Asignar</button>'+
+    '<div style="flex-basis:100%">El % sale del tramo de su cuenta: transferencia 7 % (10 %), link 1 cuota 5 % (8 %), 3 cuotas 3 % (6 %). Para un profesional nuevo, primero ábrele la cuenta en «Cuentas» marcando «profesional».</div></div>';
+  el.innerHTML=h;
+}
+function _comGrupo(rut){return _comGrupos().find(function(g){return g.rut===rut;});}
+async function _comPatchProf(r,prof){
+  await api('finanzas/'+r.num,'PATCH',{prof:prof});
+  r.prof=prof;
+}
+function comCopiar(rut){
+  var g=_comGrupo(rut);if(!g)return;
+  var t=_comMensaje(g),ok=function(){showToast('✓ Mensaje copiado para '+g.nombre);};
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,function(){prompt('Copia el mensaje:',t);});
+  else prompt('Copia el mensaje:',t);
+}
+async function comBoleta(rut){
+  var g=_comGrupo(rut);if(!g||finLectura)return;
+  try{
+    for(var i=0;i<g.lista.length;i++){var it=g.lista[i];if(!it.p.boleta)await _comPatchProf(it.r,Object.assign({},it.p,{boleta:_comHoyIso()}));}
+    showToast('Boleta de '+g.nombre+' anotada');
+  }catch(e){showToast('✗ No se pudo guardar: '+String(e.message||e).slice(0,90),true);}
+  renderComisiones();
+}
+async function comPagar(rut){
+  var g=_comGrupo(rut);if(!g||!g.lista.length||finLectura)return;
+  if(!confirm('¿Marcar pagada la comisión de '+g.nombre+'?\n\nBruta '+fmtCLP(g.bruto)+' · retención '+fmtCLP(g.ret)+' · transferencia '+fmtCLP(g.liq)+'\n\nHazlo después de transferir. Queda anotada en cada pedido.'))return;
+  var hoy=_comHoyIso(),mes=comMes;
+  try{
+    for(var i=0;i<g.lista.length;i++){
+      var it=g.lista[i];if(it.p.pagada)continue;
+      await _comPatchProf(it.r,Object.assign({},it.p,{pagada:{fecha:hoy,mes:mes,bruto:it.bruto,ret_pct:_comRetPct(mes),neto:it.neto,pct:it.pct}}));
+    }
+    showToast('✓ Comisión de '+g.nombre+' marcada pagada');
+  }catch(e){showToast('✗ No se pudo guardar: '+String(e.message||e).slice(0,90),true);}
+  renderComisiones();
+}
+async function comAsignar(){
+  if(finLectura)return;
+  var num=String((document.getElementById('com-a-num')||{}).value||'').trim();
+  var rut=(document.getElementById('com-a-rut')||{}).value||'';
+  var pago=(document.getElementById('com-a-pago')||{}).value||'transferencia';
+  var r=finRecords.find(function(x){return String(x.num||'')===num;});
+  if(!r){showToast('No encuentro el pedido '+num+' en Finanzas',true);return;}
+  var c=_empPorRut(rut);if(!c){showToast('Elige el profesional',true);return;}
+  if(r.prof&&r.prof.pagada){showToast('Ese pedido ya tiene su comisión pagada',true);return;}
+  if(r.prof&&r.prof.rut&&_empNormRut(r.prof.rut)!==c.rut&&!confirm('El pedido '+num+' ya es de '+(r.prof.nombre||r.prof.rut)+'. ¿Lo cambio a '+c.razon_social+'?'))return;
+  var pct=(COM_PAGO_BASE[pago]||5)+Math.max(2,Number(c.tramo_pct)||0);
+  try{
+    await _comPatchProf(r,Object.assign({},r.prof||{},{rut:c.rut,nombre:c.razon_social,pago:pago,comision_pct:pct,origen:'manual',asignado:_comHoyIso()}));
+    showToast('Pedido '+num+' asignado a '+c.razon_social+' ('+pct+' %)');
+  }catch(e){showToast('✗ No se pudo guardar: '+String(e.message||e).slice(0,90),true);}
+  renderComisiones();
+}
+async function comQuitar(num){
+  var r=finRecords.find(function(x){return String(x.num||'')===String(num);});
+  if(!r||!r.prof||finLectura)return;
+  if(r.prof.pagada){showToast('Esa comisión ya se pagó: no se quita',true);return;}
+  if(!confirm('¿Quitar al profesional del pedido '+num+'? Deja de tener comisión y deja de sumar a su cuenta.'))return;
+  try{await api('finanzas/'+r.num,'PATCH',{prof:null});r.prof=null;showToast('Pedido '+num+' sin profesional');}
+  catch(e){showToast('✗ No se pudo guardar: '+String(e.message||e).slice(0,90),true);}
+  renderComisiones();
+}
 // Cuándo deja de contar la compra más antigua de la ventana (viene de la vista).
 function _empSalidaTxt(e){
   if(!e.salida_fecha)return 'Sin compras en los últimos 12 meses.';
