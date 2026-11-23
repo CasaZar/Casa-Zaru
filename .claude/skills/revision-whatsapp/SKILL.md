@@ -206,6 +206,56 @@ se reemplaza; las de más de 30 días se sacan. Formato:
 La corrida de las 07:30 (`.claude/cerebro/cruzar-dia.ps1`) lo compara con el pedido de la Gestión y muestra
 las diferencias en Mi día → «Cruce de datos». Acá no se compara nada.
 
+## 6d · Avisos de envío: Gestión × Starken × chat (desde el 23-11-2026)
+Pedido del usuario: controlar todos los días que a cada cliente se le avisó su envío. Hoy las casillas
+de Seguimiento (`aviso_sem`, `aviso_lun`, `aviso_dia`, `comprobante`) las marca César a mano y nada
+comprueba que el mensaje salió: el 23-11, de 9 envíos del 16 al 22-11 solo 2 tenían `aviso_dia` y
+`comprobante`. **Regla: un aviso cuenta solo si el mensaje está en el chat.**
+
+1. **Qué tocaba avisar (Gestión, MCP de solo lectura).** Pedidos con `dia_envio` entre hace 7 días y
+   pasado mañana:
+   ```sql
+   select p.num, p.data->>'dia_envio' dia, p.data->'checks' checks, f.data->>'celular' cel,
+          f.data->>'nombre' nombre, f.data->>'apellido' apellido,
+          coalesce(e.of_numero::text, pr.data->>'of_starken') of_num, e.estado of_estado, e.created_at of_emitida
+   from gestion_pedidos p
+   left join gestion_finanzas f using(num) left join gestion_produccion pr using(num)
+   left join lateral (select of_numero, estado, created_at from envios_starken s
+                      where s.pedido = p.num and s.anulada_at is null order by created_at desc limit 1) e on true
+   where p.data->>'dia_envio' ~ '^\d{4}-\d{2}-\d{2}$'
+     and (p.data->>'dia_envio')::date between current_date - 7 and current_date + 2
+   order by dia;
+   ```
+   Ventanas (las mismas de `AVISOS` en `index.html`): `aviso_sem` de −9 a −5 días del envío,
+   `aviso_lun` de −4 a −2, `aviso_dia` de −2 a −1, `comprobante` de 0 a +1. Solo se exige lo que ya venció.
+   Muestrarios, post venta y retiros en taller también se revisan: el cliente igual necesita saber cuándo.
+2. **Qué salió de verdad (Starken PRO, si el usuario lo dejó abierto en Chrome).** Con la misma pestaña
+   y el mismo acceso que usa la skill `revision-starken` (su `revisar.js` ya consulta las OF), anotar
+   por OF el estado y la fecha de admisión. Si Starken PRO no está abierto o pide clave, saltarse este
+   punto y decirlo en el resumen; nunca escribir la clave.
+3. **Qué recibió el cliente (chat del 5558).** Abrir el chat por el celular de Finanzas y buscar
+   NUESTROS mensajes desde la cotización: semana o fecha de envío (`aviso_sem`/`aviso_lun`), «sale
+   mañana» o el día (`aviso_dia`), y el N° de OF, el link de seguimiento o la foto del comprobante
+   (`comprobante`). Anotar fecha y hora del mensaje. Un mensaje que el cliente no ve (borrador en la
+   caja de texto) no cuenta. Si no se pudo ver todo el chat, «no vi el resto del chat», nunca «no avisó».
+4. **Clasificar cada pedido:**
+   - **ok**: el aviso que tocaba está en el chat y la casilla marcada.
+   - **sin_marcar**: está en el chat pero la casilla no. Se propone al usuario marcarla (lista con N° y
+     qué casilla); se escribe solo con su ok, releyendo el pedido y mandando el objeto `checks` COMPLETO
+     en el PATCH (PATCH mezcla solo el primer nivel).
+   - **no_avisado**: la ventana venció y no hay mensaje. Va al panel (paso 8) como `tipo: 'promesa'`,
+     prioridad 40-44 (comprobante y «sale mañana» primero), `pedido` = N°, `contexto` «Envío del DD-MM
+     sin avisar: falta <aviso>», y `mensaje` con la fecha y, si hay, el N° de OF (dato que falte entre
+     corchetes). Si la casilla estaba marcada sin mensaje, decirlo en el contexto: es el caso más grave.
+   - **starken_no_calza**: salió sin OF en la Gestión, OF sin admitir pasado el día de envío, OF anulada
+     con el pedido marcado como enviado, o fecha de admisión distinta del `dia_envio`. No va al panel de
+     César: va al resumen y a `principal` de Mi día.
+5. **Guardar** en `RW\avisos-envio.md` (Drive, nunca el repo) una tabla por revisión: pedido, cliente,
+   día de envío, OF, qué tocaba, qué se vio en el chat (fecha/hora), clasificación. Arrastrar los
+   `no_avisado` hasta verlos cumplidos, igual que las promesas.
+6. **En Mi día**: una línea en `principal` («Envíos: N ok · N sin marcar · N sin avisar · N Starken no
+   calza»), y los `sin_marcar` y `starken_no_calza` con su detalle en `promesas` (título = N° de pedido).
+
 ## 7 · Entregable: sección «WhatsApp» de Mi día (desde el 12-11-2026, YA NO hay PDF)
 El usuario lo quiere en línea y solo para él: va en la Gestión → **Mi día**, que desde la
 migración 0031 lee solo su cuenta dueña (ni hola@ ni César). Nada de PDF ni SendUserFile.
