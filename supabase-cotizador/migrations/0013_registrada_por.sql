@@ -21,6 +21,8 @@ $candado$;
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- 0013 · COTIZADOR · Cotizaciones registradas por el asistente (Claude) (24-11-2026)
+-- APLICADA el 24-11-2026 (SQL Editor, desde el Chrome del usuario, boceto aprobado). Verificada por MCP:
+-- columna 1, check 1, trigger 1, 6 marcadas (258, 270, 271, 272, 273, 275), registrada 1.
 --
 -- Pedido del dueño: las cotizaciones que registra Claude al revisar WhatsApp e
 -- Instagram se guardan con la cuenta hola@, la misma por la que entran las del link
