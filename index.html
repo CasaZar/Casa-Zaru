@@ -31006,8 +31006,7 @@ async function stkEmitir(){
     stk.envio=d.envio;
     // El N° de OF también queda en el pedido (PATCH: mezcla, no pisa el resto)
     if(stk.modo==='produccion'&&d.envio&&d.envio.of_numero&&DB_URL){
-      _stkGuardarOF(stk.num,d.envio.of_numero);
-      _stkGuardarDif(stk.num,d.envio.of_numero);
+      _stkGuardarOF(stk.num,d.envio.of_numero,_stkDifReg(d.envio.of_numero));
     }
     showToast('✓ OF '+d.envio.of_numero+' emitida');
     stkPintar();
@@ -31034,19 +31033,23 @@ async function stkEtiqueta(){
 // La OF se guarda en Producción y también en Seguimiento: el aviso «envío listo»
 // la lee de ahí, y Seguimiento no siempre tiene Producción cargada. Solo se toca
 // el pedido de Seguimiento si existe (PATCH crea la fila si no está).
-function _stkGuardarOF(numStr,of){
-  var o=prodOrders[_prodIdx(numStr)];if(o)o.of_starken=of;
-  api('produccion/'+numStr,'PATCH',{of_starken:of}).catch(_falloGuardado('OF Starken en Producción del pedido '+numStr));
+// extra: otros campos de Producción que se guardan en el MISMO PATCH (la diferencia con lo
+// cobrado). Van juntos porque PATCH relee, mezcla y reescribe el data entero: dos PATCH
+// seguidos al mismo pedido se pisan y el que termina último borra al otro. Así se perdió
+// el N° de OF en Producción del 1626 y el 1632 (24-11-2026).
+function _stkGuardarOF(numStr,of,extra){
+  var cambio=Object.assign({of_starken:of},extra||{});
+  var o=prodOrders[_prodIdx(numStr)];if(o)Object.assign(o,cambio);
+  api('produccion/'+numStr,'PATCH',cambio).catch(_falloGuardado('OF Starken en Producción del pedido '+numStr));
   var s=orders.find(function(x){return String(x.num||'')===String(numStr);});
   if(s){s.of_starken=of;api('pedidos/'+numStr,'PATCH',{of_starken:of}).catch(_falloGuardado('OF Starken en Seguimiento del pedido '+numStr));}
   if(typeof renderSeg==='function')renderSeg();
 }
 // Qué se decidió con la diferencia entre Starken y lo que pagó el cliente (solo si la hubo).
-function _stkGuardarDif(numStr,of){
-  var falta=_stkFalta();if(!(falta>STK_TOL))return;
-  var reg={of:String(of),starken:stk.precio,cliente:stk.cobrado||0,diferencia:falta,decision:stk.decision||'',fecha:new Date().toISOString(),por:usuarioEmail||''};
-  var o=prodOrders[_prodIdx(numStr)];if(o)o.stk_diferencia=reg;
-  api('produccion/'+numStr,'PATCH',{stk_diferencia:reg}).catch(_falloGuardado('diferencia de envío Starken del pedido '+numStr));
+// Devuelve el campo para el PATCH de _stkGuardarOF, o null si no hubo diferencia.
+function _stkDifReg(of){
+  var falta=_stkFalta();if(!(falta>STK_TOL))return null;
+  return{stk_diferencia:{of:String(of),starken:stk.precio,cliente:stk.cobrado||0,diferencia:falta,decision:stk.decision||'',fecha:new Date().toISOString(),por:usuarioEmail||''}};
 }
 function stkCopiarSeguimiento(){
   var e=stk.envio;if(!e)return;
