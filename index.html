@@ -30702,6 +30702,7 @@ function stkPintar(){
   var prod=((o.lineas||[])[0]||{}).producto||f.producto||'Mueble de madera';
   stk.docs=_stkDocs(f);
   stk.cobrado=Math.round(Number(f.val_envio)||0);   // lo que pagó el cliente de envío (Finanzas)
+  stk.armable=_stkArmable(o);
   if(!stk.bultos)stk.bultos=[{largo:med.largo,ancho:med.ancho,alto:med.alto,kilos:_stkKilos(o)}];
   if(!stk.pag)stk.pag={bultos:1,kilos:_stkKilos(o)};
   function campo(id,lbl,val,extra){return'<div class="form-group"><label>'+lbl+'</label><input id="'+id+'" type="text" value="'+esc(val==null?'':String(val))+'" '+(extra||'')+' oninput="stkCambio(\''+id+'\')"></div>';}
@@ -30766,6 +30767,34 @@ function _stkCobraHtml(b){
   return'<div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:8px;padding:6px 8px;border-radius:8px;background:#ECFDF3;color:#166534">'+_STK_ICO_OK+
     '<span>Se cobra por peso: '+_stkKg(b.kilos)+' kg (volumen '+_stkKg(vol)+' kg)</span></div>';
 }
+// ── ¿Va armada? (24-11-2026) ────────────────────────────────────────────────
+// El alto parte en 7 cm por pieza (piezas planas). Si el pedido es un mueble con base y se emite
+// así, Starken lo mide armado al recibirlo: OF 282305796 (pedido 1609, mesa de centro) salió con
+// 150 × 90 × 7 cm a $23.810 y quedó en $61.000 (160,74 kg de volumen, ~48 cm de alto real).
+// Con un mueble armable y ningún bulto sobre STK_ALTO_ARMADA cm, no se emite hasta confirmar.
+var STK_ALTO_ARMADA=20;
+function _stkArmable(o){
+  var hit='';
+  (o.lineas||[]).forEach(function(l){
+    var p=String(l.producto||'').trim();
+    if(hit||/^(cubierta|peld|puerta|mampara|marco|repisa|muestrario|reborde|guardapolvo|larguero|servilleter|soporte)/i.test(p))return;
+    if(/\b(mesa|banca|banco|banqueta|silla|escritorio|velador|rack|bases?|patas)\b/i.test(p))hit=p;
+  });
+  return hit;
+}
+function _stkArmadaHtml(){
+  if(!stk.armable||stk.via==='pagado')return'';
+  var bs=stk.bultos||[];if(!bs.length||!bs.every(_stkBultoOk))return'';
+  if(bs.some(function(b){return Math.min(b.largo,b.ancho,b.alto)>=STK_ALTO_ARMADA;}))return'';
+  return'<div style="font-size:12.5px;line-height:1.5;margin:2px 0 10px;padding:9px 10px;border-radius:10px;background:#FEF3F2;border:1px solid #FECDCA;color:#B42318">'+
+    '<div style="display:flex;gap:6px;align-items:flex-start">'+_STK_ICO_AV+'<span><b>¿Va armada?</b> El pedido es «'+esc(stk.armable)+'» y ningún bulto mide más de '+STK_ALTO_ARMADA+' cm. '+
+    'Si viaja armada, el alto es el de la mesa completa (de centro ~45 cm, de comedor ~75 cm), no el de la cubierta. Starken la mide al recibirla y cobra la diferencia: '+
+    'la OF 282305796 se emitió con 7 cm a $23.810 y quedó en $61.000.</span></div>'+
+    '<label style="display:flex;gap:8px;align-items:flex-start;margin:8px 0 0;font-size:12.5px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--text,#2A2A26);cursor:pointer">'+
+    '<input type="checkbox" style="width:auto;margin:2px 0 0"'+(stk.planaOk?' checked':'')+' onchange="stk.planaOk=this.checked;stk.confirmar=false;stkValidar()">'+
+    '<span>Va desarmada y plana (la base va en otro bulto o dentro de este)</span></label></div>';
+}
+function _stkFaltaArmada(){return!!_stkArmadaHtml()&&!stk.planaOk;}
 function _stkJuntoTxt(){
   if((stk.bultos||[]).length<2)return'';
   var j=_stkJuntar();if(!j)return'';
@@ -30784,13 +30813,15 @@ function _stkBultosHtml(){
       '<div id="stk-b'+i+'-cobra">'+_stkCobraHtml(b)+'</div></div>';
   }).join('')+
   '<button type="button" class="btn-sec" style="width:100%;border-style:dashed;margin-bottom:6px" onclick="stkAgregarBulto()">+ Agregar bulto'+(bs.length===1?' (ej. la base aparte)':'')+'</button>'+
-  '<div id="stk-junto" style="font-size:12px;color:var(--text-3);margin-bottom:4px;line-height:1.45">'+_stkJuntoTxt()+'</div>';
+  '<div id="stk-junto" style="font-size:12px;color:var(--text-3);margin-bottom:4px;line-height:1.45">'+_stkJuntoTxt()+'</div>'+
+  '<div id="stk-armada">'+_stkArmadaHtml()+'</div>';
 }
 function stkBulto(i,k,v){
   var b=stk.bultos[i];if(!b)return;
   b[k]=_stkDec(v);
   var c=document.getElementById('stk-b'+i+'-cobra');if(c)c.innerHTML=_stkCobraHtml(b);
   var j=document.getElementById('stk-junto');if(j)j.innerHTML=_stkJuntoTxt();
+  var a=document.getElementById('stk-armada');if(a)a.innerHTML=_stkArmadaHtml();
   stk.confirmar=false;
   clearTimeout(stk.tCot);stk.tCot=setTimeout(stkCotizar,600);   // no consultar a Starken en cada tecla
   stkValidar();
@@ -30881,6 +30912,7 @@ function stkValidar(){
     if(!(stk.pag&&stk.pag.bultos>=1&&stk.pag.bultos<=30))faltan.push('bultos (1 a 30)');
     if(!(stk.pag&&stk.pag.kilos>0))faltan.push('kilos');
   }else if(!(stk.bultos||[]).every(_stkBultoOk))faltan.push('medidas y kilos de cada bulto');
+  else if(_stkFaltaArmada())faltan.push('confirmar si va armada (el alto)');
   if(!(_stkNum('stk-valor')>0))faltan.push('valor declarado (Starken lo exige)');
   if(_stkNum('stk-valor')>50000&&!(stk.docs&&stk.docs.length))faltan.push('boleta o factura emitida (Starken la exige sobre $50.000)');
   if(!stk.precio)faltan.push('precio de Starken');
