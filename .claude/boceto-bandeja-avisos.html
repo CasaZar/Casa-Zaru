@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Boceto · Avisos de la bandeja</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--verde:#485B3D;--terra:#B5652E;--cafe:#6b4a32;--gris:#f3f1ec;--linea:#e2ddd3;--txt:#2b2b2b;--suave:#77736b;--rojo:#b23a2a;--ambar:#c98a1a;--fondo:#faf9f6}
+*{box-sizing:border-box}
+body{margin:0;background:#e9e6df;font:15px/1.45 Poppins,system-ui,sans-serif;color:var(--txt)}
+.hoja{max-width:430px;margin:0 auto;padding:18px 16px 40px}
+h1{font:600 22px 'Playfair Display',serif;margin:0 0 4px;color:var(--verde)}
+.intro{color:var(--suave);font-size:13px;margin:0 0 20px}
+.paso{margin:26px 0 8px;display:flex;gap:10px;align-items:baseline}
+.paso b{font:600 13px Poppins;color:#fff;background:var(--terra);border-radius:20px;min-width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center}
+.paso span{font-weight:600;font-size:15px}
+.nota{font-size:13px;color:var(--suave);margin:0 0 10px}
+.cel{background:var(--fondo);border:1px solid var(--linea);border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.top{background:var(--verde);color:#fff;padding:14px 16px 12px;display:flex;align-items:flex-start;gap:8px}
+.top h2{font:600 21px 'Playfair Display',serif;margin:0}.top p{margin:2px 0 0;opacity:.85;font-size:12px}
+.top .sp{flex:1}
+.camp{border:1px solid rgba(255,255,255,.5);border-radius:8px;padding:5px 8px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500}
+.camp i{background:#fff;color:var(--terra);border-radius:10px;font-style:normal;font-weight:600;font-size:11px;padding:0 6px}
+svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.franja{background:var(--terra);color:#fff;padding:10px 14px;display:flex;gap:10px;align-items:center;font-size:14px}
+.franja b{font-weight:600}.franja small{display:block;opacity:.9;font-size:12px}
+.franja .ver{margin-left:auto;background:#fff;color:var(--terra);border-radius:8px;font:600 12px Poppins;padding:6px 10px;white-space:nowrap}
+.item{padding:12px 14px;border-bottom:1px solid var(--linea);display:flex;gap:10px;align-items:flex-start;background:#fff}
+.item.nuevo{background:#fbf3ec;border-left:4px solid var(--terra);padding-left:10px}
+.item .n{font-weight:600}.item .t{color:var(--suave);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .cu{min-width:0;flex:1}
+.item .h{font-size:12px;color:var(--suave);white-space:nowrap}
+.chip{display:inline-block;font-size:11px;font-weight:500;padding:1px 8px;border-radius:10px;background:var(--gris);color:var(--cafe);margin:4px 4px 0 0}
+.chip.r{background:#f6e3df;color:var(--rojo)}.chip.a{background:#f7ecd6;color:#8a5d0c}.chip.v{background:#e4ecdf;color:var(--verde)}
+.bloq{background:#23262b;border-radius:16px;padding:26px 12px 18px;color:#fff}
+.bloq .hora{text-align:center;font:400 44px Poppins;letter-spacing:1px;line-height:1}
+.bloq .dia{text-align:center;font-size:13px;opacity:.75;margin:4px 0 18px}
+.noti{background:rgba(255,255,255,.94);color:var(--txt);border-radius:14px;padding:10px 12px;margin-top:8px}
+.noti .ap{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--suave);margin-bottom:2px}
+.noti .ap .p{width:16px;height:16px;border-radius:4px;background:var(--verde);display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.noti .ap .p svg{width:10px;height:10px}
+.noti b{display:block;font-weight:600;font-size:14px}.noti span{font-size:13px;color:#444}
+.noti.urg{border-left:4px solid var(--rojo)}
+.tarj{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:14px}
+.tarj h3{font:600 15px Poppins;margin:0 0 4px}.tarj p{margin:0 0 10px;font-size:13px;color:var(--suave)}
+.fila{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--linea);font-size:14px}
+.fila .sp{flex:1}
+.sw{width:38px;height:22px;border-radius:12px;background:var(--verde);position:relative;flex:none}
+.sw::after{content:"";position:absolute;right:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw.off{background:#cfcac0}.sw.off::after{right:auto;left:2px}
+.btn{display:block;text-align:center;font:600 14px Poppins;padding:11px;border-radius:9px;background:var(--verde);color:#fff;margin-top:6px}
+.dec{background:#fff;border:1px dashed var(--terra);border-radius:14px;padding:12px 14px;margin-top:26px;font-size:13px}
+.dec b{color:var(--terra)}.dec ol{margin:6px 0 0;padding-left:18px}.dec li{margin:4px 0}
+</style>
+</head>
+<body>
+<div class="hoja">
+  <h1>Avisos de la bandeja</h1>
+  <p class="intro">Boceto. Que una respuesta de un cliente no vuelva a quedar sin ver.</p>
+
+  <div class="paso"><b>1</b><span>Con la bandeja abierta</span></div>
+  <p class="nota">Suena un tono corto, aparece una franja arriba y el chat sube marcado. La pestaña del navegador muestra «(1) Mensajes». Revisa cada 15 segundos en vez de cada minuto.</p>
+  <div class="cel">
+    <div class="top">
+      <div><h2>Mensajes</h2><p>Línea del asistente · 1122</p></div><div class="sp"></div>
+      <div class="camp"><svg class="ic" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 7 2.5 7h-17S6 15 6 9z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>Avisos <i>1</i></div>
+    </div>
+    <div class="franja">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>
+      <div><b>Jose respondió</b><small>hace 1 minuto</small></div>
+      <div class="ver">Ver chat</div>
+    </div>
+    <div class="item nuevo">
+      <div class="cu"><div class="n">Jose</div><div class="t">Necesito una cubierta de cocina de 100 × 50</div>
+        <span class="chip a">Borrador listo</span><span class="chip v">Quedan 23 h</span></div>
+      <div class="h">12:35</div>
+    </div>
+    <div class="item">
+      <div class="cu"><div class="n">Carolina</div><div class="t">Hola, quiero más información</div>
+        <span class="chip">Ventana cerrada</span></div>
+      <div class="h">vie</div>
+    </div>
+  </div>
+
+  <div class="paso"><b>2</b><span>Con la bandeja cerrada</span></div>
+  <p class="nota">Llega una notificación al celular o al computador, como las de cualquier app. Al tocarla se abre ese chat. Hay que activarla una vez en cada dispositivo.</p>
+  <div class="bloq">
+    <div class="hora">12:36</div><div class="dia">lunes 23 de noviembre</div>
+    <div class="noti">
+      <div class="ap"><span class="p"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Casa Zaru · Mensajes · ahora</div>
+      <b>Jose respondió</b><span>Necesito una cubierta de cocina de 100 × 50</span>
+    </div>
+  </div>
+
+  <div class="paso"><b>3</b><span>Si nadie responde</span></div>
+  <p class="nota">Un segundo aviso a las 2 horas sin respuesta, y uno último cuando quedan 3 horas para que se cierre la ventana de 24 horas. Después de eso ya no se le puede escribir.</p>
+  <div class="bloq" style="padding-top:14px">
+    <div class="noti">
+      <div class="ap"><span class="p"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Casa Zaru · Mensajes · 14:35</div>
+      <b>Jose espera hace 2 horas</b><span>Hay un borrador listo para enviar.</span>
+    </div>
+    <div class="noti urg">
+      <div class="ap"><span class="p"><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg></span>Casa Zaru · Mensajes · mar 09:35</div>
+      <b>Se cierra en 3 horas: Jose</b><span>Si no se responde antes de las 12:35, ya no se le puede escribir.</span>
+    </div>
+  </div>
+  <div class="cel" style="margin-top:10px">
+    <div class="item nuevo" style="border-left-color:var(--rojo)">
+      <div class="cu"><div class="n">Jose</div><div class="t">Necesito una cubierta de cocina de 100 × 50</div>
+        <span class="chip a">Borrador listo</span><span class="chip r">Se cierra en 3 h</span></div>
+      <div class="h">ayer</div>
+    </div>
+  </div>
+
+  <div class="paso"><b>4</b><span>Activar y ajustar</span></div>
+  <p class="nota">Se abre desde la campana. Cada persona decide en su propio dispositivo.</p>
+  <div class="tarj">
+    <h3>Avisos en este dispositivo</h3>
+    <p>El navegador pedirá permiso una sola vez.</p>
+    <div class="fila"><span>Notificaciones</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="fila"><span>Sonido con la bandeja abierta</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="fila"><span>Recordatorios si nadie responde</span><span class="sp"></span><span class="sw"></span></div>
+    <div class="fila"><span>Avisar también fuera de horario</span><span class="sp"></span><span class="sw off"></span></div>
+    <div class="btn">Enviarme un aviso de prueba</div>
+  </div>
+
+  <div class="dec">
+    <b>Lo que necesito que decidas</b>
+    <ol>
+      <li>Quién recibe avisos: solo tú, o tú y César.</li>
+      <li>Horario: propongo lunes a viernes 9:00 a 17:30 y sábado 10:00 a 14:00; fuera de eso, silencio, salvo el aviso de «se cierra en 3 horas».</li>
+      <li>Si alcanza con los pasos 1, 3 (dentro de la página) y 4, o también quieres el paso 2, que es el que lleva más trabajo.</li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>

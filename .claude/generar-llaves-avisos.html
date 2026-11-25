@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Llaves de los avisos</title>
+<style>
+body{margin:0;background:#faf9f6;font:15px/1.5 system-ui,sans-serif;color:#2b2b2b}
+.h{max-width:640px;margin:0 auto;padding:22px 16px 40px}
+h1{font-size:21px;color:#485B3D;margin:0 0 6px}
+p{margin:8px 0}.s{color:#77736b;font-size:13.5px}
+button{font:600 14px system-ui;padding:10px 14px;border-radius:9px;border:1px solid #485B3D;background:#485B3D;color:#fff;cursor:pointer}
+button.b{background:#fff;color:#485B3D}
+.c{background:#fff;border:1px solid #e2ddd3;border-radius:12px;padding:12px 14px;margin:14px 0}
+.c b{display:block;margin-bottom:6px}
+textarea{width:100%;font:12.5px/1.4 ui-monospace,Consolas,monospace;border:1px solid #e2ddd3;border-radius:8px;padding:8px;resize:none;background:#f6f3ee}
+.r{color:#b23a2a;font-weight:600}
+ol{padding-left:20px}li{margin:5px 0}
+</style></head><body><div class="h">
+<h1>Llaves de los avisos de la bandeja</h1>
+<p class="s">Esta página crea un par de llaves <b>en este navegador</b>. No envía nada a ninguna parte y no guarda nada: si la cierras, se pierden. Se usa una sola vez.</p>
+<p><button id="gen">Generar llaves</button></p>
+<div id="res" hidden>
+  <div class="c"><b>1. VAPID_PUBLICA</b><textarea id="pub" rows="2" readonly></textarea><p><button class="b" data-c="pub">Copiar</button> <span class="s">No es secreta.</span></p></div>
+  <div class="c"><b>2. VAPID_PRIVADA</b><textarea id="priv" rows="4" readonly></textarea><p><button class="b" data-c="priv">Copiar</button> <span class="r">Secreta: no la pegues en ningún chat ni correo.</span></p></div>
+  <ol>
+    <li>Abre el panel de Supabase del <b>Cotizador</b> → Edge Functions → Secrets.</li>
+    <li>Crea el secreto <b>VAPID_PUBLICA</b> y pega el primer valor.</li>
+    <li>Crea el secreto <b>VAPID_PRIVADA</b> y pega el segundo valor.</li>
+    <li>Guarda y cierra esta página.</li>
+  </ol>
+  <p class="s">Si alguna vez se generan llaves nuevas, cada persona tiene que desactivar y volver a activar los avisos en su dispositivo.</p>
+</div>
+<p id="msg" class="s"></p>
+<script>
+function b64u(b){ var s = ''; for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+document.getElementById('gen').onclick = async function(){
+  try {
+    var k = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    document.getElementById('pub').value = b64u(new Uint8Array(await crypto.subtle.exportKey('raw', k.publicKey)));
+    document.getElementById('priv').value = b64u(new Uint8Array(await crypto.subtle.exportKey('pkcs8', k.privateKey)));
+    document.getElementById('res').hidden = false;
+    document.getElementById('msg').textContent = '';
+  } catch (e) { document.getElementById('msg').textContent = 'Este navegador no pudo generar las llaves. Prueba con Chrome.'; }
+};
+document.addEventListener('click', async function(e){
+  var id = e.target && e.target.dataset && e.target.dataset.c; if (!id) return;
+  var t = document.getElementById(id);
+  try { await navigator.clipboard.writeText(t.value); } catch (x) { t.select(); document.execCommand('copy'); }
+  document.getElementById('msg').textContent = 'Copiado.';
+});
+</script>
+</div></body></html>

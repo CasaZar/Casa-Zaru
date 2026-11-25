@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Prueba · cifrado de avisos</title></head>
+<body style="font:14px/1.5 system-ui;padding:16px">
+<h3>Prueba del cifrado de avisos (RFC 8291) y de la firma VAPID</h3>
+<p>Lee el bloque ⟦push-cripto⟧ de la función tal como está en el repo y lo corre aquí con los valores de ejemplo del RFC 8291.</p>
+<pre id="out">Corriendo…</pre>
+<script>
+(async function(){
+  var out = [], fallos = 0;
+  function ok(c, t){ out.push((c ? 'OK    ' : 'FALLA ') + t); if (!c) fallos++; }
+  try {
+    var src = await (await fetch('../supabase-cotizador/functions/mensajes-webhook/index.ts', { cache: 'no-store' })).text();
+    var m = src.match(/\/\/ ⟦push-cripto⟧([\s\S]*?)\/\/ ⟦\/push-cripto⟧/);
+    if (!m) throw new Error('no encontré el bloque ⟦push-cripto⟧');
+    var js = m[1].replace(/: (Promise<any>|any|string)/g, '');
+    if (/:\s*(any|string|number|unknown|Promise)\b/.test(js)) throw new Error('quedó una anotación de tipo sin quitar');
+    var F = new Function(js + '\nreturn { b64u: b64u, deB64u: deB64u, junta: junta, hkdf: hkdf, cifrarCon: cifrarCon, vapidAuth: vapidAuth };')();
+
+    /* Valores del RFC 8291, sección 5 y apéndice A */
+    var V = {
+      texto: 'When I grow up, I want to be a watermelon',
+      as_public: 'BP4z9KsN6nGRTbVYI_c7VJSPQTBtkgcy27mlmlMoZIIgDll6e3vCYLocInmYWAmS6TlzAC8wEqKK6PBru3jl7A8',
+      as_private: 'yfWPiYE-n46HLnH0KqZOF1fJJU3MYrct3AELtAQ-oRw',
+      ua_public: 'BCVxsr7N_eNgVRqvHtD0zTZsEc6-VV-JvLexhqUzORcxaOzi6-AYWXvTBHm4bjyPjs7Vd8pZGH6SRpkNtoIAiw4',
+      ua_private: 'q1dXpw3UpT5VOmu_cf_v6ih07Aems3njxI-JWgLcM94',
+      salt: 'DGv6ra1nlYgDCS1FRnbzlw',
+      auth: 'BTBZMqHH6r4Tts7J_aSIgg',
+      ciphertext: '8pfeW0KbunFT06SuDKoJH9Ql87S1QUrdirN6GcG7sFz1y1sqLgVi1VhjVkHsUoEsbI_0LpXMuGvnzQ'
+    };
+    ok(F.b64u(F.deB64u(V.as_public)) === V.as_public, 'base64url ida y vuelta');
+    var asPub = F.deB64u(V.as_public);
+    var jwk = { kty: 'EC', crv: 'P-256', d: V.as_private, x: F.b64u(asPub.slice(1, 33)), y: F.b64u(asPub.slice(33, 65)), ext: true };
+    var par = {
+      privateKey: await crypto.subtle.importKey('jwk', jwk, { name: 'ECDH', namedCurve: 'P-256' }, false, ['deriveBits']),
+      publicKey: await crypto.subtle.importKey('raw', asPub, { name: 'ECDH', namedCurve: 'P-256' }, true, [])
+    };
+    var cuerpo = await F.cifrarCon(F.deB64u(V.ua_public), F.deB64u(V.auth), new TextEncoder().encode(V.texto), par, F.deB64u(V.salt));
+    ok(cuerpo.length === 21 + 65 + 58, 'largo del cuerpo = 144 bytes (' + cuerpo.length + ')');
+    ok(F.b64u(cuerpo.slice(0, 16)) === V.salt, 'encabezado: sal');
+    ok(cuerpo[16] === 0 && cuerpo[17] === 0 && cuerpo[18] === 16 && cuerpo[19] === 0, 'encabezado: tamaño de registro 4096');
+    ok(cuerpo[20] === 65 && F.b64u(cuerpo.slice(21, 86)) === V.as_public, 'encabezado: llave pública del servidor');
+    ok(F.b64u(cuerpo.slice(86)) === V.ciphertext, 'texto cifrado IGUAL al del RFC 8291');
+
+    /* Vuelta completa con llaves nuevas: lo que cifra la función lo descifra «el navegador» */
+    var ua = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    var uaPub = new Uint8Array(await crypto.subtle.exportKey('raw', ua.publicKey));
+    var secreto = crypto.getRandomValues(new Uint8Array(16));
+    var par2 = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+    var msj = JSON.stringify({ t: 'Jose escribió', b: 'Necesito una cubierta de 100 × 50', c: 33, k: 'nuevo' });
+    var c2 = await F.cifrarCon(uaPub, secreto, new TextEncoder().encode(msj), par2, crypto.getRandomValues(new Uint8Array(16)));
+    var te = new TextEncoder();
+    var asP = c2.slice(21, 86), sal = c2.slice(0, 16);
+    var asKey = await crypto.subtle.importKey('raw', asP, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+    var ecdh = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: asKey }, ua.privateKey, 256));
+    var ikm = await F.hkdf(secreto, ecdh, F.junta([te.encode('WebPush: info\0'), uaPub, asP]), 32);
+    var cek = await F.hkdf(sal, ikm, te.encode('Content-Encoding: aes128gcm\0'), 16);
+    var nonce = await F.hkdf(sal, ikm, te.encode('Content-Encoding: nonce\0'), 12);
+    var k = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['decrypt']);
+    var claro = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: nonce }, k, c2.slice(86)));
+    ok(claro[claro.length - 1] === 2 && new TextDecoder().decode(claro.slice(0, -1)) === msj, 'vuelta completa: se descifra el mismo mensaje (con tildes y ×)');
+
+    /* VAPID: la llave privada viaja como PKCS8 en base64url (igual que el secreto VAPID_PRIVADA) */
+    var vp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    var privTxt = F.b64u(new Uint8Array(await crypto.subtle.exportKey('pkcs8', vp.privateKey)));
+    var pubTxt = F.b64u(new Uint8Array(await crypto.subtle.exportKey('raw', vp.publicKey)));
+    var llave = await crypto.subtle.importKey('pkcs8', F.deB64u(privTxt), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+    var exp = Math.floor(Date.now() / 1000) + 12 * 3600;
+    var auth = await F.vapidAuth('https://fcm.googleapis.com', pubTxt, llave, exp, 'https://cotizador.casazaru.cl');
+    var mm = auth.match(/^vapid t=([\w-]+)\.([\w-]+)\.([\w-]+), k=([\w-]+)$/);
+    ok(!!mm && mm[4] === pubTxt, 'encabezado Authorization con la forma «vapid t=…, k=…»');
+    var firma = F.deB64u(mm[3]);
+    ok(firma.length === 64, 'firma ES256 de 64 bytes');
+    ok(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, vp.publicKey, firma, te.encode(mm[1] + '.' + mm[2])), 'la firma verifica con la llave pública');
+    var cu = JSON.parse(new TextDecoder().decode(F.deB64u(mm[2])));
+    ok(cu.aud === 'https://fcm.googleapis.com' && cu.exp === exp && cu.sub === 'https://cotizador.casazaru.cl', 'contenido del JWT (aud, exp, sub)');
+    ok(F.deB64u(pubTxt).length === 65 && F.deB64u(pubTxt)[0] === 4, 'llave pública de 65 bytes');
+  } catch (e) { fallos++; out.push('ERROR ' + (e && e.message ? e.message : e)); }
+  out.push('');
+  out.push(fallos ? 'RESULTADO: ' + fallos + ' FALLA(S)' : 'RESULTADO: TODO OK');
+  document.getElementById('out').textContent = out.join('\n');
+  window.RESULTADO = out.join('\n');
+})();
+</script>
+</body></html>

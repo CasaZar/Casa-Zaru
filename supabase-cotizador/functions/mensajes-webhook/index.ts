@@ -17,8 +17,12 @@
 //     (esas dos piden el encabezado x-conocimiento-token)
 //   POST /mensajes-webhook/enviar         { chat_id, texto, clave, borrador_id? }  manda UN mensaje
 //   POST /mensajes-webhook/tomar          { chat_id }  el chat queda a nombre de quien lo toma
-//     (esas dos piden la sesión del panel: Authorization: Bearer <token del usuario>; solo el dueño
+//   POST /mensajes-webhook/push           { accion, endpoint, … }  avisos de UN dispositivo (0014)
+//     (esas tres piden la sesión del panel: Authorization: Bearer <token del usuario>; solo el dueño
 //      y los vendedores activos; se llaman desde cotizador.casazaru.cl/mensajes.html)
+//   POST /mensajes-webhook/despachar      la base, cada minuto: saca las respuestas automáticas agendadas (0009)
+//   POST /mensajes-webhook/avisos         la base, cada minuto: manda los avisos al equipo que tocan (0014)
+//     (esas dos no llevan llave ni reciben datos: solo hacen lo que la base ya dejó decidido, una vez)
 //
 // Despliegue: panel del Cotizador → Edge Functions → Via Editor, nombre `mensajes-webhook`,
 // un solo archivo (index.ts). «Verify JWT» APAGADO: Meta no trae sesión;
@@ -47,6 +51,10 @@
 //   CONOCIMIENTO_TOKEN     texto largo al azar; la copia del PC vive en %USERPROFILE%\.casazaru\
 //   ANTHROPIC_API_KEY      opcional: sin ella se guardan los mensajes pero no hay borradores
 //   MODELO                 opcional, por defecto claude-sonnet-4-6 (CLAUDE.md)
+//   VAPID_PUBLICA          llave pública de los avisos (web push), base64url de 65 bytes. No es secreto.
+//   VAPID_PRIVADA          su llave privada (PKCS8 en base64url). SECRETO. Las dos se generan juntas en el
+//                          navegador del dueño con .claude/generar-llaves-avisos.html y él las pega aquí.
+//                          Sin ellas todo lo demás funciona igual y simplemente no hay avisos.
 // SUPABASE_URL y la llave de servicio los inyecta Supabase.
 
 // Instrucciones para los borradores de la bandeja. Salen de la memoria de reglas de la casa
@@ -828,17 +836,231 @@ async function tomar(req: Request) {
   return jsonP({ error: 'No se pudo tomar el chat.' }, 500);
 }
 
+// ── Avisos al equipo: notificaciones del navegador (web push, migración 0014) ─────────────────
+// Qué avisos tocan lo decide la base (mensajes_avisos_por_enviar). Aquí solo se reserva cada aviso en
+// mensajes_avisos (unique por mensaje y tipo: no sale dos veces) y se le manda a cada dispositivo.
+// Sin VAPID_PUBLICA / VAPID_PRIVADA no se reserva ni se manda nada.
+// El bloque entre las marcas ⟦push-cripto⟧ se prueba tal cual en el navegador contra el ejemplo del
+// RFC 8291 (.claude/prueba-push-cripto.html): por eso no usa nada propio de Deno ni tipos complejos.
+// ⟦push-cripto⟧
+function b64u(b: any): string {
+  let s = '';
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function deB64u(t: any): any {
+  const s = String(t).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(s + '='.repeat((4 - (s.length % 4)) % 4));
+  const o = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) o[i] = bin.charCodeAt(i);
+  return o;
+}
+function junta(partes: any): any {
+  let n = 0;
+  for (const p of partes) n += p.length;
+  const o = new Uint8Array(n);
+  let i = 0;
+  for (const p of partes) { o.set(p, i); i += p.length; }
+  return o;
+}
+async function hkdf(sal: any, ikm: any, info: any, bytes: any): Promise<any> {
+  const k = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: sal, info }, k, bytes * 8));
+}
+// Cifra `datos` para un navegador (RFC 8291, aes128gcm, un solo registro). `par` es el par efímero
+// del servidor y `sal` los 16 bytes al azar: se reciben como argumento para poder probar con valores fijos.
+async function cifrarCon(uaPub: any, secreto: any, datos: any, par: any, sal: any): Promise<any> {
+  const te = new TextEncoder();
+  const asPub = new Uint8Array(await crypto.subtle.exportKey('raw', par.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', uaPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const ecdh = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, par.privateKey, 256));
+  const ikm = await hkdf(secreto, ecdh, junta([te.encode('WebPush: info\0'), uaPub, asPub]), 32);
+  const cek = await hkdf(sal, ikm, te.encode('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(sal, ikm, te.encode('Content-Encoding: nonce\0'), 12);
+  const llave = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const cifrado = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, llave, junta([datos, new Uint8Array([2])])));
+  const cab = new Uint8Array(21);
+  cab.set(sal, 0);
+  cab[16] = 0; cab[17] = 0; cab[18] = 16; cab[19] = 0;   // tamaño de registro 4096
+  cab[20] = asPub.length;                                 // 65
+  return junta([cab, asPub, cifrado]);
+}
+// El encabezado Authorization (RFC 8292): un JWT firmado con la llave privada del servidor.
+async function vapidAuth(origen: any, publica: any, llavePriv: any, expira: any, sujeto: any): Promise<any> {
+  const te = new TextEncoder();
+  const cab = b64u(te.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const cu = b64u(te.encode(JSON.stringify({ aud: origen, exp: expira, sub: sujeto })));
+  const firma = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, llavePriv, te.encode(cab + '.' + cu)));
+  return 'vapid t=' + cab + '.' + cu + '.' + b64u(firma) + ', k=' + publica;
+}
+// ⟦/push-cripto⟧
+
+// Solo los servicios de notificaciones de los navegadores: la función nunca llama a otra dirección.
+const PUSH_HOSTS = [/^fcm\.googleapis\.com$/, /\.push\.services\.mozilla\.com$/, /\.notify\.windows\.com$/, /\.push\.apple\.com$/];
+function endpointValido(e: string): boolean {
+  try {
+    const u = new URL(e);
+    return u.protocol === 'https:' && !u.username && !u.port && e.length <= 1000 && PUSH_HOSTS.some((r) => r.test(u.hostname));
+  } catch (_e) { return false; }
+}
+function vapid(): { pub: string; priv: string } | null {
+  const pub = (Deno.env.get('VAPID_PUBLICA') ?? '').trim();
+  const priv = (Deno.env.get('VAPID_PRIVADA') ?? '').trim();
+  return pub && priv ? { pub, priv } : null;
+}
+let VAPID_LLAVE: CryptoKey | null = null;
+async function mandarPush(s: any, carga: unknown, v: { pub: string; priv: string }): Promise<number> {
+  if (!endpointValido(String(s.endpoint))) return 0;
+  if (!VAPID_LLAVE) {
+    VAPID_LLAVE = await crypto.subtle.importKey('pkcs8', deB64u(v.priv), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  }
+  const par = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const cuerpo = await cifrarCon(deB64u(s.p256dh), deB64u(s.auth), new TextEncoder().encode(JSON.stringify(carga)),
+    par, crypto.getRandomValues(new Uint8Array(16)));
+  const auth = await vapidAuth(new URL(s.endpoint).origin, v.pub, VAPID_LLAVE, Math.floor(Date.now() / 1000) + 12 * 3600, ORIGEN_PANEL);
+  const r = await fetch(s.endpoint, {
+    method: 'POST',
+    headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '10800', Urgency: 'high', Authorization: auth },
+    body: cuerpo,
+  });
+  await r.text().catch(() => '');
+  return r.status;
+}
+// Manda una carga a varios dispositivos y anota cómo le fue a cada uno. Devuelve cuántos la recibieron.
+async function repartir(subs: any[], carga: unknown, v: { pub: string; priv: string }): Promise<number> {
+  let ok = 0;
+  await Promise.all(subs.map(async (s) => {
+    let st = 0;
+    try { st = await mandarPush(s, carga, v); } catch (e) { console.error('push', s.id, String(e)); }
+    try {
+      if (st >= 200 && st < 300) {
+        ok++;
+        const viejo = !s.ultimo_ok_at || Date.now() - new Date(s.ultimo_ok_at).getTime() > 24 * 3600000;
+        if (s.fallos || viejo) {
+          await db(`mensajes_push?id=eq.${s.id}`, { method: 'PATCH', body: JSON.stringify({ fallos: 0, ultimo_ok_at: new Date().toISOString() }) });
+        }
+      } else if (st === 404 || st === 410) {
+        // el navegador ya no tiene esa inscripción: se da de baja (borrado lógico)
+        await db(`mensajes_push?id=eq.${s.id}`, { method: 'PATCH', body: JSON.stringify({ deleted_at: new Date().toISOString() }) });
+      } else {
+        console.error('push estado', s.id, st);
+        await db(`mensajes_push?id=eq.${s.id}`, { method: 'PATCH', body: JSON.stringify({ fallos: Math.min(1000, (Number(s.fallos) || 0) + 1) }) });
+      }
+    } catch (e) { console.error('push anota', s.id, String(e)); }
+  }));
+  return ok;
+}
+function horasMin(ms: number): string {
+  const m = Math.max(0, Math.round(ms / 60000));
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60), r = m % 60;
+  return h + ' h' + (r >= 5 ? ' ' + r + ' min' : '');
+}
+function cargaAviso(f: any): { t: string; b: string; c: number; k: string } {
+  const n = String(f.nombre || 'Un cliente');
+  if (f.tipo === 'espera') {
+    return { t: n + ' espera hace ' + horasMin(Date.now() - new Date(f.desde).getTime()), b: 'Todavía no tiene respuesta. ' + String(f.texto || ''), c: f.chat_id, k: 'espera' };
+  }
+  if (f.tipo === 'cierra') {
+    return { t: 'Se cierra en ' + horasMin(new Date(f.cierra_at).getTime() - Date.now()) + ': ' + n, b: 'Después de eso ya no se le puede escribir desde la bandeja.', c: f.chat_id, k: 'cierra' };
+  }
+  return { t: n + ' escribió', b: String(f.texto || ''), c: f.chat_id, k: 'nuevo' };
+}
+// Reserva y manda los avisos que tocan. La llaman el webhook (apenas queda listo un borrador) y la
+// base cada minuto (POST /avisos, pg_cron). Llamarla de más no repite nada.
+async function procesarAvisos(): Promise<Record<string, unknown>> {
+  const v = vapid();
+  if (!v) return { ok: true, configurado: false };
+  const filas = (await db('rpc/mensajes_avisos_por_enviar', { method: 'POST', body: '{}' })) ?? [];
+  if (!filas.length) return { ok: true, tocan: 0, avisos: 0, entregados: 0 };
+  const subs = (await db('mensajes_push?select=id,endpoint,p256dh,auth,recordatorios,fuera_horario,fallos,ultimo_ok_at&deleted_at=is.null&fallos=lt.20')) ?? [];
+  let avisos = 0, entregados = 0;
+  for (const f of filas.slice(0, 20)) {
+    const res = await db('mensajes_avisos?on_conflict=mensaje_id,tipo', {
+      method: 'POST', prefer: 'resolution=ignore-duplicates,return=representation',
+      body: JSON.stringify({ tipo: f.tipo, chat_id: f.chat_id, mensaje_id: f.mensaje_id }),
+    });
+    if (!res?.length) continue;                    // otra llamada lo reservó primero
+    avisos++;
+    // nuevo: a todos en horario, y fuera de horario solo a quien lo pidió. Recordatorios: a quien los tiene activos.
+    const dest = subs.filter((s: any) => f.tipo === 'nuevo' ? (f.en_horario || s.fuera_horario) : s.recordatorios);
+    const ok = dest.length ? await repartir(dest, cargaAviso(f), v) : 0;
+    entregados += ok;
+    await db(`mensajes_avisos?id=eq.${res[0].id}`, { method: 'PATCH', body: JSON.stringify({ destinos: dest.length, entregados: ok }) });
+  }
+  return { ok: true, tocan: filas.length, avisos, entregados };
+}
+
+// POST /push (sesión del panel): inscribe, consulta, da de baja o prueba los avisos de UN dispositivo.
+//   { accion: 'clave' }                                              → la llave pública para inscribirse
+//   { accion: 'guardar', endpoint, p256dh, auth, recordatorios, fuera_horario, dispositivo }
+//   { accion: 'estado' | 'quitar' | 'prueba', endpoint }
+async function push(req: Request) {
+  const yo = await quienEs(req);
+  if (!yo) return jsonP({ error: 'Tu sesión venció o tu cuenta no tiene acceso. Vuelve a entrar.' }, 401);
+  let b: any;
+  try { b = JSON.parse(await req.text()); } catch { return jsonP({ error: 'JSON inválido' }, 400); }
+  const accion = String(b?.accion ?? '');
+  const v = vapid();
+  if (accion === 'clave') {
+    return v ? jsonP({ ok: true, publica: v.pub }) : jsonP({ error: 'Los avisos todavía no están configurados.' }, 503);
+  }
+  const endpoint = String(b?.endpoint ?? '');
+  if (!endpointValido(endpoint)) return jsonP({ error: 'Este navegador no es compatible con los avisos.' }, 400);
+  const fila = `mensajes_push?endpoint=eq.${encodeURIComponent(endpoint)}`;
+  if (accion === 'guardar') {
+    let llaveOk = false;
+    try {
+      const k = deB64u(String(b?.p256dh ?? '')), a = deB64u(String(b?.auth ?? ''));
+      llaveOk = k.length === 65 && k[0] === 4 && a.length === 16;
+    } catch (_e) { llaveOk = false; }
+    if (!llaveOk) return jsonP({ error: 'El navegador entregó una inscripción inválida. Desactiva y vuelve a activar los avisos.' }, 400);
+    await db('mensajes_push?on_conflict=endpoint', {
+      method: 'POST', prefer: 'resolution=merge-duplicates,return=minimal',
+      body: JSON.stringify({
+        usuario: yo.email, endpoint, p256dh: String(b.p256dh), auth: String(b.auth),
+        recordatorios: b?.recordatorios !== false, fuera_horario: b?.fuera_horario === true,
+        dispositivo: String(b?.dispositivo ?? '').slice(0, 200) || null, deleted_at: null, fallos: 0,
+      }),
+    });
+    return jsonP({ ok: true });
+  }
+  const [s] = (await db(fila + '&select=id,usuario,endpoint,p256dh,auth,recordatorios,fuera_horario,fallos,ultimo_ok_at,deleted_at')) ?? [];
+  const mio = !!s && !s.deleted_at && String(s.usuario) === yo.email;
+  if (accion === 'estado') {
+    return jsonP({ ok: true, activo: mio, recordatorios: mio ? !!s.recordatorios : true, fuera_horario: mio ? !!s.fuera_horario : false, configurado: !!v });
+  }
+  if (accion === 'quitar') {
+    if (mio) await db(`mensajes_push?id=eq.${s.id}`, { method: 'PATCH', body: JSON.stringify({ deleted_at: new Date().toISOString() }) });
+    return jsonP({ ok: true });
+  }
+  if (accion === 'prueba') {
+    if (!v) return jsonP({ error: 'Los avisos todavía no están configurados.' }, 503);
+    if (!mio) return jsonP({ error: 'Este dispositivo no tiene los avisos activados.' }, 409);
+    const hace = encodeURIComponent(new Date(Date.now() - 10 * 60000).toISOString());
+    const antes = (await db(`mensajes_avisos?select=id&tipo=eq.prueba&usuario=eq.${encodeURIComponent(yo.email)}&created_at=gte.${hace}`)) ?? [];
+    if (antes.length >= 5) return jsonP({ error: 'Ya pediste varios avisos de prueba. Espera unos minutos.' }, 429);
+    const [a] = await db('mensajes_avisos', { method: 'POST', prefer: 'return=representation', body: JSON.stringify({ tipo: 'prueba', usuario: yo.email, destinos: 1 }) });
+    const ok = await repartir([s], { t: 'Aviso de prueba', b: 'Así se verá cuando un cliente escriba a la bandeja.', c: 0, k: 'prueba' }, v);
+    await db(`mensajes_avisos?id=eq.${a.id}`, { method: 'PATCH', body: JSON.stringify({ entregados: ok }) });
+    return ok ? jsonP({ ok: true }) : jsonP({ error: 'El servicio de notificaciones no aceptó el aviso. Desactiva y vuelve a activar los avisos en este dispositivo.' }, 502);
+  }
+  return jsonP({ error: 'Acción desconocida.' }, 400);
+}
+
 // ── Entrada ───────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });
-  if (url.pathname.endsWith('/enviar') || url.pathname.endsWith('/tomar')) {
+  if (url.pathname.endsWith('/enviar') || url.pathname.endsWith('/tomar') || url.pathname.endsWith('/push')) {
     if (req.method !== 'POST') return jsonP({ error: 'solo POST' }, 405);
     try {
+      if (url.pathname.endsWith('/push')) return await push(req);
       return await (url.pathname.endsWith('/enviar') ? enviar(req) : tomar(req));
     } catch (e) {
       console.error('ruta del panel', url.pathname, String(e));
+      if (url.pathname.endsWith('/push')) return jsonP({ error: 'Falló el servidor. Vuelve a intentarlo en un momento.' }, 500);
       return jsonP({ error: 'Falló el servidor. Actualiza y mira si el mensaje salió antes de reintentar.' }, 500);
     }
   }
@@ -852,6 +1074,12 @@ Deno.serve(async (req) => {
   if (url.pathname.endsWith('/despachar')) {
     try { return await despachar(); }
     catch (e) { console.error('despachar', String(e)); return json({ error: 'falló; ver registros de la función' }, 500); }
+  }
+  // POST /avisos: la base lo llama cada minuto cuando hay un aviso que toca (pg_cron, migración 0014).
+  // Como /despachar, no recibe datos ni lleva llave: solo manda lo que la base dice que toca, una vez.
+  if (url.pathname.endsWith('/avisos')) {
+    try { return json(await procesarAvisos()); }
+    catch (e) { console.error('avisos', String(e)); return json({ error: 'falló; ver registros de la función' }, 500); }
   }
   if (url.pathname.endsWith('/conocimiento') || url.pathname.endsWith('/suscribir')) {
     try {
@@ -872,10 +1100,11 @@ Deno.serve(async (req) => {
   // Si uno falla se sigue con los demás y al final se responde 500: Meta reenvía el aviso completo
   // y los ya guardados se ignoran por meta_id, sin duplicar ni perder su borrador.
   const nuevos: { chat: number; id: number }[] = [];
-  let fallos = 0;
+  let fallos = 0, deCliente = 0;
   for (const x of leerAviso(cuerpo)) {
     try {
       const g = await guardar(x);
+      if (g && x.autor === 'cliente') deCliente++;
       if (g && x.autor === 'cliente' && x.texto) nuevos.push(g);
     } catch (e) { fallos++; console.error('guardar', x.canal, x.metaId, String(e)); }
   }
@@ -883,6 +1112,8 @@ Deno.serve(async (req) => {
     for (const n of nuevos) {
       try { await redactar(n.chat, n.id); } catch (e) { console.error('borrador', n.chat, String(e)); }
     }
+    // Con el borrador listo se avisa al equipo (0014). Si esto falla, la base lo reintenta en un minuto.
+    if (deCliente) { try { await procesarAvisos(); } catch (e) { console.error('avisos', String(e)); } }
   })();
   // @ts-ignore EdgeRuntime existe en Supabase
   if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(trabajo); else await trabajo;
