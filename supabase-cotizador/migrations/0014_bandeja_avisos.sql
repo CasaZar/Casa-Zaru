@@ -52,7 +52,9 @@ $candado$;
 -- Para apagarlo sin tocar la función:  select cron.unschedule('bandeja-avisos');
 -- Idempotente. Rollback al final.
 --
--- SIN APLICAR.
+-- APLICADA el 25-11-2026 en el SQL Editor del Cotizador (con ok del dueño).
+-- Verificación: tablas 2, rls 2, policies_push 0, policies_avisos 1, funciones 2, tarea 1 activa,
+-- anon_lee false, registrada 1. Prueba prueba-0014-reglas.sql: 8 de 8, sin dejar filas.
 -- ══════════════════════════════════════════════════════════════════════════
 
 create table if not exists public.mensajes_push (
