@@ -53,11 +53,17 @@ Si el usuario pide otro rango, manda el usuario. Al final escribe la hora nueva.
 de ayer, igual se cubre desde ahí. Reparto:
 - **Todas:** pendientes y promesas (2), corpus (3), fichas de venta (6c), avisos de envío (6d),
   panel (8), Mi día (7) y los no leídos.
+- **Avisos de envío (6d) en TODAS las pasadas, siempre completos** (pedido del usuario, 26-11-2026):
+  la consulta de la Gestión, el chat de cada pedido de la ventana y la clasificación se rehacen en
+  cada corrida, aunque no se haya movido ningún chat (un aviso que vence a las 14:00 no aparece si
+  se copia el de la mañana). Nunca «no los rehíce en esta pasada». Si un pedido ya quedó `ok` en
+  una pasada anterior de hoy y su chat no se movió, se puede arrastrar sin reabrirlo, diciéndolo.
+  Si no hubo movimiento, igual se corre 6d y se actualizan `avisos-envio.md` y Mi día.
 - **Solo la primera del día** (la de las 8:00, o la primera que corra): conteos del día anterior
   (6b), «10 minutos con César» (6), frases (4) e ideas para redes (5). Las demás los arrastran
   sin rehacerlos en `mi-dia-whatsapp.json`.
-- Si no se movió ningún chat desde la última revisión: no tocar archivos, solo actualizar
-  `ultima-revision.txt` y decir «sin movimiento».
+- Si no se movió ningún chat desde la última revisión: correr igual los avisos de envío (6d);
+  el resto no se toca, se actualiza `ultima-revision.txt` y se dice «sin movimiento».
 - Corrida sin nadie mirando: nada se escribe en la Gestión (las casillas `sin_marcar` quedan
   propuestas en Mi día) y nunca se escribe en WhatsApp.
 
