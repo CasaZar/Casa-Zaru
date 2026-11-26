@@ -19,7 +19,8 @@ $candado$;
 
 -- ══════════════════════════════════════════════════════════════════════════
 -- 0016 · COTIZADOR · Paso «modelo» en el embudo (26-11-2026)
--- SIN APLICAR.
+-- APLICADA el 26-11-2026 (SQL Editor, desde el Chrome del usuario, con su ok: «Sí, aplícala»).
+-- Resultado en pantalla: paso_nuevo 1, registrada 1; confirmado por MCP.
 --
 -- En puertas, 125 sesiones entraron y 36 vieron un precio (14-09 al 25-11-2026),
 -- pero no se sabe si la gente se va sin elegir modelo o después de elegirlo:
