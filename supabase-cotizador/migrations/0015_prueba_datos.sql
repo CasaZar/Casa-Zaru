@@ -23,7 +23,8 @@ $candado$;
 -- 0015 · COTIZADOR · Prueba del paso de datos a mitad de visitas (25-11-2026)
 -- APLICADA el 25-11-2026 (SQL Editor, desde el Chrome del usuario, con su ok: «dale tú»).
 -- Verificada por MCP: columna 1, check_variante 1, paso_nuevo 1, interruptor «prueba», registrada 1.
--- La versión B se vio en vivo con ?prod=cubierta&ab=b. El reparto sigue SIN ENCENDER.
+-- La versión B se vio en vivo con ?prod=cubierta&ab=b. REPARTO ENCENDIDO el 26-11-2026 09:37 UTC (06:37 de Chile), con el ok del dueño:
+-- prueba_datos = {"estado": "activo", "pct": 50}. Los datos de la prueba cuentan desde esa hora.
 --
 -- Pedido del dueño («Probar a mitad de visitas», boceto aprobado el 25-11): en 30 días,
 -- 447 de 549 personas vieron su precio estimado y se fueron sin dejar datos. El rango
