@@ -47,11 +47,42 @@ anterior entre esa hora y ayer a las 00:00. Ese inicio va como `p_desde` al subi
 (paso 8): si entre dos revisiones queda un hueco, el Historial del panel lo muestra en rojo.
 Si el usuario pide otro rango, manda el usuario. Al final escribe la hora nueva.
 
+**Desde el 26-11-2026 hay 5 revisiones programadas al día** (lun-sáb 8:00, 9:00, 12:30, 14:00 y
+17:00; tareas `revision-whatsapp-horas` y `revision-whatsapp-1230`). En esas corridas el inicio es **solo
+`ultima-revision.txt`** (no ayer 00:00), para no releer lo ya revisado; si ese archivo es de antes
+de ayer, igual se cubre desde ahí. Reparto:
+- **Todas:** pendientes y promesas (2), corpus (3), fichas de venta (6c), avisos de envío (6d),
+  panel (8), Mi día (7) y los no leídos.
+- **Solo la primera del día** (la de las 8:00, o la primera que corra): conteos del día anterior
+  (6b), «10 minutos con César» (6), frases (4) e ideas para redes (5). Las demás los arrastran
+  sin rehacerlos en `mi-dia-whatsapp.json`.
+- Si no se movió ningún chat desde la última revisión: no tocar archivos, solo actualizar
+  `ultima-revision.txt` y decir «sin movimiento».
+- Corrida sin nadie mirando: nada se escribe en la Gestión (las casillas `sin_marcar` quedan
+  propuestas en Mi día) y nunca se escribe en WhatsApp.
+
 ## 1 · Leer
 - **Lo reciente: Meta Business Suite en Chrome** (Claude in Chrome). Bandeja de WhatsApp;
   leer por JS (`get_page_text` o un helper que tome el panel del chat) es mucho más rápido
   que capturas. Si el viewport es muy ancho, el panel del chat queda en otra posición:
   ubicarlo por tamaño, no por coordenadas fijas.
+- **Lector en una pasada (desde el 26-11-2026): `lector-meta.js`** (en esta carpeta; solo lee,
+  no escribe nada en WhatsApp).
+  1. Entrar por esta URL, que abre la pestaña de WhatsApp en un chat de cliente ya leído
+     y NO abre solo un chat sin leer (`/inbox/all` sí lo hace, y `/inbox/whatsapp` va al inicio):
+     `https://business.facebook.com/latest/inbox/wec?asset_id=362710543582828&business_id=362752910245258&selected_item_id=1302850209569422&thread_type=WEC_MESSAGE&mailbox_id=362710543582828`
+  2. Leer el archivo con Read y pegarlo entero en `javascript_tool`: deja `window.Z`.
+  3. `await Z.lista('<inicio ISO>')` → cuántos se movieron y cuántos sin leer; `Z.leidoAntes`
+     es la lista de no leídos ANTES de abrir nada. `Z.resumenLista(0)`, `(1)`… los muestra.
+     Los chats con hora «Mié/Ayer» (sin hora) entran siempre: mejor de más que de menos.
+  4. `await Z.leerTodos({saltar:[…internos y proveedores…]})` y luego `Z.pagina(0)`, `(1)`…
+     (900 caracteres cada una: `javascript_tool` corta a ~1000). Cada chat trae teléfono, id,
+     las últimas líneas de antes del corte y todo lo nuevo; si dice «no llegué al corte», subir
+     a mano. Usar `await` al nivel de arriba, no dentro de `(async()=>{})()` (devuelve `{}`).
+  5. Comprobantes y fotos: `Z.ver('texto cercano')` + captura (las imágenes no salen en el texto).
+  6. Al final: `await Z.marcarNoLeido(nombre)` para cada uno de `Z.leidoAntes` y cada `responder`;
+     `await Z.noLeidos()` para verificar. Si devuelve «NO SE PUDO», `find` «Marcar como no leído»
+     y clic por ref.
 - **Historial viejo: app de escritorio** (computer use). La rueda no mueve el chat: clic
   en el fondo del chat y PageUp/PageDown. Escribir solo después de hacer clic en la caja de
   **búsqueda**. Busca frases de plantilla («datos para ingresar el pedido», «nos
