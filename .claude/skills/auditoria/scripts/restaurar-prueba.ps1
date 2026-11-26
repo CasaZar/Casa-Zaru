@@ -6,7 +6,7 @@
 # supabase-cotizador/restore-test.sql (Cotizador) en el SQL Editor.
 #
 #   restaurar-prueba.ps1 -Proyecto cotizador              # usa la llave secreta de .casazaru\config.ps1
-#   restaurar-prueba.ps1 -Proyecto gestion -Email hola@casazaru.cl   # pide la clave en pantalla, no la guarda
+#   restaurar-prueba.ps1 -Proyecto gestion -Email admin@ejemplo.cl   # pide la clave en pantalla, no la guarda
 #   -Simular    no toca la base: lee el archivo, lo trocea y resume (sirve para probar el script)
 #   -Conservar  deja restore_test cargado para mirarlo en el SQL Editor (si no, se borra al final)
 #   -Archivo    un respaldo puntual en vez del último de Drive
@@ -56,7 +56,7 @@ if($Proyecto -eq 'cotizador'){
   . "$env:USERPROFILE\.casazaru\config.ps1"; $url=$SB_URL; $hdr=@{apikey=$SB_KEY;Authorization="Bearer $SB_KEY"}
 } else {
   $url='https://padnttpgzuotxeipjrry.supabase.co'
-  $m=Select-String -Path "$env:USERPROFILE\Casa Zaru - Claude\index.html" -Pattern "WASABIL_ANON_KEY='(eyJ[A-Za-z0-9._-]+)'" | select -First 1
+  $m=Select-String -Path "$env:USERPROFILE\Casa Zaru - Claude\index.html" -Pattern "WASABIL_ANON_KEY='((?:eyJ|sb_publishable_)[A-Za-z0-9._-]+)'" | select -First 1
   $anon=$m.Matches[0].Groups[1].Value
   if(-not $Simular){
     if(-not $Email){ $Email=Read-Host 'Correo del admin de la Gestión' }
