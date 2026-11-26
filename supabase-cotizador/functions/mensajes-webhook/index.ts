@@ -18,7 +18,9 @@
 //   POST /mensajes-webhook/enviar         { chat_id, texto, clave, borrador_id? }  manda UN mensaje
 //   POST /mensajes-webhook/tomar          { chat_id }  el chat queda a nombre de quien lo toma
 //   POST /mensajes-webhook/push           { accion, endpoint, … }  avisos de UN dispositivo (0014)
-//     (esas tres piden la sesión del panel: Authorization: Bearer <token del usuario>; solo el dueño
+//   POST /mensajes-webhook/soltar         { chat_id }  el chat vuelve al asistente (el dueño o quien lo lleva)
+//   POST /mensajes-webhook/frases         { accion: guardar|borrar, … }  frases de la casa (0017; solo el dueño)
+//     (esas cinco piden la sesión del panel: Authorization: Bearer <token del usuario>; solo el dueño
 //      y los vendedores activos; se llaman desde cotizador.casazaru.cl/mensajes.html)
 //   POST /mensajes-webhook/despachar      la base, cada minuto: saca las respuestas automáticas agendadas (0009)
 //   POST /mensajes-webhook/avisos         la base, cada minuto: manda los avisos al equipo que tocan (0014)
@@ -34,7 +36,8 @@
 //   ENVIO_ABIERTO          «si» = se puede enviar a cualquier chat. Sin ninguna de las dos, no se envía.
 //   AUTO_SOLO_CHATS        ids de chats DE PRUEBA en los que el borrador sale solo, sin que nadie lo apruebe
 //                          (pedido del dueño el 19-11 para conversar con el asistente desde su celular).
-//                          No existe un modo «automático para todos»: fuera de esta lista nada sale solo.
+//   AUTO_ABIERTO           «si» = responde solo en cualquier chat al que se pueda enviar (hace falta además
+//                          ENVIO_ABIERTO=si). Sin ella, fuera de AUTO_SOLO_CHATS nada sale solo.
 //                          Igual pasa por la reserva en la base (ventana, tope de 2, texto), no sale si el
 //                          borrador pide una persona o le falta un precio, y tiene un tope por hora.
 //                          Antes de abrir lo automático a clientes falta la regla «si una persona ya
@@ -326,18 +329,49 @@ function linkCotizacion(producto: string, codigo: string): string {
 // «nativa» como palabra entera: «alternativa» no cuenta. Signos de apertura en cualquier parte.
 const PROHIBIDO = [/(^|[^a-záéíóúüñ])nativ[ao]s?(?![a-záéíóúüñ])/i, /(^|[^a-záéíóúüñ])al tiro(?![a-záéíóúüñ])/i, /[¡¿]/];
 
-async function contexto(): Promise<string> {
+// ── Frases de la casa (migración 0017): las corrige el dueño desde Mensajes, sin desplegar ──────
+// Si la tabla no existe o falla la lectura, todo sigue como antes (sin frases y con el aviso de siempre).
+type Frase = { tipo: string; clave: string | null; cuando: string; frase: string };
+async function frasesVivas(): Promise<Frase[]> {
+  try {
+    return (await db('mensajes_frases?select=tipo,clave,cuando,frase&activo=is.true&deleted_at=is.null&order=tipo.asc,orden.asc,id.asc&limit=200')) ?? [];
+  } catch (e) { console.error('frases', String(e).slice(0, 200)); return []; }
+}
+// Para comparar frases sin que importen mayúsculas, tildes ni espacios de más.
+function plano(t: string): string {
+  return String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+// La primera frase «evitar» que aparece en el texto, o ''.
+function fraseEvitada(texto: string, frases: Frase[]): string {
+  const t = plano(texto);
+  for (const f of frases) if (f.tipo === 'evitar' && plano(f.frase).length >= 2 && t.indexOf(plano(f.frase)) !== -1) return f.frase;
+  return '';
+}
+
+async function contexto(frases: Frase[]): Promise<string> {
   const [guia] = await db('mensajes_guia?select=texto&order=id.desc&limit=1');
-  // Las dos listas se piden por separado: así nunca faltan los «evitar» aunque lo más nuevo sea todo «modelo».
-  const campos = 'mensajes_ejemplos?select=intencion,cliente,respuesta,por_que&activo=is.true&order=fecha.desc,id.desc';
-  const modelos = (await db(campos + '&calidad=eq.modelo&limit=25')) ?? [];
+  // Las listas se piden por separado: así nunca faltan los «evitar» aunque lo más nuevo sea todo «modelo».
+  // Qué convierte: primero las respuestas modelo que terminaron en compra a 7 días, después las demás.
+  const campos = 'mensajes_ejemplos?select=id,intencion,cliente,respuesta,por_que,resultado_7d&activo=is.true&order=fecha.desc,id.desc';
+  const compraron = (await db(campos + '&calidad=eq.modelo&resultado_7d=eq.' + encodeURIComponent('compró') + '&limit=12')) ?? [];
+  const otros = (await db(campos + '&calidad=eq.modelo&limit=30')) ?? [];
+  const vistos = new Set(compraron.map((e: any) => e.id));
+  const modelos = compraron.concat(otros.filter((e: any) => !vistos.has(e.id))).slice(0, 25);
   const evitar = (await db(campos + '&calidad=eq.evitar&limit=8')) ?? [];
   let s = '';
   if (guia?.texto) s += '\n\nGUÍA DE RESPUESTAS (aprendida de los chats reales del 5558):\n' + guia.texto;
-  if (modelos.length) s += '\n\nRESPUESTAS MODELO (copia el tono y el siguiente paso, no los datos del cliente):\n'
-    + modelos.map((e: any) => `- [${e.intencion}] Cliente: ${e.cliente}\n  Respuesta: ${e.respuesta}`).join('\n');
-  if (evitar.length) s += '\n\nERRORES A EVITAR:\n'
+  if (modelos.length) s += '\n\nRESPUESTAS MODELO de los chats reales (copia el tono y el siguiente paso, no los datos del cliente; las marcadas «terminó en compra» son las que más vendieron):\n'
+    + modelos.map((e: any) => `- [${e.intencion}]${e.resultado_7d === 'compró' ? ' (terminó en compra)' : ''} Cliente: ${e.cliente}\n  Respuesta: ${e.respuesta}`).join('\n');
+  if (evitar.length) s += '\n\nERRORES A EVITAR (respuestas reales que no funcionaron):\n'
     + evitar.map((e: any) => `- [${e.intencion}] ${e.respuesta}\n  Por qué no: ${e.por_que ?? ''}`).join('\n');
+  const de = (t: string) => frases.filter((f) => f.tipo === t);
+  if (frases.length) s += '\n\nFRASES DE LA CASA (las define el dueño; mandan sobre los ejemplos de arriba y, si chocan con una instrucción, gana la frase).';
+  if (de('fija').length) s += '\nFRASES FIJAS: cuando se dé la situación, usa la frase TAL CUAL (solo cambia lo que va entre corchetes, como [nombre]):\n'
+    + de('fija').map((f) => `- Cuándo: ${f.cuando}\n  Frase: ${f.frase}`).join('\n');
+  if (de('preferida').length) s += '\nFRASES QUE NOS FUNCIONAN: úsalas cuando calcen, con naturalidad y sin forzarlas:\n'
+    + de('preferida').map((f) => `- Cuándo: ${f.cuando}\n  Frase: ${f.frase}`).join('\n');
+  if (de('evitar').length) s += '\nNUNCA ESCRIBAS estas palabras o frases:\n'
+    + de('evitar').map((f) => `- «${f.frase}» (${f.cuando})`).join('\n');
   return s;
 }
 
@@ -363,13 +397,14 @@ async function redactar(chat: number, mensajeId: number) {
   const conv = hist.map((m: any) => `${m.autor === 'cliente' ? 'CLIENTE' : 'CASA ZARU'}: ${m.texto ?? '[adjunto]'}`).join('\n');
   const anuncio = (c.origen as any)?.headline ?? (c.origen as any)?.ad_title ?? '';
   const modelo = Deno.env.get('MODELO') || 'claude-sonnet-4-6';
+  const frases = await frasesVivas();
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': llave, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
       model: modelo, max_tokens: 800,
-      system: SISTEMA + await contexto(),
+      system: SISTEMA + await contexto(frases),
       messages: [{ role: 'user', content:
         `Canal: ${c.canal === 'whatsapp' ? 'WhatsApp' : 'Instagram'}`
         + (anuncio ? `\nAnuncio de origen: ${anuncio}` : '')
@@ -419,17 +454,21 @@ async function redactar(chat: number, mensajeId: number) {
   // Links: solo los de la casa (catálogos, cotizador y el link con código recién armado). Otro no sale solo.
   const links = texto.split(/\s+/).filter((p) => p.indexOf('http') !== -1).map((p) => p.replace(/^[(«"]+/, '').replace(/[).,;:!?»"]+$/, ''));
   const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1 || (linkCot !== null && l === linkCot.url));
+  // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
+  const evitada = fraseEvitada(texto, frases);
   const revision = {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
     toques_ok: c.toques_sin_respuesta < 2,
-    sin_palabras_prohibidas: !PROHIBIDO.some((re) => re.test(texto)),
+    sin_palabras_prohibidas: !PROHIBIDO.some((re) => re.test(texto)) && !evitada,
     falta_precio: /\[PRECIO:/.test(texto),
     links_ok: linksOk,
     cotiza: linkCot ? linkCot.producto : null,
-    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal,
-    motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (res.motivo ?? '')),
+    frase_evitada: evitada || null,
+    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada,
+    motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»' : (res.motivo ?? ''))),
   };
+  const avisoCotiza = textoAvisoCotiza(frases);
 
   // Si el cliente mandó varios mensajes seguidos, solo vale el borrador del último.
   await db(`mensajes_borradores?chat_id=eq.${chat}&estado=eq.pendiente`, {
@@ -462,7 +501,7 @@ async function redactar(chat: number, mensajeId: number) {
       if (revision.cotiza && seg >= 60) {
         const hace = encodeURIComponent(new Date(Date.now() - 15 * 60000).toISOString());
         const avisos = await db(`mensajes_envios?select=id&chat_id=eq.${chat}&clave=like.auto-aviso-*&estado=eq.enviado&created_at=gte.${hace}&limit=1`);
-        if (!(avisos ?? []).length) await autoResponder(chat, mensajeId, borradorId, AVISO_COTIZA, revision, true);
+        if (!(avisos ?? []).length) await autoResponder(chat, mensajeId, borradorId, avisoCotiza, revision, true);
       }
     }
   } catch (e) { console.error('auto agenda', chat, String(e)); }
@@ -475,6 +514,13 @@ const AUTO_POR = 'automatico@bandeja';
 const AUTO_TOPE_HORA = 30;
 // Lo que dice apenas el cliente da sus medidas, mientras «prepara» la cotización (texto del dueño, 19-11-2026).
 const AVISO_COTIZA = 'Listo, voy a preparar tu cotización. Dame unos minutos y te la envío.';
+// Desde la 0017 el dueño lo puede cambiar (frase fija «aviso_cotiza»). Si la frase no sirve, va el de siempre.
+function textoAvisoCotiza(frases: Frase[]): string {
+  const f = frases.find((x) => x.tipo === 'fija' && x.clave === 'aviso_cotiza');
+  const t = String(f?.frase ?? '').trim();
+  return t.length >= 10 && t.length <= 300 && t.indexOf('[') === -1 && t.indexOf('http') === -1
+    && !PROHIBIDO.some((re) => re.test(t)) ? t : AVISO_COTIZA;
+}
 
 // Espera antes de responder solo, en segundos: 120 normal y 240 si el mensaje lleva una cotización
 // (se pueden cambiar con AUTO_ESPERA_SEG y AUTO_ESPERA_COTIZA_SEG; entre 0 y 1800).
@@ -506,9 +552,13 @@ async function despachar(): Promise<Response> {
   return json({ ok: true, listos: listos.length, enviados });
 }
 
+// AUTO_ABIERTO=si (26-11-2026, pedido del dueño con los anuncios apagados, para que el equipo pruebe
+// escribiendo al 1122): responde solo en cualquier chat al que se pueda enviar. Igual se calla en un
+// chat tomado por una persona y pasa por todas las reglas de la base. Para volver atrás: borrar AUTO_ABIERTO.
 function autoPermitido(chatId: number): boolean {
+  const abierto = (Deno.env.get('AUTO_ABIERTO') ?? '').trim().toLowerCase() === 'si';
   const solo = (Deno.env.get('AUTO_SOLO_CHATS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  return solo.includes(String(chatId)) && sePuedeEnviarA(chatId);
+  return (abierto || solo.includes(String(chatId))) && sePuedeEnviarA(chatId);
 }
 
 // aviso = true: es el «voy a preparar tu cotización». Sale sin amarrarse al borrador (que sigue
@@ -836,6 +886,85 @@ async function tomar(req: Request) {
   return jsonP({ error: 'No se pudo tomar el chat.' }, 500);
 }
 
+// POST /soltar { chat_id }: el chat vuelve al asistente (26-11-2026). Lo puede hacer el dueño o quien lo
+// lleva. Desde ahí el asistente vuelve a responder solo cuando el cliente escriba (si el modo lo permite).
+async function soltar(req: Request) {
+  const yo = await quienEs(req);
+  if (!yo) return jsonP({ error: 'Tu sesión venció o tu cuenta no tiene acceso. Vuelve a entrar.' }, 401);
+  let b: any;
+  try { b = JSON.parse(await req.text()); } catch { return jsonP({ error: 'JSON inválido' }, 400); }
+  const chatId = Number(b?.chat_id);
+  if (!Number.isInteger(chatId) || chatId <= 0) return jsonP({ error: 'Falta el chat.' }, 400);
+  const [c] = await db(`mensajes_chats?select=tomado_por,deleted_at&id=eq.${chatId}`);
+  if (!c || c.deleted_at) return jsonP({ error: 'Ese chat no existe.' }, 404);
+  if (!c.tomado_por) return jsonP({ ok: true, repetido: true });
+  const lleva = String(c.tomado_por).toLowerCase();
+  if (yo.email !== DUENO && lleva !== yo.email) return jsonP({ error: 'Solo quien lleva el chat o Tomás lo pueden devolver al asistente.' }, 403);
+  const r = await dbCrudo(`mensajes_chats?id=eq.${chatId}&tomado_por=eq.${encodeURIComponent(c.tomado_por)}`, {
+    method: 'PATCH', prefer: 'return=representation',
+    body: JSON.stringify({ estado: 'por_aprobar', tomado_por: null, tomado_at: null }),
+  });
+  if (r.ok && Array.isArray(r.cuerpo) && r.cuerpo.length) {
+    // Los borradores pendientes eran sugerencias para una persona: vuelven a ser del asistente.
+    await db(`mensajes_borradores?chat_id=eq.${chatId}&estado=eq.pendiente`, { method: 'PATCH', body: JSON.stringify({ para: 'bandeja' }) }).catch(() => null);
+    console.log('soltar', chatId, 'por', yo.email, 'antes', lleva);
+    return jsonP({ ok: true });
+  }
+  return jsonP({ error: 'No se pudo devolver el chat. Actualiza y vuelve a intentar.' }, 409);
+}
+
+// POST /frases { accion: 'guardar' | 'borrar', ... }: el dueño corrige las frases de la casa (0017).
+// La base vuelve a revisar todo (tipos, largos, signos de apertura, «nativa») y guarda la versión anterior.
+const TIPOS_FRASE = ['fija', 'preferida', 'evitar'];
+async function frasesRuta(req: Request) {
+  const yo = await quienEs(req);
+  if (!yo) return jsonP({ error: 'Tu sesión venció o tu cuenta no tiene acceso. Vuelve a entrar.' }, 401);
+  if (yo.email !== DUENO) return jsonP({ error: 'Las frases las cambia solo Tomás.' }, 403);
+  const t = await req.text();
+  if (t.length > 8000) return jsonP({ error: 'Demasiado largo.' }, 413);
+  let b: any;
+  try { b = JSON.parse(t); } catch { return jsonP({ error: 'JSON inválido' }, 400); }
+  const id = b?.id == null ? null : Number(b.id);
+  if (id !== null && (!Number.isInteger(id) || id <= 0)) return jsonP({ error: 'Frase inválida.' }, 400);
+  if (b?.accion === 'borrar') {
+    if (id === null) return jsonP({ error: 'Falta la frase.' }, 400);
+    const [f] = await db(`mensajes_frases?select=clave&id=eq.${id}&deleted_at=is.null`);
+    if (!f) return jsonP({ error: 'Esa frase ya no existe.' }, 404);
+    if (f.clave === 'aviso_cotiza' || f.clave === 'saludo') return jsonP({ error: 'Esta frase no se borra: puedes cambiar su texto.' }, 400);
+    await db(`mensajes_frases?id=eq.${id}`, { method: 'PATCH', body: JSON.stringify({ deleted_at: new Date().toISOString(), updated_by: yo.email }) });
+    return jsonP({ ok: true });
+  }
+  if (b?.accion !== 'guardar') return jsonP({ error: 'Acción desconocida.' }, 400);
+  const tipo = String(b?.tipo ?? '');
+  const cuando = String(b?.cuando ?? '').replace(/\s+/g, ' ').trim();
+  const frase = String(b?.frase ?? '').replace(/\r\n/g, '\n').trim();
+  const fila: Record<string, unknown> = { updated_by: yo.email };
+  if (!TIPOS_FRASE.includes(tipo)) return jsonP({ error: 'Elige el tipo de frase.' }, 400);
+  if (cuando.length < 3 || cuando.length > 300) return jsonP({ error: 'Escribe cuándo se usa (entre 3 y 300 letras).' }, 400);
+  if (frase.length < 2 || frase.length > 800) return jsonP({ error: 'La frase debe tener entre 2 y 800 letras.' }, 400);
+  if (tipo !== 'evitar' && PROHIBIDO.some((re) => re.test(frase))) return jsonP({ error: 'La frase usa algo prohibido: signos ¡ ¿, «nativa» o «al tiro».' }, 400);
+  fila.tipo = tipo; fila.cuando = cuando; fila.frase = frase;
+  if (typeof b?.activo === 'boolean') fila.activo = b.activo;
+  let r;
+  if (id === null) {
+    r = await dbCrudo('mensajes_frases', { method: 'POST', prefer: 'return=representation', body: JSON.stringify(fila) });
+  } else {
+    const [f] = await db(`mensajes_frases?select=clave,tipo&id=eq.${id}&deleted_at=is.null`);
+    if (!f) return jsonP({ error: 'Esa frase ya no existe.' }, 404);
+    // Las dos que usa el código no cambian de tipo ni se pausan.
+    if ((f.clave === 'aviso_cotiza' || f.clave === 'saludo') && (tipo !== 'fija' || fila.activo === false)) {
+      return jsonP({ error: 'Esta frase la usa el sistema: puedes cambiar su texto, pero no pausarla ni cambiarle el tipo.' }, 400);
+    }
+    if (f.clave === 'aviso_cotiza' && (frase.indexOf('[') !== -1 || frase.indexOf('http') !== -1 || frase.length > 300)) {
+      return jsonP({ error: 'El aviso de cotización sale tal cual: sin corchetes, sin links y hasta 300 letras.' }, 400);
+    }
+    r = await dbCrudo(`mensajes_frases?id=eq.${id}&deleted_at=is.null`, { method: 'PATCH', prefer: 'return=representation', body: JSON.stringify(fila) });
+  }
+  if (r.ok && Array.isArray(r.cuerpo) && r.cuerpo.length) return jsonP({ ok: true, frase: r.cuerpo[0] });
+  console.error('frases', r.status, JSON.stringify(r.cuerpo ?? null).slice(0, 300));
+  return jsonP({ error: 'La base no aceptó la frase.' }, 422);
+}
+
 // ── Avisos al equipo: notificaciones del navegador (web push, migración 0014) ─────────────────
 // Qué avisos tocan lo decide la base (mensajes_avisos_por_enviar). Aquí solo se reserva cada aviso en
 // mensajes_avisos (unique por mensaje y tipo: no sale dos veces) y se le manda a cada dispositivo.
@@ -1053,10 +1182,13 @@ Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });
-  if (url.pathname.endsWith('/enviar') || url.pathname.endsWith('/tomar') || url.pathname.endsWith('/push')) {
+  if (url.pathname.endsWith('/enviar') || url.pathname.endsWith('/tomar') || url.pathname.endsWith('/push')
+      || url.pathname.endsWith('/soltar') || url.pathname.endsWith('/frases')) {
     if (req.method !== 'POST') return jsonP({ error: 'solo POST' }, 405);
     try {
       if (url.pathname.endsWith('/push')) return await push(req);
+      if (url.pathname.endsWith('/soltar')) return await soltar(req);
+      if (url.pathname.endsWith('/frases')) return await frasesRuta(req);
       return await (url.pathname.endsWith('/enviar') ? enviar(req) : tomar(req));
     } catch (e) {
       console.error('ruta del panel', url.pathname, String(e));
