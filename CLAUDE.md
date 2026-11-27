@@ -134,7 +134,7 @@ La auditoría semanal que mide el cumplimiento es la skill `/auditoria` (abajo).
 
 ## Skills del proyecto
 Viven en `.claude/skills/`: `auditoria`, `cierre-semanal`, `analisis-cotizador`, `conciliacion`,
-`cierre-mensual`, `gads`, `revision-starken`. Cuándo se activa cada una lo dice su propia descripción (y el detalle, su
+`cierre-mensual`, `gads`, `revision-starken`, `carrusel`. Cuándo se activa cada una lo dice su propia descripción (y el detalle, su
 `SKILL.md`). Invocarlas cuando el pedido calce, en vez de reconstruir el análisis a mano. `auditoria`
 **solo reporta, no corrige**.
 
