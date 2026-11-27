@@ -29997,7 +29997,7 @@ function canalCanonico(txt){
 // TODA estadística: no suman facturación, no cuentan como pedido, no entran
 // al promedio.
 //   VENTA       — lo normal. Los registros viejos sin campo cuentan como venta.
-//   MUESTRARIO  — $20.000 que después se descuentan de la compra: es un
+//   MUESTRARIO  — $30.000 (desde 27-11; antes $20.000) que se descuentan de la primera compra: es un
 //                 anticipo, no una venta.
 //   DEVOLUCION  — se marca el pedido ORIGINAL (no se crea otro registro, o el
 //                 conteo subiría a 2 por un solo evento). Conserva su tarjeta
@@ -36663,7 +36663,7 @@ function _empMsgPrograma(e){
   var nom=String(e.contacto||'').trim().split(/\s+/)[0]||'',t=Number(e.tramo_pct)||0,emp=_empCorto(e.razon_social);
   if(nom)nom=nom.charAt(0).toUpperCase()+nom.slice(1).toLowerCase();
   var p=[nom?'Hola '+nom+', ¿cómo estás?':'Hola, ¿cómo están?',
-    'Te escribe César de Casa Zaru. Abrimos la Cuenta Casa Zaru para empresas: suma lo que tu empresa nos compró en los últimos 12 meses y, según el monto, te da un descuento fijo en las compras siguientes. Además, los muestrarios para tus proyectos van sin costo.'];
+    'Te escribe César de Casa Zaru. Abrimos la Cuenta Casa Zaru para empresas: suma lo que tu empresa nos compró en los últimos 12 meses y, según el monto, te da un descuento fijo en las compras siguientes. Y si quieres ver las maderas, te enviamos un muestrario a $30.000 con envío incluido, que se descuenta de tu próxima compra.'];
   if(e.profesional&&t===2)p.push('Como profesional, tu cuenta parte directo en el primer tramo: 7 % de descuento pagando con transferencia (2 % con otros medios), desde la primera compra. Sobre $3.000.000 en 12 meses pasas al 10 %.');
   else if(t===5)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el tramo más alto: 10 % de descuento pagando con transferencia (5 % con otros medios).');
   else if(t===2)p.push(emp+' lleva '+fmtCLP(e.acumulado)+' en compras, así que ya quedó en el primer tramo: 7 % de descuento pagando con transferencia (2 % con otros medios). Le faltan '+fmtCLP(e.falta_5)+' para pasar al 10 %.');
