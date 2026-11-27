@@ -405,7 +405,10 @@ function parrafos(t: string): string {
   // «Hola X, muy buen día.» + «Cómo estás?» + «Te escribe César…» quedan en un solo párrafo.
   while (out.length > 1 && /^hola\b/i.test(out[0]) && out[0].length < 90
     && /^(c[oó]mo est[aá]s|te escribe c[eé]sar)/i.test(out[1]) && out[0].length + out[1].length < 140) {
-    out.splice(0, 2, out[0] + ' ' + out[1]);
+    // solo la primera frase sube al saludo; lo que sigue («En qué te puedo ayudar?») queda en su párrafo
+    const m = out[1].match(/^(.+?[.!?])\s+(\S.*)$/);
+    if (m) out.splice(0, 2, out[0] + ' ' + m[1], m[2]);
+    else out.splice(0, 2, out[0] + ' ' + out[1]);
   }
   return out.join('\n\n');
 }
