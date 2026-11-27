@@ -69,7 +69,7 @@ const SISTEMA = `Eres el asistente que redacta borradores de respuesta para Casa
 ESTILO
 - Español de Chile, cálido y directo. Escribe con puntos aparte: cada idea en su propio párrafo, de una o dos frases, separado del siguiente por una línea en blanco. Nunca un bloque largo de texto. La pregunta final va sola en su párrafo.
 - En el PRIMER mensaje nuestro del chat: «Hola <nombre>, cómo estás? Te escribe César de Casa Zaru.» En los siguientes, sin presentarse otra vez.
-- SALUDO COMO CÉSAR: si el cliente vuelve a escribir después de una pausa (nuestro último mensaje fue hace más de 3 horas, o hay una línea «— conversación anterior … —»), parte saludando según la hora de Chile que te doy: antes de las 12 «Hola <nombre>, muy buen día. Cómo estás?», de 12 a 20 «Hola <nombre>, buenas tardes. Cómo estás?», después «Hola <nombre>, buenas noches.». Si la conversación viene seguida, entra directo al tema, sin saludar de nuevo.
+- SALUDO COMO CÉSAR, UNA SOLA VEZ AL DÍA: te digo si ya le escribimos hoy. Si todavía NO le hemos escrito hoy, parte saludando según la hora de Chile que te doy: antes de las 12 «Hola <nombre>, muy buen día. Cómo estás?», de 12 a 20 «Hola <nombre>, buenas tardes. Cómo estás?», después «Hola <nombre>, buenas noches.». Si YA le escribimos hoy, nada de saludo ni «cómo estás»: entra directo al tema.
 - Suena a César: cercano y concreto, como en las respuestas modelo («Súper», «Perfecto», «Te dejo…», «Cualquier duda me avisas»). Nada de frases de asistente ni de listas largas con viñetas: si nombras varias piezas, una línea corta por pieza.
 - Nunca uses ¡ ni ¿ de apertura; solo los de cierre (? !). Nunca escribas «al tiro». Sin emojis.
 - Di siempre «madera noble». NUNCA «nativa» ni «nativo».
@@ -440,7 +440,9 @@ function textosRecientesCliente(hist: { autor: string; texto: string | null; env
 
 // Un borrador sin cotización no puede prometer la cotización «en unos minutos»: ese aviso lo manda el
 // sistema solo cuando sale el link (26-11: lo prometió sin tener la comuna ni las medidas).
-const PROMETE_COT = /(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|dame unos minutos/;
+// «Hola X, muy buen día. Cómo estás?» / «buenas tardes» / «buenas noches» al comienzo del borrador.
+const SALUDO_DIA = /^hola\b[^.?!\n]*\b(muy )?(buen(os)? d[ií]as?|buenas tardes|buenas noches)\b[^.?!\n]*[.?!,]*\s*(c[oó]mo est[aá]s\??\s*)?/i;
+const PROMETE_COT =/(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|dame unos minutos/;
 
 async function redactar(chat: number, mensajeId: number) {
   const llave = Deno.env.get('ANTHROPIC_API_KEY');
@@ -454,6 +456,9 @@ async function redactar(chat: number, mensajeId: number) {
   const nuestros = hist.filter((m: any) => m.autor !== 'cliente' && m.enviado_at);
   const ultNuestro = nuestros.length ? Date.parse(nuestros[nuestros.length - 1].enviado_at) : NaN;
   const pausa = isNaN(ultNuestro) ? 'todavía no le hemos escrito' : 'hace ' + Math.round((Date.now() - ultNuestro) / 360000) / 10 + ' horas';
+  // El saludo («muy buen día, cómo estás?») va una sola vez por día de Chile (pedido del dueño, 26-11).
+  const diaChile = (t: number) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
+  const escribimosHoy = !isNaN(ultNuestro) && diaChile(ultNuestro) === diaChile(Date.now());
   // Lo que el cliente escribió desde el último corte de 12 h: la comuna de "cotizar" tiene que estar aquí.
   const recientes = textosRecientesCliente(hist);
   const anuncio = (c.origen as any)?.headline ?? (c.origen as any)?.ad_title ?? '';
@@ -471,7 +476,7 @@ async function redactar(chat: number, mensajeId: number) {
         + (anuncio ? `\nAnuncio de origen: ${anuncio}` : '')
         + (c.nombre ? `\nNombre del cliente: ${c.nombre}` : '')
         + (c.tomado_por ? '\nEste chat lo lleva César: el borrador es una sugerencia para él.' : '')
-        + `\nHora en Chile: ${horaChile}. Nuestro último mensaje: ${pausa}.`
+        + `\nHora en Chile: ${horaChile}. Nuestro último mensaje: ${pausa}. ${escribimosHoy ? 'Ya le escribimos hoy: NO saludes.' : 'Hoy todavía no le escribimos: saluda.'}`
         + `\n\nConversación (lo último abajo):\n${conv}\n\nRedacta la próxima respuesta de Casa Zaru.` }],
     }),
   });
@@ -482,6 +487,8 @@ async function redactar(chat: number, mensajeId: number) {
   try { res = JSON.parse(crudo.slice(crudo.indexOf('{'), crudo.lastIndexOf('}') + 1)); }
   catch { res = { texto: crudo, necesita_humano: true, motivo: 'la respuesta no vino en JSON' }; }
   let texto = parrafos(String(res.texto ?? ''));
+  // Si ya le escribimos hoy y el modelo igual saludó, se le saca el saludo (una vez al día, no más).
+  if (escribimosHoy) texto = texto.replace(SALUDO_DIA, '').trim();
   if (!texto) return;
 
   // Cotización con las medidas del chat: la marca se cambia por un link con código propio (0008).
