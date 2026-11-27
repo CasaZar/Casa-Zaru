@@ -47,8 +47,10 @@ anterior entre esa hora y ayer a las 00:00. Ese inicio va como `p_desde` al subi
 (paso 8): si entre dos revisiones queda un hueco, el Historial del panel lo muestra en rojo.
 Si el usuario pide otro rango, manda el usuario. Al final escribe la hora nueva.
 
-**Desde el 26-11-2026 hay 5 revisiones programadas al día** (lun-sáb 8:00, 9:00, 12:30, 14:00 y
-17:00; tareas `revision-whatsapp-horas` y `revision-whatsapp-1230`). En esas corridas el inicio es **solo
+**Desde el 27-11-2026 hay una revisión programada cada hora** (lun-vie 8:00 a 18:00 y sábado 8:00
+a 14:00; tareas `revision-whatsapp-horas` y `revision-whatsapp-1230`, que ahora es la del sábado;
+del 26-11 eran 5 al día). El panel del cotizador relee los pendientes solo cada 5 minutos, así que
+César los ve sin recargar. En esas corridas el inicio es **solo
 `ultima-revision.txt`** (no ayer 00:00), para no releer lo ya revisado; si ese archivo es de antes
 de ayer, igual se cubre desde ahí. Reparto:
 - **Todas:** pendientes y promesas (2), corpus (3), fichas de venta (6c), avisos de envío (6d),
