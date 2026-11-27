@@ -69,6 +69,8 @@ const SISTEMA = `Eres el asistente que redacta borradores de respuesta para Casa
 ESTILO
 - Español de Chile, cálido y directo. Escribe con puntos aparte: cada idea en su propio párrafo, de una o dos frases, separado del siguiente por una línea en blanco. Nunca un bloque largo de texto. La pregunta final va sola en su párrafo.
 - En el PRIMER mensaje nuestro del chat: «Hola <nombre>, cómo estás? Te escribe César de Casa Zaru.» En los siguientes, sin presentarse otra vez.
+- SALUDO COMO CÉSAR: si el cliente vuelve a escribir después de una pausa (nuestro último mensaje fue hace más de 3 horas, o hay una línea «— conversación anterior … —»), parte saludando según la hora de Chile que te doy: antes de las 12 «Hola <nombre>, muy buen día. Cómo estás?», de 12 a 20 «Hola <nombre>, buenas tardes. Cómo estás?», después «Hola <nombre>, buenas noches.». Si la conversación viene seguida, entra directo al tema, sin saludar de nuevo.
+- Suena a César: cercano y concreto, como en las respuestas modelo («Súper», «Perfecto», «Te dejo…», «Cualquier duda me avisas»). Nada de frases de asistente ni de listas largas con viñetas: si nombras varias piezas, una línea corta por pieza.
 - Nunca uses ¡ ni ¿ de apertura; solo los de cierre (? !). Nunca escribas «al tiro». Sin emojis.
 - Di siempre «madera noble». NUNCA «nativa» ni «nativo».
 
@@ -110,7 +112,11 @@ PRECIOS
   "cotizar": {"prod":"puertas","tipo":"sin_vidrio","piezas":[{"alto":200,"ancho":80,"cant":1}]}    (tipo: sin_vidrio, con_vidrio o granero)
   "cotizar": {"prod":"mesa","piezas":[{"largo":180,"ancho":90,"cant":1}]}
 - Qué decir junto a la marca: en cubierta, repisa y peldaños, que ahí ve al instante el precio en cada madera. En puertas y mesas, que ahí elige el modelo con fotos y ve su precio. Menciona la medida («tu cubierta de 240 × 62 cm»).
-- Antes de tu mensaje con la cotización el cliente ya recibió un aviso de que se la estás preparando y de que se la mandas en unos minutos. Por eso ese mensaje parte entregándola («Listo, acá está tu cotización…»): no saludes de nuevo, no digas que la vas a preparar y no comentes lo que eligió.
+- Antes de tu mensaje con la cotización el cliente ya recibió un aviso de que se la estás preparando y de que se la mandas en unos minutos. Por eso ese mensaje parte entregándola como César: «Te dejo la cotización de tu cubierta, con el precio en cada madera:» (o «de tus cubiertas»): no saludes de nuevo, no digas que la vas a preparar y no comentes lo que eligió.
+- CIERRE DE LA COTIZACIÓN (cubiertas, repisas, peldaños y mesas), después del link y del detalle de las piezas, en párrafos cortos:
+  «Luego podemos afinar las medidas: antes de fabricar te enviamos un plano para confirmar.»
+  Si alguna pieza es de baño, vanitorio o cocina: «También podemos hacer las perforaciones necesarias para el lavamanos y la grifería.» (en cocina: «para el lavaplatos y la llave»). Es una oferta: si el cliente pide perforaciones, se marcan para una persona como dice EXTRAS.
+  Y termina con una pregunta corta que avance la venta, sola en su párrafo: «Para cuándo la necesitas?» (si falta la comuna o el uso, esa es la pregunta).
 - ENVÍO: el envío a domicilio también se cotiza ahí mismo. Si pusiste la comuna en "cotizar", dile que la cotización trae además el valor del envío a su comuna. Si todavía no la sabes, cierra preguntando a qué comuna va para agregarle el envío. Nunca digas que el envío se cotiza aparte ni después, y nunca escribas su valor.
 - Si el cliente dice su comuna DESPUÉS de haber recibido su cotización, no comentes la comuna: responde «Súper, actualizo la cotización.» y manda de nuevo la marca [LINK_COTIZACION] con el mismo "cotizar" de antes más la comuna, diciendo que ahora incluye el envío a domicilio.
 - Para cotizar el envío basta la comuna. NUNCA pidas que elija la madera, el modelo ni nada más para poder cotizar el envío, y no digas «te lo confirmo después»: con la comuna va en la cotización.
@@ -422,6 +428,16 @@ function conversacion(hist: { autor: string; tipo?: string; texto: string | null
   return lineas.join('\n');
 }
 
+// Todo lo que escribió el cliente desde el último corte de 12 h, en minúsculas y sin tildes. Una
+// comuna que no aparece aquí es de otro día (26-11: cotizó con Vitacura, dicha una semana antes).
+function textosRecientesCliente(hist: { autor: string; texto: string | null; enviado_at: string }[]): string {
+  let desde = 0;
+  for (let i = 1; i < hist.length; i++) {
+    if (Date.parse(hist[i].enviado_at) - Date.parse(hist[i - 1].enviado_at) > 12 * 3600000) desde = i;
+  }
+  return plano(hist.slice(desde).filter((m) => m.autor === 'cliente').map((m) => m.texto ?? '').join(' \n '));
+}
+
 // Un borrador sin cotización no puede prometer la cotización «en unos minutos»: ese aviso lo manda el
 // sistema solo cuando sale el link (26-11: lo prometió sin tener la comuna ni las medidas).
 const PROMETE_COT = /(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|dame unos minutos/;
@@ -433,6 +449,13 @@ async function redactar(chat: number, mensajeId: number) {
   const hist = await db(`mensajes?select=autor,tipo,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
   hist.reverse();
   const conv = conversacion(hist);
+  // Para el saludo como César (buen día / buenas tardes) y para saber si hubo pausa.
+  const horaChile = new Date().toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hour12: false });
+  const nuestros = hist.filter((m: any) => m.autor !== 'cliente' && m.enviado_at);
+  const ultNuestro = nuestros.length ? Date.parse(nuestros[nuestros.length - 1].enviado_at) : NaN;
+  const pausa = isNaN(ultNuestro) ? 'todavía no le hemos escrito' : 'hace ' + Math.round((Date.now() - ultNuestro) / 360000) / 10 + ' horas';
+  // Lo que el cliente escribió desde el último corte de 12 h: la comuna de "cotizar" tiene que estar aquí.
+  const recientes = textosRecientesCliente(hist);
   const anuncio = (c.origen as any)?.headline ?? (c.origen as any)?.ad_title ?? '';
   const modelo = Deno.env.get('MODELO') || 'claude-sonnet-4-6';
   const frases = await frasesVivas();
@@ -448,6 +471,7 @@ async function redactar(chat: number, mensajeId: number) {
         + (anuncio ? `\nAnuncio de origen: ${anuncio}` : '')
         + (c.nombre ? `\nNombre del cliente: ${c.nombre}` : '')
         + (c.tomado_por ? '\nEste chat lo lleva César: el borrador es una sugerencia para él.' : '')
+        + `\nHora en Chile: ${horaChile}. Nuestro último mensaje: ${pausa}.`
         + `\n\nConversación (lo último abajo):\n${conv}\n\nRedacta la próxima respuesta de Casa Zaru.` }],
     }),
   });
@@ -467,7 +491,9 @@ async function redactar(chat: number, mensajeId: number) {
   let cotMal = '';
   if (texto.indexOf(MARCA_COT) !== -1 || res.cotizar != null) {
     const a = armarCotizar(res.cotizar);
+    const com = String((a?.datos as any)?.com ?? '');
     if (!a) cotMal = 'pidió cotizar pero las medidas no se pudieron leer o salen de lo normal';
+    else if (com && recientes.indexOf(plano(com)) === -1) cotMal = 'usa la comuna «' + com + '» de otra conversación sin confirmarla';
     else if (texto.split(MARCA_COT).length !== 2) cotMal = 'la cotización venía sin su marca de link, o con más de una';
     else if (c.canal !== 'whatsapp') cotMal = 'el link de cotización con medidas solo sale por WhatsApp';
     else {
