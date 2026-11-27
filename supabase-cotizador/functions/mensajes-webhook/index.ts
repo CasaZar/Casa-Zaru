@@ -102,6 +102,7 @@ PRECIOS
 - Si el cliente duda entre dos medidas de la misma pieza («60 × 50 o 45»), cotiza con la primera que nombró y dile en el texto que si prefiere la otra la cambiamos. No frenes la cotización por eso.
 - VARIAS PIEZAS: si pide varias piezas del mismo producto (por ejemplo una cubierta de comedor y dos de vanitorio), van TODAS juntas en un solo "cotizar" con una pieza por medida, y en el texto nombras cada una con su medida. Nunca cotices solo una y dejes las otras para después. Si las cubiertas tienen usos distintos, en "uso" va el que más se repite; si empatan, no pongas "uso". Si pide productos distintos (por ejemplo cubierta y repisa), no pongas la marca ni "cotizar": marca "necesita_humano": true con el motivo «varios productos» y deja un borrador que confirme las medidas de cada uno y pida la comuna si falta.
 - COMUNA Y DATOS DE OTRO DÍA: lo que va bajo «CONVERSACIÓN DE OTRO DÍA» es de otro día. Respondes SOLO a la «CONVERSACIÓN DE HOY». Comuna, medidas, uso, reborde o madera dichos ese otro día NO se usan ni se nombran sin que el cliente los repita hoy: no los pongas en "cotizar" ni en el texto (nada de «envío a Vitacura» si hoy no dijo Vitacura). Si hoy no dio la comuna, cotiza sin comuna y pregúntala al final («A qué comuna hay que enviarla?»). Nunca digas que te confundiste con otro cliente.
+- PAGO Y FECHAS: no inventes cupos, fechas de entrega ni condiciones de pago (anticipo, transferencia, datos bancarios). Si el cliente pregunta por eso o quiere confirmar, di el plazo general (7 a 15 días hábiles) si calza y marca necesita_humano para que César lo confirme.
 - NUNCA escribas que vas a preparar la cotización ni que se la mandas en unos minutos: ese aviso lo manda el sistema solo, justo cuando sale la cotización. Si te faltan datos, pídelos sin prometer la cotización.
 - USO DE LA CUBIERTA: en una cubierta pregunta SIEMPRE qué uso le va a dar, si todavía no lo dijo. Si ya tienes las medidas pero no el uso, manda igual su cotización y cierra preguntando el uso (y la comuna, si también falta) en una sola pregunta.
 - Cuando ya tengas las medidas, arma su cotización así: en el texto escribe la marca [LINK_COTIZACION] sola en una línea (el sistema la cambia por el link con sus medidas ya puestas; tú NUNCA escribas ese link) y agrega al JSON el campo "cotizar". Medidas SIEMPRE en centímetros (2,40 m = 240; 62 cm = 62) y "cant" = cuántas piezas iguales. Ejemplos:
@@ -453,6 +454,9 @@ const SALUDO_DIA = /^hola\b[^.?!\n]*\b(muy )?(buen(os)? d[ií]as?|buenas tardes|
 const PROMETE_COT = /(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|te (preparo|armo|hago|envio|mando)\s+(la|las|tu|tus)\s+cotizaci|dame unos minutos/;
 // Frases que un vendedor nunca diría (26-11: «Perdona, me confundí con otro cliente»).
 const RARO = /otro cliente|me confundi|soy una? (ia|bot|asistente virtual)|inteligencia artificial/;
+// Pago y fechas los confirma una persona (27-11: inventó «el cupo más cercano, la semana que viene»
+// y pidió «el 70 % de anticipo» con datos de transferencia). El plazo general de 7-15 días sí puede ir.
+const PAGO_O_FECHA = /anticipo|transferencia|transferir|datos (de|para) (pago|deposito)|cuenta (corriente|rut|vista)|\bcupo|semana que viene|proxima semana|para el (lunes|martes|miercoles|jueves|viernes|sabado)/;
 // Temas que el cliente tiene que haber dicho hoy para que el borrador los nombre (26-11: «reborde»).
 const TEMAS_DEL_CLIENTE = ['reborde'];
 // «envío a <Comuna>» / «despacho a <Comuna>»: la comuna tiene que haberla dicho el cliente hoy.
@@ -460,6 +464,7 @@ const ENVIO_A = /(?:env[ií]o|despacho|enviarla|enviarlas|enviarlo|enviarlos)\s+
 function fueraDeHoy(texto: string, recientes: string): string {
   const t = plano(texto);
   if (RARO.test(t)) return 'escribe algo que un vendedor no diría';
+  if (PAGO_O_FECHA.test(t)) return 'habla de pago, anticipo o fecha de entrega: eso lo confirma una persona';
   for (const tema of TEMAS_DEL_CLIENTE) if (t.indexOf(tema) !== -1 && recientes.indexOf(tema) === -1) return 'habla de «' + tema + '», que el cliente no pidió hoy';
   for (const m of texto.matchAll(ENVIO_A)) {
     if (recientes.indexOf(plano(m[1])) === -1) return 'nombra la comuna «' + m[1] + '», que el cliente no dijo hoy';
@@ -590,10 +595,23 @@ async function redactar(chat: number, mensajeId: number) {
   // cuando se cumple la espera. Si antes entra otro mensaje, este borrador caduca y no sale.
   try {
     if (autoPermitido(chat) && autoPasa(revision)) {
-      const seg = esperaSeg(revision.cotiza ? 'AUTO_ESPERA_COTIZA_SEG' : 'AUTO_ESPERA_SEG', revision.cotiza ? 240 : 120);
+      // Tiempos del dueño (27-11): saludo 30 s, conversación 20-30 s, cotización: el aviso sale ya y el
+      // link a los 3 minutos. Se cuentan desde que llegó el mensaje del cliente, no desde el borrador.
+      const ultCli = [...hist].reverse().find((m: any) => m.autor === 'cliente');
+      const llego = Math.min(Date.now(), Date.parse(ultCli?.enviado_at ?? '') || Date.now());
+      const seg = revision.cotiza ? esperaSeg('AUTO_ESPERA_COT_SEG', 180)
+        : SOLO_SALUDO.test(plano(ultCli?.texto ?? '')) ? esperaSeg('AUTO_ESPERA_SALUDO_SEG', 30)
+        : esperaSeg('AUTO_ESPERA_CHARLA_SEG', 20 + Math.floor(Math.random() * 11));
+      const cuando = Math.max(Date.now(), llego + seg * 1000);
       await db(`mensajes_borradores?id=eq.${borradorId}&estado=eq.pendiente`, {
-        method: 'PATCH', body: JSON.stringify({ auto_desde: new Date(Date.now() + seg * 1000).toISOString() }),
+        method: 'PATCH', body: JSON.stringify({ auto_desde: new Date(cuando).toISOString() }),
       });
+      // Esperas cortas: el reloj de la base corre una vez por minuto, así que la misma función espera y
+      // lo saca a la hora. Si el reloj llega antes, la reserva con clave fija impide que salga dos veces.
+      if (!revision.cotiza && cuando - Date.now() <= 60000) {
+        await new Promise((r) => setTimeout(r, Math.max(0, cuando - Date.now())));
+        await despacharUno(borradorId);
+      }
       // Si lleva cotización, primero avisa que la está preparando (sale ahora) y la cotización llega
       // cuando se cumple la espera. Un solo aviso cada 15 minutos por chat: si el cliente agrega un
       // dato mientras espera, no se le repite.
@@ -621,8 +639,10 @@ function textoAvisoCotiza(frases: Frase[]): string {
     && !PROHIBIDO.some((re) => re.test(t)) ? t : AVISO_COTIZA;
 }
 
-// Espera antes de responder solo, en segundos: 120 normal y 240 si el mensaje lleva una cotización
-// (se pueden cambiar con AUTO_ESPERA_SEG y AUTO_ESPERA_COTIZA_SEG; entre 0 y 1800).
+// Espera antes de responder solo, en segundos (27-11): saludo 30, conversación 20-30, cotización 180
+// (se pueden cambiar con AUTO_ESPERA_SALUDO_SEG, AUTO_ESPERA_CHARLA_SEG y AUTO_ESPERA_COT_SEG; 0 a 1800).
+// Un mensaje que es solo un saludo («Hola», «buenas tardes», «alo?»).
+const SOLO_SALUDO = /^(hola+|holi|buen(o|a)?s?( dias?| tardes?| noches?)?|wena+s?|saludos|alo+|hello|hi)[\s!.,?¿¡]*(que tal|como estas?)?[\s!.,?¿¡]*$/;
 function esperaSeg(nombre: string, porDefecto: number): number {
   const n = Number((Deno.env.get(nombre) ?? '').trim() || porDefecto);
   return Number.isFinite(n) && n >= 0 && n <= 1800 ? Math.round(n) : porDefecto;
@@ -637,6 +657,16 @@ function autoPasa(rev: any): boolean {
 // minuto (pg_cron, migración 0009). No recibe datos y no lleva llave: solo puede enviar lo que ya
 // estaba agendado, con las mismas reglas de siempre, y cada borrador sale a lo más una vez
 // (la clave de su reserva es fija, y la base no acepta dos reservas con la misma clave).
+// Un borrador agendado, si sigue pendiente y con su hora cumplida (lo usa la espera corta de redactar).
+async function despacharUno(id: number): Promise<void> {
+  const ahora = encodeURIComponent(new Date().toISOString());
+  const [b] = (await db(`mensajes_borradores?select=id,chat_id,mensaje_id,texto,revision&id=eq.${id}`
+    + `&estado=eq.pendiente&auto_desde=lte.${ahora}`)) ?? [];
+  if (!b) return;                                  // caducó (el cliente escribió de nuevo) o ya lo sacó el reloj
+  await db(`mensajes_borradores?id=eq.${b.id}`, { method: 'PATCH', body: JSON.stringify({ auto_desde: null }) });
+  try { await autoResponder(b.chat_id, b.mensaje_id, b.id, b.texto, b.revision); }
+  catch (e) { console.error('auto corto', b.chat_id, String(e)); }
+}
 async function despachar(): Promise<Response> {
   const ahora = encodeURIComponent(new Date().toISOString());
   const listos = (await db('mensajes_borradores?select=id,chat_id,mensaje_id,texto,revision'
