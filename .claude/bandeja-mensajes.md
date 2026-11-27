@@ -437,3 +437,11 @@ Correo enviado desde hola@casazaru.cl a service@ycloud.com (único correo public
   - Saludo en 2 párrafos; 5 variantes del aviso de cotización (no repite una ya mandada al chat); «De dónde son» → «Estamos en Villarrica y hacemos entregas a todo Chile. Tú de dónde eres?»; el prompt ya no dice que un humano revisa cada borrador.
   - Los avisos llegan a todos los dispositivos con avisos activos en la bandeja: César tiene que activarlos en su celular. Tope de 2 sin respuesta: se ve en el panel (decisión del dueño).
 - 27-11, varias piezas = un solo envío (desplegado y verificado, SHA 2d1b47e1…): el asistente ya no pregunta si todas las piezas van a la comuna que dijo el cliente (en la prueba de las 3 cubiertas preguntó «las 3 las cotizo a Vitacura?»).
+
+## 27-11 · Simulador `/simular` y primera prueba con chats reales del 5558
+- Ruta `POST /simular` (solo el dueño, desde el panel con `llamar('simular', …)`): mismo prompt, mismas
+  reglas y tiempos, sin escribir en la base ni enviar; el link de cotización sale con código `SIMULADO`.
+  `redactar` quedó separado en `pensar` (prompt + modelo) y `revisar` (reglas), que usan los dos (3ce58d6).
+- Prueba: 9 chats, 32 puntos. 23 habrían salido solos; 9 de esos con problema (3 con dato falso: tono
+  de maderas, medida del vidrio, plazo del muestrario). El informe con el detalle está en Drive
+  (`Revision WhatsApp/simulacion-bot-2026-11-27.md`). Arreglos propuestos, sin aplicar.
