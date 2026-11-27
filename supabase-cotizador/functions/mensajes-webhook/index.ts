@@ -101,7 +101,7 @@ PRECIOS
 - ÚNICA EXCEPCIÓN, el ancho recomendado: si el cliente pide que le recomendemos el ancho (o el fondo) de una cubierta, cotiza con este ancho y dilo en el texto («la cotizo con 50 cm de fondo, que es lo más usado; si tu mueble mide otra cosa, la ajustamos»): vanitorio o baño 50 cm, cocina 60 cm, escritorio 60 cm. En otro uso u otro producto, pregúntalo.
 - Si el cliente duda entre dos medidas de la misma pieza («60 × 50 o 45»), cotiza con la primera que nombró y dile en el texto que si prefiere la otra la cambiamos. No frenes la cotización por eso.
 - VARIAS PIEZAS: si pide varias piezas del mismo producto (por ejemplo una cubierta de comedor y dos de vanitorio), van TODAS juntas en un solo "cotizar" con una pieza por medida, y en el texto nombras cada una con su medida. Nunca cotices solo una y dejes las otras para después. Si las cubiertas tienen usos distintos, en "uso" va el que más se repite; si empatan, no pongas "uso". Si pide productos distintos (por ejemplo cubierta y repisa), no pongas la marca ni "cotizar": marca "necesita_humano": true con el motivo «varios productos» y deja un borrador que confirme las medidas de cada uno y pida la comuna si falta.
-- COMUNA Y DATOS DE OTRO DÍA: lo que aparece antes de una línea «— conversación anterior … —» es de otro día. Comuna, medidas y uso dichos ahí NO se usan sin confirmarlos («Sigue siendo a Vitacura?»); no los pongas en "cotizar" hasta que el cliente los confirme.
+- COMUNA Y DATOS DE OTRO DÍA: lo que va bajo «CONVERSACIÓN DE OTRO DÍA» es de otro día. Respondes SOLO a la «CONVERSACIÓN DE HOY». Comuna, medidas, uso, reborde o madera dichos ese otro día NO se usan ni se nombran sin que el cliente los repita hoy: no los pongas en "cotizar" ni en el texto (nada de «envío a Vitacura» si hoy no dijo Vitacura). Si hoy no dio la comuna, cotiza sin comuna y pregúntala al final («A qué comuna hay que enviarla?»). Nunca digas que te confundiste con otro cliente.
 - NUNCA escribas que vas a preparar la cotización ni que se la mandas en unos minutos: ese aviso lo manda el sistema solo, justo cuando sale la cotización. Si te faltan datos, pídelos sin prometer la cotización.
 - USO DE LA CUBIERTA: en una cubierta pregunta SIEMPRE qué uso le va a dar, si todavía no lo dijo. Si ya tienes las medidas pero no el uso, manda igual su cotización y cierra preguntando el uso (y la comuna, si también falta) en una sola pregunta.
 - Cuando ya tengas las medidas, arma su cotización así: en el texto escribe la marca [LINK_COTIZACION] sola en una línea (el sistema la cambia por el link con sus medidas ya puestas; tú NUNCA escribas ese link) y agrega al JSON el campo "cotizar". Medidas SIEMPRE en centímetros (2,40 m = 240; 62 cm = 62) y "cant" = cuántas piezas iguales. Ejemplos:
@@ -409,16 +409,28 @@ const ARCHIVO: Record<string, string> = {
   video: '[mandó un video que no puedes ver]', document: '[mandó un archivo que no puedes abrir]',
   sticker: '[mandó un sticker]',
 };
+// Índice del primer mensaje de la conversación de hoy: el que viene después del último corte de 12 h.
+function inicioDeHoy(hist: { enviado_at: string }[]): number {
+  let desde = 0;
+  for (let i = 1; i < hist.length; i++) {
+    if (Date.parse(hist[i].enviado_at) - Date.parse(hist[i - 1].enviado_at) > 12 * 3600000) desde = i;
+  }
+  return desde;
+}
+// Lo de otro día va aparte, recortado a sus últimos 6 mensajes y con su rótulo (26-11: con la semana
+// anterior entera a la vista, preguntó por un «reborde» que nadie pidió hoy y cotizó con Vitacura).
 function conversacion(hist: { autor: string; tipo?: string; texto: string | null; enviado_at: string }[]): string {
+  const desde = inicioDeHoy(hist);
+  if (desde === 0) return lineasConv(hist);
+  const viejo = hist.slice(Math.max(0, desde - 6), desde);
+  const d = new Date(Date.parse(hist[desde - 1].enviado_at) - 3 * 3600000);   // hora de Chile aprox., solo la fecha
+  return 'CONVERSACIÓN DE OTRO DÍA (hasta el ' + d.getUTCDate() + '-' + (d.getUTCMonth() + 1) + '; solo de referencia, NO retomes nada de aquí: ni medidas, ni reborde, ni comuna, ni madera, salvo que el cliente lo vuelva a decir hoy):\n'
+    + lineasConv(viejo)
+    + '\n\nCONVERSACIÓN DE HOY (responde a esta):\n' + lineasConv(hist.slice(desde));
+}
+function lineasConv(hist: { autor: string; tipo?: string; texto: string | null; enviado_at: string }[]): string {
   const lineas: string[] = [];
-  let antes = 0;
   for (const m of hist) {
-    const t = Date.parse(m.enviado_at);
-    if (antes && t - antes > 12 * 3600000) {
-      const d = new Date(antes - 3 * 3600000);            // hora de Chile aproximada, solo para la fecha
-      lineas.push('— conversación anterior, hasta el ' + d.getUTCDate() + '-' + (d.getUTCMonth() + 1) + ' (es de otro día) —');
-    }
-    if (!isNaN(t)) antes = t;
     const quien = m.autor === 'cliente' ? 'CLIENTE' : 'CASA ZARU';
     const arch = ARCHIVO[String(m.tipo ?? '')] ?? (m.tipo === 'adjunto' ? '[mandó un archivo que no puedes abrir]' : '');
     // texto + archivo = foto con texto al pie: se nombran los dos. Sin texto y sin tipo conocido, archivo.
@@ -431,18 +443,29 @@ function conversacion(hist: { autor: string; tipo?: string; texto: string | null
 // Todo lo que escribió el cliente desde el último corte de 12 h, en minúsculas y sin tildes. Una
 // comuna que no aparece aquí es de otro día (26-11: cotizó con Vitacura, dicha una semana antes).
 function textosRecientesCliente(hist: { autor: string; texto: string | null; enviado_at: string }[]): string {
-  let desde = 0;
-  for (let i = 1; i < hist.length; i++) {
-    if (Date.parse(hist[i].enviado_at) - Date.parse(hist[i - 1].enviado_at) > 12 * 3600000) desde = i;
-  }
-  return plano(hist.slice(desde).filter((m) => m.autor === 'cliente').map((m) => m.texto ?? '').join(' \n '));
+  return plano(hist.slice(inicioDeHoy(hist)).filter((m) => m.autor === 'cliente').map((m) => m.texto ?? '').join(' \n '));
 }
 
 // Un borrador sin cotización no puede prometer la cotización «en unos minutos»: ese aviso lo manda el
 // sistema solo cuando sale el link (26-11: lo prometió sin tener la comuna ni las medidas).
 // «Hola X, muy buen día. Cómo estás?» / «buenas tardes» / «buenas noches» al comienzo del borrador.
 const SALUDO_DIA = /^hola\b[^.?!\n]*\b(muy )?(buen(os)? d[ií]as?|buenas tardes|buenas noches)\b[^.?!\n]*[.?!,]*\s*(c[oó]mo est[aá]s\??\s*)?/i;
-const PROMETE_COT =/(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|dame unos minutos/;
+const PROMETE_COT = /(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|te (preparo|armo|hago|envio|mando)\s+(la|las|tu|tus)\s+cotizaci|dame unos minutos/;
+// Frases que un vendedor nunca diría (26-11: «Perdona, me confundí con otro cliente»).
+const RARO = /otro cliente|me confundi|soy una? (ia|bot|asistente virtual)|inteligencia artificial/;
+// Temas que el cliente tiene que haber dicho hoy para que el borrador los nombre (26-11: «reborde»).
+const TEMAS_DEL_CLIENTE = ['reborde'];
+// «envío a <Comuna>» / «despacho a <Comuna>»: la comuna tiene que haberla dicho el cliente hoy.
+const ENVIO_A = /(?:env[ií]o|despacho|enviarla|enviarlas|enviarlo|enviarlos)\s+(?:a|hasta|para)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+(?:de\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)/g;
+function fueraDeHoy(texto: string, recientes: string): string {
+  const t = plano(texto);
+  if (RARO.test(t)) return 'escribe algo que un vendedor no diría';
+  for (const tema of TEMAS_DEL_CLIENTE) if (t.indexOf(tema) !== -1 && recientes.indexOf(tema) === -1) return 'habla de «' + tema + '», que el cliente no pidió hoy';
+  for (const m of texto.matchAll(ENVIO_A)) {
+    if (recientes.indexOf(plano(m[1])) === -1) return 'nombra la comuna «' + m[1] + '», que el cliente no dijo hoy';
+  }
+  return '';
+}
 
 async function redactar(chat: number, mensajeId: number) {
   const llave = Deno.env.get('ANTHROPIC_API_KEY');
@@ -528,6 +551,7 @@ async function redactar(chat: number, mensajeId: number) {
   // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
   const evitada = fraseEvitada(texto, frases);
   const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
+  const deOtroDia = fueraDeHoy(texto, recientes);
   const revision = {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
@@ -538,9 +562,10 @@ async function redactar(chat: number, mensajeId: number) {
     cotiza: linkCot ? linkCot.producto : null,
     frase_evitada: evitada || null,
     promete_cotizacion: prometeSinCot || null,
-    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot,
+    fuera_de_hoy: deOtroDia || null,
+    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot || !!deOtroDia,
     motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»'
-      : (prometeSinCot ? 'promete la cotización sin mandarla' : (res.motivo ?? '')))),
+      : (prometeSinCot ? 'promete la cotización sin mandarla' : (deOtroDia || (res.motivo ?? ''))))),
   };
   const avisoCotiza = textoAvisoCotiza(frases);
 
