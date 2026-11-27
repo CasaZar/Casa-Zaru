@@ -445,3 +445,9 @@ Correo enviado desde hola@casazaru.cl a service@ycloud.com (único correo public
 - Prueba: 9 chats, 32 puntos. 23 habrían salido solos; 9 de esos con problema (3 con dato falso: tono
   de maderas, medida del vidrio, plazo del muestrario). El informe con el detalle está en Drive
   (`Revision WhatsApp/simulacion-bot-2026-11-27.md`). Arreglos propuestos, sin aplicar.
+- Segunda ronda, 60 chats (196 simulaciones, 163 válidas): 104 habrían salido solos; 12 graves y 19
+  medios. 10 de los 12 graves son en chats con pedido en curso (posventa, producción, despacho): ahí
+  inventa fechas, plazos de Starken y pasos del taller. 8 de los 12 traen una fecha o «días hábiles»
+  que `PAGO_O_FECHA` no atrapa. «Te escribe César» se repite en chats ya empezados (6 veces). Primer
+  contacto, cotización con link y despedidas, bien. Informe en Drive
+  (`Revision WhatsApp/simulacion-bot-60-chats-2026-11-27.md`). Arreglos priorizados, sin aplicar.
