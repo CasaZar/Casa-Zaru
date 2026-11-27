@@ -84,6 +84,7 @@ PARA COTIZAR
 
 FOTOS Y CATÁLOGOS
 - Solo puedes escribir texto: NO puedes enviar fotos, videos ni archivos. Nunca escribas «te mando fotos», «te adjunto» ni nada parecido.
+- Lo que el cliente manda como foto, audio o archivo aparece como «[mandó una foto…]» o parecido. Si no aparece esa marca, NO hubo archivo: nunca digas que un archivo o imagen «no llegó». Si la marca aparece en lo último que mandó el cliente y no escribió las medidas, marca "necesita_humano": true con el motivo «mandó foto o archivo» y deja un borrador corto que agradezca y pida por escrito lo que falte (medidas, comuna).
 - Si piden fotos, modelos o ver trabajos, manda el link del catálogo del producto del que hablan (uno solo, copiado EXACTO) y una pregunta corta, por ejemplo «Cuál te gusta más?»:
   Cubiertas: https://drive.google.com/file/d/1MO2UjPyVznGopW-iQjYr82K4-2DBtRSe/view
   Mesas: https://drive.google.com/file/d/1J8OTrc7x1f-qe7x91AliN0M_611RE3z8/view
@@ -95,6 +96,11 @@ PRECIOS
 - NUNCA escribas un monto ni un rango de precios, ni aunque aparezca en los ejemplos.
 - COTIZACIÓN CON SUS MEDIDAS (cubierta, repisa, peldaños, puertas, mesa). Si el cliente pregunta el precio y todavía no dio las medidas, pídelas en una sola pregunta junto con la comuna: largo, ancho, a qué comuna va y, si es una cubierta, qué uso le va a dar (cocina, baño, comedor, escritorio, quincho, exterior) (en puertas, alto y ancho, y si la quiere con vidrio, sin vidrio o corredera tipo granero). No preguntes la madera: la cotización muestra el precio en cada una.
 - Usa SOLO medidas que el cliente escribió en esta conversación para ese mismo producto. Nunca las supongas, no uses medidas «típicas» ni las de otro producto u otro día: si no las dio, o tienes dudas de cuáles son, pregúntalas.
+- ÚNICA EXCEPCIÓN, el ancho recomendado: si el cliente pide que le recomendemos el ancho (o el fondo) de una cubierta, cotiza con este ancho y dilo en el texto («la cotizo con 50 cm de fondo, que es lo más usado; si tu mueble mide otra cosa, la ajustamos»): vanitorio o baño 50 cm, cocina 60 cm, escritorio 60 cm. En otro uso u otro producto, pregúntalo.
+- Si el cliente duda entre dos medidas de la misma pieza («60 × 50 o 45»), cotiza con la primera que nombró y dile en el texto que si prefiere la otra la cambiamos. No frenes la cotización por eso.
+- VARIAS PIEZAS: si pide varias piezas del mismo producto (por ejemplo una cubierta de comedor y dos de vanitorio), van TODAS juntas en un solo "cotizar" con una pieza por medida, y en el texto nombras cada una con su medida. Nunca cotices solo una y dejes las otras para después. Si las cubiertas tienen usos distintos, en "uso" va el que más se repite; si empatan, no pongas "uso". Si pide productos distintos (por ejemplo cubierta y repisa), no pongas la marca ni "cotizar": marca "necesita_humano": true con el motivo «varios productos» y deja un borrador que confirme las medidas de cada uno y pida la comuna si falta.
+- COMUNA Y DATOS DE OTRO DÍA: lo que aparece antes de una línea «— conversación anterior … —» es de otro día. Comuna, medidas y uso dichos ahí NO se usan sin confirmarlos («Sigue siendo a Vitacura?»); no los pongas en "cotizar" hasta que el cliente los confirme.
+- NUNCA escribas que vas a preparar la cotización ni que se la mandas en unos minutos: ese aviso lo manda el sistema solo, justo cuando sale la cotización. Si te faltan datos, pídelos sin prometer la cotización.
 - USO DE LA CUBIERTA: en una cubierta pregunta SIEMPRE qué uso le va a dar, si todavía no lo dijo. Si ya tienes las medidas pero no el uso, manda igual su cotización y cierra preguntando el uso (y la comuna, si también falta) en una sola pregunta.
 - Cuando ya tengas las medidas, arma su cotización así: en el texto escribe la marca [LINK_COTIZACION] sola en una línea (el sistema la cambia por el link con sus medidas ya puestas; tú NUNCA escribas ese link) y agrega al JSON el campo "cotizar". Medidas SIEMPRE en centímetros (2,40 m = 240; 62 cm = 62) y "cant" = cuántas piezas iguales. Ejemplos:
   "cotizar": {"prod":"cubierta","uso":"cocina","comuna":"Vitacura","piezas":[{"largo":240,"ancho":62,"cant":1}]}
@@ -388,13 +394,45 @@ function parrafos(t: string): string {
   return out.join('\n\n');
 }
 
+// La conversación que lee el modelo. Un archivo sin texto se nombra («[mandó una foto…]») para que no
+// imagine archivos donde no los hay (26-11: dijo «el archivo no me llegó» ante un «Algo así»). Si entre
+// dos mensajes pasaron más de 12 h, se marca el corte: lo de antes es de otro día y se confirma antes de
+// usarlo (26-11: tomó la comuna de una prueba de una semana antes).
+const ARCHIVO: Record<string, string> = {
+  image: '[mandó una foto que no puedes ver]', audio: '[mandó un audio que no puedes escuchar]',
+  video: '[mandó un video que no puedes ver]', document: '[mandó un archivo que no puedes abrir]',
+  sticker: '[mandó un sticker]',
+};
+function conversacion(hist: { autor: string; tipo?: string; texto: string | null; enviado_at: string }[]): string {
+  const lineas: string[] = [];
+  let antes = 0;
+  for (const m of hist) {
+    const t = Date.parse(m.enviado_at);
+    if (antes && t - antes > 12 * 3600000) {
+      const d = new Date(antes - 3 * 3600000);            // hora de Chile aproximada, solo para la fecha
+      lineas.push('— conversación anterior, hasta el ' + d.getUTCDate() + '-' + (d.getUTCMonth() + 1) + ' (es de otro día) —');
+    }
+    if (!isNaN(t)) antes = t;
+    const quien = m.autor === 'cliente' ? 'CLIENTE' : 'CASA ZARU';
+    const arch = ARCHIVO[String(m.tipo ?? '')] ?? (m.tipo === 'adjunto' ? '[mandó un archivo que no puedes abrir]' : '');
+    // texto + archivo = foto con texto al pie: se nombran los dos. Sin texto y sin tipo conocido, archivo.
+    const txt = m.texto != null ? (arch ? arch + ' ' + m.texto : m.texto) : (arch || '[mandó un archivo que no puedes abrir]');
+    lineas.push(quien + ': ' + txt);
+  }
+  return lineas.join('\n');
+}
+
+// Un borrador sin cotización no puede prometer la cotización «en unos minutos»: ese aviso lo manda el
+// sistema solo cuando sale el link (26-11: lo prometió sin tener la comuna ni las medidas).
+const PROMETE_COT = /(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|dame unos minutos/;
+
 async function redactar(chat: number, mensajeId: number) {
   const llave = Deno.env.get('ANTHROPIC_API_KEY');
   if (!llave) return;
   const [c] = await db(`mensajes_chats?select=canal,nombre,tomado_por,toques_sin_respuesta,origen&id=eq.${chat}`);
-  const hist = await db(`mensajes?select=autor,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
+  const hist = await db(`mensajes?select=autor,tipo,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
   hist.reverse();
-  const conv = hist.map((m: any) => `${m.autor === 'cliente' ? 'CLIENTE' : 'CASA ZARU'}: ${m.texto ?? '[adjunto]'}`).join('\n');
+  const conv = conversacion(hist);
   const anuncio = (c.origen as any)?.headline ?? (c.origen as any)?.ad_title ?? '';
   const modelo = Deno.env.get('MODELO') || 'claude-sonnet-4-6';
   const frases = await frasesVivas();
@@ -456,6 +494,7 @@ async function redactar(chat: number, mensajeId: number) {
   const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1 || (linkCot !== null && l === linkCot.url));
   // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
   const evitada = fraseEvitada(texto, frases);
+  const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
   const revision = {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
@@ -465,8 +504,10 @@ async function redactar(chat: number, mensajeId: number) {
     links_ok: linksOk,
     cotiza: linkCot ? linkCot.producto : null,
     frase_evitada: evitada || null,
-    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada,
-    motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»' : (res.motivo ?? ''))),
+    promete_cotizacion: prometeSinCot || null,
+    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot,
+    motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»'
+      : (prometeSinCot ? 'promete la cotización sin mandarla' : (res.motivo ?? '')))),
   };
   const avisoCotiza = textoAvisoCotiza(frases);
 
