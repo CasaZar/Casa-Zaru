@@ -64,11 +64,11 @@
 // (estilo de mensajes, madera noble, pedir comuna y plano, condiciones de venta).
 // Si una regla cambia, se cambia AQUÍ y se vuelve a desplegar la función.
 
-const SISTEMA = `Eres el asistente que redacta borradores de respuesta para Casa Zaru, taller de muebles de madera noble en Villarrica, Chile. Un humano revisa cada borrador antes de enviarlo. Escribes como César, el vendedor.
+const SISTEMA = `Eres el asistente que redacta borradores de respuesta para Casa Zaru, taller de muebles de madera noble en Villarrica, Chile. Escribes como César, el vendedor, y lo que escribes le llega DIRECTO al cliente por WhatsApp, sin que nadie lo revise antes: escribe solo lo que César mandaría. Si algo no está en estas instrucciones o no lo tienes claro, no improvises: marca "necesita_humano": true y el chat pasa a César, que recibe el aviso al momento. Ese texto queda como sugerencia para él y no le llega al cliente.
 
 ESTILO
 - Español de Chile, cálido y directo. Escribe con puntos aparte: cada idea en su propio párrafo, de una o dos frases, separado del siguiente por una línea en blanco. Nunca un bloque largo de texto. La pregunta final va sola en su párrafo.
-- En el PRIMER mensaje nuestro del chat: «Hola <nombre>, cómo estás? Te escribe César de Casa Zaru.» En los siguientes, sin presentarse otra vez.
+- En el PRIMER mensaje nuestro del chat: «Hola <nombre>, cómo estás? Te escribe César de Casa Zaru.» En los siguientes, sin presentarse otra vez. El saludo y la presentación van JUNTOS en el primer párrafo, y lo demás (por ejemplo «En qué te puedo ayudar?») en un segundo párrafo: un saludo son dos párrafos, no tres.
 - SALUDO COMO CÉSAR, UNA SOLA VEZ AL DÍA: te digo si ya le escribimos hoy. Si todavía NO le hemos escrito hoy, parte saludando según la hora de Chile que te doy: antes de las 12 «Hola <nombre>, muy buen día. Cómo estás?», de 12 a 20 «Hola <nombre>, buenas tardes. Cómo estás?», después «Hola <nombre>, buenas noches.». Si YA le escribimos hoy, nada de saludo ni «cómo estás»: entra directo al tema.
 - Suena a César: cercano y concreto, como en las respuestas modelo («Súper», «Perfecto», «Te dejo…», «Cualquier duda me avisas»). Nada de frases de asistente ni de listas largas con viñetas: si nombras varias piezas, una línea corta por pieza.
 - Nunca uses ¡ ni ¿ de apertura; solo los de cierre (? !). Nunca escribas «al tiro». Sin emojis.
@@ -79,6 +79,9 @@ QUÉ HACEMOS Y CÓMO
 - Peldaños: hacemos solo los peldaños de madera, llegan vitrificados y listos para instalar. La estructura de fierro la hace un maestro herrero de su zona.
 - Despachamos a todo Chile (el envío se cotiza aparte) o retiro en el taller de Villarrica. No enviamos fuera de Chile.
 - La instalación no está incluida. Plazo de fabricación: 7 a 15 días hábiles.
+- Lo que vendemos: mesas y sus bases, bancas, cubiertas, repisas, peldaños, puertas y revestimientos. Si pide algo que no está en esta lista ni en el cotizador (sillas, camas, closets, cocinas completas, sofás u otro producto que no hacemos), no digas que sí ni que no: marca "necesita_humano": true con el motivo «producto fuera de lo que hacemos».
+- DE DÓNDE SOMOS: si pregunta de dónde son o dónde están, responde con esta frase y nada más sobre eso: «Estamos en Villarrica y hacemos entregas a todo Chile. Tú de dónde eres?» Si en el mismo mensaje preguntó otra cosa, respóndela antes de esa frase.
+- PAGO: si el cliente quiere pagar, abonar, reservar o pide los datos de transferencia o un link de pago, NO des datos ni condiciones: marca "necesita_humano": true con el motivo «quiere pagar».
 
 PARA COTIZAR
 - No preguntes qué madera quiere ni cuántas sillas por lado.
@@ -398,6 +401,12 @@ function parrafos(t: string): string {
     const frases = bloque.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ«])/);
     for (let i = 0; i < frases.length; i += 2) out.push(frases.slice(i, i + 2).join(' '));
   }
+  // El saludo va junto con la presentación (pedido del dueño, 27-11: en 3 párrafos se veía de robot).
+  // «Hola X, muy buen día.» + «Cómo estás?» + «Te escribe César…» quedan en un solo párrafo.
+  while (out.length > 1 && /^hola\b/i.test(out[0]) && out[0].length < 90
+    && /^(c[oó]mo est[aá]s|te escribe c[eé]sar)/i.test(out[1]) && out[0].length + out[1].length < 140) {
+    out.splice(0, 2, out[0] + ' ' + out[1]);
+  }
   return out.join('\n\n');
 }
 
@@ -475,25 +484,30 @@ function fueraDeHoy(texto: string, recientes: string): string {
 async function redactar(chat: number, mensajeId: number) {
   const llave = Deno.env.get('ANTHROPIC_API_KEY');
   if (!llave) return;
-  const [c] = await db(`mensajes_chats?select=canal,nombre,tomado_por,toques_sin_respuesta,origen&id=eq.${chat}`);
+  const [c] = await db(`mensajes_chats?select=canal,nombre,tomado_por,toques_sin_respuesta,origen,created_at&id=eq.${chat}`);
   const hist = await db(`mensajes?select=autor,tipo,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
   hist.reverse();
   const conv = conversacion(hist);
+  // Fuera del horario (8:30 a 20:00) la respuesta sale cuando abre: el saludo se escribe para esa hora.
+  const fueraHora = !enHorario(Date.now());
+  const envioMs = fueraHora ? proximaApertura(Date.now()) : Date.now();
   // Para el saludo como César (buen día / buenas tardes) y para saber si hubo pausa.
-  const horaChile = new Date().toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hour12: false });
+  const horaChile = new Date(envioMs).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hour12: false });
   const nuestros = hist.filter((m: any) => m.autor !== 'cliente' && m.enviado_at);
   const ultNuestro = nuestros.length ? Date.parse(nuestros[nuestros.length - 1].enviado_at) : NaN;
   const pausa = isNaN(ultNuestro) ? 'todavía no le hemos escrito' : 'hace ' + Math.round((Date.now() - ultNuestro) / 360000) / 10 + ' horas';
   // El saludo («muy buen día, cómo estás?») va una sola vez por día de Chile (pedido del dueño, 26-11).
   const diaChile = (t: number) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
-  const escribimosHoy = !isNaN(ultNuestro) && diaChile(ultNuestro) === diaChile(Date.now());
+  const escribimosHoy = !isNaN(ultNuestro) && diaChile(ultNuestro) === diaChile(envioMs);
   // Lo que el cliente escribió desde el último corte de 12 h: la comuna de "cotizar" tiene que estar aquí.
   const recientes = textosRecientesCliente(hist);
   const anuncio = (c.origen as any)?.headline ?? (c.origen as any)?.ad_title ?? '';
   const modelo = Deno.env.get('MODELO') || 'claude-sonnet-4-6';
   const frases = await frasesVivas();
 
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
+  // Plan B (27-11): si el asistente no responde, se reintenta una vez y si vuelve a fallar el chat
+  // pasa a César con el aviso. El cliente nunca queda sin que alguien lo vea.
+  const pedido = {
     method: 'POST',
     headers: { 'x-api-key': llave, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -504,12 +518,25 @@ async function redactar(chat: number, mensajeId: number) {
         + (anuncio ? `\nAnuncio de origen: ${anuncio}` : '')
         + (c.nombre ? `\nNombre del cliente: ${c.nombre}` : '')
         + (c.tomado_por ? '\nEste chat lo lleva César: el borrador es una sugerencia para él.' : '')
-        + `\nHora en Chile: ${horaChile}. Nuestro último mensaje: ${pausa}. ${escribimosHoy ? 'Ya le escribimos hoy: NO saludes.' : 'Hoy todavía no le escribimos: saluda.'}`
+        + `\nHora en Chile${fueraHora ? ' a la que sale tu mensaje (el cliente escribió fuera del horario; no lo menciones)' : ''}: ${horaChile}. Nuestro último mensaje: ${pausa}. ${escribimosHoy ? 'Ya le escribimos hoy: NO saludes.' : 'Hoy todavía no le escribimos: saluda.'}`
         + `\n\nConversación (lo último abajo):\n${conv}\n\nRedacta la próxima respuesta de Casa Zaru.` }],
     }),
-  });
-  if (!r.ok) throw new Error('anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200));
-  const out = await r.json();
+  };
+  let out: any = null;
+  let falla = '';
+  for (let intento = 0; intento < 2 && !out; intento++) {
+    if (intento) await new Promise((r) => setTimeout(r, 4000));
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/messages', { ...pedido, signal: AbortSignal.timeout(45000) });
+      if (r.ok) out = await r.json();
+      else falla = 'anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200);
+    } catch (e) { falla = 'anthropic: ' + String(e).slice(0, 200); }
+  }
+  if (!out) {
+    console.error('borrador sin asistente', chat, falla);
+    await derivarSinModelo(chat, mensajeId, 'el asistente no respondió: contéstale tú', '');
+    return;
+  }
   const crudo = (out.content ?? []).map((b: any) => b.text ?? '').join('').trim();
   let res: { texto?: string; necesita_humano?: boolean; motivo?: string; cotizar?: unknown };
   try { res = JSON.parse(crudo.slice(crudo.indexOf('{'), crudo.lastIndexOf('}') + 1)); }
@@ -517,7 +544,7 @@ async function redactar(chat: number, mensajeId: number) {
   let texto = parrafos(String(res.texto ?? ''));
   // Si ya le escribimos hoy y el modelo igual saludó, se le saca el saludo (una vez al día, no más).
   if (escribimosHoy) texto = texto.replace(SALUDO_DIA, '').trim();
-  if (!texto) return;
+  if (!texto) { await derivarSinModelo(chat, mensajeId, 'el asistente no supo qué responder: contéstale tú', ''); return; }
 
   // Cotización con las medidas del chat: la marca se cambia por un link con código propio (0008).
   // Si algo no calza (medidas fuera de rango, falta la marca, no es WhatsApp, la base no la aceptó),
@@ -557,6 +584,17 @@ async function redactar(chat: number, mensajeId: number) {
   const evitada = fraseEvitada(texto, frases);
   const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
   const deOtroDia = fueraDeHoy(texto, recientes);
+  // Lo que pasa a César aunque el borrador esté bien (pedido del dueño, 27-11):
+  //  · el chat ya se le pasó hoy y él todavía no contesta (el asistente no se mete de nuevo);
+  //  · cliente antiguo (el chat existe hace más de 7 días), salvo los chats de prueba;
+  //  · el cliente quiere pagar.
+  const yaDerivado = await derivadoHoy(chat, hist);
+  const prueba = chatsDePrueba().includes(String(chat));
+  const antiguo = !prueba && Date.parse(c.created_at ?? '') < Date.now() - DIAS_CLIENTE_ANTIGUO * 86400000;
+  const ultTextoCli = plano([...hist].reverse().find((m: any) => m.autor === 'cliente')?.texto ?? '');
+  const paga = CLIENTE_PAGA.test(ultTextoCli);
+  const aCesar = yaDerivado ? 'el chat ya está con César: falta su respuesta'
+    : antiguo ? 'cliente antiguo: lo atiende César' : paga ? 'quiere pagar' : '';
   const revision = {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
@@ -568,11 +606,11 @@ async function redactar(chat: number, mensajeId: number) {
     frase_evitada: evitada || null,
     promete_cotizacion: prometeSinCot || null,
     fuera_de_hoy: deOtroDia || null,
-    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot || !!deOtroDia,
-    motivo: !linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»'
-      : (prometeSinCot ? 'promete la cotización sin mandarla' : (deOtroDia || (res.motivo ?? ''))))),
+    a_cesar: aCesar || null,
+    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot || !!deOtroDia || !!aCesar,
+    motivo: aCesar || (!linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»'
+      : (prometeSinCot ? 'promete la cotización sin mandarla' : (deOtroDia || (res.motivo ?? '')))))),
   };
-  const avisoCotiza = textoAvisoCotiza(frases);
 
   // Si el cliente mandó varios mensajes seguidos, solo vale el borrador del último.
   await db(`mensajes_borradores?chat_id=eq.${chat}&estado=eq.pendiente`, {
@@ -591,37 +629,134 @@ async function redactar(chat: number, mensajeId: number) {
     });
   }
   if (!borradorId) return;                        // ya existía un borrador para ese mensaje: no se repite nada
-  // Respuesta automática (solo chats de prueba): no sale de inmediato. Queda agendada y la saca /despachar
+  // Pasó a César: se le avisa al momento (una vez por vez que se le pasa; si ya estaba con él, el aviso
+  // de «escribió» de siempre basta). Si el chat lo tomó una persona, tampoco hace falta.
+  if (revision.necesita_humano && !yaDerivado && !c.tomado_por) {
+    try { await avisarCesar(chat, c.nombre, revision.motivo); } catch (e) { console.error('avisar cesar', chat, String(e)); }
+  }
+  // Respuesta automática: no sale de inmediato. Queda agendada y la saca /despachar
   // cuando se cumple la espera. Si antes entra otro mensaje, este borrador caduca y no sale.
   try {
     if (autoPermitido(chat) && autoPasa(revision)) {
-      // Tiempos del dueño (27-11): saludo 30 s, conversación 20-30 s, cotización: el aviso sale ya y el
-      // link a los 3 minutos. Se cuentan desde que llegó el mensaje del cliente, no desde el borrador.
+      // Tiempos del dueño (27-11), contados desde que llegó el mensaje del cliente:
+      //  · saludo 30 s;
+      //  · conversación según lo largo del mensaje (leer + escribir), entre 20 y 90 s;
+      //  · cotización: el aviso de que la prepara a los 20-30 s y la cotización a los 3 minutos.
+      // Fuera del horario (8:30 a 20:00) todo sale cuando abre; la cotización, con su aviso primero.
       const ultCli = [...hist].reverse().find((m: any) => m.autor === 'cliente');
+      const txtCli = String(ultCli?.texto ?? '');
       const llego = Math.min(Date.now(), Date.parse(ultCli?.enviado_at ?? '') || Date.now());
       const seg = revision.cotiza ? esperaSeg('AUTO_ESPERA_COT_SEG', 180)
-        : SOLO_SALUDO.test(plano(ultCli?.texto ?? '')) ? esperaSeg('AUTO_ESPERA_SALUDO_SEG', 30)
-        : esperaSeg('AUTO_ESPERA_CHARLA_SEG', 20 + Math.floor(Math.random() * 11));
-      const cuando = Math.max(Date.now(), llego + seg * 1000);
+        : SOLO_SALUDO.test(plano(txtCli)) ? esperaSeg('AUTO_ESPERA_SALUDO_SEG', 30)
+        : esperaCharla(txtCli, texto);
+      let cuando = Math.max(Date.now(), llego + seg * 1000);
+      const sinHorario = !enHorario(cuando);
+      if (sinHorario) cuando = proximaApertura(cuando);
       await db(`mensajes_borradores?id=eq.${borradorId}&estado=eq.pendiente`, {
         method: 'PATCH', body: JSON.stringify({ auto_desde: new Date(cuando).toISOString() }),
       });
+      if (sinHorario) return;                     // lo saca el reloj de la base cuando abre
       // Esperas cortas: el reloj de la base corre una vez por minuto, así que la misma función espera y
       // lo saca a la hora. Si el reloj llega antes, la reserva con clave fija impide que salga dos veces.
-      if (!revision.cotiza && cuando - Date.now() <= 60000) {
+      if (!revision.cotiza && cuando - Date.now() <= 95000) {
         await new Promise((r) => setTimeout(r, Math.max(0, cuando - Date.now())));
         await despacharUno(borradorId);
       }
-      // Si lleva cotización, primero avisa que la está preparando (sale ahora) y la cotización llega
-      // cuando se cumple la espera. Un solo aviso cada 15 minutos por chat: si el cliente agrega un
-      // dato mientras espera, no se le repite.
+      // Con cotización: primero el aviso de que la está preparando, con la espera de una respuesta
+      // normal, y la cotización cuando se cumplen los 3 minutos. Un solo aviso cada 30 minutos por chat:
+      // si el cliente agrega un dato mientras espera, no se le repite.
       if (revision.cotiza && seg >= 60) {
-        const hace = encodeURIComponent(new Date(Date.now() - 15 * 60000).toISOString());
-        const avisos = await db(`mensajes_envios?select=id&chat_id=eq.${chat}&clave=like.auto-aviso-*&estado=eq.enviado&created_at=gte.${hace}&limit=1`);
-        if (!(avisos ?? []).length) await autoResponder(chat, mensajeId, borradorId, avisoCotiza, revision, true);
+        const aviso = await textoAvisoCotiza(frases, chat);
+        const espera = llego + esperaCharla(txtCli, aviso) * 1000 - Date.now();
+        if (espera > 0) await new Promise((r) => setTimeout(r, espera));
+        if (!(await avisoReciente(chat))) await autoResponder(chat, mensajeId, borradorId, aviso, revision, true);
       }
     }
   } catch (e) { console.error('auto agenda', chat, String(e)); }
+}
+
+// ── Pasar a César (27-11) ──────────────────────────────────────────────────
+// Un chat «pasa a César» cuando su borrador necesita a una persona: el asistente no le escribe al
+// cliente, César recibe el aviso en el celular y el asistente no vuelve a meterse en esa conversación
+// hasta que alguien le conteste (desde la bandeja o desde el celular) o pasen 12 h.
+const DIAS_CLIENTE_ANTIGUO = 7;
+const CLIENTE_PAGA = /\b(quiero|quisiera|como|donde|puedo|para|necesito) (le )?(pagar|abonar|transferir|depositar|reservar)|datos (de|para) (la )?(transferencia|pago|deposito)|numero de cuenta|link de pago|te (transfiero|deposito|pago|abono)|ya (pague|transferi|deposite|abone)|comprobante/;
+function chatsDePrueba(): string[] {
+  return (Deno.env.get('AUTO_SOLO_CHATS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+}
+// true si hoy ya se le pasó a César y nadie le ha contestado al cliente desde entonces.
+async function derivadoHoy(chat: number, hist: { autor: string; enviado_at: string }[]): Promise<boolean> {
+  const hoy = hist.slice(inicioDeHoy(hist));
+  const humanos = hoy.filter((m) => m.autor !== 'cliente' && m.autor !== 'automatico');
+  const desde = humanos.length ? humanos[humanos.length - 1].enviado_at : hoy[0]?.enviado_at;
+  if (!desde) return false;
+  const r = await db(`mensajes_borradores?select=id&chat_id=eq.${chat}&revision->>necesita_humano=eq.true`
+    + `&created_at=gt.${encodeURIComponent(desde)}&limit=1`);
+  return !!(r ?? []).length;
+}
+// Aviso al celular de César (y de quien tenga los avisos activos en la bandeja). La etiqueta es la del
+// chat, así reemplaza al aviso de «escribió» del mismo chat en vez de sumarse.
+async function avisarCesar(chat: number, nombre: string | null, motivo: string): Promise<void> {
+  const v = vapid();
+  if (!v) return;
+  const subs = (await db('mensajes_push?select=id,endpoint,p256dh,auth,recordatorios,fuera_horario,fallos,ultimo_ok_at&deleted_at=is.null&fallos=lt.20')) ?? [];
+  if (!subs.length) return;
+  const n = String(nombre || 'Un cliente').trim().split(' ')[0] || 'Un cliente';
+  await repartir(subs, { t: 'Para César: ' + n, b: String(motivo || 'necesita una persona').slice(0, 140), c: chat, k: 'cesar' }, v);
+}
+// Para lo que no pasa por el asistente (audio) o cuando el asistente falló: un borrador para César,
+// que nunca sale solo, y el aviso.
+async function derivarSinModelo(chat: number, mensajeId: number, motivo: string, sugerencia: string): Promise<void> {
+  const [c] = await db(`mensajes_chats?select=nombre,tomado_por,toques_sin_respuesta&id=eq.${chat}`);
+  if (!c) return;
+  const hist = await db(`mensajes?select=autor,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
+  hist.reverse();
+  const yaDerivado = await derivadoHoy(chat, hist);
+  await db(`mensajes_borradores?chat_id=eq.${chat}&estado=eq.pendiente`, {
+    method: 'PATCH', body: JSON.stringify({ estado: 'caducado' }),
+  });
+  const creado = await db('mensajes_borradores?on_conflict=mensaje_id', {
+    method: 'POST', prefer: 'resolution=ignore-duplicates,return=representation',
+    body: JSON.stringify({
+      chat_id: chat, mensaje_id: mensajeId, modelo: 'ninguno',
+      texto: sugerencia || 'Gracias por escribir, te respondo en un momento.',
+      revision: { cesar_no_entro: !c.tomado_por, toques_sin_respuesta: c.toques_sin_respuesta, a_cesar: motivo, necesita_humano: true, motivo },
+    }),
+  });
+  if (creado?.[0]?.id && !yaDerivado && !c.tomado_por) await avisarCesar(chat, c.nombre, motivo);
+}
+
+// Espera de una respuesta normal: lo que tarda una persona en leer el mensaje y escribir la suya.
+// Nunca menos de 20 s ni más de 90 s (pedido del dueño, 27-11).
+function esperaCharla(cliente: string, respuesta: string): number {
+  const s = 15 + String(cliente).length / 30 + String(respuesta).length / 15 + Math.random() * 8;
+  return Math.round(Math.min(90, Math.max(20, s)));
+}
+
+// Horario en que responde solo: de 8:30 a 20:00 de Chile, todos los días (pedido del dueño, 27-11).
+const ABRE_MIN = 8 * 60 + 30;
+const CIERRA_MIN = 20 * 60;
+function minutosChile(ms: number): number {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date(ms));
+  return (Number(p.find((x) => x.type === 'hour')?.value) % 24) * 60 + Number(p.find((x) => x.type === 'minute')?.value);
+}
+function enHorario(ms: number): boolean {
+  const m = minutosChile(ms);
+  return m >= ABRE_MIN && m < CIERRA_MIN;
+}
+// La próxima apertura, más 0 a 25 minutos al azar para que no salgan todos los chats a las 8:30 en punto.
+function proximaApertura(ms: number): number {
+  if (enHorario(ms)) return ms;
+  const m = minutosChile(ms);
+  const faltan = m < ABRE_MIN ? ABRE_MIN - m : 24 * 60 - m + ABRE_MIN;
+  return ms - (ms % 60000) + faltan * 60000 + Math.floor(Math.random() * 25 * 60000);
+}
+
+// Hubo un aviso de «preparo tu cotización» en este chat en la última media hora.
+async function avisoReciente(chat: number): Promise<boolean> {
+  const hace = encodeURIComponent(new Date(Date.now() - 30 * 60000).toISOString());
+  const r = await db(`mensajes_envios?select=id&chat_id=eq.${chat}&clave=like.auto-aviso-*&estado=eq.enviado&created_at=gte.${hace}&limit=1`);
+  return !!(r ?? []).length;
 }
 
 // ── Respuesta automática: SOLO en los chats de prueba de AUTO_SOLO_CHATS ──────────────────
@@ -632,17 +767,35 @@ const AUTO_TOPE_HORA = 30;
 // Lo que dice apenas el cliente da sus medidas, mientras «prepara» la cotización (texto del dueño, 19-11-2026).
 const AVISO_COTIZA = 'Listo, voy a preparar tu cotización. Dame unos minutos y te la envío.';
 // Desde la 0017 el dueño lo puede cambiar (frase fija «aviso_cotiza»). Si la frase no sirve, va el de siempre.
-function textoAvisoCotiza(frases: Frase[]): string {
+// Variantes (27-11): con una sola frase, el cliente que cotiza dos veces recibe el mismo texto y se nota
+// que es automático. Se elige al azar una que no se le haya mandado antes a ese chat.
+const AVISOS_COTIZA = [
+  AVISO_COTIZA,
+  'Perfecto, ya la estoy armando. En unos minutos te la mando.',
+  'Súper, déjame preparar tu cotización y te la envío en unos minutos.',
+  'Buenísimo, con esas medidas te armo la cotización. Te la mando en un ratito.',
+  'Perfecto, gracias. Te preparo la cotización y en unos minutos te la envío.',
+];
+async function textoAvisoCotiza(frases: Frase[], chat: number): Promise<string> {
   const f = frases.find((x) => x.tipo === 'fija' && x.clave === 'aviso_cotiza');
   const t = String(f?.frase ?? '').trim();
-  return t.length >= 10 && t.length <= 300 && t.indexOf('[') === -1 && t.indexOf('http') === -1
-    && !PROHIBIDO.some((re) => re.test(t)) ? t : AVISO_COTIZA;
+  const propia = t.length >= 10 && t.length <= 300 && t.indexOf('[') === -1 && t.indexOf('http') === -1
+    && !PROHIBIDO.some((re) => re.test(t)) ? t : '';
+  const todas = [...new Set([propia, ...AVISOS_COTIZA].filter(Boolean))];
+  let usadas: string[] = [];
+  try {
+    usadas = ((await db(`mensajes_envios?select=texto&chat_id=eq.${chat}&clave=like.auto-aviso-*&estado=eq.enviado&order=id.desc&limit=10`)) ?? []).map((x: any) => x.texto);
+  } catch (e) { console.error('avisos usados', chat, String(e)); }
+  const libres = todas.filter((x) => usadas.indexOf(x) === -1);
+  const lista = libres.length ? libres : todas.filter((x) => x !== usadas[0]);
+  return lista[Math.floor(Math.random() * lista.length)] ?? AVISO_COTIZA;
 }
 
 // Espera antes de responder solo, en segundos (27-11): saludo 30, conversación 20-30, cotización 180
 // (se pueden cambiar con AUTO_ESPERA_SALUDO_SEG, AUTO_ESPERA_CHARLA_SEG y AUTO_ESPERA_COT_SEG; 0 a 1800).
 // Un mensaje que es solo un saludo («Hola», «buenas tardes», «alo?»).
-const SOLO_SALUDO = /^(hola+|holi|buen(o|a)?s?( dias?| tardes?| noches?)?|wena+s?|saludos|alo+|hello|hi)[\s!.,?¿¡]*(que tal|como estas?)?[\s!.,?¿¡]*$/;
+// Varias piezas seguidas también: «Hola, buen día», «hola buenas tardes, cómo está?».
+const SOLO_SALUDO = /^((hola+|holi|muy|buen(o|a)?s?( dias?| tardes?| noches?)?|wena+s?|saludos|alo+|hello|hi|que tal|como (estas?|le va|te va))[\s!.,?¿¡]*)+$/;
 function esperaSeg(nombre: string, porDefecto: number): number {
   const n = Number((Deno.env.get(nombre) ?? '').trim() || porDefecto);
   return Number.isFinite(n) && n >= 0 && n <= 1800 ? Math.round(n) : porDefecto;
@@ -664,8 +817,22 @@ async function despacharUno(id: number): Promise<void> {
     + `&estado=eq.pendiente&auto_desde=lte.${ahora}`)) ?? [];
   if (!b) return;                                  // caducó (el cliente escribió de nuevo) o ya lo sacó el reloj
   await db(`mensajes_borradores?id=eq.${b.id}`, { method: 'PATCH', body: JSON.stringify({ auto_desde: null }) });
-  try { await autoResponder(b.chat_id, b.mensaje_id, b.id, b.texto, b.revision); }
+  try { await sacar(b); }
   catch (e) { console.error('auto corto', b.chat_id, String(e)); }
+}
+// Una cotización nunca llega sin su aviso: si no hubo aviso (por ejemplo, el cliente escribió de
+// noche y sale al abrir), primero va el aviso y la cotización se vuelve a agendar 3 minutos después.
+async function sacar(b: any): Promise<boolean> {
+  if (b.revision?.cotiza && !(await avisoReciente(b.chat_id))) {
+    const aviso = await textoAvisoCotiza(await frasesVivas(), b.chat_id);
+    if (await autoResponder(b.chat_id, b.mensaje_id, b.id, aviso, b.revision, true)) {
+      const luego = new Date(Date.now() + esperaSeg('AUTO_ESPERA_COT_SEG', 180) * 1000).toISOString();
+      await db(`mensajes_borradores?id=eq.${b.id}&estado=eq.pendiente`, { method: 'PATCH', body: JSON.stringify({ auto_desde: luego }) });
+      return false;
+    }
+    // si el aviso no salió (su reserva ya existía o falló), la cotización igual sale: mejor sin aviso que nunca
+  }
+  return await autoResponder(b.chat_id, b.mensaje_id, b.id, b.texto, b.revision);
 }
 async function despachar(): Promise<Response> {
   const ahora = encodeURIComponent(new Date().toISOString());
@@ -675,7 +842,7 @@ async function despachar(): Promise<Response> {
   for (const b of listos) {
     // se desagenda ANTES de intentar: pase lo que pase no se reintenta solo
     await db(`mensajes_borradores?id=eq.${b.id}`, { method: 'PATCH', body: JSON.stringify({ auto_desde: null }) });
-    try { if (await autoResponder(b.chat_id, b.mensaje_id, b.id, b.texto, b.revision)) enviados++; }
+    try { if (await sacar(b)) enviados++; }
     catch (e) { console.error('auto', b.chat_id, String(e)); }
   }
   return json({ ok: true, listos: listos.length, enviados });
@@ -1361,17 +1528,24 @@ Deno.serve(async (req) => {
   // Si uno falla se sigue con los demás y al final se responde 500: Meta reenvía el aviso completo
   // y los ya guardados se ignoran por meta_id, sin duplicar ni perder su borrador.
   const nuevos: { chat: number; id: number }[] = [];
+  const audios: { chat: number; id: number }[] = [];
   let fallos = 0, deCliente = 0;
   for (const x of leerAviso(cuerpo)) {
     try {
       const g = await guardar(x);
       if (g && x.autor === 'cliente') deCliente++;
       if (g && x.autor === 'cliente' && x.texto) nuevos.push(g);
+      else if (g && x.autor === 'cliente' && x.tipo === 'audio') audios.push(g);
     } catch (e) { fallos++; console.error('guardar', x.canal, x.metaId, String(e)); }
   }
   const trabajo = (async () => {
     for (const n of nuevos) {
       try { await redactar(n.chat, n.id); } catch (e) { console.error('borrador', n.chat, String(e)); }
+    }
+    // Un audio no lo puede escuchar el asistente: pasa a César (pedido del dueño, 27-11).
+    for (const n of audios) {
+      try { await derivarSinModelo(n.chat, n.id, 'mandó un audio: escúchalo y contéstale tú', 'Gracias, escucho tu audio y te respondo.'); }
+      catch (e) { console.error('audio', n.chat, String(e)); }
     }
     // Con el borrador listo se avisa al equipo (0014). Si esto falla, la base lo reintenta en un minuto.
     if (deCliente) { try { await procesarAvisos(); } catch (e) { console.error('avisos', String(e)); } }
