@@ -52,6 +52,10 @@ if ($Contenido -and (Test-Path -LiteralPath $Contenido)) {
 # Anuncios activos (anuncios-equipo.ps1, los lunes): se muestran si tienen 7 días o menos.
 $anuncios = $null; $anRuta = Join-Path $Cerebro 'equipo\anuncios.json'
 if (Test-Path -LiteralPath $anRuta) { $an = Leer $anRuta; $da = Dias $an.fecha; if ($da -ne $null -and $da -le 0 -and $da -ge -7) { $anuncios = $an } }
+# Carruseles listos en Canva (26-11-2026, skill /carrusel): Cerebro\equipo\carruseles.json, uno por carrusel
+# {dueno, titulo, detalle, link, estado}. Se muestran mientras estado no sea «publicado».
+$carruseles = @(); $caRuta = Join-Path $Cerebro 'equipo\carruseles.json'
+if (Test-Path -LiteralPath $caRuta) { $carruseles = @((Leer $caRuta).items | Where-Object { $_.estado -ne 'publicado' }) }
 
 foreach ($p in @($cfg.personas)) {
   $max = [int]$p.max_misiones; if ($max -le 0) { $max = 3 }
@@ -145,6 +149,7 @@ foreach ($p in @($cfg.personas)) {
     pulso = $pulsoDia; ideas = $ideas; fijo = $fijo; semana = $semana
     contenido = $(if ($p.contenido) { @($paraCont) } else { @() })
     anuncios = $(if ($p.anuncios) { $anuncios } else { $null })
+    carruseles = @($carruseles | Where-Object { $_.dueno -eq $p.dueno } | ForEach-Object { [pscustomobject]@{ titulo=$_.titulo; detalle=$_.detalle; link=$_.link } })
   }
   $dir = Join-Path $Cerebro ('equipo\' + $p.dueno); if (-not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
   $sal = Join-Path $dir "$Fecha.json"
