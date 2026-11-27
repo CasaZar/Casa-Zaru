@@ -484,21 +484,20 @@ function fueraDeHoy(texto: string, recientes: string): string {
   return '';
 }
 
-async function redactar(chat: number, mensajeId: number) {
-  const llave = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!llave) return;
-  const [c] = await db(`mensajes_chats?select=canal,nombre,tomado_por,toques_sin_respuesta,origen,created_at&id=eq.${chat}`);
-  const hist = await db(`mensajes?select=autor,tipo,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
-  hist.reverse();
+// El asistente sin efectos: arma el pedido, lo manda y limpia la respuesta. No escribe en la base ni
+// envía nada. Lo usan redactar (de verdad) y /simular (pruebas con conversaciones reales, 27-11).
+// `ahora` es la hora a la que «llega» el mensaje: en redactar, Date.now(); en /simular, la del chat.
+async function pensar(c: any, hist: any[], ahora: number, frases: Frase[]) {
+  const llave = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
   const conv = conversacion(hist);
   // Fuera del horario (8:30 a 20:00) la respuesta sale cuando abre: el saludo se escribe para esa hora.
-  const fueraHora = !enHorario(Date.now());
-  const envioMs = fueraHora ? proximaApertura(Date.now()) : Date.now();
+  const fueraHora = !enHorario(ahora);
+  const envioMs = fueraHora ? proximaApertura(ahora) : ahora;
   // Para el saludo como César (buen día / buenas tardes) y para saber si hubo pausa.
   const horaChile = new Date(envioMs).toLocaleTimeString('es-CL', { timeZone: 'America/Santiago', hour: '2-digit', minute: '2-digit', hour12: false });
   const nuestros = hist.filter((m: any) => m.autor !== 'cliente' && m.enviado_at);
   const ultNuestro = nuestros.length ? Date.parse(nuestros[nuestros.length - 1].enviado_at) : NaN;
-  const pausa = isNaN(ultNuestro) ? 'todavía no le hemos escrito' : 'hace ' + Math.round((Date.now() - ultNuestro) / 360000) / 10 + ' horas';
+  const pausa = isNaN(ultNuestro) ? 'todavía no le hemos escrito' : 'hace ' + Math.round((ahora - ultNuestro) / 360000) / 10 + ' horas';
   // El saludo («muy buen día, cómo estás?») va una sola vez por día de Chile (pedido del dueño, 26-11).
   const diaChile = (t: number) => new Date(t).toLocaleDateString('en-CA', { timeZone: 'America/Santiago' });
   const escribimosHoy = !isNaN(ultNuestro) && diaChile(ultNuestro) === diaChile(envioMs);
@@ -506,7 +505,6 @@ async function redactar(chat: number, mensajeId: number) {
   const recientes = textosRecientesCliente(hist);
   const anuncio = (c.origen as any)?.headline ?? (c.origen as any)?.ad_title ?? '';
   const modelo = Deno.env.get('MODELO') || 'claude-sonnet-4-6';
-  const frases = await frasesVivas();
 
   // Plan B (27-11): si el asistente no responde, se reintenta una vez y si vuelve a fallar el chat
   // pasa a César con el aviso. El cliente nunca queda sin que alguien lo vea.
@@ -535,11 +533,7 @@ async function redactar(chat: number, mensajeId: number) {
       else falla = 'anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200);
     } catch (e) { falla = 'anthropic: ' + String(e).slice(0, 200); }
   }
-  if (!out) {
-    console.error('borrador sin asistente', chat, falla);
-    await derivarSinModelo(chat, mensajeId, 'el asistente no respondió: contéstale tú', '');
-    return;
-  }
+  if (!out) return { falla, modelo, recientes, texto: '', res: {} as any };
   const crudo = (out.content ?? []).map((b: any) => b.text ?? '').join('').trim();
   let res: { texto?: string; necesita_humano?: boolean; motivo?: string; cotizar?: unknown };
   try { res = JSON.parse(crudo.slice(crudo.indexOf('{'), crudo.lastIndexOf('}') + 1)); }
@@ -547,6 +541,65 @@ async function redactar(chat: number, mensajeId: number) {
   let texto = parrafos(String(res.texto ?? ''));
   // Si ya le escribimos hoy y el modelo igual saludó, se le saca el saludo (una vez al día, no más).
   if (escribimosHoy) texto = texto.replace(SALUDO_DIA, '').trim();
+  return { falla: '', modelo, recientes, texto, res };
+}
+
+// Por qué no puede salir solo. `cotMal` y `linkCot` vienen de armar el link; `aCesar`, de las reglas
+// de derivación que miran la base (redactar) o el guion (/simular).
+function revisar(texto: string, res: any, c: any, frases: Frase[], recientes: string,
+  linkCot: { producto: string; url: string } | null, cotMal: string, aCesar: string) {
+  // Las reglas se revisan en código, no se le cree al modelo.
+  // Links: solo los de la casa (catálogos, cotizador y el link con código recién armado). Otro no sale solo.
+  const links = texto.split(/\s+/).filter((p) => p.indexOf('http') !== -1).map((p) => p.replace(/^[(«"]+/, '').replace(/[).,;:!?»"]+$/, ''));
+  const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1 || (linkCot !== null && l === linkCot.url));
+  // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
+  const evitada = fraseEvitada(texto, frases);
+  const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
+  const deOtroDia = fueraDeHoy(texto, recientes);
+  return {
+    cesar_no_entro: !c.tomado_por,
+    toques_sin_respuesta: c.toques_sin_respuesta,
+    toques_ok: c.toques_sin_respuesta < 2,
+    sin_palabras_prohibidas: !PROHIBIDO.some((re) => re.test(texto)) && !evitada,
+    falta_precio: /\[PRECIO:/.test(texto),
+    links_ok: linksOk,
+    cotiza: linkCot ? linkCot.producto : null,
+    frase_evitada: evitada || null,
+    promete_cotizacion: prometeSinCot || null,
+    fuera_de_hoy: deOtroDia || null,
+    a_cesar: aCesar || null,
+    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot || !!deOtroDia || !!aCesar,
+    motivo: aCesar || (!linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»'
+      : (prometeSinCot ? 'promete la cotización sin mandarla' : (deOtroDia || (res.motivo ?? '')))))),
+  };
+}
+
+// Lo que impide armar el link de cotización antes de guardarlo (o, en /simular, de inventarlo).
+function chequeoCot(texto: string, res: any, c: any, recientes: string): { a: ReturnType<typeof armarCotizar>; mal: string } {
+  const a = armarCotizar(res.cotizar);
+  const com = String((a?.datos as any)?.com ?? '');
+  let mal = '';
+  if (!a) mal = 'pidió cotizar pero las medidas no se pudieron leer o salen de lo normal';
+  else if (com && recientes.indexOf(plano(com)) === -1) mal = 'usa la comuna «' + com + '» de otra conversación sin confirmarla';
+  else if (texto.split(MARCA_COT).length !== 2) mal = 'la cotización venía sin su marca de link, o con más de una';
+  else if (c.canal !== 'whatsapp') mal = 'el link de cotización con medidas solo sale por WhatsApp';
+  return { a, mal };
+}
+
+async function redactar(chat: number, mensajeId: number) {
+  if (!Deno.env.get('ANTHROPIC_API_KEY')) return;
+  const [c] = await db(`mensajes_chats?select=canal,nombre,tomado_por,toques_sin_respuesta,origen,created_at&id=eq.${chat}`);
+  const hist = await db(`mensajes?select=autor,tipo,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
+  hist.reverse();
+  const frases = await frasesVivas();
+  const p = await pensar(c, hist, Date.now(), frases);
+  const { modelo, recientes, res } = p;
+  let texto = p.texto;
+  if (p.falla) {
+    console.error('borrador sin asistente', chat, p.falla);
+    await derivarSinModelo(chat, mensajeId, 'el asistente no respondió: contéstale tú', '');
+    return;
+  }
   if (!texto) { await derivarSinModelo(chat, mensajeId, 'el asistente no supo qué responder: contéstale tú', ''); return; }
 
   // Cotización con las medidas del chat: la marca se cambia por un link con código propio (0008).
@@ -555,13 +608,9 @@ async function redactar(chat: number, mensajeId: number) {
   let linkCot: { codigo: string; producto: string; url: string } | null = null;
   let cotMal = '';
   if (texto.indexOf(MARCA_COT) !== -1 || res.cotizar != null) {
-    const a = armarCotizar(res.cotizar);
-    const com = String((a?.datos as any)?.com ?? '');
-    if (!a) cotMal = 'pidió cotizar pero las medidas no se pudieron leer o salen de lo normal';
-    else if (com && recientes.indexOf(plano(com)) === -1) cotMal = 'usa la comuna «' + com + '» de otra conversación sin confirmarla';
-    else if (texto.split(MARCA_COT).length !== 2) cotMal = 'la cotización venía sin su marca de link, o con más de una';
-    else if (c.canal !== 'whatsapp') cotMal = 'el link de cotización con medidas solo sale por WhatsApp';
-    else {
+    const { a, mal } = chequeoCot(texto, res, c, recientes);
+    cotMal = mal;
+    if (!cotMal && a) {
       const codigo = nuevoCodigo();
       const ins = await dbCrudo('mensajes_links', {
         method: 'POST', prefer: 'return=representation',
@@ -579,14 +628,6 @@ async function redactar(chat: number, mensajeId: number) {
     if (!texto) return;
   }
 
-  // Las reglas se revisan en código, no se le cree al modelo.
-  // Links: solo los de la casa (catálogos, cotizador y el link con código recién armado). Otro no sale solo.
-  const links = texto.split(/\s+/).filter((p) => p.indexOf('http') !== -1).map((p) => p.replace(/^[(«"]+/, '').replace(/[).,;:!?»"]+$/, ''));
-  const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1 || (linkCot !== null && l === linkCot.url));
-  // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
-  const evitada = fraseEvitada(texto, frases);
-  const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
-  const deOtroDia = fueraDeHoy(texto, recientes);
   // Lo que pasa a César aunque el borrador esté bien (pedido del dueño, 27-11):
   //  · el chat ya se le pasó hoy y él todavía no contesta (el asistente no se mete de nuevo);
   //  · cliente antiguo (el chat existe hace más de 7 días), salvo los chats de prueba;
@@ -598,22 +639,7 @@ async function redactar(chat: number, mensajeId: number) {
   const paga = CLIENTE_PAGA.test(ultTextoCli);
   const aCesar = yaDerivado ? 'el chat ya está con César: falta su respuesta'
     : antiguo ? 'cliente antiguo: lo atiende César' : paga ? 'quiere pagar' : '';
-  const revision = {
-    cesar_no_entro: !c.tomado_por,
-    toques_sin_respuesta: c.toques_sin_respuesta,
-    toques_ok: c.toques_sin_respuesta < 2,
-    sin_palabras_prohibidas: !PROHIBIDO.some((re) => re.test(texto)) && !evitada,
-    falta_precio: /\[PRECIO:/.test(texto),
-    links_ok: linksOk,
-    cotiza: linkCot ? linkCot.producto : null,
-    frase_evitada: evitada || null,
-    promete_cotizacion: prometeSinCot || null,
-    fuera_de_hoy: deOtroDia || null,
-    a_cesar: aCesar || null,
-    necesita_humano: !!res.necesita_humano || !linksOk || !!cotMal || !!evitada || prometeSinCot || !!deOtroDia || !!aCesar,
-    motivo: aCesar || (!linksOk ? 'trae un link que no es de la casa' : (cotMal || (evitada ? 'usa una frase a evitar: «' + evitada + '»'
-      : (prometeSinCot ? 'promete la cotización sin mandarla' : (deOtroDia || (res.motivo ?? '')))))),
-  };
+  const revision = revisar(texto, res, c, frases, recientes, linkCot, cotMal, aCesar);
 
   // Si el cliente mandó varios mensajes seguidos, solo vale el borrador del último.
   await db(`mensajes_borradores?chat_id=eq.${chat}&estado=eq.pendiente`, {
@@ -1476,18 +1502,69 @@ async function push(req: Request) {
   return jsonP({ error: 'Acción desconocida.' }, 400);
 }
 
+// ── Simulador (27-11) ─────────────────────────────────────────────────────
+// POST /simular: lo que el asistente le respondería a una conversación dada, con el mismo prompt, las
+// mismas reglas en código y los mismos tiempos, pero SIN escribir en la base ni enviar nada (el link de
+// cotización es de mentira). Solo el dueño. Sirve para pasar chats reales del 5558 por el asistente.
+// Cuerpo: { nombre, canal?, origen?, derivado?, mensajes: [{ autor: 'cliente'|'cesar', texto, tipo?, enviado_at }] }
+async function simular(req: Request) {
+  const yo = await quienEs(req);
+  if (!yo || yo.email !== DUENO) return jsonP({ error: 'Solo el dueño.' }, 403);
+  const b = await req.json().catch(() => null);
+  const hist = Array.isArray(b?.mensajes) ? b.mensajes.slice(-30).map((m: any) => ({
+    autor: m.autor === 'cliente' ? 'cliente' : 'cesar', tipo: m.tipo ?? 'text',
+    texto: m.texto == null ? null : String(m.texto).slice(0, 4000), enviado_at: String(m.enviado_at ?? ''),
+  })) : [];
+  const ult = hist[hist.length - 1];
+  if (!ult || ult.autor !== 'cliente' || isNaN(Date.parse(ult.enviado_at))) return jsonP({ error: 'El último mensaje tiene que ser del cliente, con fecha.' }, 400);
+  const c = { canal: b.canal === 'instagram' ? 'instagram' : 'whatsapp', nombre: b.nombre ? String(b.nombre).slice(0, 80) : null,
+    tomado_por: null, toques_sin_respuesta: 0, origen: b.origen ?? null };
+  if (ult.tipo === 'audio' && !ult.texto) {
+    return jsonP({ texto: '', revision: { necesita_humano: true, motivo: 'mandó un audio: escúchalo y contéstale tú' }, auto: false });
+  }
+  const frases = await frasesVivas();
+  const llego = Date.parse(ult.enviado_at);
+  const p = await pensar(c, hist, llego, frases);
+  if (p.falla) return jsonP({ texto: '', revision: { necesita_humano: true, motivo: 'el asistente no respondió', falla: p.falla }, auto: false });
+  let texto = p.texto;
+  let linkCot: { producto: string; url: string } | null = null;
+  let cotMal = '';
+  if (texto.indexOf(MARCA_COT) !== -1 || p.res.cotizar != null) {
+    const { a, mal } = chequeoCot(texto, p.res, c, p.recientes);
+    cotMal = mal;
+    if (!cotMal && a) {
+      linkCot = { producto: a.producto, url: linkCotizacion(a.producto, 'SIMULADO') };
+      texto = texto.replace(MARCA_COT, linkCot.url);
+    }
+    if (!linkCot) texto = texto.split(MARCA_COT).join('').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  const paga = CLIENTE_PAGA.test(plano(ult.texto ?? ''));
+  const aCesar = b.derivado ? 'el chat ya está con César: falta su respuesta' : paga ? 'quiere pagar' : '';
+  const revision = revisar(texto, p.res, c, frases, p.recientes, linkCot, cotMal, aCesar);
+  const auto = !!texto && autoPasa(revision);
+  const txtCli = String(ult.texto ?? '');
+  const seg = revision.cotiza ? esperaSeg('AUTO_ESPERA_COT_SEG', 180)
+    : SOLO_SALUDO.test(plano(txtCli)) ? esperaSeg('AUTO_ESPERA_SALUDO_SEG', 30) : esperaCharla(txtCli, texto);
+  let cuando = llego + seg * 1000;
+  if (!enHorario(cuando)) cuando = proximaApertura(cuando);
+  const aviso = revision.cotiza ? AVISOS_COTIZA[Math.floor(Math.random() * AVISOS_COTIZA.length)] : null;
+  return jsonP({ texto, revision, auto, sale: new Date(cuando).toISOString(), espera_seg: Math.round((cuando - llego) / 1000),
+    aviso, cotizar: p.res.cotizar ?? null, modelo: p.modelo });
+}
+
 // ── Entrada ───────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const url = new URL(req.url);
 
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() });
   if (url.pathname.endsWith('/enviar') || url.pathname.endsWith('/tomar') || url.pathname.endsWith('/push')
-      || url.pathname.endsWith('/soltar') || url.pathname.endsWith('/frases')) {
+      || url.pathname.endsWith('/soltar') || url.pathname.endsWith('/frases') || url.pathname.endsWith('/simular')) {
     if (req.method !== 'POST') return jsonP({ error: 'solo POST' }, 405);
     try {
       if (url.pathname.endsWith('/push')) return await push(req);
       if (url.pathname.endsWith('/soltar')) return await soltar(req);
       if (url.pathname.endsWith('/frases')) return await frasesRuta(req);
+      if (url.pathname.endsWith('/simular')) return await simular(req);
       return await (url.pathname.endsWith('/enviar') ? enviar(req) : tomar(req));
     } catch (e) {
       console.error('ruta del panel', url.pathname, String(e));
