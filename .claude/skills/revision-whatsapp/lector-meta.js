@@ -26,7 +26,7 @@
     const base = new Date(ahora); base.setHours(h, mi, 0, 0);
     if (/^\d{1,2}:\d{2}/.test(s) || s === 'hoy') return base;
     if (s.startsWith('ayer')) { base.setDate(base.getDate() - 1); return base; }
-    const d = s.match(/^(dom|lun|mar|mié|mie|jue|vie|sáb|sab)(?=\s|,|$)/);
+    const d = s.match(/^(dom|lun|mar|mié|mie|jue|vie|sáb|sab)[a-zéá]*(?=\s|,|$)/);
     if (d) { let k = (ahora.getDay() - DIAS[d[1]] + 7) % 7; if (k === 0) k = 7; base.setDate(base.getDate() - k); return base; }
     const f = s.match(/^(\d{1,2}) (\w+)\.? (\d{4})/);
     if (f && MESES[f[2].slice(0, 4).replace('.', '')] !== undefined) return new Date(+f[3], MESES[f[2].slice(0, 4).replace('.', '')], +f[1], h, mi);
@@ -38,7 +38,7 @@
   // porque Meta redibuja la lista cuando entra un mensaje o se marca un chat.
   Z.ubicar = () => {
     const filas = [...document.querySelectorAll('div')].filter(d => d.childElementCount >= 5 && d.getBoundingClientRect().left < 700 &&
-      [...d.children].filter(c => /\n(\d{1,2}:\d{2}\s?[ap]m|Hoy|Ayer|Lun|Mar|Mié|Jue|Vie|Sáb|Dom)(?=\s|,|$)/.test(c.innerText || '')).length >= 4);
+      [...d.children].filter(c => /\n(\d{1,2}:\d{2}\s?[ap]m|Hoy|Ayer|Lun|Mar|Mié|Jue|Vie|Sáb|Dom)[a-zéá]*(?=\s|,|$)/i.test(c.innerText || '')).length >= 4);
     Z.filas = filas.sort((a, b) => b.childElementCount - a.childElementCount)[0];
     let p = Z.filas; Z.sc = null;
     while (p) { const cs = getComputedStyle(p); if (/(auto|scroll)/.test(cs.overflowY) && p.scrollHeight > p.clientHeight) { Z.sc = p; break; } p = p.parentElement; }
@@ -47,8 +47,10 @@
 
   const nombreDe = fila => (fila.innerText || '').trim().split('\n')[0];
   const enNegrita = fila => { const n = nombreDe(fila); return [...fila.querySelectorAll('span,div')].some(e => e.childElementCount === 0 && e.textContent.trim() === n && +getComputedStyle(e).fontWeight >= 600); };
-  const horaDe = fila => { const ps = (fila.innerText || '').split('\n').map(x => x.trim()); return ps.find(x => /^\d{1,2}:\d{2}\s?[ap]m$/i.test(x)) || ps.find(x => /^(Hoy|Ayer|Lun|Mar|Mié|Jue|Vie|Sáb|Dom)$/.test(x)) || ps.find(x => /^\d{1,2} \w+/.test(x)) || ''; };
+  const horaDe = fila => { const ps = (fila.innerText || '').split('\n').map(x => x.trim()).slice(1); return ps.find(x => /^\d{1,2}:\d{2}\s?[ap]m$/i.test(x)) || ps.find(x => /^(Hoy|Ayer|Lun|Mar|Mié|Jue|Vie|Sáb|Dom)[a-zéá]*$/i.test(x)) || ps.find(x => /^\d{1,2} \w+/.test(x)) || ''; };
 
+  // Meta a veces escribe el día entero («jueves»): todos los patrones aceptan «Jue» y «jueves» (27-11).
+  // horaDe salta la primera línea (el nombre), para que «Martina» o «Domingo» no se lean como día.
   // Recorre la lista de arriba abajo hasta pasar la hora de corte. Guarda en Z.movidos.
   Z.lista = async (desde) => {
     Z.corte = new Date(desde); if (!Z.ubicar()) return 'NO ENCONTRÉ LA LISTA';
@@ -62,15 +64,15 @@
         const ps = f.innerText.trim().split('\n');
         vistos.set(n, { nombre: n, hora: h, fecha: d, noLeido: enNegrita(f), preview: (ps[1] || '').slice(0, 70) });
         // «Lun», «Mar»… sin hora quedan a las 23:59 de ese día: entran si el día toca el corte
-        if (d && d < Z.corte && !/^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Ayer)$/.test(h)) pasado++;
-        else if (d && /^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Ayer)$/.test(h) && d < new Date(Z.corte.getTime() - 864e5)) pasado++;
+        if (d && d < Z.corte && !/^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Ayer)[a-zéá]*$/i.test(h)) pasado++;
+        else if (d && /^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Ayer)[a-zéá]*$/i.test(h) && d < new Date(Z.corte.getTime() - 864e5)) pasado++;
       }
       const antes = Z.sc.scrollTop; Z.sc.scrollTop += 450; await dormir(800);
       if (Z.sc.scrollTop === antes) { await dormir(1500); if (Z.sc.scrollTop === antes) break; }
     }
     Z.sc.scrollTop = 0;
     Z.todos = [...vistos.values()];
-    Z.movidos = Z.todos.filter(x => x.fecha && (x.fecha >= Z.corte || (/^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Ayer)$/.test(x.hora) && x.fecha >= Z.corte)));
+    Z.movidos = Z.todos.filter(x => x.fecha && (x.fecha >= Z.corte || (/^(Lun|Mar|Mié|Jue|Vie|Sáb|Dom|Ayer)[a-zéá]*$/i.test(x.hora) && x.fecha >= Z.corte)));
     Z.leidoAntes = Z.todos.filter(x => x.noLeido).map(x => x.nombre);
     return `lista: ${Z.todos.length} · movidos desde el corte: ${Z.movidos.length} · sin leer: ${Z.leidoAntes.length}`;
   };
@@ -101,7 +103,7 @@
   const textoChat = () => { const body = document.body.innerText, a = body.indexOf('Mover a listo'), b = body.indexOf('Responde en WhatsApp');
     return body.slice(a + 13, b > 0 ? b : undefined).replace(/\n?Respuesta sugerida[\s\S]*$/, '').replace(/\n[\u200b ]*\n/g, '\n').replace(/^(\d:\d\d)\n\1$/gm, '[audio $1]'); };
   const telefono = () => { const body = document.body.innerText, b = body.indexOf('Responde en WhatsApp'); return ((body.slice(b).match(/\+56[\d ]{9,14}/) || [''])[0]).replace(/\D/g, ''); };
-  const SEP = /^(Hoy|Ayer|Lun|Mar|Mié|Jue|Vie|Sáb|Dom)(, \d{1,2}:\d{2}\s?[ap]m)?$|^\d{1,2}:\d{2}\s?[ap]m$|^\d{1,2} \w+\.? \d{4}, \d{1,2}:\d{2}\s?[ap]m$/i;
+  const SEP = /^(Hoy|Ayer|Lun|Mar|Mié|Jue|Vie|Sáb|Dom)[a-zéá]*(, \d{1,2}:\d{2}\s?[ap]m)?$|^\d{1,2}:\d{2}\s?[ap]m$|^\d{1,2} \w+\.? \d{4}, \d{1,2}:\d{2}\s?[ap]m$/i;
 
   // Del texto del chat, lo que viene desde el último separador de fecha anterior al corte.
   const desdeCorte = (txt) => {
