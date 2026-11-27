@@ -191,6 +191,31 @@ function Clasificar($fuente, $texto, $monto) {
 # ── Facturas recibidas (planilla de gastos Wasabil: Monto = total con IVA) ──
 $planilla = @(LeerCsv (Join-Path $PLAN 'Gastos Wasabil 2026.csv'))
 $fechaFactura = @{}; foreach ($x in $planilla) { $fechaFactura["$($x.Folio)"] = Fecha $x.Fecha }
+# Historial del proveedor (27-11-2026, "que no estés preguntando siempre lo mismo"): un pago sin factura ni regla toma
+# la categoría que ese proveedor ya tiene en sus facturas del año (planilla Wasabil), si al menos 2 facturas clasificadas
+# y el 60 % o más en la misma categoría. Se busca por RUT (BCI lo trae) o por nombre: el banco corta los nombres
+# ("Maderas Voipir Vi", "Sodimac Villarric"), así que basta un nombre contenido en el otro o una palabra distintiva común.
+$NOMBRE_COMUN = 'comercial|comercializadora|sociedad|servicios|maderas|madera|ferreteria|distribuidora|inversiones|importadora|limitada|ltda|chile|villarrica|santiago|empresa|empresas|industrial|transportes|retail|pago|compra|tienda|store|spa|eirl'
+function NormNombre($s) {
+  $t = "$s".ToLower().Normalize([Text.NormalizationForm]::FormD) -replace '\p{Mn}', ''
+  (($t -replace '[^a-z0-9 ]', ' ') -replace '\b(s a|sa|spa|ltda|limitada|eirl|y cia)\b', ' ' -replace '\s+', ' ').Trim()
+}
+function Palabras($s) { @((NormNombre $s) -split ' ' | Where-Object { $_.Length -ge 4 -and $_ -notmatch "^($NOMBRE_COMUN)$" -and $_ -notmatch '^\d+$' }) }
+$histProv = @(@($planilla | Where-Object { "$($_.'Categoría')" -notin '', 'POR CLASIFICAR' }) | Group-Object { "$($_.RUT)" } | ForEach-Object {
+  $cats = @($_.Group | Group-Object 'Categoría' | Sort-Object Count -Descending)
+  [pscustomobject]@{ rut = (("$($_.Name)" -replace '[^\dkK]', '').ToUpper()); nombre = "$($_.Group[0].Proveedor)"; norm = (NormNombre $_.Group[0].Proveedor); palabras = @(Palabras $_.Group[0].Proveedor)
+    categoria = $cats[0].Name; n = $_.Count; share = $cats[0].Count / $_.Count }
+} | Where-Object { $_.n -ge 2 -and $_.share -ge 0.6 })
+# Una transferencia a una persona solo calza por RUT: por apellido, el sueldo de alguien caería en la categoría de un
+# proveedor con el mismo apellido.
+function HistorialProveedor($rut, $nombre, $soloRut = $false) {
+  $r = ("$rut" -replace '[^\dkK]', '').ToUpper()
+  if ($r.Length -ge 7) { $h = $histProv | Where-Object { $_.rut -eq $r } | Select-Object -First 1; if ($h) { return $h } }
+  if ($soloRut) { return $null }
+  $n = NormNombre $nombre; if ($n.Length -lt 4) { return $null }
+  $p = @(Palabras $nombre); if (-not $p.Count) { return $null }   # "Pago: Villarrica" solo dice la comuna: no alcanza
+  $histProv | Where-Object { ($_.norm.Length -ge 4 -and ($_.norm.Contains($n) -or $n.Contains($_.norm))) -or @($_.palabras | Where-Object { $p -contains $_ }).Count } | Select-Object -First 1
+}
 $gastos = @($planilla | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach-Object {
   $tot = N $_.Monto; $td = "$($_.'Tipo doc')"
   $neto = if ($td -match 'compra|exenta') { $tot } else { Neto $tot }
@@ -281,7 +306,11 @@ $banco = @(LeerCsv $tmpBanco | Where-Object { EnMes (Fecha $_.Fecha) } | ForEach
   $cat = "$($_.Categoria)"; $sub = ''; $origen = if ($cat) { 'cargador' } else { 'ninguno' }
   if ("$($_.Factura)" -match 'traspaso') { $cat = 'Traspaso interno (no es gasto)'; $origen = 'traspaso' }
   elseif ($conFactura) { $g = $gastos | Where-Object { $_.folio -eq $folio } | Select-Object -First 1; $cat = if ($g) { $g.categoria } else { $PAGO_FACTURA }; $origen = 'factura' }
-  elseif (-not $cat) { $r = Clasificar 'banco' $txt $monto; if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria; $origen = 'regla' } elseif ($monto -lt $UMBRAL_OTROS) { $cat = 'Otros gastos'; $sub = 'sin identificar'; $origen = 'menor' } else { $cat = 'POR CLASIFICAR' } }
+  elseif (-not $cat) { $r = Clasificar 'banco' $txt $monto; $hp = $null
+    if ($r) { $cat = $r.Categoria; $sub = $r.Subcategoria; $origen = 'regla' }
+    elseif ($monto -lt $UMBRAL_OTROS) { $cat = 'Otros gastos'; $sub = 'sin identificar'; $origen = 'menor' }
+    elseif ($hp = HistorialProveedor $_.RUT $(if ($_.Contraparte) { $_.Contraparte } else { ($_.Glosa -replace '^Pago:\s*', '') }) ("$($_.Glosa)" -match '^Transferencia')) { $cat = $hp.categoria; $sub = "como sus facturas ($($hp.nombre))"; $origen = 'historial' }
+    else { $cat = 'POR CLASIFICAR' } }
   [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = Fecha $_.Fecha; cuenta = ($_.Cuenta -replace '\s+75243-30$', ''); proveedor = $(if ($_.Contraparte) { $_.Contraparte } else { ($_.Glosa -replace '^Pago:\s*', '') })
     rut = $_.RUT; doc = ''; conFactura = $conFactura; categoria = $cat; sub = $sub; neto = $monto; iva = 0; total = $monto; detalle = "$($_.Nota)"; glosa = $_.Glosa; folio = $folio; aprox = $aprox; origen = $origen }
 })
@@ -293,7 +322,8 @@ foreach ($g in @($banco | Where-Object { $_.conFactura -and $_.folio } | Group-O
   foreach ($d in @($g.Group | Sort-Object aprox, fecha | Select-Object -Skip 1)) {
     $d.conFactura = $false; $d.aprox = $false; $d.folio = ''
     $r = Clasificar 'banco' "$($d.glosa) | $($d.proveedor) | $($d.detalle)" $d.neto
-    if ($r) { $d.categoria = $r.Categoria; $d.sub = $r.Subcategoria; $d.origen = 'regla' } elseif ($d.neto -lt $UMBRAL_OTROS) { $d.categoria = 'Otros gastos'; $d.sub = 'sin identificar'; $d.origen = 'menor' } else { $d.categoria = 'POR CLASIFICAR'; $d.sub = ''; $d.origen = 'ninguno' }
+    $hp = if (-not $r -and $d.neto -ge $UMBRAL_OTROS) { HistorialProveedor $d.rut $d.proveedor ("$($d.glosa)" -match '^Transferencia') } else { $null }
+    if ($r) { $d.categoria = $r.Categoria; $d.sub = $r.Subcategoria; $d.origen = 'regla' } elseif ($hp) { $d.categoria = $hp.categoria; $d.sub = "como sus facturas ($($hp.nombre))"; $d.origen = 'historial' } elseif ($d.neto -lt $UMBRAL_OTROS) { $d.categoria = 'Otros gastos'; $d.sub = 'sin identificar'; $d.origen = 'menor' } else { $d.categoria = 'POR CLASIFICAR'; $d.sub = ''; $d.origen = 'ninguno' }
   }
 }
 $sinFactura = @($banco | Where-Object { -not $_.conFactura -and $_.categoria -ne 'Traspaso interno (no es gasto)' })
@@ -310,6 +340,7 @@ foreach ($b in $banco) {
     'traspaso' { 'Traspaso entre cuentas propias' }
     'factura'  { "Factura $($b.folio)$(if ($provFactura[$b.folio]) { " de $($provFactura[$b.folio])" })$(if ($b.aprox) { ' (calza monto y fecha)' })" }
     'regla'    { "Regla: $($b.categoria)$(if ($b.sub) { " · $($b.sub)" })" }
+    'historial' { "Historial del proveedor: $($b.categoria), $($b.sub)" }
     'cargador' { "Regla del cargador: $($b.categoria)" }
     'menor'    { "Menor a $(Plata $UMBRAL_OTROS): va a Otros gastos" }
     default    { 'SIN JUSTIFICAR: ni factura ni regla' }
@@ -382,8 +413,9 @@ foreach ($s in $salidasMP) {
   if ($nom -match 'Pr.stamo|cuota') { Salida $s.fecha $MP_TARJETA $nom $s.monto 'Créditos y deudas (cuotas)' 'Capital del crédito de Mercado Pago (creditos.csv): no es gasto' $true; continue }
   if (-not $nom) { if ($s.plataforma -eq 'Mercado Libre') { $nom = 'Mercado Libre (compra)' } else { $mpSinNombre += $s.monto; $mpSinNombreN++; Salida $s.fecha $MP_TARJETA '(sin nombre del comercio)' $s.monto 'POR CLASIFICAR' 'SIN JUSTIFICAR: falta el nombre del comercio (capturas de Mercado Pago → mp-nombres.csv)' $false; continue } }
   $r = Clasificar 'banco' $nom $s.monto
-  $cat = if ($nom -match 'Mercado Libre') { $PAGO_FACTURA } elseif ($r) { $r.Categoria } elseif ($s.monto -lt $UMBRAL_OTROS) { 'Otros gastos' } else { 'POR CLASIFICAR' }
-  $just = if ($cat -eq $PAGO_FACTURA) { 'Compra en Mercado Libre: la factura llega a Wasabil' } elseif ($r) { "Regla: $cat$(if ("$($r.Subcategoria)") { " · $($r.Subcategoria)" })" } elseif ($cat -eq 'Otros gastos') { "Menor a $(Plata $UMBRAL_OTROS): va a Otros gastos" } else { "SIN JUSTIFICAR: no hay regla para '$nom' en reglas-cierre.csv" }
+  $hp = if (-not $r -and $nom -notmatch 'Mercado Libre' -and $s.monto -ge $UMBRAL_OTROS) { HistorialProveedor '' $nom } else { $null }
+  $cat = if ($nom -match 'Mercado Libre') { $PAGO_FACTURA } elseif ($r) { $r.Categoria } elseif ($hp) { $hp.categoria } elseif ($s.monto -lt $UMBRAL_OTROS) { 'Otros gastos' } else { 'POR CLASIFICAR' }
+  $just = if ($cat -eq $PAGO_FACTURA) { 'Compra en Mercado Libre: la factura llega a Wasabil' } elseif ($hp) { "Historial del proveedor: $cat, como sus facturas ($($hp.nombre))" } elseif ($r) { "Regla: $cat$(if ("$($r.Subcategoria)") { " · $($r.Subcategoria)" })" } elseif ($cat -eq 'Otros gastos') { "Menor a $(Plata $UMBRAL_OTROS): va a Otros gastos" } else { "SIN JUSTIFICAR: no hay regla para '$nom' en reglas-cierre.csv" }
   Salida $s.fecha $MP_TARJETA $nom $s.monto $cat $just ($cat -ne 'POR CLASIFICAR') 'pagado con la tarjeta de Mercado Pago'
   $mpGastos += [pscustomobject]@{ fuente = 'Banco sin factura'; fecha = $s.fecha; cuenta = $MP_TARJETA; proveedor = $nom; rut = ''; doc = ''; conFactura = ($cat -eq $PAGO_FACTURA); categoria = $cat; sub = $(if ($r) { "$($r.Subcategoria)" } else { '' }); neto = $s.monto; iva = 0; total = $s.monto; detalle = 'pagado con la tarjeta de Mercado Pago'; glosa = $nom }
 }
@@ -517,6 +549,47 @@ if ($sinFactProv.Count) {
   Aviso "Compras sin factura por $(Plata (Suma @($sinFactProv | ForEach-Object { $_.Group }) 'neto')): $($det -join ', '). No dan crédito de IVA; pedir factura cuando se pueda." }
 $porClas = @($todo | Where-Object { $_.categoria -eq 'POR CLASIFICAR' })
 if ($porClas.Count) { Aviso "$($porClas.Count) gastos por $(Plata (Suma $porClas 'neto')) siguen POR CLASIFICAR (hojas Semanas y Facturas recibidas). Clasificarlos en la planilla o en reglas-cierre.csv." }
+# ── Lo que queda POR CLASIFICAR va a «Mi día» (27-11-2026) ──
+# Se deja en Cerebro\por-clasificar.csv con una respuesta propuesta. La corrida de las 07:30 (clasificar-sync.ps1) lo
+# vuelve pendiente de «Mi día»; si el usuario lo marca hecho, la propuesta pasa a regla y no vuelve a preguntarse.
+# Las filas que ya se resolvieron (regla nueva, factura que llegó) quedan "resuelto". Nunca se borran filas.
+$PROPUESTAS = @(
+  @('vitrific|barniz|sellador|lija|tornill|pintura|cola fria|adhesiv|herraj|bisagra|ferreter|easy|sodimac|construmart', 'Materiales e insumos', 'Ferretería'),
+  @('embal|zuncho|cinta|film|stretch|caja|carton|burbuja', 'Embalaje', ''),
+  @('copec|shell|petrobras|aramco|bencin|combustible|enex', 'Combustible (bencina)', ''),
+  @('starken|chilexpress|blue ?express|correos|flete|despacho|envio', 'Fletes y logística', ''),
+  @('aserrader|madera|voipir|coihue|rauli|lenga|roble|pino', 'Madera (proveedores)', ''),
+  @('facebook|facebk|meta|google ads', 'Publicidad Meta', ''),
+  @('almuerzo|colacion|restaurant|cafe|panaderia|supermercado|lider|unimarc|jumbo', 'Colación y alimentación equipo', '')
+)
+function Propuesta($texto) { foreach ($p in $PROPUESTAS) { if ((NormNombre $texto) -match $p[0]) { return $p } }; $null }
+$fPC = 'G:\Mi unidad\Casa Zaru\Cerebro\por-clasificar.csv'
+if (Test-Path (Split-Path $fPC)) {
+  $sha = [Security.Cryptography.SHA1]::Create()
+  $previas = @(if (Test-Path $fPC) { Import-Csv $fPC -Delimiter ';' -Encoding UTF8 })
+  $porId = @{}; foreach ($x in $previas) { $porId[$x.id] = $x }
+  $hoyPC = @{}
+  foreach ($g in $porClas) {
+    $esFact = $g.fuente -eq 'Factura'
+    $quien = "$($g.proveedor)"
+    $clave = "$($g.fecha.ToString('yyyy-MM-dd'))|$quien|$([math]::Round($g.neto))"
+    $id = 'C' + (($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($clave)) | Select-Object -First 4 | ForEach-Object { $_.ToString('x2') }) -join '')
+    $hoyPC[$id] = $true
+    if ($porId.ContainsKey($id)) { continue }
+    $p = Propuesta "$quien $($g.detalle) $($g.glosa)"
+    $porId[$id] = [pscustomobject]@{ id = $id; mes = $tag; fecha = $g.fecha.ToString('yyyy-MM-dd'); cuenta = $(if ($esFact) { "factura $($g.doc)" } else { "$($g.cuenta)" }); proveedor = $quien
+      monto = [math]::Round($g.neto); detalle = "$($g.detalle)"; propuesta = $(if ($p) { $p[1] } else { '' }); sub = $(if ($p) { $p[2] } else { '' })
+      fuente = $(if ($esFact) { 'planilla' } else { 'banco' }); patron = $(if ($esFact) { "$($g.rut)" } else { [regex]::Escape($quien) })
+      estado = 'nuevo'; pendiente = ''; creado = (Get-Date).ToString('yyyy-MM-dd') }
+  }
+  # Del mismo mes y ya no POR CLASIFICAR: resuelto (salvo que ya esté cerrado de otra forma)
+  foreach ($x in $porId.Values) { if ($x.mes -eq $tag -and -not $hoyPC.ContainsKey($x.id) -and $x.estado -in 'nuevo', 'pendiente') { $x.estado = 'resuelto' } }
+  if ($porId.Count) {
+    if (Test-Path $fPC) { Copy-Item $fPC (Join-Path (Split-Path $fPC) "respaldos\por-clasificar-$((Get-Date).ToString('yyyy-MM-dd-HHmmss')).csv") -ErrorAction SilentlyContinue }
+    @($porId.Values | Sort-Object fecha, id) | Select-Object id, mes, fecha, cuenta, proveedor, monto, detalle, propuesta, sub, fuente, patron, estado, pendiente, creado |
+      Export-Csv $fPC -Delimiter ';' -NoTypeInformation -Encoding UTF8
+  }
+}
 if ($meta -and $metaReal - $metaFact -gt 1000) { Aviso "Meta: gasto real $(Plata $metaReal) pero solo $(Plata $metaFact) tienen factura de compra. Revisar con el contador las facturas que faltan (IVA no recuperado)." }
 if ($ventasFeria.Count) { Aviso "Ventas de feria con Point: $(Plata (Suma $ventasFeria 'bruto')) sin boleta electrónica (el voucher vale como boleta). Su IVA ($(Plata ((Suma $ventasFeria 'bruto') - $vNetaFeria))) no está en el débito de Wasabil: confirmar que entre al F29." }
 foreach ($v in $vMes) {

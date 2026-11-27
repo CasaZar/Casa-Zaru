@@ -7,8 +7,13 @@ description: Cierre mensual y semanal de Casa Zaru con números de gerente de fi
 
 **Método (acordado el 15 y 17-10-2026), en tres niveles:**
 1. **Solo, todos los días:** Gestión (respaldo 03:00), facturas de Wasabil (tarea 08:03) y cotizador.
-2. **Lunes 10:15, tarea "CasaZaru - Tablero Semanal"** (`correr-tablero.ps1` → `libro-mensual.ps1` del mes en
-   curso): el usuario baja antes a Descargas la cartola BCI completa, la de Banco de Chile y el reporte de
+2. **Todos los días 08:30, tarea "CasaZaru - Tablero Diario"** (desde el 27-11-2026; antes «Tablero Semanal», lunes
+   10:15, que quedó deshabilitada). `correr-tablero.ps1` → `libro-mensual.ps1` del mes en curso (y del anterior del 1
+   al 5). **Para no preguntar siempre lo mismo:** un pago sin factura ni regla toma la categoría que ese proveedor ya
+   tiene en sus facturas de la planilla Wasabil (por RUT o nombre; a personas, solo por RUT), y lo que aun así queda
+   POR CLASIFICAR va a `Cerebro\por-clasificar.csv` con una respuesta propuesta. La corrida de «Mi día» (07:30,
+   `clasificar-sync.ps1`) lo vuelve pendiente; marcarlo hecho lo convierte en regla de `reglas-cierre.csv`.
+   Antes de este cambio, los lunes (`correr-tablero.ps1` → `libro-mensual.ps1` del mes en curso): el usuario baja antes a Descargas la cartola BCI completa, la de Banco de Chile y el reporte de
    liquidaciones de Mercado Pago (`settlement_v2-*.xlsx`); el script elige la cartola que mejor cubre el mes, clasifica
    con `reglas-cierre.csv`, manda lo menor a $20.000 a "Otros gastos", y deja en Drive el libro del mes,
    `Tablero Casa Zaru.html` y `Tablero Casa Zaru.pdf` (el PDF es el que se abre desde el enlace de Drive y en el

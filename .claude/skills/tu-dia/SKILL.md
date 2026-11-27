@@ -55,6 +55,15 @@ página**: el artifact de antes se dio de baja el 11-11-2026.
    correr `cerrar-dia.ps1 -Fecha <esa fecha> -Marcas <json>`. Es idempotente y respalda `pendientes.csv`
    antes de escribir. Las notas dictadas quedan en la bitácora: si alguna es un pendiente nuevo, agregarlo a
    `pendientes.csv` (siguiente `P###`, con respaldo previo) y decirlo en el resumen.
+1b. **Gastos por clasificar (desde el 27-11-2026).** Después de cerrar el día anterior, correr
+   `clasificar-sync.ps1 -Fecha <hoy>`. Lee `Cerebro\por-clasificar.csv`, que deja el libro mensual (la tarea de
+   Windows de las 08:30 lo regenera todos los días): lo que el usuario marcó **hecho** pasa solo a regla en
+   `reglas-cierre.csv`, y lo nuevo se vuelve pendiente del área `caja` con la respuesta propuesta. Si imprime
+   `revisar=N`, son pagos que el usuario rechazó o que venían sin propuesta: buscar en la bitácora del día cerrado
+   la nota dictada («C1a2b3c4: categoría»), escribir la regla en `reglas-cierre.csv` (respaldo previo, mantener el
+   BOM; `banco;<patron de la fila>;;<categoría>;<sub>;<comentario>`) y dejar esa fila en `regla`. Sin nota,
+   la fila sigue en `revisar` y va al resumen. **Nunca preguntar dos veces lo mismo:** si la duda ya tiene regla,
+   no se vuelve a mostrar.
 2. **Calcular.** `armar-dia.ps1 -Fecha <hoy> -Salida <scratchpad>\calc-<hoy>.json`. Saca alarmas (vence en
    ≤ 10 días), semáforo por área, lo fijo de 14 días, deudas, candidatos a decidir, equipo, salud de
    respaldos y tareas, y git sin commit.
