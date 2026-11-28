@@ -8,9 +8,15 @@
       "port": 5500
     },
     {
+      "name": "Casa Zaru 2",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5501"],
+      "port": 5501
+    },
+    {
       "name": "Informes Gestion",
       "runtimeExecutable": "powershell",
-      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5650", "-Root", "G:\\Mi unidad\\Casa Zaru\\Informes Gestion"],
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5650", "-Root", "G:\\Mi unidad\\Casa Zaru\\Finanzas"],
       "port": 5650
     },
     {
@@ -20,10 +26,58 @@
       "port": 5550
     },
     {
+      "name": "Cotizador 2",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5551", "-Root", "C:\\Users\\dell\\Cotizador"],
+      "port": 5551
+    },
+    {
+      "name": "Cotizador prueba",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5580", "-Root", "C:\\Users\\dell\\Casa Zaru - Claude\\.claude\\video\\prueba-cotizador"],
+      "port": 5580
+    },
+    {
       "name": "Video cotizador",
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5560", "-Root", "C:\\Users\\dell\\Casa Zaru - Claude\\.claude\\video"],
       "port": 5560
+    },
+    {
+      "name": "Boceto colores",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5570", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\C--Users-dell-Casa-Zaru---Claude\\7f7f9d9b-faf4-4005-8bf9-3df44cea02d2\\scratchpad\\boceto-colores"],
+      "port": 5570
+    },
+    {
+      "name": "Catalogo mesas",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\c2dd8876efeae93c\\2f5821f5-a261-4e3d-b3a8-07237d6c5b0d\\scratchpad\\scripts\\server-guardar.ps1", "-Port", "5610", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\c2dd8876efeae93c\\2f5821f5-a261-4e3d-b3a8-07237d6c5b0d\\scratchpad\\catalogo"],
+      "port": 5610
+    },
+    {
+      "name": "Fototeca",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5620", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\69c6f9bf4d49bbc0\\3dd3bae0-d2c6-4724-8c94-000a8c29c37a\\scratchpad\\clasif\\app2"],
+      "port": 5620
+    },
+    {
+      "name": "Fototeca repetidas",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5635", "-Root", "C:\\Users\\dell\\AppData\\Local\\CasaZaru\\fototeca\\revision-repetidas"],
+      "port": 5635
+    },
+    {
+      "name": "Fototeca panel",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5630", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\69c6f9bf4d49bbc0\\3dd3bae0-d2c6-4724-8c94-000a8c29c37a\\scratchpad\\prueba-fototeca"],
+      "port": 5630
+    },
+    {
+      "name": "Boceto venta",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5575", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\c2dd8876efeae93c\\7f7f9d9b-faf4-4005-8bf9-3df44cea02d2\\scratchpad\\boceto-venta"],
+      "port": 5575
     },
     {
       "name": "Maqueta finanzas",
@@ -42,6 +96,24 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5800", "-Root", "C:\\Users\\dell\\finanzas-casa\\web"],
       "port": 5800
+    },
+    {
+      "name": "Tu dia prueba",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5640", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\c2dd8876efeae93c\\817bf8b3-ec9a-4c66-8b14-c36ddc6252fd\\scratchpad\\prueba-tudia"],
+      "port": 5640
+    },
+    {
+      "name": "Prueba cz-origen",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5590", "-Root", "C:\\Users\\dell\\AppData\\Local\\Temp\\claude\\c2dd8876efeae93c\\5f6ef581-e89c-4f0a-b40b-70e4bff5ba57\\scratchpad\\prueba-origen"],
+      "port": 5590
+    },
+    {
+      "name": "Brief creador",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/static-server.ps1", "-Port", "5660", "-Root", "C:\\Users\\dell\\Casa Zaru - Claude\\.claude\\brief-creador"],
+      "port": 5660
     },
     {
       "name": "Dinus test",

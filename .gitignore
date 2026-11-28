@@ -22,3 +22,27 @@ snapshots/
 *.xlsx
 *.xls
 *.csv
+
+# Material de trabajo de Claude (28-11-2026). El repo es PUBLICO: bocetos,
+# respaldos, planos y fichas de clientes, videos, investigacion y propuestas
+# NO se versionan. Igual quedan respaldados: la tarea «Respaldo PC» copia esta
+# carpeta entera a Drive todos los dias (respaldo-pc.ps1 no mira el .gitignore).
+# Para versionar uno a proposito: git add -f, revisando antes que no traiga datos.
+/boceto-*.png
+/bocetos-*.png
+.claude/boceto-*
+.claude/bocetos/
+.claude/anuncios/
+.claude/blog/
+.claude/brief-creador/
+.claude/embudos/
+.claude/fichas/
+.claude/investigacion/
+.claude/plano-*
+.claude/propuesta-*
+.claude/respaldos/
+.claude/video/
+.claude/vista-empresas/
+.claude/*.patch
+# Trae los F22 y los ingresos de la empresa
+.claude/informes/balance-banco.ps1
