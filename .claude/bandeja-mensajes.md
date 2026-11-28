@@ -451,3 +451,15 @@ Correo enviado desde hola@casazaru.cl a service@ycloud.com (único correo public
   que `PAGO_O_FECHA` no atrapa. «Te escribe César» se repite en chats ya empezados (6 veces). Primer
   contacto, cotización con link y despedidas, bien. Informe en Drive
   (`Revision WhatsApp/simulacion-bot-60-chats-2026-11-27.md`). Arreglos priorizados, sin aplicar.
+- 27-11 noche: los 11 arreglos aplicados y desplegados (0f886b6): pedido en curso → César (palabras del
+  chat + venta del Cotizador por teléfono, 120 días), fechas/plazos → César salvo la frase oficial,
+  promesas de seguimiento y «César» en tercera persona → César, archivo del cliente sin contestar →
+  César, medidas que el cliente no dio → César, «Te escribe César» borrado por código si ya hablamos,
+  puede no responder (texto vacío), rescate del JSON y max_tokens 1200, `CLIENTE_PAGA` ampliado, datos
+  de puertas/tonos/muestrario/acabados en el prompt.
+- 28-11, misma simulación después de los arreglos (60 chats, 179 puntos, 159 válidos): salen solos 61
+  (antes 104), no responde 21, a César 77. **Graves que salen solos: 0 (antes 12)**; medios ~9 (antes 19).
+  Lo que queda: clientes con pedido que el chat no delata (el cruce por teléfono los frena en vivo, no
+  en el simulador), y falsos positivos de `PROMETE_COT` en primeros contactos buenos («Te preparo la
+  cotización… A qué comuna?»). Siguen 4 respuestas sin JSON (pasan a César). Detalle en el mismo
+  informe de Drive. Extractor reutilizable: `.claude/skills/revision-whatsapp/simulador-meta.js`.
