@@ -154,6 +154,17 @@ Formato, en este orden y corto:
 6. **Plata sin dueño** — ingresos sin candidato claro.
 7. **Aparte:** total Point (feria) por día y total Mercado Libre. Recordar
    preguntar si esas ventas tienen boleta.
+8. **Planillas actualizadas (siempre, al cerrar)**: una línea por cada planilla o
+   archivo que se tocó en la sesión, con su **link clickeable** y hasta qué fecha
+   quedó. Lo pidió el usuario el 28-11-2026.
+   - Google Sheets (p. ej. «Gastos Wasabil» del mes): link
+     `https://docs.google.com/spreadsheets/d/<id>/edit`. El id se saca de la
+     memoria (reporte de gastos Wasabil) o buscando en Drive por nombre y mes.
+     **No escribir ids en este archivo**: el repo es público.
+   - Archivos locales (`~\.casazaru\mp-AAAA-MM.csv`, `movs-extra-AAAA-MM.csv`,
+     `Casa Zaru Planillas\reglas-cierre.csv`, cartolas en Descargas): ruta
+     completa como link `file:///C:/...`.
+   - Si no se tocó ninguna, decirlo en una línea.
 
 Guardar el resumen de la semana en la memoria del proyecto solo si aparece una
 regla nueva (pagador nuevo, tasa de pasarela, etc.) — no el detalle.
