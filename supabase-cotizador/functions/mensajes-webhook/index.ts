@@ -81,11 +81,20 @@ QUÉ HACEMOS Y CÓMO
 - La instalación no está incluida. Plazo de fabricación: 7 a 15 días hábiles.
 - Lo que vendemos: mesas y sus bases, bancas, cubiertas, repisas, peldaños, puertas y revestimientos. Si pide algo que no está en esta lista ni en el cotizador (sillas, camas, closets, cocinas completas, sofás u otro producto que no hacemos), no digas que sí ni que no: marca "necesita_humano": true con el motivo «producto fuera de lo que hacemos».
 - DE DÓNDE SOMOS: si pregunta de dónde son o dónde están, responde con esta frase y nada más sobre eso: «Estamos en Villarrica y hacemos entregas a todo Chile. Tú de dónde eres?» Si en el mismo mensaje preguntó otra cosa, respóndela antes de esa frase.
-- PAGO: si el cliente quiere pagar, abonar, reservar o pide los datos de transferencia o un link de pago, NO des datos ni condiciones: marca "necesita_humano": true con el motivo «quiere pagar».
+- PAGO: si el cliente quiere pagar, abonar, reservar, pregunta cómo se paga o si aceptan transferencia o tarjeta, o pide los datos de transferencia o un link de pago, NO des datos ni condiciones: marca "necesita_humano": true con el motivo «quiere pagar».
+- TÚ ERES CÉSAR: nunca nombres a César en tercera persona («le paso a César», «César te escribe», «a través de César»). Tampoco hables por el taller ni por el jefe de taller: no sabes lo que está haciendo el taller.
+- PEDIDO YA COMPRADO: si el cliente ya pagó o tiene un pedido en fabricación, en despacho o entregado (habla de su pedido, del envío, del seguimiento, del saldo, de la instalación, de un detalle o problema), tú no sabes nada de ese pedido: no inventes fechas, estados ni pasos del taller. Marca "necesita_humano": true con el motivo «pedido en curso» y deja un borrador corto que solo acuse recibo.
+- PLAZOS: lo único que puedes decir de plazos es «La fabricación toma de 7 a 15 días hábiles desde que se confirma el pedido». Nunca des días de la semana, fechas, «hoy sale», «mañana llega» ni lo que demora Starken u otro transporte. Si el cliente pregunta cuándo le llega, cuándo se despacha o para cuándo se lo tenemos, marca "necesita_humano": true con el motivo «pregunta plazos».
+- SIN PROMESAS DE SEGUIMIENTO: no escribas «te aviso cuando…», «te confirmo en un rato», «le consulto al taller», «lo confirmo con el equipo»: nadie va a cumplirlo. Si algo necesita que alguien lo revise, marca "necesita_humano": true.
+- MADERAS Y TONOS: las maderas más claras son el mañío y el ciprés. No compares tonos entre otras maderas: para eso manda el catálogo de maderas.
+- PUERTAS: van de 4 cm de espesor (pueden ir de 4,5 cm por el mismo valor). El máximo de 4 cm de la guía es de cubiertas y peldaños, no de puertas. Las puertas de exterior van con barniz para exterior con filtro UV (Cutek): no hay que barnizarlas de nuevo. No hables del tamaño del vidrio (lo define el modelo) ni de termopanel o doble vidrio: si lo piden, marca "necesita_humano": true con el motivo «vidrio especial».
+- MUESTRARIO: si piden el muestrario de maderas, no des precio ni plazo: marca "necesita_humano": true con el motivo «muestrario».
+- ACABADOS Y MANTENCIÓN de un producto ya entregado: no recomiendes productos ni procesos; marca "necesita_humano": true con el motivo «consulta de mantención».
 
 PARA COTIZAR
 - No preguntes qué madera quiere ni cuántas sillas por lado.
 - Pide la medida (si falta), la comuna de destino y «mándame un plano o boceto si tienes» (en peldaños: «foto, plano o dibujo»). En Instagram pide además un WhatsApp o correo.
+- NUNCA vuelvas a pedir algo que el cliente ya dijo en la conversación (medidas, cantidad, comuna, uso). Antes de preguntar, búscalo arriba. Si ya hiciste una pregunta y el cliente contestó otra cosa, no la repites igual: avanza con lo que hay.
 
 FOTOS Y CATÁLOGOS
 - Solo puedes escribir texto: NO puedes enviar fotos, videos ni archivos. Nunca escribas «te mando fotos», «te adjunto» ni nada parecido.
@@ -133,9 +142,10 @@ PRECIOS
 CUÁNDO NO RESPONDER SOLO
 - Reclamos, problemas con un pedido ya comprado, pagos, cambios de un pedido, insultos, o algo que no entiendas: marca "necesita_humano": true y deja un borrador corto y amable que solo acuse recibo.
 - Si el cliente dijo que no le interesa, el borrador solo agradece y se despide; no insistas.
+- NO RESPONDER: si el último mensaje del cliente solo cierra la conversación (gracias, ok gracias, perfecto, de nada, un saludo de despedida, un emoji) y no queda ninguna pregunta ni nada pendiente de nuestra parte, no hace falta contestar: devuelve "texto": "" con "necesita_humano": false. Un «ok» o «gracias» justo después de mandarle la cotización SÍ se contesta (corto, con la pregunta que avanza la venta).
 
 FORMATO DE SALIDA
-Responde SOLO un objeto JSON, sin texto alrededor:
+Tu respuesta completa es UN objeto JSON: empieza con { y termina con }. Nada antes ni después, ni bloques de código, ni razonamientos en voz alta: si tienes dudas, márcalo con "necesita_humano".
 {"texto": "<el mensaje>", "necesita_humano": <true|false>, "motivo": "<una línea: por qué necesita humano, o vacío>"}
 Solo cuando armas una cotización con medidas, el mismo objeto lleva además "cotizar": {...} como en los ejemplos.`;
 
@@ -423,11 +433,16 @@ const ARCHIVO: Record<string, string> = {
   sticker: '[mandó un sticker]',
 };
 // Índice del primer mensaje de la conversación de hoy: el que viene después del último corte de 12 h.
-function inicioDeHoy(hist: { enviado_at: string }[]): number {
+// Si hoy el cliente se refiere a lo que mandó antes («más arriba están las medidas», «lo que te mandé»),
+// no hay corte: la conversación entera vale (27-11, simulación: le volvió a pedir todo a quien dijo
+// «más arriba están las medidas»).
+const SE_REFIERE_A_ANTES = /mas arriba|lo que te (mande|envie|dije|pase)|las (medidas|fotos) que te|como te (dije|comente)|ya te (las |los |la |lo )?(mande|envie|di|dije|pase)|te las (mande|envie|pase)|lo que conversamos|lo que hablamos|la cotizacion que me (mandaste|enviaste)/;
+function inicioDeHoy(hist: { autor?: string; texto?: string | null; enviado_at: string }[]): number {
   let desde = 0;
   for (let i = 1; i < hist.length; i++) {
     if (Date.parse(hist[i].enviado_at) - Date.parse(hist[i - 1].enviado_at) > 12 * 3600000) desde = i;
   }
+  if (desde && hist.slice(desde).some((m) => m.autor === 'cliente' && SE_REFIERE_A_ANTES.test(plano(m.texto ?? '')))) return 0;
   return desde;
 }
 // Lo de otro día va aparte, recortado a sus últimos 6 mensajes y con su rótulo (26-11: con la semana
@@ -473,10 +488,40 @@ const PAGO_O_FECHA = /anticipo|transferencia|transferir|datos (de|para) (pago|de
 const TEMAS_DEL_CLIENTE = ['reborde'];
 // «envío a <Comuna>» / «despacho a <Comuna>»: la comuna tiene que haberla dicho el cliente hoy.
 const ENVIO_A = /(?:env[ií]o|despacho|enviarla|enviarlas|enviarlo|enviarlos)\s+(?:a|hasta|para)\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+(?:de\s+)?[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)/g;
-function fueraDeHoy(texto: string, recientes: string): string {
+// Fechas y plazos (simulación con 60 chats, 27-11: 8 de los 12 errores graves traían uno: «el viernes
+// enviamos», «semana del 30», «Starken demora 1 a 3 días»). Solo puede salir la frase oficial de 7 a 15.
+const PLAZO_OFICIAL = /(de )?7 a 15 dias habiles( desde que se confirma el pedido)?/g;
+const FECHA_O_PLAZO = /\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b|\bsemana del\b|\b\d{1,2} de (enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b|\bdias? habiles\b|\b(manana|hoy|pasado manana) (sale|sal|la |lo |las |los |te |enviamos|despachamos|llega)|\bsuele (demorar|llegar|tardar)|\b(llega|llegaria|demora|demoraria|tarda) (en |entre )?(\d|unos|1 |2 |3 )|\ben \d+ (a \d+ )?dias\b/;
+// Promesas de seguimiento que nadie va a cumplir (27-11: «te aviso cuando salga», «le aviso al taller»).
+const PROMESA = /\bte (aviso|avisamos|confirmo|confirmamos|escribo|escribimos|cuento|comento|mando|envio|enviamos) (cuando|en cuanto|apenas|ahora|hoy|despues|luego|mas tarde|en un rato|en unos|dentro)|\b(le|les) (consulto|pregunto|aviso|paso) (a|al) (taller|cristian|jefe|equipo)|\blo (confirmo|reviso|veo|consulto|coordino) con (el )?(equipo|taller|jefe)|\bconsulto con (el )?(taller|jefe|equipo)|\brevis(e|amos|o) con (el )?(taller|jefe)|\bcoordino (con|el|la)\b/;
+// César en tercera persona: quien escribe ES César (27-11: «te paso el pedido a César»).
+const TERCERA_PERSONA = /\bcesar\b/;
+// Medidas «N × M» del texto que el cliente nunca escribió (ronda 1: «el vidrio de 90 × 130»).
+function medidasDelCliente(todoCliente: string): Set<number> {
+  const s = new Set<number>([50, 60]);           // el ancho recomendado (vanitorio 50, cocina y escritorio 60)
+  for (const m of todoCliente.matchAll(/\d+(?:[.,]\d+)?/g)) {
+    const n = parseFloat(m[0].replace(',', '.'));
+    if (!isFinite(n)) continue;
+    s.add(Math.round(n)); s.add(Math.floor(n));
+    if (n < 10) { s.add(Math.round(n * 100)); s.add(Math.round(n * 10)); }   // metros → cm
+  }
+  return s;
+}
+function medidaInventada(texto: string, todoCliente: string): string {
+  const s = medidasDelCliente(plano(todoCliente));
+  for (const m of texto.matchAll(/(\d{2,3})(?:[.,]\d+)?\s*(?:cm)?\s*[x×]\s*(\d{2,3})/gi)) {
+    for (const n of [+m[1], +m[2]]) if (!s.has(n)) return 'nombra la medida ' + m[0].trim() + ', que el cliente no dio';
+  }
+  return '';
+}
+function fueraDeHoy(texto: string, recientes: string, todoCliente = ''): string {
   const t = plano(texto);
   if (RARO.test(t)) return 'escribe algo que un vendedor no diría';
   if (PAGO_O_FECHA.test(t)) return 'habla de pago, anticipo o fecha de entrega: eso lo confirma una persona';
+  if (FECHA_O_PLAZO.test(t.replace(PLAZO_OFICIAL, ''))) return 'da una fecha o un plazo: eso lo confirma una persona';
+  if (PROMESA.test(t)) return 'promete un seguimiento: eso lo hace una persona';
+  if (TERCERA_PERSONA.test(t.replace(/te escribe cesar/g, ''))) return 'habla de César en tercera persona';
+  if (todoCliente) { const med = medidaInventada(texto, todoCliente); if (med) return med; }
   for (const tema of TEMAS_DEL_CLIENTE) if (t.indexOf(tema) !== -1 && recientes.indexOf(tema) === -1) return 'habla de «' + tema + '», que el cliente no pidió hoy';
   for (const m of texto.matchAll(ENVIO_A)) {
     if (recientes.indexOf(plano(m[1])) === -1) return 'nombra la comuna «' + m[1] + '», que el cliente no dijo hoy';
@@ -512,7 +557,7 @@ async function pensar(c: any, hist: any[], ahora: number, frases: Frase[]) {
     method: 'POST',
     headers: { 'x-api-key': llave, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: modelo, max_tokens: 800,
+      model: modelo, max_tokens: 1200,
       system: SISTEMA + await contexto(frases),
       messages: [{ role: 'user', content:
         `Canal: ${c.canal === 'whatsapp' ? 'WhatsApp' : 'Instagram'}`
@@ -533,21 +578,40 @@ async function pensar(c: any, hist: any[], ahora: number, frases: Frase[]) {
       else falla = 'anthropic ' + r.status + ': ' + (await r.text()).slice(0, 200);
     } catch (e) { falla = 'anthropic: ' + String(e).slice(0, 200); }
   }
-  if (!out) return { falla, modelo, recientes, texto: '', res: {} as any };
+  const todoCliente = hist.filter((m: any) => m.autor === 'cliente').map((m: any) => m.texto ?? '').join(' \n ');
+  if (!out) return { falla, modelo, recientes, todoCliente, texto: '', noResponde: false, res: {} as any };
   const crudo = (out.content ?? []).map((b: any) => b.text ?? '').join('').trim();
   let res: { texto?: string; necesita_humano?: boolean; motivo?: string; cotizar?: unknown };
   try { res = JSON.parse(crudo.slice(crudo.indexOf('{'), crudo.lastIndexOf('}') + 1)); }
-  catch { res = { texto: crudo, necesita_humano: true, motivo: 'la respuesta no vino en JSON' }; }
+  catch {
+    // A veces «piensa en voz alta» y después pone el JSON (27-11: 4 de 163). Se rescata el último objeto
+    // con "texto", pero igual pasa a César: si dudó en voz alta, no sale solo.
+    res = { texto: '', necesita_humano: true, motivo: 'la respuesta no vino en JSON' };
+    const ini = [...crudo.matchAll(/\{\s*"texto"/g)].map((m) => m.index ?? 0).reverse();
+    const fin = [...crudo.matchAll(/\}/g)].map((m) => m.index ?? 0).reverse();
+    busca: for (const i of ini) for (const j of fin) {
+      if (j < i) break;
+      try { const r = JSON.parse(crudo.slice(i, j + 1)); res = { ...r, necesita_humano: true, motivo: 'respondió con texto fuera del JSON' }; break busca; }
+      catch { /* prueba con el cierre anterior */ }
+    }
+    if (!res.texto) res.texto = 'Gracias por escribir, te respondo en un momento.';
+  }
+  if (res.texto != null && typeof res.texto !== 'string') res.texto = String(res.texto);
+  // Texto vacío y sin pedir humano = el cliente solo cerró la conversación: no se manda nada (27-11).
+  const noResponde = String(res.texto ?? '').trim() === '' && !res.necesita_humano && res.cotizar == null;
   let texto = parrafos(String(res.texto ?? ''));
   // Si ya le escribimos hoy y el modelo igual saludó, se le saca el saludo (una vez al día, no más).
   if (escribimosHoy) texto = texto.replace(SALUDO_DIA, '').trim();
-  return { falla: '', modelo, recientes, texto, res };
+  // «Te escribe César» va una sola vez en la vida del chat, no una por día (27-11: 6 veces en 163). Si ya
+  // hay un mensaje nuestro en el historial, la presentación se saca por código.
+  if (nuestros.length) texto = texto.replace(/\s*te escribe c[eé]sar,? de casa zaru[.!]?/i, '').trim();
+  return { falla: '', modelo, recientes, todoCliente, texto, noResponde, res };
 }
 
 // Por qué no puede salir solo. `cotMal` y `linkCot` vienen de armar el link; `aCesar`, de las reglas
 // de derivación que miran la base (redactar) o el guion (/simular).
 function revisar(texto: string, res: any, c: any, frases: Frase[], recientes: string,
-  linkCot: { producto: string; url: string } | null, cotMal: string, aCesar: string) {
+  linkCot: { producto: string; url: string } | null, cotMal: string, aCesar: string, todoCliente = '') {
   // Las reglas se revisan en código, no se le cree al modelo.
   // Links: solo los de la casa (catálogos, cotizador y el link con código recién armado). Otro no sale solo.
   const links = texto.split(/\s+/).filter((p) => p.indexOf('http') !== -1).map((p) => p.replace(/^[(«"]+/, '').replace(/[).,;:!?»"]+$/, ''));
@@ -555,7 +619,7 @@ function revisar(texto: string, res: any, c: any, frases: Frase[], recientes: st
   // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
   const evitada = fraseEvitada(texto, frases);
   const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
-  const deOtroDia = fueraDeHoy(texto, recientes);
+  const deOtroDia = fueraDeHoy(texto, recientes, todoCliente);
   return {
     cesar_no_entro: !c.tomado_por,
     toques_sin_respuesta: c.toques_sin_respuesta,
@@ -588,7 +652,7 @@ function chequeoCot(texto: string, res: any, c: any, recientes: string): { a: Re
 
 async function redactar(chat: number, mensajeId: number) {
   if (!Deno.env.get('ANTHROPIC_API_KEY')) return;
-  const [c] = await db(`mensajes_chats?select=canal,nombre,tomado_por,toques_sin_respuesta,origen,created_at&id=eq.${chat}`);
+  const [c] = await db(`mensajes_chats?select=canal,nombre,telefono,tomado_por,toques_sin_respuesta,origen,created_at&id=eq.${chat}`);
   const hist = await db(`mensajes?select=autor,tipo,texto,enviado_at&chat_id=eq.${chat}&order=enviado_at.desc&limit=30`);
   hist.reverse();
   const frases = await frasesVivas();
@@ -600,6 +664,8 @@ async function redactar(chat: number, mensajeId: number) {
     await derivarSinModelo(chat, mensajeId, 'el asistente no respondió: contéstale tú', '');
     return;
   }
+  // El cliente solo cerró la conversación («gracias», «perfecto»): no se responde ni se avisa (27-11).
+  if (p.noResponde) return;
   if (!texto) { await derivarSinModelo(chat, mensajeId, 'el asistente no supo qué responder: contéstale tú', ''); return; }
 
   // Cotización con las medidas del chat: la marca se cambia por un link con código propio (0008).
@@ -637,9 +703,12 @@ async function redactar(chat: number, mensajeId: number) {
   const antiguo = !prueba && Date.parse(c.created_at ?? '') < Date.now() - DIAS_CLIENTE_ANTIGUO * 86400000;
   const ultTextoCli = plano([...hist].reverse().find((m: any) => m.autor === 'cliente')?.texto ?? '');
   const paga = CLIENTE_PAGA.test(ultTextoCli);
+  const enCurso = pedidoEnElChat(hist) || (!prueba && await compraReciente(c.telefono));
   const aCesar = yaDerivado ? 'el chat ya está con César: falta su respuesta'
-    : antiguo ? 'cliente antiguo: lo atiende César' : paga ? 'quiere pagar' : '';
-  const revision = revisar(texto, res, c, frases, recientes, linkCot, cotMal, aCesar);
+    : antiguo ? 'cliente antiguo: lo atiende César' : paga ? 'quiere pagar'
+    : enCurso ? 'cliente con pedido en curso: lo atiende César'
+    : archivoDeHoy(hist) ? 'mandó un plano o archivo: revísalo tú' : '';
+  const revision = revisar(texto, res, c, frases, recientes, linkCot, cotMal, aCesar, p.todoCliente);
 
   // Si el cliente mandó varios mensajes seguidos, solo vale el borrador del último.
   await db(`mensajes_borradores?chat_id=eq.${chat}&estado=eq.pendiente`, {
@@ -709,7 +778,30 @@ async function redactar(chat: number, mensajeId: number) {
 // cliente, César recibe el aviso en el celular y el asistente no vuelve a meterse en esa conversación
 // hasta que alguien le conteste (desde la bandeja o desde el celular) o pasen 12 h.
 const DIAS_CLIENTE_ANTIGUO = 7;
-const CLIENTE_PAGA = /\b(quiero|quisiera|como|donde|puedo|para|necesito) (le )?(pagar|abonar|transferir|depositar|reservar)|datos (de|para) (la )?(transferencia|pago|deposito)|numero de cuenta|link de pago|te (transfiero|deposito|pago|abono)|ya (pague|transferi|deposite|abone)|comprobante/;
+const CLIENTE_PAGA = /\b(quiero|quisiera|como|donde|puedo|para|necesito) (le )?(pagar|abonar|transferir|depositar|reservar)|datos (de|para) (la )?(transferencia|pago|deposito)|numero de cuenta|link de pago|te (transfiero|deposito|pago|abono)|ya (pague|transferi|deposite|abone)|comprobante|se puede (pagar )?con (transferencia|tarjeta|debito|credito)|aceptan (transferencia|tarjeta|debito|credito)|como (se )?(pago|paga|cancelo)|formas? de pago|medios? de pago|puedo pagar|pago con (tarjeta|transferencia)/;
+// Pedido en curso (simulación con 60 chats, 27-11: 10 de los 12 errores graves fueron con clientes que ya
+// compraron; el asistente no sabe nada del pedido e inventa fechas y pasos del taller). Dos señales:
+// palabras de un pedido en el chat, o una cotización ganada en los últimos 120 días con ese teléfono.
+const PEDIDO_EN_CURSO = /comprobante|abonad[oa]|\babono\b|\bsaldo\b|orden de flete|\bof n|entro a produccion|en produccion|jefe de taller|pedido #|\btu pedido\b|link de seguimiento|numero de seguimiento|codigo de seguimiento|enviaremos tu|la vamos a enviar|lo vamos a enviar|las vamos a enviar|los vamos a enviar|ya transferi|transferencia realizada/;
+function pedidoEnElChat(hist: { texto?: string | null }[]): boolean {
+  return hist.some((m) => PEDIDO_EN_CURSO.test(plano(m.texto ?? '')));
+}
+async function compraReciente(telefono: string | null | undefined): Promise<boolean> {
+  const d = String(telefono ?? '').replace(/\D/g, '');
+  if (d.length < 8) return false;
+  const u = d.slice(-8);
+  const desde = new Date(Date.now() - 120 * 86400000).toISOString();
+  try {
+    const r = await db(`cotizaciones?select=id&estado=eq.ganado&fecha_concretada=gte.${desde}&eliminada=not.is.true`
+      + `&contacto=like.*${u.slice(0, 4)}*${u.slice(4)}*&limit=1`);
+    return Array.isArray(r) && r.length > 0;
+  } catch (e) { console.error('compra reciente', String(e)); return false; }
+}
+// Un plano o archivo del cliente en la conversación de hoy lo revisa César (27-11: mandó el plano de la
+// escalera en PDF y el asistente le volvió a pedir las medidas dos veces).
+function archivoDeHoy(hist: { autor: string; tipo?: string; enviado_at: string; texto?: string | null }[]): boolean {
+  return hist.slice(inicioDeHoy(hist)).some((m) => m.autor === 'cliente' && m.tipo === 'document');
+}
 function chatsDePrueba(): string[] {
   return (Deno.env.get('AUTO_SOLO_CHATS') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 }
@@ -1506,7 +1598,8 @@ async function push(req: Request) {
 // POST /simular: lo que el asistente le respondería a una conversación dada, con el mismo prompt, las
 // mismas reglas en código y los mismos tiempos, pero SIN escribir en la base ni enviar nada (el link de
 // cotización es de mentira). Solo el dueño. Sirve para pasar chats reales del 5558 por el asistente.
-// Cuerpo: { nombre, canal?, origen?, derivado?, mensajes: [{ autor: 'cliente'|'cesar', texto, tipo?, enviado_at }] }
+// Cuerpo: { nombre, canal?, origen?, derivado?, telefono?, mensajes: [{ autor: 'cliente'|'cesar', texto, tipo?, enviado_at }] }
+// No aplica la regla de «cliente antiguo» (chat de más de 7 días): los chats del 5558 casi todos lo son.
 async function simular(req: Request) {
   const yo = await quienEs(req);
   if (!yo || yo.email !== DUENO) return jsonP({ error: 'Solo el dueño.' }, 403);
@@ -1526,6 +1619,7 @@ async function simular(req: Request) {
   const llego = Date.parse(ult.enviado_at);
   const p = await pensar(c, hist, llego, frases);
   if (p.falla) return jsonP({ texto: '', revision: { necesita_humano: true, motivo: 'el asistente no respondió', falla: p.falla }, auto: false });
+  if (p.noResponde) return jsonP({ texto: '', no_responde: true, revision: { necesita_humano: false, motivo: 'el cliente cerró: no se responde' }, auto: false, modelo: p.modelo });
   let texto = p.texto;
   let linkCot: { producto: string; url: string } | null = null;
   let cotMal = '';
@@ -1539,8 +1633,12 @@ async function simular(req: Request) {
     if (!linkCot) texto = texto.split(MARCA_COT).join('').replace(/\n{3,}/g, '\n\n').trim();
   }
   const paga = CLIENTE_PAGA.test(plano(ult.texto ?? ''));
-  const aCesar = b.derivado ? 'el chat ya está con César: falta su respuesta' : paga ? 'quiere pagar' : '';
-  const revision = revisar(texto, p.res, c, frases, p.recientes, linkCot, cotMal, aCesar);
+  // Teléfono opcional: si viene, se cruza con las cotizaciones ganadas como en la bandeja real.
+  const enCurso = pedidoEnElChat(hist) || (b.telefono ? await compraReciente(String(b.telefono)) : false);
+  const aCesar = b.derivado ? 'el chat ya está con César: falta su respuesta' : paga ? 'quiere pagar'
+    : enCurso ? 'cliente con pedido en curso: lo atiende César'
+    : archivoDeHoy(hist) ? 'mandó un plano o archivo: revísalo tú' : '';
+  const revision = revisar(texto, p.res, c, frases, p.recientes, linkCot, cotMal, aCesar, p.todoCliente);
   const auto = !!texto && autoPasa(revision);
   const txtCli = String(ult.texto ?? '');
   const seg = revision.cotiza ? esperaSeg('AUTO_ESPERA_COT_SEG', 180)
