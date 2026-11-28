@@ -126,8 +126,10 @@ Estas reglas no se negocian: si un pedido las contradice, decirlo **antes** de h
 
 **Operación**
 - Un runbook por escenario (cae Supabase, cae GitHub Pages, se borra una tabla, se filtra una llave), cada
-  uno ensayado una vez. Pendientes de escribir.
-- Los errores del cliente (`window.onerror`) se registran en una tabla y se revisan en `/auditoria`. Pendiente.
+  uno ensayado una vez. Escritos el 28-11-2026 (ver abajo); falta ensayarlos.
+- Los errores del cliente (`window.onerror`) se registran en una tabla y se revisan en `/auditoria`. Hecho: tabla
+  `errores_cliente` en los dos proyectos (Gestión 0021, 23-10-2026), limpieza semanal por cron.
+- Runbooks: escritos el 28-11-2026 en `Drive\Casa Zaru\Auditoria\Runbooks.md` (fuera del repo público). Falta ensayarlos.
 - Todo número que se muestre sale de la fórmula real, nunca de cabeza.
 
 La auditoría semanal que mide el cumplimiento es la skill `/auditoria` (abajo).
