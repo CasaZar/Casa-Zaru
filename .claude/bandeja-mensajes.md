@@ -463,3 +463,8 @@ Correo enviado desde hola@casazaru.cl a service@ycloud.com (único correo public
   en el simulador), y falsos positivos de `PROMETE_COT` en primeros contactos buenos («Te preparo la
   cotización… A qué comuna?»). Siguen 4 respuestas sin JSON (pasan a César). Detalle en el mismo
   informe de Drive. Extractor reutilizable: `.claude/skills/revision-whatsapp/simulador-meta.js`.
+- 28-11, `PROMETE_COT` ajustada (desplegada, SHA 5b07662c…): «Te preparo la cotización» ya no frena si el
+  borrador pide el dato que falta (pregunta por comuna, medidas, uso, vidrio… o «cuando tengas / si me
+  das … te preparo»). «Dame unos minutos», «en un momento» y la promesa sin pregunta siguen yendo a
+  César. Re-simulados 73 puntos (6 chats afectados + primer punto de cada chat): pasan solos 4 primeros
+  contactos que antes se frenaban, 0 graves.

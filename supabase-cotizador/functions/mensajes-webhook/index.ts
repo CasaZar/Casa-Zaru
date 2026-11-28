@@ -479,6 +479,15 @@ function textosRecientesCliente(hist: { autor: string; texto: string | null; env
 // «Hola X, muy buen día. Cómo estás?» / «buenas tardes» / «buenas noches» al comienzo del borrador.
 const SALUDO_DIA = /^hola\b[^.?!\n]*\b(muy )?(buen(os)? d[ií]as?|buenas tardes|buenas noches)\b[^.?!\n]*[.?!,]*\s*(c[oó]mo est[aá]s\??\s*)?/i;
 const PROMETE_COT = /(voy a|te voy a|vamos a)\s+(preparar|armar|hacer|enviar|mandar)\s+(tu|tus|la|las)\s+cotizaci|te (preparo|armo|hago|envio|mando)\s+(la|las|tu|tus)\s+cotizaci|dame unos minutos/;
+// «Te preparo la cotización… A qué comuna hay que enviarla?» no es una promesa vacía: termina pidiendo el
+// dato que falta para cotizar (28-11: frenaba primeros contactos buenos). «Dame unos minutos» sí lo es.
+// Cuenta como pedir el dato: una pregunta sobre comuna, medidas, uso… o «cuando tengas / si me das … te preparo».
+const PIDE_DATO = /\b(comuna|medidas?|largo|ancho|alto|uso|cuant[oa]s|vidrio|granero|espesor|plano|boceto|madera)\b[^.!?]*\?|(cuando (tengas|me mandes|me pases)|si me (das|pasas|mandas|indicas|dices)|con eso)[^.!?]*\bte (preparo|armo|hago|envio|mando)\b/;
+function prometeSinDato(p: string): boolean {
+  if (!PROMETE_COT.test(p)) return false;
+  if (/dame unos minutos|en unos minutos|en un momento|ahora te la (envio|mando)/.test(p)) return true;
+  return !PIDE_DATO.test(p);
+}
 // Frases que un vendedor nunca diría (26-11: «Perdona, me confundí con otro cliente»).
 const RARO = /otro cliente|me confundi|soy una? (ia|bot|asistente virtual)|inteligencia artificial/;
 // Pago y fechas los confirma una persona (27-11: inventó «el cupo más cercano, la semana que viene»
@@ -618,7 +627,7 @@ function revisar(texto: string, res: any, c: any, frases: Frase[], recientes: st
   const linksOk = links.every((l) => LINKS_DE_LA_CASA.indexOf(l) !== -1 || (linkCot !== null && l === linkCot.url));
   // Frases «evitar» del dueño (0017): si el borrador trae una, no sale solo y queda para una persona.
   const evitada = fraseEvitada(texto, frases);
-  const prometeSinCot = !linkCot && PROMETE_COT.test(plano(texto));
+  const prometeSinCot = !linkCot && prometeSinDato(plano(texto));
   const deOtroDia = fueraDeHoy(texto, recientes, todoCliente);
   return {
     cesar_no_entro: !c.tomado_por,
